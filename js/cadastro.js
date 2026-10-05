@@ -1,54 +1,60 @@
-// Verifica se o usuário está realmente logado antes de deixar ele ver a tela
-async function checarSessao() {
+document.addEventListener('DOMContentLoaded', async () => {
+    // 1. Verifica se o usuário está logado
     const { data: { session } } = await supabaseClient.auth.getSession();
     
     if (!session) {
-        // Se não tiver logado, expulsa para o login
-        window.location.href = 'index.html';
+        window.location.href = 'index.html'; // Se não estiver, volta pro login
+        return;
     }
-    return session.user;
-}
 
-// Executa a checagem ao carregar a página
-let usuarioAtual = null;
-checarSessao().then(user => {
-    usuarioAtual = user;
-});
+    const formCadastro = document.getElementById('formCadastro');
+    const msgErro = document.getElementById('msgErro');
+    const btnSalvar = document.getElementById('btnSalvar');
 
-// Ação de salvar o formulário
-document.getElementById('cadastroForm').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    
-    const nome = document.getElementById('nome').value;
-    const telefone = document.getElementById('telefone').value;
-    const errorMessage = document.getElementById('errorMessage');
-    const salvarBtn = document.getElementById('salvarBtn');
+    // 2. Ação ao enviar o formulário
+    formCadastro.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        btnSalvar.disabled = true;
+        btnSalvar.textContent = 'Salvando...';
+        msgErro.classList.add('hidden');
 
-    salvarBtn.textContent = 'Salvando...';
-    salvarBtn.disabled = true;
-    errorMessage.classList.add('hidden');
+        // Pega os valores dos campos
+        const nomeCompleto = document.getElementById('nomeCompleto').value;
+        const nomeSocial = document.getElementById('nomeSocial').value;
+        const grau = document.getElementById('grau').value.toUpperCase(); // Força Maiúscula
+        const funcao = document.getElementById('funcao').value.toUpperCase(); // Força Maiúscula
+        const palavra = document.getElementById('palavra').value;
+        const dataNascimento = document.getElementById('dataNascimento').value;
+        const telefone = document.getElementById('telefone').value;
 
-    try {
-        // Atualiza a tabela 'perfis' com os dados novos e marca o cadastro como completo
-        const { error } = await supabaseClient
-            .from('perfis')
-            .update({ 
-                nome_completo: nome,
-                telefone: telefone,
-                cadastro_completo: true 
-            })
-            .eq('id', usuarioAtual.id); // Atualiza apenas o perfil do usuário logado
+        try {
+            // 3. Atualiza os dados na tabela 'perfis'
+            const { error } = await supabaseClient
+                .from('perfis')
+                .update({ 
+                    nome_completo: nomeCompleto,
+                    nome_social: nomeSocial,
+                    grau: grau,
+                    funcao: funcao,
+                    palavra: palavra,
+                    data_nascimento: dataNascimento,
+                    telefone: telefone,
+                    cadastro_completo: true // Muda a flag para ele nunca mais ver essa tela
+                })
+                .eq('id', session.user.id);
 
-        if (error) throw error;
+            if (error) throw error;
 
-        // Se deu tudo certo, manda ele para a tela principal (check-in de presença)
-        window.location.href = 'presenca.html';
+            // 4. Se deu certo, manda pra tela de presença
+            window.location.href = 'presenca.html';
 
-    } catch (error) {
-        errorMessage.textContent = 'Erro ao salvar os dados: ' + error.message;
-        errorMessage.classList.remove('hidden');
-    } finally {
-        salvarBtn.textContent = 'Salvar Dados';
-        salvarBtn.disabled = false;
-    }
+        } catch (error) {
+            console.error(error);
+            msgErro.textContent = 'Erro ao salvar os dados: ' + error.message;
+            msgErro.classList.remove('hidden');
+            btnSalvar.disabled = false;
+            btnSalvar.textContent = 'Salvar e Continuar';
+        }
+    });
 });
