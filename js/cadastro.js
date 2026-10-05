@@ -1,14 +1,12 @@
 document.addEventListener('DOMContentLoaded', async () => {
 
     // --- 1. FORMATAÇÃO EM TEMPO REAL (GRAMÁTICA) ---
-    // Função para deixar a primeira letra de cada palavra maiúscula (ignorando de, da, do...)
     const capitalizarNome = (str) => {
         return str.toLowerCase()
             .replace(/(?:^|\s)\S/g, (letra) => letra.toUpperCase())
             .replace(/\b(De|Da|Do|Das|Dos|E)\b/g, (match) => match.toLowerCase());
     };
 
-    // Aplica a regra enquanto o usuário digita
     const inputNome = document.getElementById('nomeCompleto');
     if (inputNome) inputNome.addEventListener('input', (e) => e.target.value = capitalizarNome(e.target.value));
     
@@ -51,7 +49,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const campo = document.getElementById(id);
                     if (campo && valor) {
                         campo.value = valor;
-                        // Aciona a formatação automática para dados antigos do banco
                         campo.dispatchEvent(new Event('input')); 
                     }
                 };
@@ -82,7 +79,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         btnSalvar.textContent = 'Salvando...';
         msgErro.classList.add('hidden');
 
-        // Pega os valores (que já estão com a gramática certa)
         const nomeCompleto = document.getElementById('nomeCompleto').value;
         const nomeSocial = document.getElementById('nomeSocial').value;
         const grau = document.getElementById('grau').value; 
@@ -99,37 +95,54 @@ document.addEventListener('DOMContentLoaded', async () => {
                 throw new Error("Por favor, crie uma Nova Senha com pelo menos 6 caracteres.");
             }
 
-            // ATUALIZANDO NO BANCO (Removi a coluna que não existia!)
-            const { error: errorUpdate } = await supabaseClient
-                .from('mediuns') 
-                .update({ 
-                    nome_completo: nomeCompleto,
-                    nome_social: nomeSocial,
-                    grau: grau,
-                    funcao: funcao,
-                    palavra: palavra,
-                    data_nascimento: dataNascimento,
-                    telefone: telefone
-                })
-                .eq('id', userId);
+            let novoAuthId = null;
 
-            if (errorUpdate) throw errorUpdate;
-
-            // Criar login oficial dele no sistema se for o primeiro acesso
+            // PASSO A: Criar login oficial PRIMEIRO para pegar o ID de Autenticação
             if (!session && novaSenha) {
                 const telefoneFormatado = telefone.replace(/\D/g, '');
                 const emailFantasma = `${telefoneFormatado}@terreiro.app`;
                 
-                const { error: errorAuth } = await supabaseClient.auth.signUp({
+                const { data: authData, error: errorAuth } = await supabaseClient.auth.signUp({
                     email: emailFantasma,
                     password: novaSenha,
                 });
                 
                 if (errorAuth) throw new Error("Erro ao registrar acesso: " + errorAuth.message);
+                
+                // Pega o ID de login recém criado!
+                if (authData && authData.user) {
+                    novoAuthId = authData.user.id;
+                }
             }
 
+            // PASSO B: Prepara tudo que vai ser salvo na tabela "mediuns"
+            const dadosParaAtualizar = {
+                nome_completo: nomeCompleto,
+                nome_social: nomeSocial,
+                grau: grau,
+                funcao: funcao,
+                palavra: palavra,
+                data_nascimento: dataNascimento,
+                telefone: telefone,
+                cadastro_completo: true, // AGORA SIM! Marcando como TRUE!
+                senha_cadastrada: true   // Marcando que ele já tem senha!
+            };
+
+            // Se acabou de criar um login (Passo A), atrela o ID desse login à tabela
+            if (novoAuthId) {
+                dadosParaAtualizar.auth_id = novoAuthId;
+            }
+
+            // PASSO C: Atualiza a tabela com tudo de uma vez
+            const { error: errorUpdate } = await supabaseClient
+                .from('mediuns') 
+                .update(dadosParaAtualizar)
+                .eq('id', userId);
+
+            if (errorUpdate) throw errorUpdate;
+
+            // Sucesso total! Limpa a memória e vai pra página de bater ponto
             localStorage.removeItem('novo_acesso_id');
-            // Sucesso total! Vai pra página de bater ponto
             window.location.href = 'presenca.html'; 
 
         } catch (error) {
