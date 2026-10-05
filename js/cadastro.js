@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const nomeSocial = document.getElementById('nomeSocial').value;
         const grau = document.getElementById('grau').value.toUpperCase(); // Força Maiúscula
         const funcao = document.getElementById('funcao').value.toUpperCase(); // Força Maiúscula
-        const palavra = document.getElementById('palavra').value;
+        const palavra = document.getElementById('palavra').value.toUpperCase(); // Força Maiúscula
         const dataNascimento = document.getElementById('dataNascimento').value;
         const telefone = document.getElementById('telefone').value;
 
