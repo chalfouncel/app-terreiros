@@ -1,4 +1,8 @@
-// O CÓDIGO DO FORMULÁRIO COM O NOVO FLUXO (Sem redeclarar variáveis)
+// 1. LIGA A CONEXÃO COM O BANCO DE DADOS
+// Usamos as variáveis supabaseUrl e supabaseKey que já estão na memória do seu site!
+const db = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+// 2. O CÓDIGO DO FORMULÁRIO 
 document.querySelector('form').addEventListener('submit', async (e) => {
     e.preventDefault();
     
@@ -13,17 +17,16 @@ document.querySelector('form').addEventListener('submit', async (e) => {
     btnSubmit.disabled = true;
 
     try {
-        // REGRA 1: É O PRIMEIRO ACESSO? (Testa se digitaram um ID curto)
+        // REGRA 1: É O PRIMEIRO ACESSO? (Testa se digitaram um ID numérico curto)
         const isId = /^\d+$/.test(identificacao) && identificacao.length < 5;
 
         if (isId) {
-            // Se digitou ID, a senha TEM QUE SER 123456
             if (senha !== '123456') {
                 throw new Error('Para o primeiro acesso, use a senha padrão: 123456');
             }
 
-            // O seu projeto já tem o 'supabase' instanciado globalmente
-            const { data: medium, error: dbError } = await supabase
+            // AQUI ESTÁ A MÁGICA: Usamos o 'db' que criamos ali em cima!
+            const { data: medium, error: dbError } = await db
                 .from('mediuns')
                 .select('*')
                 .eq('id', parseInt(identificacao))
@@ -59,8 +62,8 @@ document.querySelector('form').addEventListener('submit', async (e) => {
 
         const emailFantasma = `${telefoneFormatado}@terreiro.app`;
 
-        // Tenta logar no Supabase
-        const { data, error } = await supabase.auth.signInWithPassword({
+        // Tenta logar usando o 'db'
+        const { data, error } = await db.auth.signInWithPassword({
             email: emailFantasma,
             password: senha,
         });
