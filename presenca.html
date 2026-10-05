@@ -11,7 +11,12 @@
     
     <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-md text-center border-t-4 border-green-600">
         <h2 class="text-2xl font-bold text-gray-800 mb-2">Check-in da Gira</h2>
-        <div id="infoGira" class="text-gray-600 mb-8 font-medium">Buscando gira de hoje...</div>
+        <div id="infoGira" class="text-gray-600 mb-6 font-medium text-lg">Buscando gira de hoje...</div>
+        
+        <!-- Bloco Oculto para a Imagem da Gira -->
+        <div id="containerImagemGira" class="hidden w-full mb-6 rounded-lg overflow-hidden shadow-md">
+            <img id="imgGira" src="" alt="Arte da Gira" class="w-full h-auto object-cover max-h-72">
+        </div>
         
         <button id="btnPresenca" class="hidden w-full flex flex-col items-center justify-center py-6 px-4 border border-transparent rounded-2xl shadow-lg text-xl font-bold text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-4 focus:ring-green-500 transition-all transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
             <svg class="w-12 h-12 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
