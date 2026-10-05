@@ -19,13 +19,20 @@
         </div>
         <nav class="flex-1 p-4 space-y-2 mt-4">
             <a href="#" id="menuVisaoGeral" class="menu-item block py-2.5 px-4 bg-blue-800 rounded-lg hover:bg-blue-700 transition flex items-center">
-                <i class="fas fa-home w-6"></i> Visão Geral
+                <i class="fas fa-home w-6 mr-2"></i> Visão Geral
             </a>
             <a href="#" id="menuQuadroMediuns" class="menu-item block py-2.5 px-4 rounded-lg hover:bg-blue-800 transition flex items-center">
-                <i class="fas fa-users w-6"></i> Quadro de Médiuns
+                <i class="fas fa-users w-6 mr-2"></i> Quadro de Médiuns
             </a>
             <a href="#" id="menuAgendaGiras" class="menu-item block py-2.5 px-4 rounded-lg hover:bg-blue-800 transition flex items-center">
-                <i class="fas fa-calendar-alt w-6"></i> Agenda de Giras
+                <i class="fas fa-calendar-alt w-6 mr-2"></i> Agenda de Giras
+            </a>
+            <hr class="border-blue-800 my-2">
+            <a href="#" id="menuGrau" class="menu-item block py-2.5 px-4 rounded-lg hover:bg-blue-800 transition flex items-center">
+                <i class="fas fa-graduation-cap w-6 mr-2"></i> Alteração de Grau
+            </a>
+            <a href="#" id="menuFinanceiro" class="menu-item block py-2.5 px-4 rounded-lg hover:bg-blue-800 transition flex items-center text-green-400 font-medium">
+                <i class="fas fa-file-invoice-dollar w-6 mr-2"></i> Financeiro
             </a>
         </nav>
         <div class="p-4 border-t border-blue-800">
@@ -37,11 +44,9 @@
 
     <!-- Conteúdo Principal -->
     <main class="flex-1 p-8 overflow-y-auto">
-        <!-- SECÃO: VISÃO GERAL -->
-        <div id="secVisaoGeral" class="secao-painel">
         <header class="flex justify-between items-center mb-8">
             <div>
-                <h2 class="text-3xl font-bold text-gray-800">Visão Geral</h2>
+                <h2 class="text-3xl font-bold text-gray-800" id="tituloSecao">Visão Geral</h2>
                 <p class="text-gray-500" id="dataHoje"></p>
             </div>
             <div class="bg-white px-4 py-2 rounded-full shadow-sm border border-gray-200 flex items-center">
@@ -50,78 +55,65 @@
             </div>
         </header>
 
-        <!-- Cartões de Resumo (Cards) -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-[#16a34a]">
-                <h3 class="text-gray-500 text-sm font-bold uppercase tracking-wider">Médiuns Presentes Hoje</h3>
-                <p class="text-4xl font-bold text-gray-800 mt-2" id="totalPresentes">0</p>
-            </div>
-            <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-[#1e3a8a]">
-                <h3 class="text-gray-500 text-sm font-bold uppercase tracking-wider">Total Cadastrados</h3>
-                <p class="text-4xl font-bold text-gray-800 mt-2" id="totalMediuns">0</p>
-            </div>
-            <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-purple-500">
-                <h3 class="text-gray-500 text-sm font-bold uppercase tracking-wider">Próxima Gira</h3>
-                <p class="text-lg font-bold text-gray-800 mt-2" id="proximaGira">Buscando...</p>
-            </div>
-        </div>
-
-        <!-- Módulo: Gravar Localização (GPS) -->
-        <div class="bg-white p-6 rounded-xl shadow-sm border-t-4 border-[#1e3a8a] mb-8">
-            <div class="flex items-center mb-4">
-                <div class="bg-blue-100 p-3 rounded-full mr-4 text-[#1e3a8a]">
-                    <i class="fas fa-map-marker-alt w-6 h-6 flex items-center justify-center text-xl"></i>
+        <!-- SECÃO 1: VISÃO GERAL -->
+        <div id="secVisaoGeral" class="secao-painel">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-[#16a34a]">
+                    <h3 class="text-gray-500 text-sm font-bold uppercase tracking-wider">Médiuns Presentes Hoje</h3>
+                    <p class="text-4xl font-bold text-gray-800 mt-2" id="totalPresentes">0</p>
                 </div>
-                <div>
-                    <h3 class="text-xl font-bold text-gray-800">Localização Sede (GPS)</h3>
-                    <p class="text-sm text-gray-500">Define o ponto exato para a validação do check-in dos médiuns.</p>
+                <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-[#1e3a8a]">
+                    <h3 class="text-gray-500 text-sm font-bold uppercase tracking-wider">Total Cadastrados</h3>
+                    <p class="text-4xl font-bold text-gray-800 mt-2" id="totalMediuns">0</p>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-purple-500">
+                    <h3 class="text-gray-500 text-sm font-bold uppercase tracking-wider">Próxima Gira</h3>
+                    <p class="text-lg font-bold text-gray-800 mt-2" id="proximaGira">Buscando...</p>
                 </div>
             </div>
-            <p class="text-sm text-gray-600 mb-5 pl-16">
-                Vá fisicamente até o centro do terreiro com o seu celular e clique no botão abaixo. Isso garantirá que o sistema registre a coordenada exata para as próximas giras.
-            </p>
-            <div class="pl-16">
-                <button id="btnGravarLocalizacao" class="w-full sm:w-auto bg-[#1e3a8a] hover:bg-blue-900 focus:ring-4 focus:ring-blue-300 text-white font-bold py-3 px-6 rounded-lg shadow flex items-center justify-center transition-all">
-                    Gravar Localização Atual
-                </button>
-                <div id="msgLocalizacao" class="mt-4 hidden"></div>
+
+            <div class="bg-white p-6 rounded-xl shadow-sm border-t-4 border-[#1e3a8a] mb-8">
+                <div class="flex items-center mb-4">
+                    <div class="bg-blue-100 p-3 rounded-full mr-4 text-[#1e3a8a]">
+                        <i class="fas fa-map-marker-alt w-6 h-6 flex items-center justify-center text-xl"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold text-gray-800">Localização Sede (GPS)</h3>
+                        <p class="text-sm text-gray-500">Define o ponto exato para a validação do check-in dos médiuns.</p>
+                    </div>
+                </div>
+                <p class="text-sm text-gray-600 mb-5 pl-16">
+                    Vá fisicamente até o centro do terreiro com o seu celular e clique no botão abaixo. Isso garantirá que o sistema registre a coordenada exata para as próximas giras.
+                </p>
+                <div class="pl-16">
+                    <button id="btnGravarLocalizacao" class="w-full sm:w-auto bg-[#1e3a8a] hover:bg-blue-900 focus:ring-4 focus:ring-blue-300 text-white font-bold py-3 px-6 rounded-lg shadow flex items-center justify-center transition-all">
+                        Gravar Localização Atual
+                    </button>
+                    <div id="msgLocalizacao" class="mt-4 hidden"></div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                <h3 class="text-lg font-bold text-gray-800 mb-4">Lista de Presença (Hoje)</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-50 border-b border-gray-200">
+                                <th class="p-3 text-sm font-semibold text-gray-600">MÉDIUM</th>
+                                <th class="p-3 text-sm font-semibold text-gray-600">HORÁRIO CHEGADA</th>
+                                <th class="p-3 text-sm font-semibold text-gray-600">STATUS</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelaPresencas">
+                            <tr><td colspan="3" class="p-6 text-center text-gray-500">Carregando lista...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
-        <!-- Lista de Presença do Dia -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-bold text-gray-800">Lista de Presença (Hoje)</h3>
-                <button class="text-sm text-white bg-[#1e3a8a] px-3 py-1 rounded hover:bg-blue-800 transition">
-                    <i class="fas fa-file-export mr-1"></i> Exportar
-                </button>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="bg-gray-50 border-b border-gray-200">
-                            <th class="p-3 text-sm font-semibold text-gray-600">MÉDIUM</th>
-                            <th class="p-3 text-sm font-semibold text-gray-600">GRAU / FUNÇÃO</th>
-                            <th class="p-3 text-sm font-semibold text-gray-600">HORÁRIO CHEGADA</th>
-                            <th class="p-3 text-sm font-semibold text-gray-600">STATUS</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tabelaPresencas">
-                        <tr>
-                            <td colspan="4" class="p-6 text-center text-gray-500">Carregando lista de presenças...</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-        </div> <!-- Fim secVisaoGeral -->
-
-        <!-- SECÃO: QUADRO DE MÉDIUNS -->
+        <!-- SECÃO 2: QUADRO DE MÉDIUNS -->
         <div id="secQuadroMediuns" class="secao-painel hidden">
-            <header class="mb-8">
-                <h2 class="text-3xl font-bold text-gray-800">Quadro de Médiuns</h2>
-                <p class="text-gray-500">Lista completa de todos os médiuns cadastrados.</p>
-            </header>
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 overflow-x-auto">
                 <table class="w-full text-left border-collapse">
                     <thead>
@@ -129,59 +121,48 @@
                             <th class="p-3 text-sm font-semibold text-gray-600">NOME</th>
                             <th class="p-3 text-sm font-semibold text-gray-600">GRAU / FUNÇÃO</th>
                             <th class="p-3 text-sm font-semibold text-gray-600">WHATSAPP</th>
-                            <th class="p-3 text-sm font-semibold text-gray-600">STATUS CADASTRO</th>
+                            <th class="p-3 text-sm font-semibold text-gray-600">STATUS</th>
                         </tr>
                     </thead>
-                    <tbody id="tabelaTodosMediuns">
-                        <tr><td colspan="4" class="p-6 text-center text-gray-500">Carregando...</td></tr>
-                    </tbody>
+                    <tbody id="tabelaTodosMediuns"></tbody>
                 </table>
             </div>
         </div>
 
-        <!-- SECÃO: AGENDA DE GIRAS -->
+        <!-- SECÃO 3: AGENDA DE GIRAS -->
         <div id="secAgendaGiras" class="secao-painel hidden">
-            <header class="mb-8">
-                <h2 class="text-3xl font-bold text-gray-800">Agenda de Giras</h2>
-                <p class="text-gray-500">Agende novas giras. Envie a arte do seu celular/PC ou cole um link.</p>
-            </header>
-            
             <div class="bg-white p-6 rounded-xl shadow-sm border-t-4 border-purple-500 mb-8">
                 <h3 class="text-lg font-bold text-gray-800 mb-4">Nova Gira</h3>
                 <form id="formNovaGira" class="space-y-4">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700">Título da Gira</label>
-                            <input type="text" id="giraTitulo" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-purple-500 focus:border-purple-500" placeholder="Ex: Gira de Caboclo">
+                            <input type="text" id="giraTitulo" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Imagem (Envie do seu celular ou PC)</label>
-                            <input type="file" id="giraArquivo" accept="image/*" class="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md shadow-sm focus:ring-purple-500 focus:border-purple-500 bg-white text-sm">
+                            <label class="block text-sm font-medium text-gray-700">Arte/Imagem (Arquivo ou Link)</label>
+                            <div class="flex space-x-2 mt-1">
+                                <input type="file" id="giraArquivo" accept="image/*" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100">
+                                <input type="url" id="giraImagem" class="block w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="Ou cole um Link...">
+                            </div>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Data e Hora de Início</label>
-                            <input type="datetime-local" id="giraInicio" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-purple-500 focus:border-purple-500">
+                            <label class="block text-sm font-medium text-gray-700">Início</label>
+                            <input type="datetime-local" id="giraInicio" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Data e Hora de Fim</label>
-                            <input type="datetime-local" id="giraFim" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-purple-500 focus:border-purple-500">
-                        </div>
-                        <div class="md:col-span-2 border-t pt-4 mt-2">
-                            <label class="block text-sm font-medium text-gray-700">OU Cole um Link de Imagem (opcional, use caso não envie o arquivo acima)</label>
-                            <input type="url" id="giraImagem" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-purple-500 focus:border-purple-500" placeholder="https://...">
+                            <label class="block text-sm font-medium text-gray-700">Fim</label>
+                            <input type="datetime-local" id="giraFim" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
                         </div>
                     </div>
-                    <div class="mt-4">
-                        <button type="submit" id="btnSalvarGira" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded shadow flex items-center justify-center">
-                            Salvar Gira na Agenda
-                        </button>
-                        <p id="msgGira" class="text-sm mt-2 hidden"></p>
-                    </div>
+                    <button type="submit" id="btnSalvarGira" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded shadow">
+                        Salvar Gira na Agenda
+                    </button>
+                    <p id="msgGira" class="text-sm mt-2 hidden"></p>
                 </form>
             </div>
-
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                <h3 class="text-lg font-bold text-gray-800 mb-4">Próximas Giras Agendadas</h3>
+                <h3 class="text-lg font-bold text-gray-800 mb-4">Giras Agendadas</h3>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse">
                         <thead>
@@ -191,9 +172,64 @@
                                 <th class="p-3 text-sm font-semibold text-gray-600">IMAGEM</th>
                             </tr>
                         </thead>
-                        <tbody id="tabelaGirasCadastradas">
-                            <tr><td colspan="3" class="p-6 text-center text-gray-500">Carregando...</td></tr>
-                        </tbody>
+                        <tbody id="tabelaGirasCadastradas"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- SECÃO 4: ALTERAÇÃO DE GRAU -->
+        <div id="secGrau" class="secao-painel hidden">
+            <div class="bg-white rounded-xl shadow-sm border-t-4 border-yellow-500 p-6 overflow-x-auto">
+                <p class="text-sm text-gray-500 mb-4">Altere o grau ou a função do médium e clique em Salvar na respectiva linha.</p>
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-gray-50 border-b border-gray-200">
+                            <th class="p-3 text-sm font-semibold text-gray-600 w-1/3">MÉDIUM</th>
+                            <th class="p-3 text-sm font-semibold text-gray-600">GRAU</th>
+                            <th class="p-3 text-sm font-semibold text-gray-600">FUNÇÃO (OPCIONAL)</th>
+                            <th class="p-3 text-sm font-semibold text-gray-600 text-center">AÇÃO</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabelaGraus"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- SECÃO 5: FINANCEIRO -->
+        <div id="secFinanceiro" class="secao-painel hidden">
+            <div class="bg-white rounded-xl shadow-sm border-t-4 border-green-500 p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <p class="text-sm text-gray-500">Marque o mês para registrar o pagamento da mensalidade. O salvamento é automático!</p>
+                    <div class="flex items-center space-x-2">
+                        <label class="font-bold text-gray-700">Ano de Referência:</label>
+                        <select id="selectAnoFinanceiro" class="border border-gray-300 rounded px-3 py-1 font-bold text-gray-800 bg-gray-50 focus:ring-green-500 focus:border-green-500">
+                            <option value="2026">2026</option>
+                            <option value="2027">2027</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full text-center border-collapse text-sm">
+                        <thead>
+                            <tr class="bg-gray-50 border-b border-gray-200">
+                                <th class="p-2 text-left font-semibold text-gray-600 sticky left-0 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb]">MÉDIUM</th>
+                                <th class="p-2 font-semibold text-gray-600">JAN</th>
+                                <th class="p-2 font-semibold text-gray-600">FEV</th>
+                                <th class="p-2 font-semibold text-gray-600">MAR</th>
+                                <th class="p-2 font-semibold text-gray-600">ABR</th>
+                                <th class="p-2 font-semibold text-gray-600">MAI</th>
+                                <th class="p-2 font-semibold text-gray-600">JUN</th>
+                                <th class="p-2 font-semibold text-gray-600">JUL</th>
+                                <th class="p-2 font-semibold text-gray-600">AGO</th>
+                                <th class="p-2 font-semibold text-gray-600">SET</th>
+                                <th class="p-2 font-semibold text-gray-600">OUT</th>
+                                <th class="p-2 font-semibold text-gray-600">NOV</th>
+                                <th class="p-2 font-semibold text-gray-600">DEZ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelaFinanceiro"></tbody>
                     </table>
                 </div>
             </div>
