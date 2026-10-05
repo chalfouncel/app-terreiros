@@ -1,207 +1,296 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Painel Admin - Templo</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- Ícones do FontAwesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-</head>
-<body class="bg-gray-100 min-h-screen flex">
+document.addEventListener('DOMContentLoaded', async () => {
+    // Coloca a data de hoje no cabeçalho
+    const dataOpcoes = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    document.getElementById('dataHoje').textContent = new Date().toLocaleDateString('pt-BR', dataOpcoes);
 
-    <!-- Menu Lateral (Sidebar) -->
-    <aside class="w-64 bg-[#1e3a8a] text-white flex flex-col shadow-xl">
-        <div class="p-6 text-center border-b border-blue-800">
-            <h1 class="text-2xl font-bold text-white">Painel Gestão</h1>
-            <p class="text-xs text-blue-300 mt-1" id="nomeTerreiroSidebar">Carregando...</p>
-        </div>
-        <nav class="flex-1 p-4 space-y-2 mt-4">
-            <a href="#" id="menuVisaoGeral" class="menu-item block py-2.5 px-4 bg-blue-800 rounded-lg hover:bg-blue-700 transition flex items-center">
-                <i class="fas fa-home w-6"></i> Visão Geral
-            </a>
-            <a href="#" id="menuQuadroMediuns" class="menu-item block py-2.5 px-4 rounded-lg hover:bg-blue-800 transition flex items-center">
-                <i class="fas fa-users w-6"></i> Quadro de Médiuns
-            </a>
-            <a href="#" id="menuAgendaGiras" class="menu-item block py-2.5 px-4 rounded-lg hover:bg-blue-800 transition flex items-center">
-                <i class="fas fa-calendar-alt w-6"></i> Agenda de Giras
-            </a>
-        </nav>
-        <div class="p-4 border-t border-blue-800">
-            <button id="btnSair" class="w-full py-2 px-4 bg-red-600 rounded-lg hover:bg-red-700 transition flex items-center justify-center">
-                <i class="fas fa-sign-out-alt mr-2"></i> Sair do Sistema
-            </button>
-        </div>
-    </aside>
+    // 1. Verifica se está logado
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    
+    if (!session) {
+        window.location.href = 'index.html';
+        return;
+    }
 
-    <!-- Conteúdo Principal -->
-    <main class="flex-1 p-8 overflow-y-auto">
-        <!-- SECÃO: VISÃO GERAL -->
-        <div id="secVisaoGeral" class="secao-painel">
-        <header class="flex justify-between items-center mb-8">
-            <div>
-                <h2 class="text-3xl font-bold text-gray-800">Visão Geral</h2>
-                <p class="text-gray-500" id="dataHoje"></p>
-            </div>
-            <div class="bg-white px-4 py-2 rounded-full shadow-sm border border-gray-200 flex items-center">
-                <i class="fas fa-user-circle text-[#16a34a] text-xl mr-2"></i>
-                <span class="text-gray-700 font-medium" id="nomeAdmin">Olá, Admin</span>
-            </div>
-        </header>
+    try {
+        // 2. Busca o perfil do usuário para ver se ele é ADMIN
+        const { data: perfil, error: erroPerfil } = await supabaseClient
+            .from('mediuns')
+            .select('nome_completo, is_admin, terreiro_id')
+            .eq('auth_id', session.user.id)
+            .single();
 
-        <!-- Cartões de Resumo (Cards) -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-[#16a34a]">
-                <h3 class="text-gray-500 text-sm font-bold uppercase tracking-wider">Médiuns Presentes Hoje</h3>
-                <p class="text-4xl font-bold text-gray-800 mt-2" id="totalPresentes">0</p>
-            </div>
-            <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-[#1e3a8a]">
-                <h3 class="text-gray-500 text-sm font-bold uppercase tracking-wider">Total Cadastrados</h3>
-                <p class="text-4xl font-bold text-gray-800 mt-2" id="totalMediuns">0</p>
-            </div>
-            <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-purple-500">
-                <h3 class="text-gray-500 text-sm font-bold uppercase tracking-wider">Próxima Gira</h3>
-                <p class="text-lg font-bold text-gray-800 mt-2" id="proximaGira">Buscando...</p>
-            </div>
-        </div>
+        if (erroPerfil) throw erroPerfil;
 
-        <!-- Módulo: Gravar Localização (GPS) -->
-        <div class="bg-white p-6 rounded-xl shadow-sm border-t-4 border-[#1e3a8a] mb-8">
-            <div class="flex items-center mb-4">
-                <div class="bg-blue-100 p-3 rounded-full mr-4 text-[#1e3a8a]">
-                    <i class="fas fa-map-marker-alt w-6 h-6 flex items-center justify-center text-xl"></i>
-                </div>
-                <div>
-                    <h3 class="text-xl font-bold text-gray-800">Localização Sede (GPS)</h3>
-                    <p class="text-sm text-gray-500">Define o ponto exato para a validação do check-in dos médiuns.</p>
-                </div>
-            </div>
-            <p class="text-sm text-gray-600 mb-5 pl-16">
-                Vá fisicamente até o centro do terreiro com o seu celular e clique no botão abaixo. Isso garantirá que o sistema registre a coordenada exata para as próximas giras.
-            </p>
-            <div class="pl-16">
-                <button id="btnGravarLocalizacao" class="w-full sm:w-auto bg-[#1e3a8a] hover:bg-blue-900 focus:ring-4 focus:ring-blue-300 text-white font-bold py-3 px-6 rounded-lg shadow flex items-center justify-center transition-all">
-                    Gravar Localização Atual
-                </button>
-                <div id="msgLocalizacao" class="mt-4 hidden"></div>
-            </div>
-        </div>
+        // SE NÃO FOR ADMIN, expulsa da página e manda pra tela de presença
+        if (!perfil.is_admin) {
+            alert('Acesso negado. Esta área é restrita para administradores.');
+            window.location.href = 'presenca.html';
+            return;
+        }
 
-        <!-- Lista de Presença do Dia -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-bold text-gray-800">Lista de Presença (Hoje)</h3>
-                <button class="text-sm text-white bg-[#1e3a8a] px-3 py-1 rounded hover:bg-blue-800 transition">
-                    <i class="fas fa-file-export mr-1"></i> Exportar
-                </button>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="bg-gray-50 border-b border-gray-200">
-                            <th class="p-3 text-sm font-semibold text-gray-600">MÉDIUM</th>
-                            <th class="p-3 text-sm font-semibold text-gray-600">GRAU / FUNÇÃO</th>
-                            <th class="p-3 text-sm font-semibold text-gray-600">HORÁRIO CHEGADA</th>
-                            <th class="p-3 text-sm font-semibold text-gray-600">STATUS</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tabelaPresencas">
-                        <tr>
-                            <td colspan="4" class="p-6 text-center text-gray-500">Carregando lista de presenças...</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-        </div> <!-- Fim secVisaoGeral -->
+        document.getElementById('nomeAdmin').textContent = 'Olá, ' + perfil.nome_completo.split(' ')[0];
 
-        <!-- SECÃO: QUADRO DE MÉDIUNS -->
-        <div id="secQuadroMediuns" class="secao-painel hidden">
-            <header class="mb-8">
-                <h2 class="text-3xl font-bold text-gray-800">Quadro de Médiuns</h2>
-                <p class="text-gray-500">Lista completa de todos os médiuns cadastrados.</p>
-            </header>
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 overflow-x-auto">
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="bg-gray-50 border-b border-gray-200">
-                            <th class="p-3 text-sm font-semibold text-gray-600">NOME</th>
-                            <th class="p-3 text-sm font-semibold text-gray-600">GRAU / FUNÇÃO</th>
-                            <th class="p-3 text-sm font-semibold text-gray-600">WHATSAPP</th>
-                            <th class="p-3 text-sm font-semibold text-gray-600">STATUS CADASTRO</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tabelaTodosMediuns">
-                        <tr><td colspan="4" class="p-6 text-center text-gray-500">Carregando...</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
+        // --- CONTROLE DE ABAS DO MENU LADO ESQUERDO ---
+        const menus = document.querySelectorAll('.menu-item');
+        const secoes = document.querySelectorAll('.secao-painel');
 
-        <!-- SECÃO: AGENDA DE GIRAS -->
-        <div id="secAgendaGiras" class="secao-painel hidden">
-            <header class="mb-8">
-                <h2 class="text-3xl font-bold text-gray-800">Agenda de Giras</h2>
-                <p class="text-gray-500">Agende novas giras. Envie a arte do seu celular/PC ou cole um link.</p>
-            </header>
+        menus.forEach(menu => {
+            menu.addEventListener('click', (e) => {
+                e.preventDefault();
+                menus.forEach(m => m.classList.remove('bg-blue-800'));
+                menu.classList.add('bg-blue-800');
+                
+                secoes.forEach(s => s.classList.add('hidden'));
+                
+                if (menu.id === 'menuVisaoGeral') {
+                    document.getElementById('secVisaoGeral').classList.remove('hidden');
+                } else if (menu.id === 'menuQuadroMediuns') {
+                    document.getElementById('secQuadroMediuns').classList.remove('hidden');
+                    carregarQuadroMediuns();
+                } else if (menu.id === 'menuAgendaGiras') {
+                    document.getElementById('secAgendaGiras').classList.remove('hidden');
+                    carregarAgenda();
+                }
+            });
+        });
+
+        // 3. Busca o nome do Terreiro para colocar no menu lateral
+        if (perfil.terreiro_id) {
+            const { data: terreiro } = await supabaseClient
+                .from('terreiros')
+                .select('nome')
+                .eq('id', perfil.terreiro_id)
+                .single();
             
-            <div class="bg-white p-6 rounded-xl shadow-sm border-t-4 border-purple-500 mb-8">
-                <h3 class="text-lg font-bold text-gray-800 mb-4">Nova Gira</h3>
-                <form id="formNovaGira" class="space-y-4">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Título da Gira</label>
-                            <input type="text" id="giraTitulo" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-purple-500 focus:border-purple-500" placeholder="Ex: Gira de Caboclo">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Imagem (Envie do seu celular ou PC)</label>
-                            <input type="file" id="giraArquivo" accept="image/*" class="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md shadow-sm focus:ring-purple-500 focus:border-purple-500 bg-white text-sm">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Data e Hora de Início</label>
-                            <input type="datetime-local" id="giraInicio" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-purple-500 focus:border-purple-500">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Data e Hora de Fim</label>
-                            <input type="datetime-local" id="giraFim" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-purple-500 focus:border-purple-500">
-                        </div>
-                        <div class="md:col-span-2 border-t pt-4 mt-2">
-                            <label class="block text-sm font-medium text-gray-700">OU Cole um Link de Imagem (opcional, use caso não envie o arquivo acima)</label>
-                            <input type="url" id="giraImagem" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-purple-500 focus:border-purple-500" placeholder="https://...">
-                        </div>
-                    </div>
-                    <div class="mt-4">
-                        <button type="submit" id="btnSalvarGira" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded shadow flex items-center justify-center">
-                            Salvar Gira na Agenda
-                        </button>
-                        <p id="msgGira" class="text-sm mt-2 hidden"></p>
-                    </div>
-                </form>
-            </div>
+            if (terreiro) {
+                document.getElementById('nomeTerreiroSidebar').textContent = terreiro.nome;
+            }
+        }
 
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                <h3 class="text-lg font-bold text-gray-800 mb-4">Próximas Giras Agendadas</h3>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="bg-gray-50 border-b border-gray-200">
-                                <th class="p-3 text-sm font-semibold text-gray-600">TÍTULO</th>
-                                <th class="p-3 text-sm font-semibold text-gray-600">DATA / HORA</th>
-                                <th class="p-3 text-sm font-semibold text-gray-600">IMAGEM</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tabelaGirasCadastradas">
-                            <tr><td colspan="3" class="p-6 text-center text-gray-500">Carregando...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
+        document.getElementById('tabelaPresencas').innerHTML = `
+            <tr>
+                <td colspan="4" class="p-6 text-center text-gray-500">Nenhum médium registrou presença na gira de hoje ainda.</td>
+            </tr>
+        `;
 
-    </main>
+    } catch (error) {
+        console.error('Erro ao carregar painel:', error);
+    }
 
-    <script src="js/supabase.js"></script>
-    <script src="js/admin.js"></script>
-</body>
-</html>
+    // ==========================================
+    // GPS E LOGOUT
+    // ==========================================
+    const btnGravarLocalizacao = document.getElementById('btnGravarLocalizacao');
+    const msgLocalizacao = document.getElementById('msgLocalizacao');
+
+    if (btnGravarLocalizacao) {
+        btnGravarLocalizacao.addEventListener('click', async () => {
+            btnGravarLocalizacao.disabled = true;
+            btnGravarLocalizacao.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Obtendo GPS...';
+            msgLocalizacao.classList.add('hidden');
+            
+            if (!navigator.geolocation) {
+                mostrarAvisoLocal('Navegador não suporta GPS.', 'erro');
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                async (position) => {
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+                    try {
+                        const { data: terreiros } = await supabaseClient.from('terreiros').select('id').limit(1);
+                        if (terreiros && terreiros.length > 0) {
+                            const { error } = await supabaseClient.from('terreiros')
+                                .update({ latitude: lat, longitude: lon })
+                                .eq('id', terreiros[0].id);
+                            
+                            if (error) throw error;
+                            
+                            mostrarAvisoLocal(`✅ Sucesso! Coordenadas salvas.<br><span class="text-xs font-normal">Lat: ${lat.toFixed(6)} | Lon: ${lon.toFixed(6)}</span>`, 'sucesso');
+                        } else {
+                            mostrarAvisoLocal('Nenhum terreiro encontrado no banco.', 'erro');
+                        }
+                    } catch (error) {
+                        mostrarAvisoLocal('Erro no banco: ' + error.message, 'erro');
+                    }
+                },
+                (error) => mostrarAvisoLocal('Não foi possível obter a localização. Libere o GPS.', 'erro'),
+                { enableHighAccuracy: true, timeout: 15000 } 
+            );
+        });
+    }
+
+    function mostrarAvisoLocal(msg, tipo) {
+        msgLocalizacao.innerHTML = msg;
+        msgLocalizacao.classList.remove('hidden');
+        msgLocalizacao.className = tipo === 'sucesso' 
+            ? 'mt-4 text-sm font-bold p-4 rounded-lg bg-green-100 text-green-800 border-l-4 border-green-600 block'
+            : 'mt-4 text-sm font-bold p-4 rounded-lg bg-red-100 text-red-800 border-l-4 border-red-600 block';
+        btnGravarLocalizacao.disabled = false;
+        btnGravarLocalizacao.innerHTML = 'Atualizar Localização Novamente';
+    }
+
+    document.getElementById('btnSair').addEventListener('click', async () => {
+        await supabaseClient.auth.signOut();
+        window.location.href = 'index.html';
+    });
+
+    // ==========================================
+    // FUNÇÕES DAS NOVAS ABAS (Médiuns e Agenda)
+    // ==========================================
+
+    async function carregarQuadroMediuns() {
+        const tbody = document.getElementById('tabelaTodosMediuns');
+        tbody.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-gray-500">Buscando médiuns...</td></tr>';
+        
+        const { data, error } = await supabaseClient
+            .from('mediuns')
+            .select('nome_completo, grau, funcao, telefone, cadastro_completo')
+            .order('nome_completo');
+            
+        if (error) {
+            tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-red-500">Erro: ${error.message}</td></tr>`;
+            return;
+        }
+        
+        if (!data || data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-gray-500">Nenhum médium cadastrado.</td></tr>';
+            return;
+        }
+        
+        tbody.innerHTML = '';
+        data.forEach(m => {
+            const cargo = [m.grau, m.funcao].filter(Boolean).join(' / ') || '-';
+            const status = m.cadastro_completo 
+                ? '<span class="text-green-600 font-bold"><i class="fas fa-check"></i> Ativo</span>' 
+                : '<span class="text-yellow-600 font-bold"><i class="fas fa-clock"></i> Pendente</span>';
+            
+            tbody.innerHTML += `
+                <tr class="border-b border-gray-100 hover:bg-gray-50">
+                    <td class="p-3 text-gray-800">${m.nome_completo}</td>
+                    <td class="p-3 text-gray-600">${cargo}</td>
+                    <td class="p-3 text-gray-600">${m.telefone || '-'}</td>
+                    <td class="p-3">${status}</td>
+                </tr>
+            `;
+        });
+    }
+
+    async function carregarAgenda() {
+        const tbody = document.getElementById('tabelaGirasCadastradas');
+        tbody.innerHTML = '<tr><td colspan="3" class="p-6 text-center text-gray-500">Buscando giras...</td></tr>';
+        
+        const agora = new Date().toISOString();
+        const { data, error } = await supabaseClient
+            .from('agenda')
+            .select('*')
+            .gte('data_hora_fim', agora) // Só busca as giras futuras
+            .order('data_hora_inicio', { ascending: true })
+            .limit(10); 
+            
+        if (error) {
+            tbody.innerHTML = `<tr><td colspan="3" class="p-6 text-center text-red-500">Erro: ${error.message}</td></tr>`;
+            return;
+        }
+        
+        if (!data || data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3" class="p-6 text-center text-gray-500">Nenhuma gira agendada.</td></tr>';
+            return;
+        }
+        
+        tbody.innerHTML = '';
+        data.forEach(g => {
+            const inicio = new Date(g.data_hora_inicio).toLocaleString('pt-BR');
+            const img = g.imagem_url 
+                ? `<a href="${g.imagem_url}" target="_blank" class="text-blue-500 hover:underline"><i class="fas fa-image"></i> Ver Imagem</a>` 
+                : '<span class="text-gray-400">Sem imagem</span>';
+                
+            tbody.innerHTML += `
+                <tr class="border-b border-gray-100 hover:bg-gray-50">
+                    <td class="p-3 text-gray-800 font-medium">${g.titulo}</td>
+                    <td class="p-3 text-gray-600">${inicio}</td>
+                    <td class="p-3">${img}</td>
+                </tr>
+            `;
+        });
+    }
+
+    // Formulário de Nova Gira (AGORA COM UPLOAD DE FOTO)
+    const formNovaGira = document.getElementById('formNovaGira');
+    if (formNovaGira) {
+        formNovaGira.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btnSalvarGira');
+            const msg = document.getElementById('msgGira');
+            
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Processando...';
+            msg.classList.add('hidden');
+            
+            const titulo = document.getElementById('giraTitulo').value;
+            const inputArquivo = document.getElementById('giraArquivo');
+            let imagem_url = document.getElementById('giraImagem').value; // Pega o link como fallback
+            const data_hora_inicio = document.getElementById('giraInicio').value;
+            const data_hora_fim = document.getElementById('giraFim').value;
+            
+            try {
+                // SE O USUÁRIO ENVIOU UM ARQUIVO, FAZ O UPLOAD PARA O SUPABASE
+                if (inputArquivo.files && inputArquivo.files.length > 0) {
+                    msg.innerHTML = 'Fazendo upload da imagem... <i class="fas fa-spinner fa-spin"></i>';
+                    msg.className = 'text-sm mt-2 text-blue-600 block font-bold';
+                    msg.classList.remove('hidden');
+
+                    const arquivo = inputArquivo.files[0];
+                    const extensao = arquivo.name.split('.').pop();
+                    // Cria um nome único para o arquivo (ex: 169000000_abc123.jpg)
+                    const nomeArquivo = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${extensao}`;
+                    
+                    const { data: uploadData, error: uploadError } = await supabaseClient.storage
+                        .from('giras')
+                        .upload(nomeArquivo, arquivo);
+                        
+                    if (uploadError) throw new Error('Falha ao subir a imagem: ' + uploadError.message);
+                    
+                    // Pega a URL pública do arquivo recém upado
+                    const { data: publicUrlData } = supabaseClient.storage
+                        .from('giras')
+                        .getPublicUrl(nomeArquivo);
+                        
+                    // Substitui a variável para salvar a URL do arquivo no banco
+                    imagem_url = publicUrlData.publicUrl; 
+                }
+
+                msg.innerHTML = 'Salvando gira na agenda... <i class="fas fa-spinner fa-spin"></i>';
+                msg.classList.remove('hidden');
+
+                // Pega o ID do terreiro
+                const { data: terreiros } = await supabaseClient.from('terreiros').select('id').limit(1);
+                const terreiro_id = terreiros[0]?.id;
+                
+                // Salva tudo no banco
+                const { error } = await supabaseClient.from('agenda').insert([{
+                    terreiro_id,
+                    titulo,
+                    imagem_url: imagem_url || null, // salva null se não tiver arquivo nem link
+                    data_hora_inicio,
+                    data_hora_fim
+                }]);
+                
+                if (error) throw error;
+                
+                msg.innerHTML = '✅ Gira salva com sucesso!';
+                msg.className = 'text-sm mt-2 text-green-600 block font-bold';
+                formNovaGira.reset();
+                carregarAgenda(); 
+                
+            } catch (err) {
+                msg.innerHTML = '❌ Erro: ' + err.message;
+                msg.className = 'text-sm mt-2 text-red-600 block font-bold';
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'Salvar Gira na Agenda';
+            }
+        });
+    }
+});
