@@ -1,171 +1,120 @@
-let usuarioAtual = null;
-let perfilAtual = null;
-let terreiroAtual = null;
-let eventoAtual = null;
-
-const btnPresenca = document.getElementById('btnPresenca');
-const statusMessage = document.getElementById('statusMessage');
-
-// 1. Fórmula Matemática para calcular distância em metros usando GPS (Haversine)
-function calcularDistancia(lat1, lon1, lat2, lon2) {
-    const R = 6371e3; // Raio da Terra em metros
-    const rad = Math.PI / 180;
-    const dLat = (lat2 - lat1) * rad;
-    const dLon = (lon2 - lon1) * rad;
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-              Math.cos(lat1 * rad) * Math.cos(lat2 * rad) *
-              Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c; 
-}
-
-// 2. Função de Inicialização
-async function carregarDados() {
-    // Verifica Sessão
+document.addEventListener('DOMContentLoaded', async () => {
+    // 1. Verifica se o usuário está logado
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (!session) {
         window.location.href = 'index.html';
         return;
     }
-    usuarioAtual = session.user;
 
-    // Busca Perfil
-    const { data: perfil } = await supabaseClient.from('perfis').select('*').eq('id', usuarioAtual.id).single();
-    perfilAtual = perfil;
-    document.getElementById('nomeUsuario').textContent = `Olá, ${perfil.nome_completo || 'Médium'}`;
+    const infoGira = document.getElementById('infoGira');
+    const btnPresenca = document.getElementById('btnPresenca');
+    const msgStatus = document.getElementById('msgStatus');
 
-    // Busca Terreiro
-    if(perfil.terreiro_id) {
-        const { data: terreiro } = await supabaseClient.from('terreiros').select('*').eq('id', perfil.terreiro_id).single();
-        terreiroAtual = terreiro;
-        document.getElementById('nomeTerreiro').textContent = terreiro.nome;
-    }
+    let giraAtual = null;
+    let terreiroData = null;
 
-    // Busca Evento de Hoje
-    const inicioDia = new Date();
-    inicioDia.setHours(0,0,0,0);
-    const fimDia = new Date();
-    fimDia.setHours(23,59,59,999);
+    // 2. Busca a gira de hoje e os dados do terreiro (GPS)
+    try {
+        const { data: terreiros } = await supabaseClient.from('terreiros').select('*').limit(1);
+        if (terreiros && terreiros.length > 0) terreiroData = terreiros[0];
 
-    const { data: eventos } = await supabaseClient
-        .from('agenda')
-        .select('*')
-        .eq('terreiro_id', perfilAtual.terreiro_id)
-        .gte('data_hora_inicio', inicioDia.toISOString())
-        .lte('data_hora_inicio', fimDia.toISOString())
-        .order('data_hora_inicio', { ascending: true })
-        .limit(1);
+        // Busca a última gira cadastrada
+        const { data: agenda, error } = await supabaseClient
+            .from('agenda')
+            .select('*')
+            .order('data_hora_inicio', { ascending: false })
+            .limit(1);
 
-    if (eventos && eventos.length > 0) {
-        eventoAtual = eventos[0];
-        document.getElementById('eventoHoje').classList.remove('hidden');
-        document.getElementById('tituloEvento').textContent = eventoAtual.titulo;
-        document.getElementById('tipoEvento').textContent = eventoAtual.tipo;
-        
-        const hora = new Date(eventoAtual.data_hora_inicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-        document.getElementById('horarioEvento').textContent = `Horário: ${hora}`;
-        
-        // Verifica se já marcou presença hoje
-        const { data: jaMarcou } = await supabaseClient
-            .from('presencas')
-            .select('id')
-            .eq('evento_id', eventoAtual.id)
-            .eq('usuario_id', usuarioAtual.id)
-            .single();
-
-        if (jaMarcou) {
-            mostrarStatus('Você já marcou presença neste evento.', 'text-green-600');
+        if (agenda && agenda.length > 0) {
+            giraAtual = agenda[0];
+            infoGira.innerHTML = `Hoje: <span class="text-green-700">${giraAtual.titulo}</span>`;
+            btnPresenca.classList.remove('hidden');
         } else {
-            prepararBotaoGPS();
+            infoGira.textContent = 'Não há nenhuma gira cadastrada para hoje.';
         }
-    } else {
-        document.getElementById('semEvento').classList.remove('hidden');
+    } catch (error) {
+        console.error(error);
+        infoGira.textContent = 'Erro ao carregar os dados da gira.';
     }
-}
 
-// 3. Preparar Botão e GPS
-function prepararBotaoGPS() {
-    btnPresenca.disabled = false;
-    btnPresenca.classList.remove('bg-gray-400', 'cursor-not-allowed');
-    btnPresenca.classList.add('bg-green-600', 'hover:bg-green-700');
-    btnPresenca.textContent = 'Registrar Presença';
-
-    btnPresenca.addEventListener('click', async () => {
+    // 3. Ação de clicar no Botão Gigante
+    btnPresenca.addEventListener('click', () => {
         btnPresenca.disabled = true;
-        btnPresenca.textContent = 'Obtendo localização...';
+        btnPresenca.innerHTML = 'Calculando GPS... 🛰️';
+        msgStatus.classList.add('hidden');
 
         if (!navigator.geolocation) {
-            mostrarStatus('Seu navegador não suporta GPS.', 'text-red-600');
+            mostrarErro('Seu navegador não suporta GPS.');
             return;
         }
 
-        navigator.geolocation.getCurrentPosition(sucessoGPS, erroGPS, { enableHighAccuracy: true });
+        // Pede a localização do celular do usuário
+        navigator.geolocation.getCurrentPosition(
+            async (position) => {
+                const latUsuario = position.coords.latitude;
+                const lonUsuario = position.coords.longitude;
+                
+                // Pega as coordenadas cadastradas no banco (ou usa RJ como padrão)
+                const latTerreiro = terreiroData?.latitude || -22.9068;
+                const lonTerreiro = terreiroData?.longitude || -43.1729;
+                const raioPermitido = giraAtual.raio_presenca_metros || 50000;
+
+                const distancia = calcularDistancia(latUsuario, lonUsuario, latTerreiro, lonTerreiro);
+                const dentroDoRaio = distancia <= raioPermitido;
+
+                try {
+                    // Grava a presença no banco de dados!
+                    const { error } = await supabaseClient.from('presencas').insert([{
+                        usuario_id: session.user.id,
+                        evento_id: giraAtual.id,
+                        distancia_metros: Math.round(distancia),
+                        localizacao_valida: dentroDoRaio
+                    }]);
+
+                    if (error) throw error;
+
+                    if (dentroDoRaio) {
+                        mostrarSucesso(`Presença confirmada! Você está a ${Math.round(distancia)} metros do terreiro.`);
+                    } else {
+                        mostrarErro(`Você está muito longe! (${Math.round(distancia)}m). Aproxime-se do terreiro.`);
+                    }
+                } catch (err) {
+                    if (err.code === '23505') { 
+                        mostrarSucesso('Sua presença já estava registrada para esta gira!');
+                    } else {
+                        mostrarErro('Erro ao salvar presença: ' + err.message);
+                    }
+                }
+            },
+            (err) => {
+                mostrarErro('Precisamos da permissão do GPS para bater o ponto!');
+            },
+            { enableHighAccuracy: true, timeout: 10000 }
+        );
     });
-}
 
-// 4. Sucesso ao capturar GPS
-async function sucessoGPS(posicao) {
-    const latCelular = posicao.coords.latitude;
-    const lonCelular = posicao.coords.longitude;
-    
-    const latTerreiro = terreiroAtual.latitude_sede;
-    const lonTerreiro = terreiroAtual.longitude_sede;
-
-    if (!latTerreiro || !lonTerreiro) {
-        mostrarStatus('As coordenadas do terreiro não estão configuradas no sistema.', 'text-red-600');
-        return;
+    function mostrarSucesso(msg) {
+        btnPresenca.innerHTML = 'Ponto Batido! ✅';
+        msgStatus.textContent = msg;
+        msgStatus.className = 'mt-6 text-sm font-bold rounded p-4 bg-green-100 text-green-800 block';
     }
 
-    const distanciaMetros = calcularDistancia(latCelular, lonCelular, latTerreiro, lonTerreiro);
-    const raioPermitido = eventoAtual.raio_presenca_metros || 50;
-
-    btnPresenca.textContent = 'Validando e Salvando...';
-
-    const valida = distanciaMetros <= raioPermitido;
-
-    try {
-        const { error } = await supabaseClient.from('presencas').insert({
-            evento_id: eventoAtual.id,
-            usuario_id: usuarioAtual.id,
-            localizacao_valida: valida
-        });
-
-        if (error) throw error;
-
-        if (valida) {
-            mostrarStatus(`Presença confirmada! Você está a ${Math.round(distanciaMetros)}m do terreiro.`, 'text-green-600');
-            btnPresenca.classList.add('hidden');
-        } else {
-            mostrarStatus(`Presença negada. Você está a ${Math.round(distanciaMetros)}m de distância. (Máximo: ${raioPermitido}m)`, 'text-red-600');
-            btnPresenca.textContent = 'Tentar Novamente';
-            btnPresenca.disabled = false;
-        }
-    } catch (err) {
-        mostrarStatus('Erro ao salvar presença: ' + err.message, 'text-red-600');
-        btnPresenca.textContent = 'Tentar Novamente';
+    function mostrarErro(msg) {
         btnPresenca.disabled = false;
+        btnPresenca.innerHTML = 'Tentar Novamente';
+        msgStatus.textContent = msg;
+        msgStatus.className = 'mt-6 text-sm font-bold rounded p-4 bg-red-100 text-red-800 block';
     }
-}
 
-// 5. Erro no GPS (ex: usuário negou permissão)
-function erroGPS(err) {
-    mostrarStatus('Erro de GPS: Você precisa autorizar a localização.', 'text-red-600');
-    btnPresenca.textContent = 'Registrar Presença';
-    btnPresenca.disabled = false;
-}
-
-// 6. Funções Auxiliares
-function mostrarStatus(mensagem, classeCor) {
-    statusMessage.textContent = mensagem;
-    statusMessage.className = `mt-4 text-sm font-medium ${classeCor}`;
-    statusMessage.classList.remove('hidden');
-}
-
-// Logout
-document.getElementById('logoutBtn').addEventListener('click', async () => {
-    await supabaseClient.auth.signOut();
-    window.location.href = 'index.html';
+    // A Famosa Fórmula de Haversine (Mede distância exata do globo terrestre)
+    function calcularDistancia(lat1, lon1, lat2, lon2) {
+        const R = 6371e3; // Raio da Terra em metros
+        const p1 = lat1 * Math.PI/180; 
+        const p2 = lat2 * Math.PI/180;
+        const dp = (lat2-lat1) * Math.PI/180;
+        const dl = (lon2-lon1) * Math.PI/180;
+        const a = Math.sin(dp/2) * Math.sin(dp/2) + Math.cos(p1) * Math.cos(p2) * Math.sin(dl/2) * Math.sin(dl/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return R * c; // Resultado em Metros
+    }
 });
-
-// Inicia tudo
-carregarDados();
