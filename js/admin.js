@@ -1,18 +1,18 @@
 document.addEventListener('DOMContentLoaded', async () => {
-    // Coloca a data de hoje no cabeçalho
+    // Configura data inicial
     const dataOpcoes = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
     document.getElementById('dataHoje').textContent = new Date().toLocaleDateString('pt-BR', dataOpcoes);
 
-    // 1. Verifica se está logado
+    // Seleciona o ano atual no combo financeiro se possível
+    const selectAno = document.getElementById('selectAnoFinanceiro');
+    if (selectAno) selectAno.value = new Date().getFullYear().toString();
+
+    // 1. Verifica sessão
     const { data: { session } } = await supabaseClient.auth.getSession();
-    
-    if (!session) {
-        window.location.href = 'index.html';
-        return;
-    }
+    if (!session) { window.location.href = 'index.html'; return; }
 
     try {
-        // 2. Busca o perfil do usuário para ver se ele é ADMIN
+        // 2. Busca perfil Admin
         const { data: perfil, error: erroPerfil } = await supabaseClient
             .from('mediuns')
             .select('nome_completo, is_admin, terreiro_id')
@@ -20,19 +20,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             .single();
 
         if (erroPerfil) throw erroPerfil;
-
-        // SE NÃO FOR ADMIN, expulsa da página e manda pra tela de presença
         if (!perfil.is_admin) {
-            alert('Acesso negado. Esta área é restrita para administradores.');
+            alert('Acesso negado.');
             window.location.href = 'presenca.html';
             return;
         }
 
         document.getElementById('nomeAdmin').textContent = 'Olá, ' + perfil.nome_completo.split(' ')[0];
 
-        // --- CONTROLE DE ABAS DO MENU LADO ESQUERDO ---
+        // 3. Controle de Navegação das Abas
         const menus = document.querySelectorAll('.menu-item');
         const secoes = document.querySelectorAll('.secao-painel');
+        const tituloSecao = document.getElementById('tituloSecao');
 
         menus.forEach(menu => {
             menu.addEventListener('click', (e) => {
@@ -42,93 +41,79 @@ document.addEventListener('DOMContentLoaded', async () => {
                 
                 secoes.forEach(s => s.classList.add('hidden'));
                 
-                if (menu.id === 'menuVisaoGeral') {
+                const menuId = menu.id;
+                if (menuId === 'menuVisaoGeral') {
+                    tituloSecao.textContent = "Visão Geral";
                     document.getElementById('secVisaoGeral').classList.remove('hidden');
-                } else if (menu.id === 'menuQuadroMediuns') {
+                } else if (menuId === 'menuQuadroMediuns') {
+                    tituloSecao.textContent = "Quadro de Médiuns";
                     document.getElementById('secQuadroMediuns').classList.remove('hidden');
                     carregarQuadroMediuns();
-                } else if (menu.id === 'menuAgendaGiras') {
+                } else if (menuId === 'menuAgendaGiras') {
+                    tituloSecao.textContent = "Agenda de Giras";
                     document.getElementById('secAgendaGiras').classList.remove('hidden');
                     carregarAgenda();
+                } else if (menuId === 'menuGrau') {
+                    tituloSecao.textContent = "Alteração de Grau e Função";
+                    document.getElementById('secGrau').classList.remove('hidden');
+                    carregarAlteracaoGrau();
+                } else if (menuId === 'menuFinanceiro') {
+                    tituloSecao.textContent = "Controle Financeiro";
+                    document.getElementById('secFinanceiro').classList.remove('hidden');
+                    carregarFinanceiro();
                 }
             });
         });
 
-        // 3. Busca o nome do Terreiro para colocar no menu lateral
-        if (perfil.terreiro_id) {
-            const { data: terreiro } = await supabaseClient
-                .from('terreiros')
-                .select('nome')
-                .eq('id', perfil.terreiro_id)
-                .single();
-            
-            if (terreiro) {
-                document.getElementById('nomeTerreiroSidebar').textContent = terreiro.nome;
-            }
-        }
-
-        document.getElementById('tabelaPresencas').innerHTML = `
-            <tr>
-                <td colspan="4" class="p-6 text-center text-gray-500">Nenhum médium registrou presença na gira de hoje ainda.</td>
-            </tr>
-        `;
+        // Carrega dados iniciais Dashboard
+        carregarDashboard();
 
     } catch (error) {
-        console.error('Erro ao carregar painel:', error);
+        console.error('Erro de inicialização:', error);
     }
 
     // ==========================================
-    // GPS E LOGOUT
+    // MÓDULO: DASHBOARD E GPS
     // ==========================================
-    const btnGravarLocalizacao = document.getElementById('btnGravarLocalizacao');
-    const msgLocalizacao = document.getElementById('msgLocalizacao');
+    async function carregarDashboard() {
+        const { count: total } = await supabaseClient.from('mediuns').select('*', { count: 'exact', head: true });
+        document.getElementById('totalMediuns').textContent = total || '0';
 
-    if (btnGravarLocalizacao) {
-        btnGravarLocalizacao.addEventListener('click', async () => {
-            btnGravarLocalizacao.disabled = true;
-            btnGravarLocalizacao.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Obtendo GPS...';
-            msgLocalizacao.classList.add('hidden');
+        const { data: agenda } = await supabaseClient.from('agenda').select('*').gte('data_hora_fim', new Date().toISOString()).order('data_hora_inicio', { ascending: true }).limit(1);
+        
+        if (agenda && agenda.length > 0) {
+            document.getElementById('proximaGira').innerHTML = `${agenda[0].titulo} <br><span class="text-sm font-normal text-gray-500">${new Date(agenda[0].data_hora_inicio).toLocaleDateString('pt-BR')}</span>`;
             
-            if (!navigator.geolocation) {
-                mostrarAvisoLocal('Navegador não suporta GPS.', 'erro');
-                return;
+            const { data: presencas } = await supabaseClient.from('presencas').select(`data_hora_checkin, mediuns(nome_completo)`).eq('evento_id', agenda[0].id).order('data_hora_checkin', { ascending: false });
+            document.getElementById('totalPresentes').textContent = presencas ? presencas.length : '0';
+            
+            const tb = document.getElementById('tabelaPresencas');
+            tb.innerHTML = '';
+            if(presencas && presencas.length > 0){
+                presencas.forEach(p => {
+                    tb.innerHTML += `<tr class="border-b"><td class="p-3">${p.mediuns?.nome_completo}</td><td class="p-3">${new Date(p.data_hora_checkin).toLocaleTimeString('pt-BR')}</td><td class="p-3 text-green-600 font-bold">PRESENTE</td></tr>`;
+                });
+            } else {
+                tb.innerHTML = `<tr><td colspan="3" class="p-6 text-center text-gray-500">Ninguém presente ainda.</td></tr>`;
             }
+        }
+    }
 
+    const btnGps = document.getElementById('btnGravarLocalizacao');
+    if (btnGps) {
+        btnGps.addEventListener('click', async () => {
             navigator.geolocation.getCurrentPosition(
-                async (position) => {
-                    const lat = position.coords.latitude;
-                    const lon = position.coords.longitude;
-                    try {
-                        const { data: terreiros } = await supabaseClient.from('terreiros').select('id').limit(1);
-                        if (terreiros && terreiros.length > 0) {
-                            const { error } = await supabaseClient.from('terreiros')
-                                .update({ latitude: lat, longitude: lon })
-                                .eq('id', terreiros[0].id);
-                            
-                            if (error) throw error;
-                            
-                            mostrarAvisoLocal(`✅ Sucesso! Coordenadas salvas.<br><span class="text-xs font-normal">Lat: ${lat.toFixed(6)} | Lon: ${lon.toFixed(6)}</span>`, 'sucesso');
-                        } else {
-                            mostrarAvisoLocal('Nenhum terreiro encontrado no banco.', 'erro');
-                        }
-                    } catch (error) {
-                        mostrarAvisoLocal('Erro no banco: ' + error.message, 'erro');
+                async (pos) => {
+                    const lat = pos.coords.latitude, lon = pos.coords.longitude;
+                    const { data: t } = await supabaseClient.from('terreiros').select('id').limit(1);
+                    if(t && t.length > 0) {
+                        await supabaseClient.from('terreiros').update({ latitude: lat, longitude: lon }).eq('id', t[0].id);
+                        alert('GPS Gravado!');
                     }
                 },
-                (error) => mostrarAvisoLocal('Não foi possível obter a localização. Libere o GPS.', 'erro'),
-                { enableHighAccuracy: true, timeout: 15000 } 
+                (err) => alert('Erro no GPS: Libere a permissão.')
             );
         });
-    }
-
-    function mostrarAvisoLocal(msg, tipo) {
-        msgLocalizacao.innerHTML = msg;
-        msgLocalizacao.classList.remove('hidden');
-        msgLocalizacao.className = tipo === 'sucesso' 
-            ? 'mt-4 text-sm font-bold p-4 rounded-lg bg-green-100 text-green-800 border-l-4 border-green-600 block'
-            : 'mt-4 text-sm font-bold p-4 rounded-lg bg-red-100 text-red-800 border-l-4 border-red-600 block';
-        btnGravarLocalizacao.disabled = false;
-        btnGravarLocalizacao.innerHTML = 'Atualizar Localização Novamente';
     }
 
     document.getElementById('btnSair').addEventListener('click', async () => {
@@ -137,155 +122,174 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     // ==========================================
-    // FUNÇÕES DAS NOVAS ABAS (Médiuns e Agenda)
+    // MÓDULO: QUADRO DE MÉDIUNS
     // ==========================================
-
     async function carregarQuadroMediuns() {
         const tbody = document.getElementById('tabelaTodosMediuns');
-        tbody.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-gray-500">Buscando médiuns...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" class="p-6 text-center">Buscando...</td></tr>';
         
-        const { data, error } = await supabaseClient
-            .from('mediuns')
-            .select('nome_completo, grau, funcao, telefone, cadastro_completo')
-            .order('nome_completo');
-            
-        if (error) {
-            tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-red-500">Erro: ${error.message}</td></tr>`;
-            return;
-        }
-        
-        if (!data || data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-gray-500">Nenhum médium cadastrado.</td></tr>';
-            return;
-        }
+        const { data } = await supabaseClient.from('mediuns').select('nome_completo, grau, funcao, telefone, cadastro_completo').order('nome_completo');
         
         tbody.innerHTML = '';
         data.forEach(m => {
             const cargo = [m.grau, m.funcao].filter(Boolean).join(' / ') || '-';
-            const status = m.cadastro_completo 
-                ? '<span class="text-green-600 font-bold"><i class="fas fa-check"></i> Ativo</span>' 
-                : '<span class="text-yellow-600 font-bold"><i class="fas fa-clock"></i> Pendente</span>';
-            
-            tbody.innerHTML += `
-                <tr class="border-b border-gray-100 hover:bg-gray-50">
-                    <td class="p-3 text-gray-800">${m.nome_completo}</td>
-                    <td class="p-3 text-gray-600">${cargo}</td>
-                    <td class="p-3 text-gray-600">${m.telefone || '-'}</td>
-                    <td class="p-3">${status}</td>
-                </tr>
-            `;
+            const st = m.cadastro_completo ? '<span class="text-green-600">Ativo</span>' : '<span class="text-yellow-600">Pendente</span>';
+            tbody.innerHTML += `<tr class="border-b"><td class="p-3">${m.nome_completo}</td><td class="p-3">${cargo}</td><td class="p-3">${m.telefone||'-'}</td><td class="p-3">${st}</td></tr>`;
         });
     }
 
+    // ==========================================
+    // MÓDULO: AGENDA DE GIRAS (COM UPLOAD)
+    // ==========================================
     async function carregarAgenda() {
-        const tbody = document.getElementById('tabelaGirasCadastradas');
-        tbody.innerHTML = '<tr><td colspan="3" class="p-6 text-center text-gray-500">Buscando giras...</td></tr>';
-        
-        const agora = new Date().toISOString();
-        const { data, error } = await supabaseClient
-            .from('agenda')
-            .select('*')
-            .gte('data_hora_fim', agora) // Só busca as giras futuras
-            .order('data_hora_inicio', { ascending: true })
-            .limit(10); 
-            
-        if (error) {
-            tbody.innerHTML = `<tr><td colspan="3" class="p-6 text-center text-red-500">Erro: ${error.message}</td></tr>`;
-            return;
+        const tb = document.getElementById('tabelaGirasCadastradas');
+        const { data } = await supabaseClient.from('agenda').select('*').gte('data_hora_fim', new Date().toISOString()).order('data_hora_inicio');
+        tb.innerHTML = '';
+        if(data) {
+            data.forEach(g => {
+                const img = g.imagem_url ? `<a href="${g.imagem_url}" target="_blank" class="text-blue-500">Ver Imagem</a>` : 'Sem foto';
+                tb.innerHTML += `<tr class="border-b"><td class="p-3">${g.titulo}</td><td class="p-3">${new Date(g.data_hora_inicio).toLocaleString()}</td><td class="p-3">${img}</td></tr>`;
+            });
         }
-        
-        if (!data || data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="3" class="p-6 text-center text-gray-500">Nenhuma gira agendada.</td></tr>';
-            return;
-        }
-        
-        tbody.innerHTML = '';
-        data.forEach(g => {
-            const inicio = new Date(g.data_hora_inicio).toLocaleString('pt-BR');
-            const img = g.imagem_url 
-                ? `<a href="${g.imagem_url}" target="_blank" class="text-blue-500 hover:underline"><i class="fas fa-image"></i> Ver Imagem</a>` 
-                : '<span class="text-gray-400">Sem imagem</span>';
-                
-            tbody.innerHTML += `
-                <tr class="border-b border-gray-100 hover:bg-gray-50">
-                    <td class="p-3 text-gray-800 font-medium">${g.titulo}</td>
-                    <td class="p-3 text-gray-600">${inicio}</td>
-                    <td class="p-3">${img}</td>
-                </tr>
-            `;
-        });
     }
 
-    // Formulário de Nova Gira (AGORA COM UPLOAD DE FOTO)
-    const formNovaGira = document.getElementById('formNovaGira');
-    if (formNovaGira) {
-        formNovaGira.addEventListener('submit', async (e) => {
+    const formGira = document.getElementById('formNovaGira');
+    if(formGira) {
+        formGira.addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = document.getElementById('btnSalvarGira');
-            const msg = document.getElementById('msgGira');
-            
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Processando...';
-            msg.classList.add('hidden');
-            
-            const titulo = document.getElementById('giraTitulo').value;
-            const inputArquivo = document.getElementById('giraArquivo');
-            let imagem_url = document.getElementById('giraImagem').value; 
-            const data_hora_inicio = document.getElementById('giraInicio').value;
-            const data_hora_fim = document.getElementById('giraFim').value;
+            btn.innerHTML = 'Processando...'; btn.disabled = true;
             
             try {
-                // SE O USUÁRIO ENVIOU UM ARQUIVO, FAZ O UPLOAD PARA O SUPABASE
-                if (inputArquivo.files && inputArquivo.files.length > 0) {
-                    msg.innerHTML = 'Fazendo upload da imagem... <i class="fas fa-spinner fa-spin"></i>';
-                    msg.className = 'text-sm mt-2 text-blue-600 block font-bold';
-                    msg.classList.remove('hidden');
-
-                    const arquivo = inputArquivo.files[0];
-                    const extensao = arquivo.name.split('.').pop();
-                    const nomeArquivo = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${extensao}`;
-                    
-                    const { data: uploadData, error: uploadError } = await supabaseClient.storage
-                        .from('giras')
-                        .upload(nomeArquivo, arquivo);
-                        
-                    if (uploadError) throw new Error('Falha ao subir a imagem: ' + uploadError.message);
-                    
-                    const { data: publicUrlData } = supabaseClient.storage
-                        .from('giras')
-                        .getPublicUrl(nomeArquivo);
-                        
-                    imagem_url = publicUrlData.publicUrl; 
+                let img_url = document.getElementById('giraImagem').value;
+                const arq = document.getElementById('giraArquivo').files[0];
+                
+                if (arq) {
+                    const nomeArq = Date.now() + '_' + arq.name;
+                    await supabaseClient.storage.from('giras').upload(nomeArq, arq);
+                    const { data: pub } = supabaseClient.storage.from('giras').getPublicUrl(nomeArq);
+                    img_url = pub.publicUrl;
                 }
 
-                msg.innerHTML = 'Salvando gira na agenda... <i class="fas fa-spinner fa-spin"></i>';
-                msg.classList.remove('hidden');
-
-                const { data: terreiros } = await supabaseClient.from('terreiros').select('id').limit(1);
-                const terreiro_id = terreiros[0]?.id;
-                
-                const { error } = await supabaseClient.from('agenda').insert([{
-                    terreiro_id,
-                    titulo,
-                    imagem_url: imagem_url || null, 
-                    data_hora_inicio,
-                    data_hora_fim
+                const { data: t } = await supabaseClient.from('terreiros').select('id').limit(1);
+                await supabaseClient.from('agenda').insert([{
+                    terreiro_id: t[0]?.id,
+                    titulo: document.getElementById('giraTitulo').value,
+                    imagem_url: img_url || null,
+                    data_hora_inicio: document.getElementById('giraInicio').value,
+                    data_hora_fim: document.getElementById('giraFim').value
                 }]);
                 
-                if (error) throw error;
-                
-                msg.innerHTML = '✅ Gira salva com sucesso!';
-                msg.className = 'text-sm mt-2 text-green-600 block font-bold';
-                formNovaGira.reset();
-                carregarAgenda(); 
-                
-            } catch (err) {
-                msg.innerHTML = '❌ Erro: ' + err.message;
-                msg.className = 'text-sm mt-2 text-red-600 block font-bold';
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = 'Salvar Gira na Agenda';
-            }
+                alert('Gira Cadastrada!');
+                formGira.reset();
+                carregarAgenda();
+            } catch (err) { alert('Erro: ' + err.message); }
+            btn.innerHTML = 'Salvar Gira'; btn.disabled = false;
         });
     }
+
+    // ==========================================
+    // MÓDULO: ALTERAÇÃO DE GRAU
+    // ==========================================
+    async function carregarAlteracaoGrau() {
+        const tb = document.getElementById('tabelaGraus');
+        tb.innerHTML = '<tr><td colspan="4" class="p-6 text-center">Buscando...</td></tr>';
+        
+        const { data } = await supabaseClient.from('mediuns').select('id, nome_completo, grau, funcao').order('nome_completo');
+        
+        tb.innerHTML = '';
+        data.forEach(m => {
+            tb.innerHTML += `
+                <tr class="border-b hover:bg-gray-50">
+                    <td class="p-3 font-medium text-gray-800">${m.nome_completo}</td>
+                    <td class="p-3"><input type="text" id="grau_${m.id}" value="${m.grau || ''}" class="w-full border-gray-300 rounded px-2 py-1 text-sm uppercase"></td>
+                    <td class="p-3"><input type="text" id="func_${m.id}" value="${m.funcao || ''}" class="w-full border-gray-300 rounded px-2 py-1 text-sm uppercase"></td>
+                    <td class="p-3 text-center">
+                        <button onclick="salvarGrau(${m.id})" class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-xs font-bold transition">Salvar</button>
+                    </td>
+                </tr>
+            `;
+        });
+    }
+
+    window.salvarGrau = async function(id) {
+        const btn = event.target;
+        btn.innerText = '...';
+        const novoGrau = document.getElementById(`grau_${id}`).value.toUpperCase();
+        const novaFuncao = document.getElementById(`func_${id}`).value.toUpperCase();
+        
+        const { error } = await supabaseClient.from('mediuns').update({ grau: novoGrau, funcao: novaFuncao }).eq('id', id);
+        
+        if (error) {
+            alert('Erro ao salvar!');
+        } else {
+            btn.innerText = 'Salvo!';
+            btn.classList.replace('bg-yellow-500', 'bg-green-600');
+            setTimeout(() => { btn.innerText = 'Salvar'; btn.classList.replace('bg-green-600', 'bg-yellow-500'); }, 2000);
+        }
+    };
+
+    // ==========================================
+    // MÓDULO: FINANCEIRO
+    // ==========================================
+    const anoSelect = document.getElementById('selectAnoFinanceiro');
+    if (anoSelect) anoSelect.addEventListener('change', carregarFinanceiro);
+
+    async function carregarFinanceiro() {
+        const ano = parseInt(document.getElementById('selectAnoFinanceiro').value);
+        const tb = document.getElementById('tabelaFinanceiro');
+        tb.innerHTML = '<tr><td colspan="13" class="p-6 text-center">Buscando histórico financeiro...</td></tr>';
+
+        // 1. Busca todos os médiuns
+        const { data: mediuns } = await supabaseClient.from('mediuns').select('id, nome_completo').order('nome_completo');
+        
+        // 2. Busca pagamentos do ano selecionado
+        const { data: pagamentos } = await supabaseClient.from('financeiro').select('*').eq('ano', ano);
+        
+        tb.innerHTML = '';
+        
+        mediuns.forEach(m => {
+            // Filtra pagamentos só desse médium
+            const pgMedium = pagamentos ? pagamentos.filter(p => p.medium_id === m.id) : [];
+            
+            let celulasMeses = '';
+            for(let mes = 1; mes <= 12; mes++) {
+                // Verifica se este mês específico está pago
+                const taPago = pgMedium.find(p => p.mes === mes)?.pago || false;
+                const check = taPago ? 'checked' : '';
+                
+                celulasMeses += `
+                    <td class="p-2 border-l border-gray-100">
+                        <input type="checkbox" onchange="salvarPagamento(${m.id}, ${mes}, ${ano}, this.checked)" ${check} 
+                        class="w-5 h-5 text-green-600 rounded border-gray-300 focus:ring-green-500 cursor-pointer">
+                    </td>
+                `;
+            }
+
+            tb.innerHTML += `
+                <tr class="border-b hover:bg-green-50 transition">
+                    <td class="p-2 text-left font-medium text-gray-800 sticky left-0 bg-white shadow-[1px_0_0_0_#e5e7eb] truncate max-w-[200px]" title="${m.nome_completo}">
+                        ${m.nome_completo.split(' ').slice(0, 2).join(' ')}
+                    </td>
+                    ${celulasMeses}
+                </tr>
+            `;
+        });
+    }
+
+    // Função que é chamada ao clicar no checkbox do mês
+    window.salvarPagamento = async function(medium_id, mes, ano, isPago) {
+        const { error } = await supabaseClient
+            .from('financeiro')
+            .upsert(
+                { medium_id: medium_id, mes: mes, ano: ano, pago: isPago },
+                { onConflict: 'medium_id,mes,ano' }
+            );
+
+        if (error) {
+            alert('Erro ao salvar pagamento: ' + error.message);
+            // Desfaz o clique
+            event.target.checked = !isPago;
+        }
+    };
 });
