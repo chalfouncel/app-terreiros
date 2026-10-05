@@ -50,7 +50,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     document.getElementById('secQuadroMediuns').classList.remove('hidden');
                     carregarQuadroMediuns();
                 } else if (menuId === 'menuAgendaGiras') {
-                    tituloSecao.textContent = "Agenda de Giras";
+                    tituloSecao.textContent = "Agenda de Eventos";
                     document.getElementById('secAgendaGiras').classList.remove('hidden');
                     carregarAgenda();
                 } else if (menuId === 'menuGrau') {
@@ -180,43 +180,83 @@ document.addEventListener('DOMContentLoaded', async () => {
                     data_hora_fim: document.getElementById('giraFim').value
                 }]);
                 
-                alert('Gira Cadastrada!');
+                alert('Evento Cadastrado!');
                 formGira.reset();
                 carregarAgenda();
             } catch (err) { alert('Erro: ' + err.message); }
-            btn.innerHTML = 'Salvar Gira'; btn.disabled = false;
+            btn.innerHTML = 'Salvar Evento na Agenda'; btn.disabled = false;
         });
     }
 
     // ==========================================
-    // MÓDULO: ALTERAÇÃO DE GRAU
+    // MÓDULO: ALTERAÇÃO DE GRAU COM FILTRO E SELECT
     // ==========================================
+    let listaMediunsGrau = [];
+    const opcoesGraus = ['I', 'IJ', 'B', 'BJ', 'T', 'TJ', 'SCT', 'Escola de CT', 'CT', 'SCCT', 'Escola de CCT', 'CCT'];
+    const opcoesFuncoes = ['MG', 'MGA', 'MC', 'MCA', 'MD', 'MDA', 'Cantina'];
+
     async function carregarAlteracaoGrau() {
         const tb = document.getElementById('tabelaGraus');
         tb.innerHTML = '<tr><td colspan="4" class="p-6 text-center">Buscando...</td></tr>';
         
         const { data } = await supabaseClient.from('mediuns').select('id, nome_completo, grau, funcao').order('nome_completo');
-        
+        listaMediunsGrau = data || [];
+        renderizarTabelaGrau(listaMediunsGrau);
+    }
+
+    function renderizarTabelaGrau(lista) {
+        const tb = document.getElementById('tabelaGraus');
         tb.innerHTML = '';
-        data.forEach(m => {
+        
+        if (lista.length === 0) {
+            tb.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-gray-500">Nenhum médium encontrado.</td></tr>';
+            return;
+        }
+
+        lista.forEach(m => {
+            // Monta as opções do Grau
+            let optGrau = '<option value="">-</option>';
+            opcoesGraus.forEach(g => {
+                const sel = (m.grau && m.grau.toUpperCase() === g.toUpperCase()) ? 'selected' : '';
+                optGrau += `<option value="${g}" ${sel}>${g}</option>`;
+            });
+
+            // Monta as opções da Função
+            let optFunc = '<option value="">-</option>';
+            opcoesFuncoes.forEach(f => {
+                const sel = (m.funcao && m.funcao.toUpperCase() === f.toUpperCase()) ? 'selected' : '';
+                optFunc += `<option value="${f}" ${sel}>${f}</option>`;
+            });
+
             tb.innerHTML += `
                 <tr class="border-b hover:bg-gray-50">
-                    <td class="p-3 font-medium text-gray-800">${m.nome_completo}</td>
-                    <td class="p-3"><input type="text" id="grau_${m.id}" value="${m.grau || ''}" class="w-full border-gray-300 rounded px-2 py-1 text-sm uppercase"></td>
-                    <td class="p-3"><input type="text" id="func_${m.id}" value="${m.funcao || ''}" class="w-full border-gray-300 rounded px-2 py-1 text-sm uppercase"></td>
-                    <td class="p-3 text-center">
-                        <button onclick="salvarGrau(${m.id})" class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-xs font-bold transition">Salvar</button>
+                    <td class="py-1 px-3 font-medium text-gray-800">${m.nome_completo}</td>
+                    <td class="py-1 px-3"><select id="grau_${m.id}" class="w-full border-gray-300 rounded px-2 py-1 text-sm bg-white cursor-pointer">${optGrau}</select></td>
+                    <td class="py-1 px-3"><select id="func_${m.id}" class="w-full border-gray-300 rounded px-2 py-1 text-sm bg-white cursor-pointer">${optFunc}</select></td>
+                    <td class="py-1 px-3 text-center">
+                        <button onclick="salvarGrau(${m.id})" class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-xs font-bold transition shadow-sm">Salvar</button>
                     </td>
                 </tr>
             `;
         });
     }
 
+    const buscaGrauInput = document.getElementById('buscaMediumGrau');
+    if (buscaGrauInput) {
+        buscaGrauInput.addEventListener('input', (e) => {
+            const termo = e.target.value.toLowerCase();
+            const filtrados = listaMediunsGrau.filter(m => m.nome_completo.toLowerCase().includes(termo));
+            renderizarTabelaGrau(filtrados);
+        });
+    }
+
     window.salvarGrau = async function(id) {
         const btn = event.target;
         btn.innerText = '...';
-        const novoGrau = document.getElementById(`grau_${id}`).value.toUpperCase();
-        const novaFuncao = document.getElementById(`func_${id}`).value.toUpperCase();
+        
+        // Pega os valores direto das caixas de seleção
+        const novoGrau = document.getElementById(`grau_${id}`).value;
+        const novaFuncao = document.getElementById(`func_${id}`).value;
         
         const { error } = await supabaseClient.from('mediuns').update({ grau: novoGrau, funcao: novaFuncao }).eq('id', id);
         
@@ -226,6 +266,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             btn.innerText = 'Salvo!';
             btn.classList.replace('bg-yellow-500', 'bg-green-600');
             setTimeout(() => { btn.innerText = 'Salvar'; btn.classList.replace('bg-green-600', 'bg-yellow-500'); }, 2000);
+            
+            // Salva na lista da memória pra não perder a alteração se o usuário pesquisar outro nome
+            const index = listaMediunsGrau.findIndex(m => m.id === id);
+            if (index !== -1) {
+                listaMediunsGrau[index].grau = novoGrau;
+                listaMediunsGrau[index].funcao = novaFuncao;
+            }
         }
     };
 
@@ -259,17 +306,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const check = taPago ? 'checked' : '';
                 
                 celulasMeses += `
-                    <td class="p-2 border-l border-gray-100">
+                    <td class="py-1 px-1 border-l border-gray-100">
                         <input type="checkbox" onchange="salvarPagamento(${m.id}, ${mes}, ${ano}, this.checked)" ${check} 
-                        class="w-5 h-5 text-green-600 rounded border-gray-300 focus:ring-green-500 cursor-pointer">
+                        class="w-4 h-4 text-green-600 rounded border-gray-300 focus:ring-green-500 cursor-pointer">
                     </td>
                 `;
             }
 
             tb.innerHTML += `
                 <tr class="border-b hover:bg-green-50 transition">
-                    <td class="p-2 text-left font-medium text-gray-800 sticky left-0 bg-white shadow-[1px_0_0_0_#e5e7eb] truncate max-w-[200px]" title="${m.nome_completo}">
-                        ${m.nome_completo.split(' ').slice(0, 2).join(' ')}
+                    <td class="py-1 px-3 text-left font-medium text-gray-800 sticky left-0 bg-white shadow-[1px_0_0_0_#e5e7eb] whitespace-nowrap z-10">
+                        ${m.nome_completo}
                     </td>
                     ${celulasMeses}
                 </tr>
@@ -293,3 +340,4 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     };
 });
+    
