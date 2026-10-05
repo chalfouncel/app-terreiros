@@ -6,37 +6,68 @@
     <title>Painel Admin - Templo</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- Ícones do FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Variáveis Globais de Cor (Padrões) - Podem ser sobrescritas pelo JS */
+        :root {
+            --cor-primaria: #1e3a8a;   
+            --cor-secundaria: #16a34a; 
+            --cor-fundo: #f3f4f6;      
+            --cor-texto: #1f2937;      
+        }
+        
+        /* Classes customizadas usando as variáveis */
+        .bg-tema-primaria { background-color: var(--cor-primaria) !important; }
+        .text-tema-primaria { color: var(--cor-primaria) !important; }
+        .border-tema-primaria { border-color: var(--cor-primaria) !important; }
+        
+        .bg-tema-secundaria { background-color: var(--cor-secundaria) !important; }
+        .text-tema-secundaria { color: var(--cor-secundaria) !important; }
+        .border-tema-secundaria { border-color: var(--cor-secundaria) !important; }
+        
+        .bg-tema-fundo { background-color: var(--cor-fundo) !important; }
+        .text-tema-texto { color: var(--cor-texto) !important; }
+
+        body {
+            background-color: var(--cor-fundo);
+            color: var(--cor-texto);
+            transition: background-color 0.3s ease;
+        }
+    </style>
 </head>
-<body class="bg-gray-100 min-h-screen flex">
+<body class="min-h-screen flex transition-colors duration-300">
 
     <!-- Menu Lateral (Sidebar) -->
-    <aside class="w-64 bg-[#1e3a8a] text-white flex flex-col shadow-xl">
-        <div class="p-6 text-center border-b border-blue-800">
-            <h1 class="text-2xl font-bold text-white">Painel Gestão</h1>
-            <p class="text-xs text-blue-300 mt-1" id="nomeTerreiroSidebar">Carregando...</p>
+    <aside class="w-64 bg-tema-primaria text-white flex flex-col shadow-xl transition-colors duration-300">
+        <div class="p-6 text-center border-b border-white/10 flex flex-col items-center">
+            <img id="logoSidebar" src="" class="hidden max-h-20 mb-3 rounded-lg bg-white/10 p-1 object-contain" alt="Ponto da Casa">
+            <h1 class="text-xl font-bold text-white drop-shadow-md">Painel Gestão</h1>
+            <p class="text-xs text-white/80 mt-1" id="nomeTerreiroSidebar">Carregando...</p>
         </div>
         <nav class="flex-1 p-4 space-y-2 mt-4">
-            <a href="#" id="menuVisaoGeral" class="menu-item block py-2.5 px-4 bg-blue-800 rounded-lg hover:bg-blue-700 transition flex items-center">
+            <a href="#" id="menuVisaoGeral" class="menu-item block py-2.5 px-4 bg-white/20 rounded-lg hover:bg-white/10 transition flex items-center">
                 <i class="fas fa-home w-6 mr-2"></i> Visão Geral
             </a>
-            <a href="#" id="menuQuadroMediuns" class="menu-item block py-2.5 px-4 rounded-lg hover:bg-blue-800 transition flex items-center">
+            <a href="#" id="menuQuadroMediuns" class="menu-item block py-2.5 px-4 rounded-lg hover:bg-white/10 transition flex items-center">
                 <i class="fas fa-users w-6 mr-2"></i> Quadro de Médiuns
             </a>
-            <a href="#" id="menuAgendaGiras" class="menu-item block py-2.5 px-4 rounded-lg hover:bg-blue-800 transition flex items-center">
+            <a href="#" id="menuAgendaGiras" class="menu-item block py-2.5 px-4 rounded-lg hover:bg-white/10 transition flex items-center">
                 <i class="fas fa-calendar-alt w-6 mr-2"></i> Agenda de Eventos
             </a>
-            <hr class="border-blue-800 my-2">
-            <a href="#" id="menuGrau" class="menu-item block py-2.5 px-4 rounded-lg hover:bg-blue-800 transition flex items-center">
+            <hr class="border-white/10 my-2">
+            <a href="#" id="menuGrau" class="menu-item block py-2.5 px-4 rounded-lg hover:bg-white/10 transition flex items-center">
                 <i class="fas fa-graduation-cap w-6 mr-2"></i> Alteração de Grau
             </a>
-            <a href="#" id="menuFinanceiro" class="menu-item block py-2.5 px-4 rounded-lg hover:bg-blue-800 transition flex items-center text-green-400 font-medium">
+            <a href="#" id="menuFinanceiro" class="menu-item block py-2.5 px-4 rounded-lg hover:bg-white/10 transition flex items-center font-medium">
                 <i class="fas fa-file-invoice-dollar w-6 mr-2"></i> Financeiro
             </a>
+            <hr class="border-white/10 my-2">
+            <a href="#" id="menuAdmin" class="menu-item block py-2.5 px-4 rounded-lg hover:bg-white/10 transition flex items-center font-bold text-yellow-300">
+                <i class="fas fa-cog w-6 mr-2"></i> Administração
+            </a>
         </nav>
-        <div class="p-4 border-t border-blue-800">
-            <button id="btnSair" class="w-full py-2 px-4 bg-red-600 rounded-lg hover:bg-red-700 transition flex items-center justify-center">
+        <div class="p-4 border-t border-white/10">
+            <button id="btnSair" class="w-full py-2 px-4 bg-red-500/80 hover:bg-red-600 rounded-lg transition flex items-center justify-center font-bold shadow-lg">
                 <i class="fas fa-sign-out-alt mr-2"></i> Sair do Sistema
             </button>
         </div>
@@ -46,11 +77,11 @@
     <main class="flex-1 p-8 overflow-y-auto">
         <header class="flex justify-between items-center mb-8">
             <div>
-                <h2 class="text-3xl font-bold text-gray-800" id="tituloSecao">Visão Geral</h2>
+                <h2 class="text-3xl font-bold text-tema-texto" id="tituloSecao">Visão Geral</h2>
                 <p class="text-gray-500" id="dataHoje"></p>
             </div>
             <div class="bg-white px-4 py-2 rounded-full shadow-sm border border-gray-200 flex items-center">
-                <i class="fas fa-user-circle text-[#16a34a] text-xl mr-2"></i>
+                <i class="fas fa-user-circle text-tema-secundaria text-xl mr-2"></i>
                 <span class="text-gray-700 font-medium" id="nomeAdmin">Olá, Admin</span>
             </div>
         </header>
@@ -58,35 +89,35 @@
         <!-- SECÃO 1: VISÃO GERAL -->
         <div id="secVisaoGeral" class="secao-painel">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-[#16a34a]">
+                <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-tema-secundaria">
                     <h3 class="text-gray-500 text-sm font-bold uppercase tracking-wider">Médiuns Presentes Hoje</h3>
-                    <p class="text-4xl font-bold text-gray-800 mt-2" id="totalPresentes">0</p>
+                    <p class="text-4xl font-bold text-tema-texto mt-2" id="totalPresentes">0</p>
                 </div>
-                <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-[#1e3a8a]">
+                <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-tema-primaria">
                     <h3 class="text-gray-500 text-sm font-bold uppercase tracking-wider">Total Cadastrados</h3>
-                    <p class="text-4xl font-bold text-gray-800 mt-2" id="totalMediuns">0</p>
+                    <p class="text-4xl font-bold text-tema-texto mt-2" id="totalMediuns">0</p>
                 </div>
                 <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-purple-500">
-                    <h3 class="text-gray-500 text-sm font-bold uppercase tracking-wider">Próxima Gira</h3>
-                    <p class="text-lg font-bold text-gray-800 mt-2" id="proximaGira">Buscando...</p>
+                    <h3 class="text-gray-500 text-sm font-bold uppercase tracking-wider">Próximo Evento</h3>
+                    <p class="text-lg font-bold text-tema-texto mt-2" id="proximaGira">Buscando...</p>
                 </div>
             </div>
 
-            <div class="bg-white p-6 rounded-xl shadow-sm border-t-4 border-[#1e3a8a] mb-8">
+            <div class="bg-white p-6 rounded-xl shadow-sm border-t-4 border-tema-primaria mb-8">
                 <div class="flex items-center mb-4">
-                    <div class="bg-blue-100 p-3 rounded-full mr-4 text-[#1e3a8a]">
+                    <div class="bg-gray-100 p-3 rounded-full mr-4 text-tema-primaria">
                         <i class="fas fa-map-marker-alt w-6 h-6 flex items-center justify-center text-xl"></i>
                     </div>
                     <div>
-                        <h3 class="text-xl font-bold text-gray-800">Localização Sede (GPS)</h3>
+                        <h3 class="text-xl font-bold text-tema-texto">Localização Sede (GPS)</h3>
                         <p class="text-sm text-gray-500">Define o ponto exato para a validação do check-in dos médiuns.</p>
                     </div>
                 </div>
                 <p class="text-sm text-gray-600 mb-5 pl-16">
-                    Vá fisicamente até o centro do terreiro com o seu celular e clique no botão abaixo. Isso garantirá que o sistema registre a coordenada exata para as próximas giras.
+                    Vá fisicamente até o centro do terreiro com o seu celular e clique no botão abaixo. Isso garantirá que o sistema registre a coordenada exata.
                 </p>
                 <div class="pl-16">
-                    <button id="btnGravarLocalizacao" class="w-full sm:w-auto bg-[#1e3a8a] hover:bg-blue-900 focus:ring-4 focus:ring-blue-300 text-white font-bold py-3 px-6 rounded-lg shadow flex items-center justify-center transition-all">
+                    <button id="btnGravarLocalizacao" class="w-full sm:w-auto bg-tema-primaria hover:opacity-90 text-white font-bold py-3 px-6 rounded-lg shadow flex items-center justify-center transition-all">
                         Gravar Localização Atual
                     </button>
                     <div id="msgLocalizacao" class="mt-4 hidden"></div>
@@ -94,7 +125,7 @@
             </div>
 
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                <h3 class="text-lg font-bold text-gray-800 mb-4">Lista de Presença (Hoje)</h3>
+                <h3 class="text-lg font-bold text-tema-texto mb-4">Lista de Presença (Hoje)</h3>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse">
                         <thead>
@@ -118,7 +149,7 @@
                 <table class="w-full text-left border-collapse">
                     <thead>
                         <tr class="bg-gray-50 border-b border-gray-200">
-                            <th class="p-3 text-sm font-semibold text-gray-600">NOME</th>
+                            <th class="p-3 text-sm font-semibold text-gray-600">NOME COMPLETO</th>
                             <th class="p-3 text-sm font-semibold text-gray-600">GRAU / FUNÇÃO</th>
                             <th class="p-3 text-sm font-semibold text-gray-600">WHATSAPP</th>
                             <th class="p-3 text-sm font-semibold text-gray-600">STATUS</th>
@@ -132,18 +163,19 @@
         <!-- SECÃO 3: AGENDA DE EVENTOS -->
         <div id="secAgendaGiras" class="secao-painel hidden">
             <div class="bg-white p-6 rounded-xl shadow-sm border-t-4 border-purple-500 mb-8">
-                <h3 class="text-lg font-bold text-gray-800 mb-4">Novo Evento</h3>
+                <h3 class="text-lg font-bold text-tema-texto mb-4">Novo Evento</h3>
                 <form id="formNovaGira" class="space-y-4">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Evento</label>
+                            <label class="block text-sm font-medium text-gray-700">Título do Evento</label>
                             <input type="text" id="giraTitulo" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700">Arte/Imagem (Arquivo ou Link)</label>
-                            <div class="flex space-x-2 mt-1">
+                            <div class="flex flex-col space-y-2 mt-1">
                                 <input type="file" id="giraArquivo" accept="image/*" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100">
-                                <input type="url" id="giraImagem" class="block w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="Ou cole um Link...">
+                                <span class="text-xs text-gray-400">Ou cole um Link abaixo:</span>
+                                <input type="url" id="giraImagem" class="block w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="https://...">
                             </div>
                         </div>
                         <div>
@@ -155,19 +187,19 @@
                             <input type="datetime-local" id="giraFim" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
                         </div>
                     </div>
-                    <button type="submit" id="btnSalvarGira" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded shadow">
-                        Salvar Evento na Agenda
+                    <button type="submit" id="btnSalvarGira" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded shadow mt-4">
+                        Salvar Evento
                     </button>
                     <p id="msgGira" class="text-sm mt-2 hidden"></p>
                 </form>
             </div>
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                <h3 class="text-lg font-bold text-gray-800 mb-4">Eventos Agendados</h3>
+                <h3 class="text-lg font-bold text-tema-texto mb-4">Eventos Agendados</h3>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse">
                         <thead>
                             <tr class="bg-gray-50 border-b border-gray-200">
-                                <th class="p-3 text-sm font-semibold text-gray-600">TÍTULO</th>
+                                <th class="p-3 text-sm font-semibold text-gray-600">EVENTO</th>
                                 <th class="p-3 text-sm font-semibold text-gray-600">DATA / HORA</th>
                                 <th class="p-3 text-sm font-semibold text-gray-600">IMAGEM</th>
                             </tr>
@@ -180,18 +212,18 @@
 
         <!-- SECÃO 4: ALTERAÇÃO DE GRAU -->
         <div id="secGrau" class="secao-painel hidden">
-            <div class="bg-white rounded-xl shadow-sm border-t-4 border-yellow-500 p-6 overflow-x-auto">
-                <p class="text-sm text-gray-500 mb-4">Altere o grau ou a função do médium e clique em Salvar na respectiva linha.</p>
+            <div class="bg-white rounded-xl shadow-sm border-t-4 border-tema-primaria p-6 overflow-x-auto">
+                <p class="text-sm text-gray-500 mb-4">Selecione o grau e a função do médium e clique em Salvar na respectiva linha.</p>
                 
-                <input type="text" id="buscaMediumGrau" placeholder="🔍 Pesquisar por nome do médium..." class="w-full mb-4 px-4 py-2 border border-gray-300 rounded shadow-sm focus:ring-yellow-500 focus:border-yellow-500 outline-none">
+                <input type="text" id="buscaMediumGrau" placeholder="🔍 Pesquisar por nome do médium..." class="w-full mb-6 px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-tema-primaria focus:border-tema-primaria outline-none text-lg">
 
                 <table class="w-full text-left border-collapse">
                     <thead>
                         <tr class="bg-gray-50 border-b border-gray-200">
-                            <th class="p-3 text-sm font-semibold text-gray-600 w-1/3">MÉDIUM</th>
+                            <th class="p-3 text-sm font-semibold text-gray-600 w-2/5">NOME COMPLETO</th>
                             <th class="p-3 text-sm font-semibold text-gray-600">GRAU</th>
-                            <th class="p-3 text-sm font-semibold text-gray-600">FUNÇÃO (OPCIONAL)</th>
-                            <th class="p-3 text-sm font-semibold text-gray-600 text-center">AÇÃO</th>
+                            <th class="p-3 text-sm font-semibold text-gray-600">FUNÇÃO</th>
+                            <th class="p-3 text-sm font-semibold text-gray-600 text-center w-32">AÇÃO</th>
                         </tr>
                     </thead>
                     <tbody id="tabelaGraus"></tbody>
@@ -201,23 +233,24 @@
 
         <!-- SECÃO 5: FINANCEIRO -->
         <div id="secFinanceiro" class="secao-painel hidden">
-            <div class="bg-white rounded-xl shadow-sm border-t-4 border-green-500 p-6">
+            <div class="bg-white rounded-xl shadow-sm border-t-4 border-tema-secundaria p-6">
                 <div class="flex justify-between items-center mb-6">
-                    <p class="text-sm text-gray-500">Marque o mês para registrar o pagamento da mensalidade. O salvamento é automático!</p>
+                    <p class="text-sm text-gray-500">Marque o mês para registrar o pagamento. O salvamento é automático!</p>
                     <div class="flex items-center space-x-2">
                         <label class="font-bold text-gray-700">Ano de Referência:</label>
-                        <select id="selectAnoFinanceiro" class="border border-gray-300 rounded px-3 py-1 font-bold text-gray-800 bg-gray-50 focus:ring-green-500 focus:border-green-500">
+                        <select id="selectAnoFinanceiro" class="border border-gray-300 rounded px-3 py-1 font-bold text-gray-800 bg-gray-50">
                             <option value="2026">2026</option>
                             <option value="2027">2027</option>
+                            <option value="2028">2028</option>
                         </select>
                     </div>
                 </div>
                 
-                <div class="overflow-x-auto">
+                <div class="overflow-x-auto" style="max-height: 70vh;">
                     <table class="w-full text-center border-collapse text-sm">
-                        <thead>
-                            <tr class="bg-gray-50 border-b border-gray-200">
-                                <th class="py-2 px-3 text-left font-semibold text-gray-600 sticky left-0 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb] z-10 min-w-[200px]">MÉDIUM</th>
+                        <thead class="sticky top-0 z-20 shadow-sm">
+                            <tr class="bg-gray-100 border-b border-gray-200">
+                                <th class="py-2 px-3 text-left font-semibold text-gray-700 sticky left-0 bg-gray-100 z-30 min-w-[220px]">NOME COMPLETO</th>
                                 <th class="py-2 px-1 font-semibold text-gray-600">JAN</th>
                                 <th class="py-2 px-1 font-semibold text-gray-600">FEV</th>
                                 <th class="py-2 px-1 font-semibold text-gray-600">MAR</th>
@@ -230,11 +263,84 @@
                                 <th class="py-2 px-1 font-semibold text-gray-600">OUT</th>
                                 <th class="py-2 px-1 font-semibold text-gray-600">NOV</th>
                                 <th class="py-2 px-1 font-semibold text-gray-600">DEZ</th>
+                                <th class="py-2 px-2 font-semibold text-gray-600 bg-gray-200">STATUS</th>
                             </tr>
                         </thead>
                         <tbody id="tabelaFinanceiro"></tbody>
                     </table>
                 </div>
+            </div>
+        </div>
+
+        <!-- SECÃO 6: ADMINISTRAÇÃO (NOVA) -->
+        <div id="secAdministracao" class="secao-painel hidden">
+            
+            <!-- Bloco 1: Logo -->
+            <div class="bg-white rounded-xl shadow-sm border-t-4 border-tema-primaria p-6 mb-8">
+                <h3 class="text-xl font-bold text-tema-texto mb-2"><i class="fas fa-image mr-2 text-tema-secundaria"></i> Ponto / Logo da Casa</h3>
+                <p class="text-sm text-gray-500 mb-6">Esta imagem substituirá os textos no menu lateral e balizará a identidade visual do sistema.</p>
+
+                <div class="flex items-start space-x-6">
+                    <div class="flex-shrink-0 w-32 h-32 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center bg-gray-50 overflow-hidden relative">
+                        <img id="previewLogo" src="" class="hidden max-w-full max-h-full object-contain p-2">
+                        <div id="placeholderLogo" class="text-gray-400 text-center">
+                            <i class="fas fa-camera text-3xl mb-1"></i><br><span class="text-xs">Sem Logo</span>
+                        </div>
+                    </div>
+                    <div class="flex-1">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Enviar nova imagem (Preferência para fundo transparente PNG)</label>
+                        <input type="file" id="uploadLogo" accept="image/*" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 mb-3 cursor-pointer">
+                        <button id="btnSalvarLogo" class="bg-tema-primaria hover:opacity-90 text-white px-5 py-2 rounded shadow transition text-sm font-bold">
+                            Salvar Imagem
+                        </button>
+                        <p id="msgLogo" class="text-xs font-bold mt-2 hidden"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bloco 2: Cores -->
+            <div class="bg-white rounded-xl shadow-sm border-t-4 border-tema-secundaria p-6">
+                <h3 class="text-xl font-bold text-tema-texto mb-2"><i class="fas fa-palette mr-2 text-tema-secundaria"></i> Identidade Visual (Cores)</h3>
+                <p class="text-sm text-gray-500 mb-6">Altere as cores do sistema para deixá-lo com a cara do seu terreiro. Clique na caixa colorida para escolher.</p>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                    <div class="p-4 border border-gray-100 rounded-lg bg-gray-50 flex justify-between items-center hover:shadow-sm transition">
+                        <div>
+                            <h4 class="font-bold text-gray-800">Cor Primária</h4>
+                            <p class="text-xs text-gray-500">Menu lateral, botões principais e cabeçalhos.</p>
+                        </div>
+                        <input type="color" id="corPrimaria" class="w-14 h-14 cursor-pointer border-0 rounded bg-transparent">
+                    </div>
+
+                    <div class="p-4 border border-gray-100 rounded-lg bg-gray-50 flex justify-between items-center hover:shadow-sm transition">
+                        <div>
+                            <h4 class="font-bold text-gray-800">Cor Secundária</h4>
+                            <p class="text-xs text-gray-500">Botões de ação rápida, destaques e sucessos.</p>
+                        </div>
+                        <input type="color" id="corSecundaria" class="w-14 h-14 cursor-pointer border-0 rounded bg-transparent">
+                    </div>
+
+                    <div class="p-4 border border-gray-100 rounded-lg bg-gray-50 flex justify-between items-center hover:shadow-sm transition">
+                        <div>
+                            <h4 class="font-bold text-gray-800">Cor de Fundo da Tela</h4>
+                            <p class="text-xs text-gray-500">O fundo geral de todas as páginas.</p>
+                        </div>
+                        <input type="color" id="corFundo" class="w-14 h-14 cursor-pointer border-0 rounded bg-transparent">
+                    </div>
+
+                    <div class="p-4 border border-gray-100 rounded-lg bg-gray-50 flex justify-between items-center hover:shadow-sm transition">
+                        <div>
+                            <h4 class="font-bold text-gray-800">Cor do Texto Principal</h4>
+                            <p class="text-xs text-gray-500">Textos em destaque, títulos e rótulos.</p>
+                        </div>
+                        <input type="color" id="corTexto" class="w-14 h-14 cursor-pointer border-0 rounded bg-transparent">
+                    </div>
+                </div>
+
+                <button id="btnSalvarCores" class="w-full sm:w-auto bg-tema-primaria hover:opacity-90 text-white font-bold py-3 px-8 rounded-lg shadow transition text-lg">
+                    Salvar e Aplicar Cores
+                </button>
+                <p id="msgCores" class="text-sm font-bold mt-3 hidden"></p>
             </div>
         </div>
 
