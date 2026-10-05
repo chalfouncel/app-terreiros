@@ -27,7 +27,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (agenda && agenda.length > 0) {
             giraAtual = agenda[0];
-            infoGira.innerHTML = `Hoje: <span class="text-green-700">${giraAtual.titulo}</span>`;
+            infoGira.innerHTML = `Hoje: <span class="text-green-700 font-bold">${giraAtual.titulo}</span>`;
+            
+            // Se a gira tiver imagem cadastrada, exibe ela!
+            if (giraAtual.imagem_url) {
+                document.getElementById('imgGira').src = giraAtual.imagem_url;
+                document.getElementById('containerImagemGira').classList.remove('hidden');
+            }
+            
             btnPresenca.classList.remove('hidden');
         } else {
             infoGira.textContent = 'Não há nenhuma gira cadastrada para hoje.';
@@ -94,7 +101,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     function mostrarSucesso(msg) {
-        btnPresenca.innerHTML = 'Ponto Batido! ✅';
+        btnPresenca.innerHTML = 'Presença Registrada! ✅';
         msgStatus.textContent = msg;
         msgStatus.className = 'mt-6 text-sm font-bold rounded p-4 bg-green-100 text-green-800 block';
     }
