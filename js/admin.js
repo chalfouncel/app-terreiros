@@ -432,6 +432,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         formNovaGira.addEventListener('submit', async (e) => {
             // Lógica original preservada (omitida do escopo didático para focar)
             // ... (coloque o código do submit original que já funciona)
+                window.salvarPagamento = async (mediumId, mes, ano, status) => {
+        // Usa o Upsert (Insere ou Atualiza se já existir)
+        const { error } = await supabaseClient.from('financeiro').upsert({
+            medium_id: mediumId,
+            mes: mes,
+            ano: ano,
+            pago: status
+        }, { onConflict: 'medium_id,mes,ano' });
+        
+        if(error) {
+            alert('Erro no banco de dados: ' + error.message);
+            carregarFinanceiro(); // reverte o quadradinho para como estava
+        }
+    };
+
         });
     }
 });
