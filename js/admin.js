@@ -1,5 +1,5 @@
-let idTerreiroGlobal = null; // Guardará o ID do terreiro logado
-let mediunsGrauCache = []; // Cache para a pesquisa rápida de graus
+let idTerreiroGlobal = null; 
+let mediunsGrauCache = []; 
 
 document.addEventListener('DOMContentLoaded', async () => {
     // Data Cabeçalho
@@ -97,7 +97,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         });
 
-        // Inicia carregando o primeiro painel
         carregarPainelInicial();
 
     } catch (error) {
@@ -237,7 +236,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 btn.classList.replace('bg-green-600', 'bg-tema-primaria');
             }, 2000);
             
-            // Atualiza o cache local
             const md = mediunsGrauCache.find(m => m.id === id);
             if(md) { md.grau = grau; md.funcao = funcao; }
         }
@@ -250,11 +248,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         const tbody = document.getElementById('tabelaFinanceiro');
         tbody.innerHTML = '<tr><td colspan="14" class="p-6 text-center text-gray-500">Buscando histórico...</td></tr>';
         
-        // 1. Busca todos os mediuns
         const { data: mediuns, error: erroMed } = await supabaseClient.from('mediuns').select('id, nome_completo').order('nome_completo');
         if(erroMed) return;
 
-        // 2. Busca pagamentos daquele ano
         const { data: pgtos, error: erroPgto } = await supabaseClient.from('financeiro').select('*').eq('ano', ano);
         
         tbody.innerHTML = '';
@@ -264,12 +260,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             let htmlMeses = '';
             let emDia = true;
             
-            const mesAtual = new Date().getMonth() + 1; // 1 a 12
+            const mesAtual = new Date().getMonth() + 1; 
             const anoAtual = new Date().getFullYear();
 
             for (let i = 1; i <= 12; i++) {
                 const pago = meusPgtos.some(p => p.mes === i && p.pago);
-                // Verifica se está inadimplente (mês passado, ano vigente ou anterior e não pago)
                 const passou = (ano < anoAtual) || (ano === anoAtual && i < mesAtual);
                 if (passou && !pago) emDia = false;
 
@@ -301,7 +296,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('selectAnoFinanceiro').addEventListener('change', carregarFinanceiro);
 
     window.salvarPagamento = async (mediumId, mes, ano, status) => {
-        // Usa o Upsert (Insere ou Atualiza se já existir)
         const { error } = await supabaseClient.from('financeiro').upsert({
             medium_id: mediumId,
             mes: mes,
@@ -310,12 +304,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         }, { onConflict: 'medium_id,mes,ano' });
         
         if(error) {
-            alert('Erro ao salvar. Tente novamente.');
-            carregarFinanceiro(); // reverte a view
+            alert('Erro no banco: ' + error.message);
+            carregarFinanceiro(); 
         }
     };
 
-    // --- MÓDULO ADMINISTRAÇÃO DA CASA (NOVO) ---
+    // --- MÓDULO ADMINISTRAÇÃO DA CASA ---
     async function carregarConfiguracoesCasa() {
         if (!idTerreiroGlobal) return;
         
@@ -331,7 +325,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 document.getElementById('placeholderLogo').classList.add('hidden');
             }
             
-            // Coloca os valores nas paletas
             document.getElementById('corPrimaria').value = data.cor_primaria || '#1e3a8a';
             document.getElementById('corSecundaria').value = data.cor_secundaria || '#16a34a';
             document.getElementById('corFundo').value = data.cor_fundo || '#f3f4f6';
@@ -339,12 +332,29 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // Salvar Logo
+    // Pré-visualização da Imagem ao selecionar o arquivo
+    document.getElementById('uploadLogo').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                document.getElementById('previewLogo').src = evt.target.result;
+                document.getElementById('previewLogo').classList.remove('hidden');
+                document.getElementById('placeholderLogo').classList.add('hidden');
+            }
+            reader.readAsDataURL(file);
+        }
+    });
+
+    // Salvar Logo Definitivamente no Supabase
     const btnLogo = document.getElementById('btnSalvarLogo');
     btnLogo.addEventListener('click', async () => {
         const input = document.getElementById('uploadLogo');
         const msg = document.getElementById('msgLogo');
-        if(!input.files || input.files.length === 0) return;
+        if(!input.files || input.files.length === 0) {
+            alert('Selecione uma imagem primeiro clicando em "Escolher arquivo".');
+            return;
+        }
         
         btnLogo.disabled = true;
         btnLogo.textContent = 'Enviando...';
@@ -366,16 +376,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             const { error: errBd } = await supabaseClient.from('terreiros').update({ logo_url: novaUrl }).eq('id', idTerreiroGlobal);
             if (errBd) throw errBd;
             
-            // Atualiza a tela
-            document.getElementById('previewLogo').src = novaUrl;
-            document.getElementById('previewLogo').classList.remove('hidden');
-            document.getElementById('placeholderLogo').classList.add('hidden');
             document.getElementById('logoSidebar').src = novaUrl;
             document.getElementById('logoSidebar').classList.remove('hidden');
             
-            msg.textContent = '✅ Logo salva com sucesso!';
+            msg.textContent = '✅ Logo salva com sucesso no sistema!';
             msg.className = 'text-xs font-bold mt-2 text-tema-secundaria';
-            input.value = '';
         } catch (error) {
             msg.textContent = '❌ Erro: ' + error.message;
             msg.className = 'text-xs font-bold mt-2 text-red-600';
@@ -395,7 +400,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const msg = document.getElementById('msgCores');
         
         btnCores.disabled = true;
-        btnCores.textContent = 'Salvando e Aplicando...';
+        btnCores.textContent = 'Salvando...';
         
         try {
             const { error } = await supabaseClient.from('terreiros').update({
@@ -407,14 +412,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             if (error) throw error;
             
-            // APLICA NA HORA NO CSS! A mágica acontece aqui.
             const root = document.documentElement;
             root.style.setProperty('--cor-primaria', cor1);
             root.style.setProperty('--cor-secundaria', cor2);
             root.style.setProperty('--cor-fundo', corF);
             root.style.setProperty('--cor-texto', corT);
             
-            msg.textContent = '✅ Tema atualizado com sucesso! O painel repintou automaticamente.';
+            msg.textContent = '✅ Tema atualizado!';
             msg.className = 'text-sm font-bold mt-3 text-tema-secundaria block';
             setTimeout(() => msg.classList.add('hidden'), 5000);
         } catch (error) {
@@ -426,27 +430,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    // --- CADASTRO DE GIRA (MANTIDO) ---
-    const formNovaGira = document.getElementById('formNovaGira');
-    if (formNovaGira) {
-        formNovaGira.addEventListener('submit', async (e) => {
-            // Lógica original preservada (omitida do escopo didático para focar)
-            // ... (coloque o código do submit original que já funciona)
-                window.salvarPagamento = async (mediumId, mes, ano, status) => {
-        // Usa o Upsert (Insere ou Atualiza se já existir)
-        const { error } = await supabaseClient.from('financeiro').upsert({
-            medium_id: mediumId,
-            mes: mes,
-            ano: ano,
-            pago: status
-        }, { onConflict: 'medium_id,mes,ano' });
-        
-        if(error) {
-            alert('Erro no banco de dados: ' + error.message);
-            carregarFinanceiro(); // reverte o quadradinho para como estava
-        }
-    };
-
+    // GPS 
+    const btnGps = document.getElementById('btnGravarLocalizacao');
+    if (btnGps) {
+        btnGps.addEventListener('click', async () => {
+            navigator.geolocation.getCurrentPosition(
+                async (pos) => {
+                    const lat = pos.coords.latitude, lon = pos.coords.longitude;
+                    if(idTerreiroGlobal) {
+                        await supabaseClient.from('terreiros').update({ latitude: lat, longitude: lon }).eq('id', idTerreiroGlobal);
+                        alert('GPS Gravado com sucesso!');
+                    }
+                },
+                (err) => alert('Erro no GPS: Libere a permissão.')
+            );
         });
     }
 });
