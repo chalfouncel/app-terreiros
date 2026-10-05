@@ -25,7 +25,7 @@
                 <i class="fas fa-users w-6 mr-2"></i> Quadro de Médiuns
             </a>
             <a href="#" id="menuAgendaGiras" class="menu-item block py-2.5 px-4 rounded-lg hover:bg-blue-800 transition flex items-center">
-                <i class="fas fa-calendar-alt w-6 mr-2"></i> Agenda de Giras
+                <i class="fas fa-calendar-alt w-6 mr-2"></i> Agenda de Eventos
             </a>
             <hr class="border-blue-800 my-2">
             <a href="#" id="menuGrau" class="menu-item block py-2.5 px-4 rounded-lg hover:bg-blue-800 transition flex items-center">
@@ -129,14 +129,14 @@
             </div>
         </div>
 
-        <!-- SECÃO 3: AGENDA DE GIRAS -->
+        <!-- SECÃO 3: AGENDA DE EVENTOS -->
         <div id="secAgendaGiras" class="secao-painel hidden">
             <div class="bg-white p-6 rounded-xl shadow-sm border-t-4 border-purple-500 mb-8">
-                <h3 class="text-lg font-bold text-gray-800 mb-4">Nova Gira</h3>
+                <h3 class="text-lg font-bold text-gray-800 mb-4">Novo Evento</h3>
                 <form id="formNovaGira" class="space-y-4">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Título da Gira</label>
+                            <label class="block text-sm font-medium text-gray-700">Evento</label>
                             <input type="text" id="giraTitulo" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
                         </div>
                         <div>
@@ -156,13 +156,13 @@
                         </div>
                     </div>
                     <button type="submit" id="btnSalvarGira" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded shadow">
-                        Salvar Gira na Agenda
+                        Salvar Evento na Agenda
                     </button>
                     <p id="msgGira" class="text-sm mt-2 hidden"></p>
                 </form>
             </div>
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                <h3 class="text-lg font-bold text-gray-800 mb-4">Giras Agendadas</h3>
+                <h3 class="text-lg font-bold text-gray-800 mb-4">Eventos Agendados</h3>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse">
                         <thead>
@@ -182,6 +182,9 @@
         <div id="secGrau" class="secao-painel hidden">
             <div class="bg-white rounded-xl shadow-sm border-t-4 border-yellow-500 p-6 overflow-x-auto">
                 <p class="text-sm text-gray-500 mb-4">Altere o grau ou a função do médium e clique em Salvar na respectiva linha.</p>
+                
+                <input type="text" id="buscaMediumGrau" placeholder="🔍 Pesquisar por nome do médium..." class="w-full mb-4 px-4 py-2 border border-gray-300 rounded shadow-sm focus:ring-yellow-500 focus:border-yellow-500 outline-none">
+
                 <table class="w-full text-left border-collapse">
                     <thead>
                         <tr class="bg-gray-50 border-b border-gray-200">
@@ -214,19 +217,19 @@
                     <table class="w-full text-center border-collapse text-sm">
                         <thead>
                             <tr class="bg-gray-50 border-b border-gray-200">
-                                <th class="p-2 text-left font-semibold text-gray-600 sticky left-0 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb]">MÉDIUM</th>
-                                <th class="p-2 font-semibold text-gray-600">JAN</th>
-                                <th class="p-2 font-semibold text-gray-600">FEV</th>
-                                <th class="p-2 font-semibold text-gray-600">MAR</th>
-                                <th class="p-2 font-semibold text-gray-600">ABR</th>
-                                <th class="p-2 font-semibold text-gray-600">MAI</th>
-                                <th class="p-2 font-semibold text-gray-600">JUN</th>
-                                <th class="p-2 font-semibold text-gray-600">JUL</th>
-                                <th class="p-2 font-semibold text-gray-600">AGO</th>
-                                <th class="p-2 font-semibold text-gray-600">SET</th>
-                                <th class="p-2 font-semibold text-gray-600">OUT</th>
-                                <th class="p-2 font-semibold text-gray-600">NOV</th>
-                                <th class="p-2 font-semibold text-gray-600">DEZ</th>
+                                <th class="py-2 px-3 text-left font-semibold text-gray-600 sticky left-0 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb] z-10 min-w-[200px]">MÉDIUM</th>
+                                <th class="py-2 px-1 font-semibold text-gray-600">JAN</th>
+                                <th class="py-2 px-1 font-semibold text-gray-600">FEV</th>
+                                <th class="py-2 px-1 font-semibold text-gray-600">MAR</th>
+                                <th class="py-2 px-1 font-semibold text-gray-600">ABR</th>
+                                <th class="py-2 px-1 font-semibold text-gray-600">MAI</th>
+                                <th class="py-2 px-1 font-semibold text-gray-600">JUN</th>
+                                <th class="py-2 px-1 font-semibold text-gray-600">JUL</th>
+                                <th class="py-2 px-1 font-semibold text-gray-600">AGO</th>
+                                <th class="py-2 px-1 font-semibold text-gray-600">SET</th>
+                                <th class="py-2 px-1 font-semibold text-gray-600">OUT</th>
+                                <th class="py-2 px-1 font-semibold text-gray-600">NOV</th>
+                                <th class="py-2 px-1 font-semibold text-gray-600">DEZ</th>
                             </tr>
                         </thead>
                         <tbody id="tabelaFinanceiro"></tbody>
