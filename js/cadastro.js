@@ -1,33 +1,30 @@
 document.addEventListener('DOMContentLoaded', async () => {
-    // Garante que pega a conexão do Supabase correta (evita erro de variável não definida)
-    const db = window.supabase || window.supabaseClient;
-
-    // 1. Tenta pegar a sessão atual e o ID do localStorage (caso seja primeiro acesso)
-    const { data: { session } } = await db.auth.getSession();
+    // 1. Usa a SUA conexão correta: supabaseClient
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    
+    // Pega o ID que salvamos lá na tela de login (32)
     const idPrimeiroAcesso = localStorage.getItem('novo_acesso_id');
     
-    // Se não tiver sessão E não tiver id do primeiro acesso na memória, expulsa
+    // Se não tiver logado E não for o primeiro acesso, expulsa pro login
     if (!session && !idPrimeiroAcesso) {
         window.location.href = 'index.html'; 
         return;
     }
 
-    // Define quem é o usuário que vamos editar
+    // Define qual ID vamos usar (o da sessão ou o do primeiro acesso)
     const userId = session ? session.user.id : idPrimeiroAcesso;
 
-    // 2. BUSCAR DADOS DO BANCO PARA PREENCHER A TELA
+    // 2. PUXAR OS DADOS DO BANCO PARA PREENCHER A TELA
     if (userId) {
         try {
-            // *ATENÇÃO: Mudei para 'perfis' para bater com o seu código anterior. 
-            // Se no banco a tabela chamar 'mediuns', troque a palavra 'perfis' abaixo por 'mediuns'.
-            const { data: perfil, error } = await db
-                .from('perfis')
+            const { data: perfil, error } = await supabaseClient
+                .from('perfis') // Se a sua tabela chamar 'mediuns', troque aqui!
                 .select('*')
                 .eq('id', userId)
                 .single();
             
             if (perfil) {
-                // Função rápida para preencher o valor se o campo existir
+                // Preenche os campos automaticamente
                 const preencher = (id, valor) => {
                     const campo = document.getElementById(id);
                     if (campo && valor) campo.value = valor;
@@ -50,7 +47,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const msgErro = document.getElementById('msgErro');
     const btnSalvar = document.getElementById('btnSalvar');
 
-    // 3. AÇÃO AO ENVIAR O FORMULÁRIO
+    // 3. AÇÃO DE SALVAR E CRIAR A SENHA NOVA
     formCadastro.addEventListener('submit', async (e) => {
         e.preventDefault();
         
@@ -65,17 +62,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         const palavra = document.getElementById('palavra').value.toUpperCase(); 
         const dataNascimento = document.getElementById('dataNascimento').value;
         const telefone = document.getElementById('telefone').value;
-        const novaSenha = document.getElementById('novaSenha') ? document.getElementById('novaSenha').value : null;
+        
+        // Pega o valor do campo novaSenha (que você vai colocar no HTML)
+        const campoSenha = document.getElementById('novaSenha');
+        const novaSenha = campoSenha ? campoSenha.value : null;
 
         try {
-            // Verifica se a senha foi preenchida
-            if (!novaSenha || novaSenha.length < 6) {
+            // Se for o primeiro acesso, ELE É OBRIGADO a criar uma senha nova
+            if (!session && (!novaSenha || novaSenha.length < 6)) {
                 throw new Error("Por favor, crie uma Nova Senha com pelo menos 6 caracteres.");
             }
 
-            // A. Atualiza os dados na tabela (Mude para 'mediuns' se necessário)
-            const { error: errorUpdate } = await db
-                .from('perfis')
+            // A. Atualiza a ficha na tabela
+            const { error: errorUpdate } = await supabaseClient
+                .from('perfis') // Se a sua tabela chamar 'mediuns', troque aqui!
                 .update({ 
                     nome_completo: nomeCompleto,
                     nome_social: nomeSocial,
@@ -85,33 +85,31 @@ document.addEventListener('DOMContentLoaded', async () => {
                     data_nascimento: dataNascimento,
                     telefone: telefone,
                     cadastro_completo: true
-                    // Se você tiver uma coluna "senha_cadastrada" na tabela, descomente a linha abaixo:
-                    // , senha_cadastrada: true
                 })
                 .eq('id', userId);
 
             if (errorUpdate) throw errorUpdate;
 
-            // B. Se estiver logado, atualiza o Auth com o Telefone como Email + Nova Senha
-            if (session) {
+            // B. O PULO DO GATO: Cria a conta dele no Auth com o Telefone e a Senha Nova
+            if (!session && novaSenha) {
                 const telefoneFormatado = telefone.replace(/\D/g, '');
-                const novoEmail = `${telefoneFormatado}@terreiro.app`;
+                const emailFantasma = `${telefoneFormatado}@terreiro.app`;
                 
-                const { error: errorAuth } = await db.auth.updateUser({
-                    email: novoEmail,
-                    password: novaSenha
+                const { error: errorAuth } = await supabaseClient.auth.signUp({
+                    email: emailFantasma,
+                    password: novaSenha,
                 });
                 
-                if (errorAuth) console.error("Erro ao atualizar credenciais do Auth:", errorAuth);
+                if (errorAuth) throw new Error("Erro ao registrar acesso: " + errorAuth.message);
             }
 
-            // C. Limpa a memória do primeiro acesso e manda pra tela de presença
+            // C. Limpa o ID da memória e manda pra tela de presença
             localStorage.removeItem('novo_acesso_id');
             window.location.href = 'presenca.html';
 
         } catch (error) {
             console.error(error);
-            msgErro.textContent = 'Erro ao salvar os dados: ' + error.message;
+            msgErro.textContent = error.message;
             msgErro.classList.remove('hidden');
             btnSalvar.disabled = false;
             btnSalvar.textContent = 'Salvar e Continuar';
