@@ -9,7 +9,47 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const userId = session ? session.user.id : idPrimeiroAcesso;
 
-    // AQUI ESTAVA O ERRO! Mudei para buscar na tabela "mediuns"
+    // 1. FUNÇÕES DE FORMATAÇÃO
+    const formatarTitleCase = (texto) => {
+        if (!texto) return '';
+        const preposicoes = ['de', 'da', 'do', 'das', 'dos', 'e'];
+        return texto.toLowerCase().split(' ').map((palavra, index) => {
+            // Se for preposição no meio do nome, mantém minúscula
+            if (preposicoes.includes(palavra) && index !== 0) {
+                return palavra;
+            }
+            return palavra.charAt(0).toUpperCase() + palavra.slice(1);
+        }).join(' ');
+    };
+
+    // 2. APLICA A FORMATAÇÃO EM TEMPO REAL (Enquanto digita)
+    const configFormatacaoTempoReal = () => {
+        // Nomes com a Primeira Letra Maiúscula
+        const camposTitleCase = ['nomeSocial', 'nomeCompleto'];
+        camposTitleCase.forEach(id => {
+            const campo = document.getElementById(id);
+            if (campo) campo.addEventListener('input', (e) => {
+                const start = e.target.selectionStart; // Guarda a posição do cursor
+                e.target.value = formatarTitleCase(e.target.value);
+                e.target.setSelectionRange(start, start); // Devolve o cursor pro lugar certo
+            });
+        });
+
+        // Textos TUDO EM MAIÚSCULO
+        const camposUpperCase = ['grau', 'funcao', 'palavra'];
+        camposUpperCase.forEach(id => {
+            const campo = document.getElementById(id);
+            if (campo) campo.addEventListener('input', (e) => {
+                const start = e.target.selectionStart;
+                e.target.value = e.target.value.toUpperCase();
+                e.target.setSelectionRange(start, start);
+            });
+        });
+    };
+    
+    configFormatacaoTempoReal();
+
+    // 3. PUXAR OS DADOS DO BANCO PARA PREENCHER A TELA
     if (userId) {
         try {
             const { data: perfil, error } = await supabaseClient
@@ -24,11 +64,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                     if (campo && valor) campo.value = valor;
                 };
                 
-                preencher('nomeCompleto', perfil.nome_completo);
-                preencher('nomeSocial', perfil.nome_social);
-                preencher('grau', perfil.grau);
-                preencher('funcao', perfil.funcao);
-                preencher('palavra', perfil.palavra);
+                // Já preenche formatado, caso no banco esteja bagunçado
+                preencher('nomeCompleto', formatarTitleCase(perfil.nome_completo));
+                preencher('nomeSocial', formatarTitleCase(perfil.nome_social));
+                preencher('grau', perfil.grau ? perfil.grau.toUpperCase() : '');
+                preencher('funcao', perfil.funcao ? perfil.funcao.toUpperCase() : '');
+                preencher('palavra', perfil.palavra ? perfil.palavra.toUpperCase() : '');
                 preencher('dataNascimento', perfil.data_nascimento);
                 preencher('telefone', perfil.telefone);
             }
@@ -41,6 +82,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const msgErro = document.getElementById('msgErro');
     const btnSalvar = document.getElementById('btnSalvar');
 
+    // 4. AÇÃO DE SALVAR
     formCadastro.addEventListener('submit', async (e) => {
         e.preventDefault();
         
@@ -48,8 +90,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         btnSalvar.textContent = 'Salvando...';
         msgErro.classList.add('hidden');
 
-        const nomeCompleto = document.getElementById('nomeCompleto').value;
-        const nomeSocial = document.getElementById('nomeSocial').value;
+        // Pega os valores e formata novamente por segurança
+        const nomeCompleto = formatarTitleCase(document.getElementById('nomeCompleto').value);
+        const nomeSocial = formatarTitleCase(document.getElementById('nomeSocial').value);
         const grau = document.getElementById('grau').value.toUpperCase(); 
         const funcao = document.getElementById('funcao').value.toUpperCase(); 
         const palavra = document.getElementById('palavra').value.toUpperCase(); 
