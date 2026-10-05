@@ -25,7 +25,7 @@ document.querySelector('form').addEventListener('submit', async (e) => {
                 throw new Error('Para o primeiro acesso, use a senha padrão: 123456');
             }
 
-            // AQUI ESTÁ A MÁGICA: Usamos o 'db' que criamos ali em cima!
+            // Usamos o 'db' que criamos ali em cima!
             const { data: medium, error: dbError } = await db
                 .from('mediuns')
                 .select('*')
@@ -36,8 +36,8 @@ document.querySelector('form').addEventListener('submit', async (e) => {
                 throw new Error('ID não encontrado no sistema. Procure a administração.');
             }
 
-            if (medium.senha_cadastrada) {
-                throw new Error('Seu cadastro já foi ativado! Use seu Telefone e a Nova Senha que você criou para entrar.');
+            if (medium.senha_cadastrada || medium.cadastro_completo) {
+                throw new Error('Seu cadastro já foi ativado! Use seu Nome ou Telefone e a Nova Senha que você criou para entrar.');
             }
 
             // SUCESSO DO PRIMEIRO ACESSO! Salva os dados na memória para a próxima tela
@@ -49,18 +49,39 @@ document.querySelector('form').addEventListener('submit', async (e) => {
             return; 
         }
 
-        // REGRA 2: ACESSO NORMAL (TELEFONE + NOVA SENHA)
-        let telefoneFormatado = identificacao.replace(/\D/g, ''); 
+        // REGRA 2: ACESSO NORMAL (NOME OU TELEFONE + NOVA SENHA)
+        let telefoneParaLogin = "";
+        
+        // Verifica se tem letras (se digitou o Nome em vez do WhatsApp)
+        const contemLetras = /[a-zA-Z]/.test(identificacao);
 
-        if (telefoneFormatado.length < 10) {
-            throw new Error('Digite seu ID (1º acesso) ou seu Telefone com DDD.');
+        if (contemLetras) {
+            // Busca o telefone desse médium pelo nome no banco
+            const { data: mediumData, error: errMedium } = await db
+                .from('mediuns')
+                .select('telefone')
+                .ilike('nome_completo', `%${identificacao}%`)
+                .limit(1)
+                .single();
+
+            if (errMedium || !mediumData || !mediumData.telefone) {
+                throw new Error('Médium não encontrado. Tente digitar o nome mais completo ou use o número do seu WhatsApp.');
+            }
+            telefoneParaLogin = mediumData.telefone.replace(/\D/g, '');
+        } else {
+            // Se digitou o número direto, só tira os parênteses e traços
+            telefoneParaLogin = identificacao.replace(/\D/g, ''); 
+            if (telefoneParaLogin.length < 10) {
+                throw new Error('Digite seu ID (1º acesso) ou seu Telefone com DDD completo.');
+            }
         }
 
         if (!senha) {
             throw new Error('A senha é obrigatória.');
         }
 
-        const emailFantasma = `${telefoneFormatado}@terreiro.app`;
+        // Monta o email fantasma debaixo dos panos para o Supabase validar
+        const emailFantasma = `${telefoneParaLogin}@terreiro.app`;
 
         // Tenta logar usando o 'db'
         const { data, error } = await db.auth.signInWithPassword({
@@ -69,11 +90,11 @@ document.querySelector('form').addEventListener('submit', async (e) => {
         });
 
         if (error) {
-            throw new Error('Telefone ou senha incorretos.');
+            throw new Error('Identificação ou senha incorretos.');
         }
 
-        // LOGIN NORMAL FEITO COM SUCESSO!
-        window.location.href = 'painel.html';
+        // LOGIN NORMAL FEITO COM SUCESSO! Joga pra tela principal
+        window.location.href = 'presenca.html'; 
 
     } catch (erro) {
         if(msgErro) {
