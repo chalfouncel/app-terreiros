@@ -230,7 +230,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             const titulo = document.getElementById('giraTitulo').value;
             const inputArquivo = document.getElementById('giraArquivo');
-            let imagem_url = document.getElementById('giraImagem').value; // Pega o link como fallback
+            let imagem_url = document.getElementById('giraImagem').value; 
             const data_hora_inicio = document.getElementById('giraInicio').value;
             const data_hora_fim = document.getElementById('giraFim').value;
             
@@ -243,7 +243,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                     const arquivo = inputArquivo.files[0];
                     const extensao = arquivo.name.split('.').pop();
-                    // Cria um nome único para o arquivo (ex: 169000000_abc123.jpg)
                     const nomeArquivo = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${extensao}`;
                     
                     const { data: uploadData, error: uploadError } = await supabaseClient.storage
@@ -252,27 +251,23 @@ document.addEventListener('DOMContentLoaded', async () => {
                         
                     if (uploadError) throw new Error('Falha ao subir a imagem: ' + uploadError.message);
                     
-                    // Pega a URL pública do arquivo recém upado
                     const { data: publicUrlData } = supabaseClient.storage
                         .from('giras')
                         .getPublicUrl(nomeArquivo);
                         
-                    // Substitui a variável para salvar a URL do arquivo no banco
                     imagem_url = publicUrlData.publicUrl; 
                 }
 
                 msg.innerHTML = 'Salvando gira na agenda... <i class="fas fa-spinner fa-spin"></i>';
                 msg.classList.remove('hidden');
 
-                // Pega o ID do terreiro
                 const { data: terreiros } = await supabaseClient.from('terreiros').select('id').limit(1);
                 const terreiro_id = terreiros[0]?.id;
                 
-                // Salva tudo no banco
                 const { error } = await supabaseClient.from('agenda').insert([{
                     terreiro_id,
                     titulo,
-                    imagem_url: imagem_url || null, // salva null se não tiver arquivo nem link
+                    imagem_url: imagem_url || null, 
                     data_hora_inicio,
                     data_hora_fim
                 }]);
