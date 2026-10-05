@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel Admin - Templo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Ícones do FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gray-100 min-h-screen flex">
+
+    <!-- Menu Lateral (Sidebar) -->
+    <aside class="w-64 bg-[#1e3a8a] text-white flex flex-col shadow-xl">
+        <div class="p-6 text-center border-b border-blue-800">
+            <h1 class="text-2xl font-bold text-white">Painel Gestão</h1>
+            <p class="text-xs text-blue-300 mt-1" id="nomeTerreiroSidebar">Carregando...</p>
+        </div>
+        <nav class="flex-1 p-4 space-y-2 mt-4">
+            <a href="#" class="block py-2.5 px-4 bg-blue-800 rounded-lg hover:bg-blue-700 transition flex items-center">
+                <i class="fas fa-home w-6"></i> Visão Geral
+            </a>
+            <a href="#" class="block py-2.5 px-4 rounded-lg hover:bg-blue-800 transition flex items-center opacity-50 cursor-not-allowed" title="Em breve">
+                <i class="fas fa-users w-6"></i> Quadro de Médiuns
+            </a>
+            <a href="#" class="block py-2.5 px-4 rounded-lg hover:bg-blue-800 transition flex items-center opacity-50 cursor-not-allowed" title="Em breve">
+                <i class="fas fa-calendar-alt w-6"></i> Agenda de Giras
+            </a>
+        </nav>
+        <div class="p-4 border-t border-blue-800">
+            <button id="btnSair" class="w-full py-2 px-4 bg-red-600 rounded-lg hover:bg-red-700 transition flex items-center justify-center">
+                <i class="fas fa-sign-out-alt mr-2"></i> Sair do Sistema
+            </button>
+        </div>
+    </aside>
+
+    <!-- Conteúdo Principal -->
+    <main class="flex-1 p-8 overflow-y-auto">
+        <header class="flex justify-between items-center mb-8">
+            <div>
+                <h2 class="text-3xl font-bold text-gray-800">Visão Geral</h2>
+                <p class="text-gray-500" id="dataHoje"></p>
+            </div>
+            <div class="bg-white px-4 py-2 rounded-full shadow-sm border border-gray-200 flex items-center">
+                <i class="fas fa-user-circle text-[#16a34a] text-xl mr-2"></i>
+                <span class="text-gray-700 font-medium" id="nomeAdmin">Olá, Admin</span>
+            </div>
+        </header>
+
+        <!-- Cartões de Resumo (Cards) -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-[#16a34a]">
+                <h3 class="text-gray-500 text-sm font-bold uppercase tracking-wider">Médiuns Presentes Hoje</h3>
+                <p class="text-4xl font-bold text-gray-800 mt-2" id="totalPresentes">0</p>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-[#1e3a8a]">
+                <h3 class="text-gray-500 text-sm font-bold uppercase tracking-wider">Total Cadastrados</h3>
+                <p class="text-4xl font-bold text-gray-800 mt-2" id="totalMediuns">0</p>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-purple-500">
+                <h3 class="text-gray-500 text-sm font-bold uppercase tracking-wider">Próxima Gira</h3>
+                <p class="text-lg font-bold text-gray-800 mt-2" id="proximaGira">Buscando...</p>
+            </div>
+        </div>
+
+        <!-- Lista de Presença do Dia -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-gray-800">Lista de Presença (Hoje)</h3>
+                <button class="text-sm text-white bg-[#1e3a8a] px-3 py-1 rounded hover:bg-blue-800 transition">
+                    <i class="fas fa-file-export mr-1"></i> Exportar
+                </button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-gray-50 border-b border-gray-200">
+                            <th class="p-3 text-sm font-semibold text-gray-600">MÉDIUM</th>
+                            <th class="p-3 text-sm font-semibold text-gray-600">GRAU / FUNÇÃO</th>
+                            <th class="p-3 text-sm font-semibold text-gray-600">HORÁRIO CHEGADA</th>
+                            <th class="p-3 text-sm font-semibold text-gray-600">STATUS</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabelaPresencas">
+                        <tr>
+                            <td colspan="4" class="p-6 text-center text-gray-500">Carregando lista de presenças...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script src="js/supabase.js"></script>
+    <script src="js/admin.js"></script>
+</body>
+</html>
