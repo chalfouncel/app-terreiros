@@ -13,10 +13,40 @@ document.addEventListener('DOMContentLoaded', async () => {
     let giraAtual = null;
     let terreiroData = null;
 
-    // 2. Busca a gira de hoje e os dados do terreiro (GPS)
     try {
-        const { data: terreiros } = await supabaseClient.from('terreiros').select('*').limit(1);
-        if (terreiros && terreiros.length > 0) terreiroData = terreiros[0];
+        // NOVO: Descobre quem é o médium para pegar o terreiro dele
+        const { data: perfil } = await supabaseClient
+            .from('mediuns')
+            .select('terreiro_id')
+            .eq('auth_id', session.user.id)
+            .single();
+
+        if (perfil && perfil.terreiro_id) {
+            // Busca o Terreiro ESPECÍFICO deste médium
+            const { data: terreiro } = await supabaseClient
+                .from('terreiros')
+                .select('*')
+                .eq('id', perfil.terreiro_id)
+                .single();
+                
+            if (terreiro) {
+                terreiroData = terreiro;
+                
+                // APLICA AS CORES DO TERREIRO NO CELULAR
+                const root = document.documentElement;
+                if(terreiro.cor_primaria) root.style.setProperty('--cor-primaria', terreiro.cor_primaria);
+                if(terreiro.cor_secundaria) root.style.setProperty('--cor-secundaria', terreiro.cor_secundaria);
+                if(terreiro.cor_fundo) root.style.setProperty('--cor-fundo', terreiro.cor_fundo);
+                if(terreiro.cor_texto) root.style.setProperty('--cor-texto', terreiro.cor_texto);
+                
+                // APLICA A LOGO DO TERREIRO
+                if(terreiro.logo_url) {
+                    const imgLogo = document.getElementById('logoCasa');
+                    imgLogo.src = terreiro.logo_url;
+                    imgLogo.classList.remove('hidden');
+                }
+            }
+        }
 
         // Busca a última gira cadastrada
         const { data: agenda, error } = await supabaseClient
@@ -27,7 +57,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (agenda && agenda.length > 0) {
             giraAtual = agenda[0];
-            infoGira.innerHTML = `Hoje: <span class="text-green-700 font-bold">${giraAtual.titulo}</span>`;
+            // Usa a classe text-tema-primaria para a cor do título da gira
+            infoGira.innerHTML = `Hoje: <span class="text-tema-primaria font-bold">${giraAtual.titulo}</span>`;
             
             // Se a gira tiver imagem cadastrada, exibe ela!
             if (giraAtual.imagem_url) {
@@ -70,7 +101,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const dentroDoRaio = distancia <= raioPermitido;
 
                 try {
-                    // Grava a presença no banco de dados!
                     const { error } = await supabaseClient.from('presencas').insert([{
                         usuario_id: session.user.id,
                         evento_id: giraAtual.id,
@@ -81,9 +111,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     if (error) throw error;
 
                     if (dentroDoRaio) {
-                        mostrarSucesso(`Presença confirmada! Você está a ${Math.round(distancia)} metros do terreiro.`);
+                        mostrarSucesso(`Presença confirmada! Você está a ${Math.round(distancia)} metros.`);
                     } else {
-                        mostrarErro(`Você está muito longe! (${Math.round(distancia)}m). Aproxime-se do terreiro.`);
+                        mostrarErro(`Você está muito longe! (${Math.round(distancia)}m). Aproxime-se.`);
                     }
                 } catch (err) {
                     if (err.code === '23505') { 
