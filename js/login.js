@@ -1,9 +1,4 @@
-// 1. CONEXÃO COM O SUPABASE (Com seus dados reais)
-const supabaseUrl = 'https://pbjwqhfzsvdougeksztq.supabase.co';
-const supabaseKey = 'sb_publishable_Ri0hesG16fjM1mxdk2LoLQ_zLFbAmLT';
-const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
-
-// 2. O CÓDIGO DO FORMULÁRIO COM O NOVO FLUXO (ID + SENHA 123456)
+// O CÓDIGO DO FORMULÁRIO COM O NOVO FLUXO (Sem redeclarar variáveis)
 document.querySelector('form').addEventListener('submit', async (e) => {
     e.preventDefault();
     
@@ -18,7 +13,7 @@ document.querySelector('form').addEventListener('submit', async (e) => {
     btnSubmit.disabled = true;
 
     try {
-        // REGRA 1: É O PRIMEIRO ACESSO? (Testa se digitaram um ID numérico curto)
+        // REGRA 1: É O PRIMEIRO ACESSO? (Testa se digitaram um ID curto)
         const isId = /^\d+$/.test(identificacao) && identificacao.length < 5;
 
         if (isId) {
@@ -27,7 +22,7 @@ document.querySelector('form').addEventListener('submit', async (e) => {
                 throw new Error('Para o primeiro acesso, use a senha padrão: 123456');
             }
 
-            // Busca o médium pelo ID
+            // O seu projeto já tem o 'supabase' instanciado globalmente
             const { data: medium, error: dbError } = await supabase
                 .from('mediuns')
                 .select('*')
@@ -46,7 +41,7 @@ document.querySelector('form').addEventListener('submit', async (e) => {
             localStorage.setItem('novo_acesso_id', medium.id);
             localStorage.setItem('novo_acesso_nome', medium.nome_completo);
             
-            // Joga para a tela de completar o cadastro (Ficha de Médium)
+            // Joga para a tela de completar o cadastro
             window.location.href = 'cadastro.html'; 
             return; 
         }
@@ -62,7 +57,6 @@ document.querySelector('form').addEventListener('submit', async (e) => {
             throw new Error('A senha é obrigatória.');
         }
 
-        // Monta o e-mail fantasma para logar no Supabase
         const emailFantasma = `${telefoneFormatado}@terreiro.app`;
 
         // Tenta logar no Supabase
@@ -76,8 +70,7 @@ document.querySelector('form').addEventListener('submit', async (e) => {
         }
 
         // LOGIN NORMAL FEITO COM SUCESSO!
-        // Redireciona para a tela de presença (ajuste se a sua tela principal tiver outro nome)
-        window.location.href = 'presenca.html';
+        window.location.href = 'painel.html';
 
     } catch (erro) {
         if(msgErro) {
