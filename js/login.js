@@ -1,3 +1,9 @@
+// 1. CONEXÃO COM O SUPABASE (Com seus dados reais)
+const supabaseUrl = 'https://pbjwqhfzsvdougeksztq.supabase.co';
+const supabaseKey = 'sb_publishable_Ri0hesG16fjM1mxdk2LoLQ_zLFbAmLT';
+const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+// 2. O CÓDIGO DO FORMULÁRIO COM O NOVO FLUXO (ID + SENHA 123456)
 document.querySelector('form').addEventListener('submit', async (e) => {
     e.preventDefault();
     
@@ -12,7 +18,7 @@ document.querySelector('form').addEventListener('submit', async (e) => {
     btnSubmit.disabled = true;
 
     try {
-        // REGRA 1: É O PRIMEIRO ACESSO? (Testa se digitaram um ID curto, ex: 32)
+        // REGRA 1: É O PRIMEIRO ACESSO? (Testa se digitaram um ID numérico curto)
         const isId = /^\d+$/.test(identificacao) && identificacao.length < 5;
 
         if (isId) {
@@ -29,38 +35,37 @@ document.querySelector('form').addEventListener('submit', async (e) => {
                 .single();
 
             if (dbError || !medium) {
-                throw new Error('ID não encontrado no sistema.');
+                throw new Error('ID não encontrado no sistema. Procure a administração.');
             }
 
             if (medium.senha_cadastrada) {
                 throw new Error('Seu cadastro já foi ativado! Use seu Telefone e a Nova Senha que você criou para entrar.');
             }
 
-            // SUCESSO DO PRIMEIRO ACESSO!
-            // Salva os dados para a tela seguinte preencher
+            // SUCESSO DO PRIMEIRO ACESSO! Salva os dados na memória para a próxima tela
             localStorage.setItem('novo_acesso_id', medium.id);
             localStorage.setItem('novo_acesso_nome', medium.nome_completo);
             
-            // Joga para a tela de completar o cadastro (mudar a senha e botar o telefone)
+            // Joga para a tela de completar o cadastro (Ficha de Médium)
             window.location.href = 'cadastro.html'; 
             return; 
         }
 
         // REGRA 2: ACESSO NORMAL (TELEFONE + NOVA SENHA)
-        // Se chegou aqui, não é ID curto, então é o telefone.
         let telefoneFormatado = identificacao.replace(/\D/g, ''); 
 
         if (telefoneFormatado.length < 10) {
-            throw new Error('Digite um ID (1º acesso) ou seu Telefone com DDD.');
+            throw new Error('Digite seu ID (1º acesso) ou seu Telefone com DDD.');
         }
 
         if (!senha) {
             throw new Error('A senha é obrigatória.');
         }
 
-        // O sistema invisivelmente tenta logar com o telefone e a nova senha
+        // Monta o e-mail fantasma para logar no Supabase
         const emailFantasma = `${telefoneFormatado}@terreiro.app`;
 
+        // Tenta logar no Supabase
         const { data, error } = await supabase.auth.signInWithPassword({
             email: emailFantasma,
             password: senha,
@@ -71,14 +76,15 @@ document.querySelector('form').addEventListener('submit', async (e) => {
         }
 
         // LOGIN NORMAL FEITO COM SUCESSO!
-        window.location.href = 'painel.html';
+        // Redireciona para a tela de presença (ajuste se a sua tela principal tiver outro nome)
+        window.location.href = 'presenca.html';
 
     } catch (erro) {
         if(msgErro) {
             msgErro.textContent = erro.message;
             msgErro.style.display = 'block';
         } else {
-            alert(erro.message);
+            alert(erro.message); 
         }
     } finally {
         btnSubmit.innerHTML = 'Entrar no Sistema';
