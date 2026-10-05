@@ -3,62 +3,115 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Painel Admin - Terreiro</title>
+    <title>Painel Admin - Templo</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Ícones do FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-<body class="bg-gray-100 min-h-screen">
-    
-    <!-- Barra de Navegação -->
-    <nav class="bg-blue-800 text-white shadow-md p-4">
-        <div class="max-w-4xl mx-auto flex justify-between items-center">
-            <h1 class="text-xl font-bold">Painel de Administração</h1>
-            <button id="btnSair" class="text-blue-200 hover:text-white font-medium transition-colors">Sair</button>
-        </div>
-    </nav>
+<body class="bg-gray-100 min-h-screen flex">
 
-    <main class="max-w-4xl mx-auto p-4 mt-6">
-        <div class="mb-8">
-            <h2 class="text-2xl font-bold text-gray-800">Configurações Gerais</h2>
-            <p class="text-gray-600">Gerencie as informações principais do terreiro.</p>
+    <!-- Menu Lateral (Sidebar) -->
+    <aside class="w-64 bg-[#1e3a8a] text-white flex flex-col shadow-xl">
+        <div class="p-6 text-center border-b border-blue-800">
+            <h1 class="text-2xl font-bold text-white">Painel Gestão</h1>
+            <p class="text-xs text-blue-300 mt-1" id="nomeTerreiroSidebar">Carregando...</p>
+        </div>
+        <nav class="flex-1 p-4 space-y-2 mt-4">
+            <a href="#" class="block py-2.5 px-4 bg-blue-800 rounded-lg hover:bg-blue-700 transition flex items-center">
+                <i class="fas fa-home w-6"></i> Visão Geral
+            </a>
+            <a href="#" class="block py-2.5 px-4 rounded-lg hover:bg-blue-800 transition flex items-center opacity-50 cursor-not-allowed" title="Em breve">
+                <i class="fas fa-users w-6"></i> Quadro de Médiuns
+            </a>
+            <a href="#" class="block py-2.5 px-4 rounded-lg hover:bg-blue-800 transition flex items-center opacity-50 cursor-not-allowed" title="Em breve">
+                <i class="fas fa-calendar-alt w-6"></i> Agenda de Giras
+            </a>
+        </nav>
+        <div class="p-4 border-t border-blue-800">
+            <button id="btnSair" class="w-full py-2 px-4 bg-red-600 rounded-lg hover:bg-red-700 transition flex items-center justify-center">
+                <i class="fas fa-sign-out-alt mr-2"></i> Sair do Sistema
+            </button>
+        </div>
+    </aside>
+
+    <!-- Conteúdo Principal -->
+    <main class="flex-1 p-8 overflow-y-auto">
+        <header class="flex justify-between items-center mb-8">
+            <div>
+                <h2 class="text-3xl font-bold text-gray-800">Visão Geral</h2>
+                <p class="text-gray-500" id="dataHoje"></p>
+            </div>
+            <div class="bg-white px-4 py-2 rounded-full shadow-sm border border-gray-200 flex items-center">
+                <i class="fas fa-user-circle text-[#16a34a] text-xl mr-2"></i>
+                <span class="text-gray-700 font-medium" id="nomeAdmin">Olá, Admin</span>
+            </div>
+        </header>
+
+        <!-- Cartões de Resumo (Cards) -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-[#16a34a]">
+                <h3 class="text-gray-500 text-sm font-bold uppercase tracking-wider">Médiuns Presentes Hoje</h3>
+                <p class="text-4xl font-bold text-gray-800 mt-2" id="totalPresentes">0</p>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-[#1e3a8a]">
+                <h3 class="text-gray-500 text-sm font-bold uppercase tracking-wider">Total Cadastrados</h3>
+                <p class="text-4xl font-bold text-gray-800 mt-2" id="totalMediuns">0</p>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-purple-500">
+                <h3 class="text-gray-500 text-sm font-bold uppercase tracking-wider">Próxima Gira</h3>
+                <p class="text-lg font-bold text-gray-800 mt-2" id="proximaGira">Buscando...</p>
+            </div>
         </div>
 
-        <!-- Módulo: Gravar Localização -->
-        <div class="p-6 bg-white rounded-lg shadow-md border-t-4 border-blue-600 mb-6">
+        <!-- Módulo: Gravar Localização (GPS) -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border-t-4 border-[#1e3a8a] mb-8">
             <div class="flex items-center mb-4">
-                <div class="bg-blue-100 p-3 rounded-full mr-4">
-                    <svg class="w-6 h-6 text-blue-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                    </svg>
+                <div class="bg-blue-100 p-3 rounded-full mr-4 text-[#1e3a8a]">
+                    <i class="fas fa-map-marker-alt w-6 h-6 flex items-center justify-center text-xl"></i>
                 </div>
                 <div>
                     <h3 class="text-xl font-bold text-gray-800">Localização Sede (GPS)</h3>
                     <p class="text-sm text-gray-500">Define o ponto exato para a validação do check-in dos médiuns.</p>
                 </div>
             </div>
-            
             <p class="text-sm text-gray-600 mb-5 pl-16">
                 Vá fisicamente até o centro do terreiro com o seu celular e clique no botão abaixo. Isso garantirá que o sistema registre a coordenada exata para as próximas giras.
             </p>
-            
             <div class="pl-16">
-                <button id="btnGravarLocalizacao" class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 text-white font-bold py-3 px-6 rounded-lg shadow-lg flex items-center justify-center transition-all transform hover:-translate-y-1">
+                <button id="btnGravarLocalizacao" class="w-full sm:w-auto bg-[#1e3a8a] hover:bg-blue-900 focus:ring-4 focus:ring-blue-300 text-white font-bold py-3 px-6 rounded-lg shadow flex items-center justify-center transition-all">
                     Gravar Localização Atual
                 </button>
                 <div id="msgLocalizacao" class="mt-4 hidden"></div>
             </div>
         </div>
 
-        <!-- Módulo: Gestão de Giras (Placeholder para os próximos passos) -->
-        <div class="p-6 bg-white rounded-lg shadow-md border-t-4 border-gray-400 opacity-60">
-            <div class="flex items-center mb-2">
-                <svg class="w-6 h-6 text-gray-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                <h3 class="text-xl font-bold text-gray-800">Gestão de Agenda e Giras</h3>
+        <!-- Lista de Presença do Dia -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-gray-800">Lista de Presença (Hoje)</h3>
+                <button class="text-sm text-white bg-[#1e3a8a] px-3 py-1 rounded hover:bg-blue-800 transition">
+                    <i class="fas fa-file-export mr-1"></i> Exportar
+                </button>
             </div>
-            <p class="text-sm text-gray-600 pl-9">Em breve: área para cadastrar, editar e excluir as giras no calendário.</p>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-gray-50 border-b border-gray-200">
+                            <th class="p-3 text-sm font-semibold text-gray-600">MÉDIUM</th>
+                            <th class="p-3 text-sm font-semibold text-gray-600">GRAU / FUNÇÃO</th>
+                            <th class="p-3 text-sm font-semibold text-gray-600">HORÁRIO CHEGADA</th>
+                            <th class="p-3 text-sm font-semibold text-gray-600">STATUS</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabelaPresencas">
+                        <tr>
+                            <td colspan="4" class="p-6 text-center text-gray-500">Carregando lista de presenças...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
-
     </main>
 
     <script src="js/supabase.js"></script>
