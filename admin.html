@@ -143,7 +143,7 @@
         <div id="secAgendaGiras" class="secao-painel hidden">
             <header class="mb-8">
                 <h2 class="text-3xl font-bold text-gray-800">Agenda de Giras</h2>
-                <p class="text-gray-500">Agende novas giras e inclua o link da arte/imagem de divulgação.</p>
+                <p class="text-gray-500">Agende novas giras. Envie a arte do seu celular/PC ou cole um link.</p>
             </header>
             
             <div class="bg-white p-6 rounded-xl shadow-sm border-t-4 border-purple-500 mb-8">
@@ -155,8 +155,8 @@
                             <input type="text" id="giraTitulo" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-purple-500 focus:border-purple-500" placeholder="Ex: Gira de Caboclo">
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Link da Imagem (Ex: URL do Instagram ou Drive)</label>
-                            <input type="url" id="giraImagem" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-purple-500 focus:border-purple-500" placeholder="https://...">
+                            <label class="block text-sm font-medium text-gray-700">Imagem (Envie do seu celular ou PC)</label>
+                            <input type="file" id="giraArquivo" accept="image/*" class="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md shadow-sm focus:ring-purple-500 focus:border-purple-500 bg-white text-sm">
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700">Data e Hora de Início</label>
@@ -166,11 +166,17 @@
                             <label class="block text-sm font-medium text-gray-700">Data e Hora de Fim</label>
                             <input type="datetime-local" id="giraFim" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-purple-500 focus:border-purple-500">
                         </div>
+                        <div class="md:col-span-2 border-t pt-4 mt-2">
+                            <label class="block text-sm font-medium text-gray-700">OU Cole um Link de Imagem (opcional, use caso não envie o arquivo acima)</label>
+                            <input type="url" id="giraImagem" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-purple-500 focus:border-purple-500" placeholder="https://...">
+                        </div>
                     </div>
-                    <button type="submit" id="btnSalvarGira" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded shadow">
-                        Salvar Gira na Agenda
-                    </button>
-                    <p id="msgGira" class="text-sm mt-2 hidden"></p>
+                    <div class="mt-4">
+                        <button type="submit" id="btnSalvarGira" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded shadow flex items-center justify-center">
+                            Salvar Gira na Agenda
+                        </button>
+                        <p id="msgGira" class="text-sm mt-2 hidden"></p>
+                    </div>
                 </form>
             </div>
 
