@@ -661,7 +661,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     window.baixarLivroAnual = async () => {
-        alert("Atenção: A consolidação do Livro Anual gera um arquivo muito pesado. Esta função está sendo adaptada para rodar em segundo plano e será liberada em breve. Por favor, baixe as atas de forma individual na tabela abaixo.");
+        alert("Atenção: A consolidação do Livro Anual gera arquivo muito pesado. Esta função está sendo adaptada para rodar em segundo plano e será liberada em breve. Por favor, baixe as atas de forma individual na tabela abaixo.");
     };
 
     window.arquivarAnoAnterior = async () => {
@@ -915,7 +915,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // CORREÇÃO: Lógica do Leaflet (Minimapa) e Salvamento Manual Embutidos Corretamente no JS
     function iniciarMapa(lat, lng, zoomLvl) {
         const mapEl = document.getElementById('mapaLocalizacao');
         const overlay = document.getElementById('mapaOverlay');
@@ -956,9 +955,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                 async (pos) => {
                     const lat = pos.coords.latitude, lon = pos.coords.longitude;
                     if(idTerreiroGlobal) {
-                        const { error } = await supabaseClient.from('terreiros').update({ latitude: lat, longitude: lon }).eq('id', idTerreiroGlobal);
+                        const { data, error } = await supabaseClient.from('terreiros')
+                            .update({ latitude: lat, longitude: lon })
+                            .eq('id', idTerreiroGlobal)
+                            .select(); // <-- AQUI ESTÁ A CORREÇÃO
+
                         if(error) {
                             if(msg) { msg.className = 'mt-4 text-sm font-bold text-red-600 block'; msg.textContent = 'Erro ao salvar no banco: ' + error.message; }
+                        } else if (!data || data.length === 0) {
+                            if(msg) { msg.className = 'mt-4 text-sm font-bold text-red-600 block'; msg.textContent = 'ERRO: O Banco de Dados recusou a alteração. Nenhuma linha foi salva.'; }
                         } else {
                             if(msg) { msg.className = 'mt-4 text-sm font-bold text-green-600 block'; msg.innerHTML = '<i class="fas fa-check-circle mr-2"></i> Ponto Registrado!'; setTimeout(() => msg.classList.add('hidden'), 3000); }
                             if(document.getElementById('inputLat')) {
@@ -990,11 +995,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Salvando...';
-            const { error } = await supabaseClient.from('terreiros').update({ latitude: lat, longitude: lng }).eq('id', idTerreiroGlobal);
+            
+            const { data, error } = await supabaseClient.from('terreiros')
+                .update({ latitude: lat, longitude: lng })
+                .eq('id', idTerreiroGlobal)
+                .select(); // <-- AQUI ESTÁ A CORREÇÃO
+                
             btn.disabled = false; btn.innerHTML = '<i class="fas fa-save mr-2"></i> Salvar Manualmente';
             
             if(error) {
                 if(msg) { msg.textContent = "Erro: " + error.message; msg.className = "mt-4 text-sm font-bold text-red-600 block"; msg.classList.remove('hidden'); }
+            } else if (!data || data.length === 0) {
+                if(msg) { msg.textContent = "ERRO: O Banco de Dados recusou a alteração. Regra RLS bloqueou a gravação."; msg.className = "mt-4 text-sm font-bold text-red-600 block"; msg.classList.remove('hidden'); }
             } else {
                 if(msg) { msg.textContent = "Localização salva com sucesso!"; msg.className = "mt-4 text-sm font-bold text-green-600 block"; msg.classList.remove('hidden'); setTimeout(() => msg.classList.add('hidden'), 3000); }
                 iniciarMapa(lat, lng, 18);
