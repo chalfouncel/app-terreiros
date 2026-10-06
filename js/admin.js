@@ -576,7 +576,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     // ==========================================
-    // SAAS - GESTÃO DA PLATAFORMA (SÓ MÁRIO)
+    // SAAS - GESTÃO DA PLATAFORMA (SÓ MÁRIO) E IMPORTAÇÃO CSV
     // ==========================================
     window.carregarGestaoPlataforma = async () => {
         const tbody = document.getElementById('tabelaMasterTerreiros');
@@ -589,7 +589,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         tbody.innerHTML = '';
         data.forEach(t => {
             const statusHtml = t.status_bloqueado ? '<span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded font-bold">Bloqueado</span>' : '<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded font-bold">Ativo</span>';
-            const acaoHtml = t.status_bloqueado ? `<button onclick="alternarBloqueioTerreiro(${t.id}, false)" class="text-xs bg-gray-800 text-white py-1 px-3 rounded shadow">Desbloquear</button>` : `<button onclick="alternarBloqueioTerreiro(${t.id}, true)" class="text-xs bg-red-600 text-white py-1 px-3 rounded shadow">Bloquear</button>`;
+            const btnBloqueio = t.status_bloqueado ? `<button onclick="alternarBloqueioTerreiro(${t.id}, false)" class="text-xs bg-gray-800 text-white py-1 px-3 rounded shadow">Desbloquear</button>` : `<button onclick="alternarBloqueioTerreiro(${t.id}, true)" class="text-xs bg-red-600 text-white py-1 px-3 rounded shadow">Bloquear</button>`;
+            
+            // Botão Novo: Importar CSV
+            const btnImportar = `<button onclick="abrirModalImportacao(${t.id}, '${t.nome.replace(/'/g, "\\'")}')" class="text-xs bg-blue-600 hover:bg-blue-700 text-white py-1 px-3 rounded shadow ml-2"><i class="fas fa-file-csv"></i> CSV</button>`;
+            
+            const acaoHtml = `<div class="flex justify-center items-center">${btnBloqueio}${btnImportar}</div>`;
+            
             tbody.innerHTML += `<tr class="border-b border-gray-100 ${t.status_bloqueado ? 'bg-red-50' : ''}"><td class="p-3 text-sm font-mono">${t.id}</td><td class="p-3 font-bold">${t.nome}</td><td class="p-3 text-center">${statusHtml}</td><td class="p-3 text-center">${acaoHtml}</td></tr>`;
         });
     };
@@ -620,6 +626,100 @@ document.addEventListener('DOMContentLoaded', async () => {
                 document.getElementById('formNovoTerreiro').reset(); carregarGestaoPlataforma();
                 setTimeout(() => msg.classList.add('hidden'), 3000);
             }
+        });
+    }
+
+    // MODAL IMPORTAÇÃO E PROCESSAMENTO CSV (NOVO)
+    window.abrirModalImportacao = (idTerreiro, nomeTerreiro) => {
+        document.getElementById('idTerreiroImport').value = idTerreiro;
+        document.getElementById('nomeTerreiroImport').textContent = nomeTerreiro;
+        document.getElementById('msgImportacao').classList.add('hidden');
+        if (document.getElementById('formImportarCSV')) document.getElementById('formImportarCSV').reset();
+        document.getElementById('modalImportarCSV').classList.remove('hidden');
+    };
+
+    window.fecharModalImportacao = () => {
+        document.getElementById('modalImportarCSV').classList.add('hidden');
+    };
+
+    if (document.getElementById('formImportarCSV')) {
+        document.getElementById('formImportarCSV').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btnProcessarCSV');
+            const msg = document.getElementById('msgImportacao');
+            const idTerreiro = document.getElementById('idTerreiroImport').value;
+            const fileInput = document.getElementById('arquivoCSV');
+
+            if (!fileInput.files.length) return;
+            const file = fileInput.files[0];
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Processando...';
+            msg.classList.remove('hidden');
+            msg.className = 'text-sm mt-3 text-blue-600 block font-bold text-center';
+            msg.textContent = 'Lendo arquivo local...';
+
+            const reader = new FileReader();
+            reader.onload = async function(event) {
+                try {
+                    const text = event.target.result;
+                    // Quebra por linhas e remove as vazias
+                    const linhas = text.split(/\r?\n/).filter(l => l.trim() !== '');
+                    if (linhas.length <= 1) throw new Error("O arquivo parece vazio ou só tem cabeçalho.");
+
+                    const mediunsParaInserir = [];
+                    // Pula o cabeçalho (começa do índice 1)
+                    for (let i = 1; i < linhas.length; i++) {
+                        // Suporta vírgula ou ponto e vírgula
+                        const colunas = linhas[i].split(/[,;]/);
+                        
+                        const nome = colunas[0] ? colunas[0].trim() : '';
+                        const telefone = colunas[1] ? colunas[1].trim() : '';
+                        const grau = colunas[2] ? colunas[2].trim() : '-';
+                        const funcao = colunas[3] ? colunas[3].trim() : '-';
+
+                        if (nome) {
+                            mediunsParaInserir.push({
+                                terreiro_id: idTerreiro,
+                                nome_completo: nome,
+                                telefone: telefone,
+                                grau: grau,
+                                funcao: funcao,
+                                cadastro_completo: false
+                            });
+                        }
+                    }
+
+                    if (mediunsParaInserir.length === 0) throw new Error("Nenhum nome válido encontrado na planilha.");
+
+                    msg.textContent = `Enviando ${mediunsParaInserir.length} cadastros para o banco...`;
+
+                    const { error } = await supabaseClient.from('mediuns').insert(mediunsParaInserir);
+                    if (error) throw error;
+
+                    msg.textContent = `✅ ${mediunsParaInserir.length} cadastros importados com sucesso!`;
+                    msg.className = 'text-sm mt-3 text-green-600 block font-bold text-center';
+                    
+                    setTimeout(() => {
+                        fecharModalImportacao();
+                    }, 3000);
+
+                } catch (error) {
+                    msg.textContent = '❌ Erro: ' + error.message;
+                    msg.className = 'text-sm mt-3 text-red-600 block font-bold text-center';
+                } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = 'Processar e Importar';
+                }
+            };
+            reader.onerror = () => {
+                msg.textContent = '❌ Erro ao ler o arquivo.';
+                msg.className = 'text-sm mt-3 text-red-600 block font-bold text-center';
+                btn.disabled = false;
+                btn.innerHTML = 'Processar e Importar';
+            };
+
+            reader.readAsText(file);
         });
     }
 });
