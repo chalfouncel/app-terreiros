@@ -35,6 +35,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (terreiro) {
                 document.getElementById('nomeTerreiroSidebar').textContent = terreiro.nome;
                 
+                if(terreiro.logo_url) {
+                    const logoS = document.getElementById('logoSidebar');
+                    if(logoS) {
+                        logoS.src = terreiro.logo_url;
+                        logoS.classList.remove('hidden');
+                    }
+                }
+
                 const root = document.documentElement;
                 if(terreiro.cor_primaria) root.style.setProperty('--cor-primaria', terreiro.cor_primaria);
                 if(terreiro.cor_secundaria) root.style.setProperty('--cor-secundaria', terreiro.cor_secundaria);
@@ -228,7 +236,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!error) carregarDoacoesCatalogo();
     };
 
-    // --- CORES DA CASA ---
+    // --- ADMINISTRAÇÃO (CORES E LOGO) ---
     async function carregarConfiguracoesCasa() {
         if (!idTerreiroGlobal) return;
         const { data } = await supabaseClient.from('terreiros').select('*').eq('id', idTerreiroGlobal).single();
@@ -237,9 +245,64 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.getElementById('corSecundaria').value = data.cor_secundaria || '#16a34a';
             document.getElementById('corFundo').value = data.cor_fundo || '#f3f4f6';
             document.getElementById('corTexto').value = data.cor_texto || '#1f2937';
+            
+            if (data.logo_url) {
+                document.getElementById('urlLogo').value = data.logo_url;
+                const preview = document.getElementById('previewLogo');
+                const placeholder = document.getElementById('placeholderLogo');
+                if(preview && placeholder) {
+                    preview.src = data.logo_url;
+                    preview.classList.remove('hidden');
+                    placeholder.classList.add('hidden');
+                }
+            }
         }
     }
 
+    // Salvar Logo
+    document.getElementById('btnSalvarLogo')?.addEventListener('click', async () => {
+        const novaUrl = document.getElementById('urlLogo').value;
+        const btn = document.getElementById('btnSalvarLogo');
+        const textOriginal = btn.innerHTML;
+        
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Salvando...';
+        btn.disabled = true;
+
+        const { error } = await supabaseClient.from('terreiros').update({ logo_url: novaUrl }).eq('id', idTerreiroGlobal);
+        
+        if (!error) {
+            btn.innerHTML = '<i class="fas fa-check mr-2"></i> Salvo com sucesso!';
+            btn.classList.replace('bg-tema-primaria', 'bg-green-600');
+            
+            const preview = document.getElementById('previewLogo');
+            const placeholder = document.getElementById('placeholderLogo');
+            const sidebar = document.getElementById('logoSidebar');
+            
+            if (novaUrl) {
+                preview.src = novaUrl;
+                preview.classList.remove('hidden');
+                placeholder.classList.add('hidden');
+                sidebar.src = novaUrl;
+                sidebar.classList.remove('hidden');
+            } else {
+                preview.classList.add('hidden');
+                placeholder.classList.remove('hidden');
+                sidebar.classList.add('hidden');
+            }
+            
+            setTimeout(() => {
+                btn.innerHTML = textOriginal;
+                btn.classList.replace('bg-green-600', 'bg-tema-primaria');
+                btn.disabled = false;
+            }, 2000);
+        } else {
+            alert('Erro ao salvar imagem.');
+            btn.innerHTML = textOriginal;
+            btn.disabled = false;
+        }
+    });
+
+    // Salvar Cores
     document.getElementById('btnSalvarCores')?.addEventListener('click', async () => {
         const cor1 = document.getElementById('corPrimaria').value;
         const cor2 = document.getElementById('corSecundaria').value;
