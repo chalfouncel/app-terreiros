@@ -158,19 +158,45 @@ document.addEventListener('DOMContentLoaded', async () => {
                 throw new Error("Por favor, crie uma Nova Senha com pelo menos 6 caracteres.");
             }
 
-            // ATUALIZANDO NA TABELA CERTA: mediuns
-            let updateQuery = supabaseClient
-                .from('mediuns') 
-                .update({ 
-                    nome_completo: nomeCompleto,
-                    nome_social: nomeSocial,
-                    grau: grau,
-                    funcao: funcao,
-                    palavra: palavra,
-                    data_nascimento: dataNascimento,
-                    telefone: telefone,
-                    cadastro_completo: true
+            let novoAuthId = null;
+
+            // PASSO 1: CRIAR O ACESSO NO COFRE PRIMEIRO (Se for primeiro acesso)
+            if (!session && novaSenha) {
+                const telefoneFormatado = telefone.replace(/\D/g, '');
+                const emailFantasma = `${telefoneFormatado}@terreiro.app`;
+                
+                const { data: authData, error: errorAuth } = await supabaseClient.auth.signUp({
+                    email: emailFantasma,
+                    password: novaSenha,
                 });
+                
+                if (errorAuth) throw new Error("Erro ao registrar acesso: " + errorAuth.message);
+                
+                // Pega o ID que o cofre acabou de gerar!
+                if (authData && authData.user) {
+                    novoAuthId = authData.user.id;
+                }
+            }
+
+            // PASSO 2: MONTAR A FICHA DE DADOS
+            const dadosParaSalvar = { 
+                nome_completo: nomeCompleto,
+                nome_social: nomeSocial,
+                grau: grau,
+                funcao: funcao,
+                palavra: palavra,
+                data_nascimento: dataNascimento,
+                telefone: telefone,
+                cadastro_completo: true
+            };
+
+            // PASSO 3: COLAR O ID NOVO NA FICHA (A mágica que faltava)
+            if (novoAuthId) {
+                dadosParaSalvar.auth_id = novoAuthId;
+            }
+
+            // PASSO 4: SALVAR TUDO NA TABELA
+            let updateQuery = supabaseClient.from('mediuns').update(dadosParaSalvar);
                 
             if (session) {
                 updateQuery = updateQuery.eq('auth_id', session.user.id);
@@ -180,27 +206,21 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             const { error: errorUpdate } = await updateQuery;
 
-            if (errorUpdate) throw errorUpdate;
+            // Se der erro ao salvar os dados (ex: telefone duplicado), ele avisa!
+            if (errorUpdate) throw new Error(errorUpdate.message);
 
-            // Criando o acesso no Auth
-            if (!session && novaSenha) {
-                const telefoneFormatado = telefone.replace(/\D/g, '');
-                const emailFantasma = `${telefoneFormatado}@terreiro.app`;
-                
-                const { error: errorAuth } = await supabaseClient.auth.signUp({
-                    email: emailFantasma,
-                    password: novaSenha,
-                });
-                
-                if (errorAuth) throw new Error("Erro ao registrar acesso: " + errorAuth.message);
-            }
-
+            // Tudo certo! Limpa o acesso temporário e redireciona
             localStorage.removeItem('novo_acesso_id');
             window.location.href = 'presenca.html';
 
         } catch (error) {
             console.error(error);
-            msgErro.textContent = error.message;
+            // Melhora a mensagem de erro de telefone duplicado para ficar amigável
+            if (error.message.includes('unique constraint "mediuns_telefone_key"')) {
+                msgErro.textContent = "Este número de WhatsApp já está cadastrado em outra ficha.";
+            } else {
+                msgErro.textContent = error.message;
+            }
             msgErro.classList.remove('hidden');
             btnSalvar.disabled = false;
             btnSalvar.textContent = 'Salvar e Continuar';
