@@ -1,5 +1,4 @@
 document.addEventListener('DOMContentLoaded', async () => {
-    // 1. Verifica se o usuário está logado
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (!session) {
         window.location.href = 'index.html';
@@ -9,12 +8,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     const infoGira = document.getElementById('infoGira');
     const btnPresenca = document.getElementById('btnPresenca');
     const msgStatus = document.getElementById('msgStatus');
+    const containerBotoes = document.getElementById('containerBotoes');
+
+    // Elementos do Modal de Doação
+    const modalDoacao = document.getElementById('modalDoacao');
+    const btnAbrirDoacao = document.getElementById('btnAbrirDoacao');
+    const btnFecharDoacao = document.getElementById('btnFecharDoacao');
+    const btnCopiarPix = document.getElementById('btnCopiarPix');
+    const chavePix = document.getElementById('chavePix');
 
     let giraAtual = null;
     let terreiroData = null;
 
     try {
-        // NOVO: Descobre quem é o médium para pegar o terreiro dele
         const { data: perfil } = await supabaseClient
             .from('mediuns')
             .select('terreiro_id')
@@ -22,7 +28,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             .single();
 
         if (perfil && perfil.terreiro_id) {
-            // Busca o Terreiro ESPECÍFICO deste médium
             const { data: terreiro } = await supabaseClient
                 .from('terreiros')
                 .select('*')
@@ -32,14 +37,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (terreiro) {
                 terreiroData = terreiro;
                 
-                // APLICA AS CORES DO TERREIRO NO CELULAR
                 const root = document.documentElement;
                 if(terreiro.cor_primaria) root.style.setProperty('--cor-primaria', terreiro.cor_primaria);
                 if(terreiro.cor_secundaria) root.style.setProperty('--cor-secundaria', terreiro.cor_secundaria);
                 if(terreiro.cor_fundo) root.style.setProperty('--cor-fundo', terreiro.cor_fundo);
                 if(terreiro.cor_texto) root.style.setProperty('--cor-texto', terreiro.cor_texto);
                 
-                // APLICA A LOGO DO TERREIRO
                 if(terreiro.logo_url) {
                     const imgLogo = document.getElementById('logoCasa');
                     imgLogo.src = terreiro.logo_url;
@@ -48,7 +51,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
 
-        // Busca a última gira cadastrada
         const { data: agenda, error } = await supabaseClient
             .from('agenda')
             .select('*')
@@ -57,28 +59,29 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (agenda && agenda.length > 0) {
             giraAtual = agenda[0];
-            // Usa a classe text-tema-primaria para a cor do título da gira
             infoGira.innerHTML = `Hoje: <span class="text-tema-primaria font-bold">${giraAtual.titulo}</span>`;
             
-            // Se a gira tiver imagem cadastrada, exibe ela!
             if (giraAtual.imagem_url) {
                 document.getElementById('imgGira').src = giraAtual.imagem_url;
                 document.getElementById('containerImagemGira').classList.remove('hidden');
             }
             
-            btnPresenca.classList.remove('hidden');
+            // Exibe os botões (Presença + Doação)
+            containerBotoes.classList.remove('hidden');
+            containerBotoes.classList.add('flex');
         } else {
             infoGira.textContent = 'Não há nenhuma gira cadastrada para hoje.';
+            // Mesmo sem gira, podemos exibir o botão de doação se quiser, mas por padrão deixamos oculto
         }
     } catch (error) {
         console.error(error);
         infoGira.textContent = 'Erro ao carregar os dados da gira.';
     }
 
-    // 3. Ação de clicar no Botão Gigante
+    // --- LÓGICA DO BOTÃO DE PRESENÇA ---
     btnPresenca.addEventListener('click', () => {
         btnPresenca.disabled = true;
-        btnPresenca.innerHTML = 'Calculando GPS... 🛰️';
+        btnPresenca.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Calculando GPS...';
         msgStatus.classList.add('hidden');
 
         if (!navigator.geolocation) {
@@ -86,13 +89,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        // Pede a localização do celular do usuário
         navigator.geolocation.getCurrentPosition(
             async (position) => {
                 const latUsuario = position.coords.latitude;
                 const lonUsuario = position.coords.longitude;
                 
-                // Pega as coordenadas cadastradas no banco (ou usa RJ como padrão)
                 const latTerreiro = terreiroData?.latitude || -22.9068;
                 const lonTerreiro = terreiroData?.longitude || -43.1729;
                 const raioPermitido = giraAtual.raio_presenca_metros || 50000;
@@ -130,28 +131,55 @@ document.addEventListener('DOMContentLoaded', async () => {
         );
     });
 
+    // --- LÓGICA DO MODAL DE DOAÇÃO ---
+    btnAbrirDoacao.addEventListener('click', () => {
+        modalDoacao.classList.remove('hidden');
+        // Pequeno atraso para a animação de escala funcionar
+        setTimeout(() => {
+            modalDoacao.querySelector('div').classList.remove('scale-95');
+            modalDoacao.querySelector('div').classList.add('scale-100');
+        }, 10);
+    });
+
+    btnFecharDoacao.addEventListener('click', () => {
+        modalDoacao.querySelector('div').classList.remove('scale-100');
+        modalDoacao.querySelector('div').classList.add('scale-95');
+        setTimeout(() => {
+            modalDoacao.classList.add('hidden');
+            btnCopiarPix.innerHTML = '<i class="fas fa-copy mr-2"></i> Copiar Chave';
+            btnCopiarPix.classList.replace('bg-green-600', 'bg-gray-800');
+        }, 200);
+    });
+
+    btnCopiarPix.addEventListener('click', () => {
+        navigator.clipboard.writeText(chavePix.innerText).then(() => {
+            btnCopiarPix.innerHTML = '<i class="fas fa-check mr-2"></i> Chave Copiada!';
+            btnCopiarPix.classList.replace('bg-gray-800', 'bg-green-600');
+        });
+    });
+
+    // Funções utilitárias
     function mostrarSucesso(msg) {
-        btnPresenca.innerHTML = 'Presença Registrada! ✅';
+        btnPresenca.innerHTML = '<i class="fas fa-check-circle mr-2"></i> Presença Registrada!';
         msgStatus.textContent = msg;
         msgStatus.className = 'mt-6 text-sm font-bold rounded p-4 bg-green-100 text-green-800 block';
     }
 
     function mostrarErro(msg) {
         btnPresenca.disabled = false;
-        btnPresenca.innerHTML = 'Tentar Novamente';
+        btnPresenca.innerHTML = '<i class="fas fa-map-marker-alt mr-2"></i> Tentar Novamente';
         msgStatus.textContent = msg;
         msgStatus.className = 'mt-6 text-sm font-bold rounded p-4 bg-red-100 text-red-800 block';
     }
 
-    // A Famosa Fórmula de Haversine (Mede distância exata do globo terrestre)
     function calcularDistancia(lat1, lon1, lat2, lon2) {
-        const R = 6371e3; // Raio da Terra em metros
+        const R = 6371e3; 
         const p1 = lat1 * Math.PI/180; 
         const p2 = lat2 * Math.PI/180;
         const dp = (lat2-lat1) * Math.PI/180;
         const dl = (lon2-lon1) * Math.PI/180;
         const a = Math.sin(dp/2) * Math.sin(dp/2) + Math.cos(p1) * Math.cos(p2) * Math.sin(dl/2) * Math.sin(dl/2);
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-        return R * c; // Resultado em Metros
+        return R * c; 
     }
 });
