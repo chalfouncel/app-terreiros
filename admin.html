@@ -267,38 +267,62 @@
 
         <!-- SECÃO 6: ADMINISTRAÇÃO -->
         <div id="secAdministracao" class="secao-painel hidden">
+            
+            <!-- LOGO DO TERREIRO (RESTAURADA E MELHORADA) -->
+            <div class="bg-white rounded-xl shadow-sm border-t-4 border-tema-primaria p-6 mb-8">
+                <h3 class="text-xl font-bold text-tema-texto mb-2"><i class="fas fa-image mr-2 text-tema-primaria"></i> Logo ou Ponto da Casa</h3>
+                <p class="text-sm text-gray-500 mb-6">Insira o link (URL) da imagem que vai aparecer no painel e no app dos médiuns.</p>
+                
+                <div class="flex flex-col sm:flex-row items-center gap-6">
+                    <!-- Preview Box -->
+                    <div class="w-32 h-32 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden shadow-inner shrink-0">
+                        <i id="placeholderLogo" class="fas fa-camera text-gray-300 text-4xl"></i>
+                        <img id="previewLogo" src="" class="hidden w-full h-full object-contain p-2">
+                    </div>
+                    
+                    <!-- Input URL -->
+                    <div class="flex-1 w-full">
+                        <label class="block text-xs font-bold text-gray-600 uppercase mb-1">URL da Imagem</label>
+                        <input type="url" id="urlLogo" placeholder="Exemplo: https://meusite.com/logo.png" class="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-tema-primaria focus:border-tema-primaria outline-none mb-4">
+                        <button id="btnSalvarLogo" class="bg-tema-primaria hover:opacity-90 text-white font-bold py-2.5 px-6 rounded-lg shadow transition-all active:scale-95 flex items-center justify-center w-full sm:w-auto">
+                            <i class="fas fa-save mr-2"></i> Salvar Imagem
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CORES -->
             <div class="bg-white rounded-xl shadow-sm border-t-4 border-tema-secundaria p-6">
                 <h3 class="text-xl font-bold text-tema-texto mb-2"><i class="fas fa-palette mr-2 text-tema-secundaria"></i> Identidade Visual (Cores)</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                    <div class="p-4 border border-gray-100 rounded-lg bg-gray-50 flex justify-between items-center">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 mt-4">
+                    <div class="p-4 border border-gray-100 rounded-lg bg-gray-50 flex justify-between items-center shadow-sm">
                         <div>
                             <h4 class="font-bold text-gray-800">Cor Primária</h4>
                         </div>
                         <input type="color" id="corPrimaria" class="w-14 h-14 cursor-pointer border-0 rounded bg-transparent">
                     </div>
-                    <div class="p-4 border border-gray-100 rounded-lg bg-gray-50 flex justify-between items-center">
+                    <div class="p-4 border border-gray-100 rounded-lg bg-gray-50 flex justify-between items-center shadow-sm">
                         <div>
                             <h4 class="font-bold text-gray-800">Cor Secundária</h4>
                         </div>
                         <input type="color" id="corSecundaria" class="w-14 h-14 cursor-pointer border-0 rounded bg-transparent">
                     </div>
-                    <div class="p-4 border border-gray-100 rounded-lg bg-gray-50 flex justify-between items-center">
+                    <div class="p-4 border border-gray-100 rounded-lg bg-gray-50 flex justify-between items-center shadow-sm">
                         <div>
                             <h4 class="font-bold text-gray-800">Cor de Fundo da Tela</h4>
                         </div>
                         <input type="color" id="corFundo" class="w-14 h-14 cursor-pointer border-0 rounded bg-transparent">
                     </div>
-                    <div class="p-4 border border-gray-100 rounded-lg bg-gray-50 flex justify-between items-center">
+                    <div class="p-4 border border-gray-100 rounded-lg bg-gray-50 flex justify-between items-center shadow-sm">
                         <div>
                             <h4 class="font-bold text-gray-800">Cor do Texto Principal</h4>
                         </div>
                         <input type="color" id="corTexto" class="w-14 h-14 cursor-pointer border-0 rounded bg-transparent">
                     </div>
                 </div>
-                <button id="btnSalvarCores" class="w-full sm:w-auto bg-tema-primaria hover:opacity-90 text-white font-bold py-3 px-8 rounded-lg shadow transition text-lg">
+                <button id="btnSalvarCores" class="w-full sm:w-auto bg-tema-primaria hover:opacity-90 text-white font-bold py-3 px-8 rounded-lg shadow transition text-lg active:scale-95">
                     Salvar e Aplicar Cores
                 </button>
-                <p id="msgCores" class="text-sm font-bold mt-3 hidden"></p>
             </div>
         </div>
     </main>
