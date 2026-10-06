@@ -211,15 +211,24 @@ if (btnCheckin) {
         navigator.geolocation.getCurrentPosition(async (posicao) => {
             const latUsuario = posicao.coords.latitude, lonUsuario = posicao.coords.longitude;
             const distanciaMetros = calcularDistancia(latUsuario, lonUsuario, coordsTerreiro.lat, coordsTerreiro.lng);
-            if (distanciaMetros > 100) {
-                if (msg) { msg.innerHTML = `Você está muito longe do terreiro.<br>Distância atual: ${Math.round(distanciaMetros)} metros.`; msg.className = "mt-3 text-sm font-bold text-red-500 block"; }
+            
+            // TRAVA DE SEGURANÇA: 50 METROS
+            if (distanciaMetros > 50) {
+                if (msg) { msg.innerHTML = `Você está muito longe do terreiro.<br>Distância atual: ${Math.round(distanciaMetros)} metros. (Máximo: 50m)`; msg.className = "mt-3 text-sm font-bold text-red-500 block"; }
                 restaurarBotao(btnCheckin); return;
             }
 
             const { data: { session } } = await supabaseClient.auth.getSession();
             btnCheckin.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Registrando...';
 
-            const { error } = await supabaseClient.from('presencas').insert([{ evento_id: idGiraGlobal, usuario_id: session.user.id, data_hora_checkin: new Date().toISOString() }]);
+            // ATUALIZADO: Agora envia localizacao_valida e a distancia pro banco para não dar erro
+            const { error } = await supabaseClient.from('presencas').insert([{ 
+                evento_id: idGiraGlobal, 
+                usuario_id: session.user.id, 
+                data_hora_checkin: new Date().toISOString(),
+                localizacao_valida: true,
+                distancia_metros: Math.round(distanciaMetros)
+            }]);
 
             if (error) {
                 if (msg) { msg.textContent = "Erro ao registrar: " + error.message; msg.className = "mt-3 text-sm font-bold text-red-500 block"; }
