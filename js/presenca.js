@@ -114,17 +114,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         // ====================================================================
         // VERIFICA O PRÓXIMO EVENTO AGENDADO
         // ====================================================================
-        
-        // Pega exatamente a hora de agora para não mostrar evento velho
         const horaNavegador = new Date();
-        const dataBuscaISO = horaNavegador.toISOString();
 
-        // 1. Busca TODAS as giras futuras (ou que ainda não acabaram hoje)
         const { data: girasFuturas } = await supabaseClient.from('agenda').select('*')
             .eq('terreiro_id', idTerreiroGlobal)
             .or('ata_encerrada.eq.false,ata_encerrada.is.null') 
-            // Pega eventos que começam no futuro OU que a data de fim ainda não passou
-            // Se o evento não tem data de fim, chuta 4 horas a frente
             .order('data_hora_inicio', { ascending: true });
 
         const divSemGira = document.getElementById('estadoSemGira');
@@ -133,7 +127,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         let gira = null;
 
         if (girasFuturas && girasFuturas.length > 0) {
-            // 2. O navegador filtra e acha o primeiro evento que a HORA DE FIM é maior que agora
             gira = girasFuturas.find(g => {
                 let hrFim;
                 const hrInicio = new Date(g.data_hora_inicio);
@@ -141,7 +134,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (g.data_hora_fim) {
                     hrFim = new Date(g.data_hora_fim);
                 } else {
-                    // Se não tiver hora de fim salva no banco, chuta que dura 4 horas
                     hrFim = new Date(hrInicio.getTime() + (4 * 60 * 60 * 1000));
                 }
                 
@@ -160,7 +152,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 hrFimGiraGlobal = new Date(hrInicioGira.getTime() + (4 * 60 * 60 * 1000));
             }
             
-            hrInicioPermitidoGlobal = new Date(hrInicioGira.getTime() - (90 * 60000)); // Libera 90 min antes
+            hrInicioPermitidoGlobal = new Date(hrInicioGira.getTime() - (90 * 60000));
 
             if (divSemGira) divSemGira.classList.add('hidden');
             if (divComGira) divComGira.classList.remove('hidden');
@@ -168,7 +160,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             const titleGira = document.getElementById('tituloGira');
             if (titleGira) titleGira.textContent = gira.titulo;
 
-            // EXIBE A IMAGEM/CARTAZ DA GIRA SE TIVER
             const imgCartaz = document.getElementById('cartazGira');
             if (imgCartaz) {
                 if (gira.imagem_url) {
@@ -182,7 +173,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             const txtHrInicio = hrInicioGira.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
             const txtHrFim = hrFimGiraGlobal.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
             
-            // Verifica se o evento é hoje. Se for no futuro, mostra a data na tela.
             const ehHoje = hrInicioGira.getDate() === horaNavegador.getDate() &&
                            hrInicioGira.getMonth() === horaNavegador.getMonth() &&
                            hrInicioGira.getFullYear() === horaNavegador.getFullYear();
@@ -194,10 +184,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                 } else {
                     const dataFormatada = hrInicioGira.toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'});
                     textHorario.innerHTML = `<i class="far fa-calendar-alt"></i> Dia ${dataFormatada} - ${txtHrInicio} às ${txtHrFim}`;
+                    
+                    // A MÁGICA: Procura qualquer lugar no cartão do evento escrito "EVENTO HOJE" e altera
+                    const elementos = document.querySelectorAll('#estadoComGira span, #estadoComGira div, #estadoComGira p');
+                    elementos.forEach(el => {
+                        if (el.textContent.trim().toUpperCase() === 'EVENTO HOJE') {
+                            el.textContent = 'PRÓXIMO EVENTO';
+                        }
+                    });
                 }
             }
 
-            // Verifica Check-in Atual
             const { data: presencas } = await supabaseClient.from('presencas').select('*')
                 .eq('usuario_id', authId).eq('evento_id', idGiraGlobal).limit(1);
 
@@ -228,7 +225,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             }
         } else {
-            // Não achou nenhuma gira futura
             if (divComGira) divComGira.classList.add('hidden');
             if (divSemGira) divSemGira.classList.remove('hidden');
         }
