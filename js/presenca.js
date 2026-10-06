@@ -4,7 +4,6 @@ let coordsTerreiro = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
     
-    // Mostra feedback inicial
     const tituloTerreiro = document.getElementById('nomeTerreiro');
     if (tituloTerreiro) tituloTerreiro.textContent = "Carregando sistema...";
 
@@ -17,29 +16,38 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     try {
-        // 1. BUSCA O PERFIL DO MÉDIUM (Usando select * para NÃO TRAVAR se faltar coluna)
-        const { data: perfil, error: erroPerfil } = await supabaseClient
+        // CORREÇÃO AQUI: Em vez de .single() que trava se houver duplicidade de testes, usamos .limit(1)
+        const { data: perfis, error: erroPerfil } = await supabaseClient
             .from('mediuns')
             .select('*')
             .eq('auth_id', session.user.id)
-            .single();
+            .limit(1);
 
         if (erroPerfil) {
-            alert("Erro ao buscar seu cadastro: " + erroPerfil.message);
+            alert("Erro de leitura do banco: " + erroPerfil.message);
             await supabaseClient.auth.signOut();
             window.location.href = 'index.html';
             return;
         }
 
+        if (!perfis || perfis.length === 0) {
+            alert("Seu cadastro não foi encontrado no banco de dados.");
+            await supabaseClient.auth.signOut();
+            window.location.href = 'index.html';
+            return;
+        }
+
+        // Pega o primeiro perfil com segurança
+        const perfil = perfis[0];
+
         idTerreiroGlobal = perfil.terreiro_id;
         
-        // Garante que o nome não quebre se estiver vazio
         const nomeCurto = perfil.nome_completo ? perfil.nome_completo.split(' ')[0] : 'Médium';
         const txtNome = document.getElementById('nomeMedium');
         if (txtNome) txtNome.textContent = 'Olá, ' + nomeCurto;
 
         // ========================================================
-        // 2. LÓGICA DE EXIBIÇÃO DO BOTÃO ADMIN (Tratamento seguro)
+        // 2. LÓGICA DE EXIBIÇÃO DO BOTÃO ADMIN 
         // ========================================================
         const temAcessoAoPainel = perfil.is_admin === true || 
                                   perfil.perm_agenda === true || 
@@ -61,26 +69,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         // ========================================================
 
-        // 3. BUSCA DADOS DO TERREIRO (Nome, Logo, Cores, GPS)
+        // 3. BUSCA DADOS DO TERREIRO 
         if (idTerreiroGlobal) {
-            const { data: terreiro } = await supabaseClient
+            const { data: terreiros } = await supabaseClient
                 .from('terreiros')
                 .select('*')
                 .eq('id', idTerreiroGlobal)
-                .single();
+                .limit(1);
             
-            if (terreiro) {
+            if (terreiros && terreiros.length > 0) {
+                const terreiro = terreiros[0];
                 if (tituloTerreiro) tituloTerreiro.textContent = terreiro.nome || 'Terreiro sem Nome';
                 coordsTerreiro = { lat: terreiro.latitude, lng: terreiro.longitude };
                 
-                // Aplicar Cores
                 const root = document.documentElement;
                 if(terreiro.cor_primaria) root.style.setProperty('--cor-primaria', terreiro.cor_primaria);
                 if(terreiro.cor_secundaria) root.style.setProperty('--cor-secundaria', terreiro.cor_secundaria);
                 if(terreiro.cor_fundo) root.style.setProperty('--cor-fundo', terreiro.cor_fundo);
                 if(terreiro.cor_texto) root.style.setProperty('--cor-texto', terreiro.cor_texto);
 
-                // Aplicar Logo
                 const img = document.getElementById('logoTerreiro');
                 if(terreiro.logo_url && img) {
                     img.src = terreiro.logo_url;
@@ -96,7 +103,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const inicioDia = new Date(hoje.setHours(0,0,0,0)).toISOString();
         const fimDia = new Date(hoje.setHours(23,59,59,999)).toISOString();
 
-        const { data: giras, error: erroGira } = await supabaseClient
+        const { data: giras } = await supabaseClient
             .from('agenda')
             .select('*')
             .eq('terreiro_id', idTerreiroGlobal)
@@ -109,7 +116,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         const divComGira = document.getElementById('estadoComGira');
 
         if (giras && giras.length > 0) {
-            // TEM GIRA!
             const gira = giras[0];
             idGiraGlobal = gira.id;
             
@@ -124,26 +130,23 @@ document.addEventListener('DOMContentLoaded', async () => {
             const textHorario = document.getElementById('horarioGira');
             if (textHorario) textHorario.innerHTML = `<i class="far fa-clock"></i> ${hrInicio} às ${hrFim}`;
 
-            // Verifica se já fez check-in
-            const { data: checkinExistente } = await supabaseClient
+            const { data: presencas } = await supabaseClient
                 .from('presencas')
                 .select('*')
                 .eq('usuario_id', session.user.id)
                 .eq('evento_id', idGiraGlobal)
-                .single();
+                .limit(1);
 
-            if (checkinExistente) {
+            if (presencas && presencas.length > 0) {
                 const areaPonto = document.getElementById('areaBaterPonto');
                 const areaSucesso = document.getElementById('areaSucesso');
                 const horaFeito = document.getElementById('horaCheckinFeito');
                 
                 if (areaPonto) areaPonto.classList.add('hidden');
                 if (areaSucesso) areaSucesso.classList.remove('hidden');
-                if (horaFeito) horaFeito.textContent = new Date(checkinExistente.data_hora_checkin).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+                if (horaFeito) horaFeito.textContent = new Date(presencas[0].data_hora_checkin).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
             }
-
         } else {
-            // NÃO TEM GIRA!
             if (divComGira) divComGira.classList.add('hidden');
             if (divSemGira) divSemGira.classList.remove('hidden');
         }
@@ -151,20 +154,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (error) {
         console.error("Erro fatal:", error);
         
-        // Em vez de tela branca, mostra um cartão de erro visual
         const divSemGira = document.getElementById('estadoSemGira');
         if (divSemGira) {
             divSemGira.classList.remove('hidden');
             divSemGira.innerHTML = `
                 <i class="fas fa-exclamation-triangle text-red-500 text-5xl mb-4"></i>
-                <h2 class="text-xl font-bold text-gray-700">Erro de Conexão</h2>
+                <h2 class="text-xl font-bold text-gray-700">Erro Interno</h2>
                 <p class="text-red-500 mt-2 font-bold">${error.message}</p>
                 <p class="text-gray-500 text-sm mt-2">Atualize a página e tente novamente.</p>
             `;
         }
     }
 
-    // 5. BOTÃO DE SAIR
     const btnSair = document.getElementById('btnSair');
     if (btnSair) {
         btnSair.addEventListener('click', async () => {
@@ -174,9 +175,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
-// ==========================================
-// FUNÇÃO DE BATER O PONTO (COM GPS)
-// ==========================================
 const btnCheckin = document.getElementById('btnCheckin');
 if (btnCheckin) {
     btnCheckin.addEventListener('click', async () => {
