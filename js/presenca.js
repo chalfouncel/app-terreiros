@@ -112,42 +112,54 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         // ====================================================================
-        // VERIFICA GIRA DE HOJE (LÓGICA BLINDADA COM JAVASCRIPT)
+        // VERIFICA O PRÓXIMO EVENTO AGENDADO
         // ====================================================================
-        const dataAtual = new Date();
-        const ano = dataAtual.getFullYear();
-        const mes = dataAtual.getMonth();
-        const dia = dataAtual.getDate();
+        
+        // Pega exatamente a hora de agora para não mostrar evento velho
+        const horaNavegador = new Date();
+        const dataBuscaISO = horaNavegador.toISOString();
 
-        // Delimita o dia de hoje inteiro (00:00 até 23:59)
-        const inicioDia = new Date(ano, mes, dia, 0, 0, 0, 0).toISOString();
-        const fimDia = new Date(ano, mes, dia, 23, 59, 59, 999).toISOString();
-
-        // 1. Busca TODAS as giras de hoje no banco
-        const { data: girasDoDia } = await supabaseClient.from('agenda').select('*')
+        // 1. Busca TODAS as giras futuras (ou que ainda não acabaram hoje)
+        const { data: girasFuturas } = await supabaseClient.from('agenda').select('*')
             .eq('terreiro_id', idTerreiroGlobal)
-            // Usa .or para aceitar tanto false quanto null (novos eventos podem vir null)
             .or('ata_encerrada.eq.false,ata_encerrada.is.null') 
-            .gte('data_hora_inicio', inicioDia)
-            .lte('data_hora_inicio', fimDia)
+            // Pega eventos que começam no futuro OU que a data de fim ainda não passou
+            // Se o evento não tem data de fim, chuta 4 horas a frente
             .order('data_hora_inicio', { ascending: true });
 
         const divSemGira = document.getElementById('estadoSemGira');
         const divComGira = document.getElementById('estadoComGira');
 
         let gira = null;
-        const horaNavegador = new Date();
 
-        if (girasDoDia && girasDoDia.length > 0) {
-            // 2. O próprio navegador (que tem a hora local exata) acha a gira que AINDA NÃO ACABOU
-            gira = girasDoDia.find(g => new Date(g.data_hora_fim) > horaNavegador);
+        if (girasFuturas && girasFuturas.length > 0) {
+            // 2. O navegador filtra e acha o primeiro evento que a HORA DE FIM é maior que agora
+            gira = girasFuturas.find(g => {
+                let hrFim;
+                const hrInicio = new Date(g.data_hora_inicio);
+                
+                if (g.data_hora_fim) {
+                    hrFim = new Date(g.data_hora_fim);
+                } else {
+                    // Se não tiver hora de fim salva no banco, chuta que dura 4 horas
+                    hrFim = new Date(hrInicio.getTime() + (4 * 60 * 60 * 1000));
+                }
+                
+                return hrFim > horaNavegador;
+            });
         }
 
         if (gira) {
             idGiraGlobal = gira.id;
             
             const hrInicioGira = new Date(gira.data_hora_inicio);
-            hrFimGiraGlobal = new Date(gira.data_hora_fim);
+            
+            if (gira.data_hora_fim) {
+                hrFimGiraGlobal = new Date(gira.data_hora_fim);
+            } else {
+                hrFimGiraGlobal = new Date(hrInicioGira.getTime() + (4 * 60 * 60 * 1000));
+            }
+            
             hrInicioPermitidoGlobal = new Date(hrInicioGira.getTime() - (90 * 60000)); // Libera 90 min antes
 
             if (divSemGira) divSemGira.classList.add('hidden');
@@ -169,8 +181,21 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             const txtHrInicio = hrInicioGira.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
             const txtHrFim = hrFimGiraGlobal.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+            
+            // Verifica se o evento é hoje. Se for no futuro, mostra a data na tela.
+            const ehHoje = hrInicioGira.getDate() === horaNavegador.getDate() &&
+                           hrInicioGira.getMonth() === horaNavegador.getMonth() &&
+                           hrInicioGira.getFullYear() === horaNavegador.getFullYear();
+
             const textHorario = document.getElementById('horarioGira');
-            if (textHorario) textHorario.innerHTML = `<i class="far fa-clock"></i> ${txtHrInicio} às ${txtHrFim}`;
+            if (textHorario) {
+                if (ehHoje) {
+                    textHorario.innerHTML = `<i class="far fa-clock"></i> ${txtHrInicio} às ${txtHrFim}`;
+                } else {
+                    const dataFormatada = hrInicioGira.toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'});
+                    textHorario.innerHTML = `<i class="far fa-calendar-alt"></i> Dia ${dataFormatada} - ${txtHrInicio} às ${txtHrFim}`;
+                }
+            }
 
             // Verifica Check-in Atual
             const { data: presencas } = await supabaseClient.from('presencas').select('*')
@@ -203,7 +228,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             }
         } else {
-            // Não achou gira válida para hoje
+            // Não achou nenhuma gira futura
             if (divComGira) divComGira.classList.add('hidden');
             if (divSemGira) divSemGira.classList.remove('hidden');
         }
