@@ -70,6 +70,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // ESCONDER MENUS não autorizados
         if (!perfil.is_admin) {
+            document.getElementById('menuVisaoGeral').classList.add('hidden'); // Restrito a Admin
+            
             if (!perfil.perm_agenda) document.getElementById('menuAgendaGiras').classList.add('hidden');
             if (!perfil.perm_grau) document.getElementById('menuGrau').classList.add('hidden');
             if (!perfil.perm_financeiro) document.getElementById('menuFinanceiro').classList.add('hidden');
@@ -163,7 +165,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         });
 
-        carregarPainelInicial();
+        // Iniciar na aba correta dependendo da permissão do usuário logado
+        if (perfil.is_admin) {
+            document.getElementById('menuVisaoGeral').click();
+        } else {
+            // Se for assistente, clica na primeira aba que ele tem acesso
+            if (perfil.perm_agenda) document.getElementById('menuAgendaGiras').click();
+            else if (perfil.perm_grau) document.getElementById('menuGrau').click();
+            else if (perfil.perm_financeiro) document.getElementById('menuFinanceiro').click();
+            else if (perfil.perm_doacoes) document.getElementById('menuDoacoes').click();
+            else if (perfil.perm_admin) document.getElementById('menuAdmin').click();
+            else document.getElementById('menuQuadroMediuns').click(); 
+        }
 
     } catch (error) {
         console.error('Erro geral ao carregar a página:', error);
@@ -231,7 +244,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                 `;
             }
 
-            tbody.innerHTML += `<tr class="border-b border-gray-100 hover:bg-gray-50 py-1"><td class="py-2 px-3 text-gray-800">${m.nome_completo}</td><td class="py-2 px-3 text-gray-600">${cargo}</td><td class="py-2 px-3 text-gray-600">${m.telefone || '-'}</td><td class="py-2 px-3">${status}</td><td class="py-2 px-3 text-center">${acoesHtml}</td></tr>`;
+            let linkWhats = '-';
+            if (m.telefone) {
+                const numeroLimpo = m.telefone.replace(/\D/g, '');
+                // Assume Brasil (55) se o usuário não tiver digitado o DDI
+                const ddi = numeroLimpo.startsWith('55') ? '' : '55';
+                linkWhats = `<a href="https://wa.me/${ddi}${numeroLimpo}" target="_blank" class="text-green-600 hover:text-green-700 hover:underline flex items-center gap-1 font-medium" title="Chamar no WhatsApp"><i class="fab fa-whatsapp text-lg"></i> ${m.telefone}</a>`;
+            }
+
+            tbody.innerHTML += `<tr class="border-b border-gray-100 hover:bg-gray-50 py-1"><td class="py-2 px-3 text-gray-800">${m.nome_completo}</td><td class="py-2 px-3 text-gray-600">${cargo}</td><td class="py-2 px-3 text-gray-600">${linkWhats}</td><td class="py-2 px-3">${status}</td><td class="py-2 px-3 text-center">${acoesHtml}</td></tr>`;
         });
     }
 
