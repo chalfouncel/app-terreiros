@@ -187,13 +187,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function carregarPainelInicial() {
         const { count: totalMediuns } = await supabaseClient.from('mediuns')
             .select('*', { count: 'exact', head: true })
-            .eq('terreiro_id', idTerreiroGlobal); // <--- Filtro Corrigido
+            .eq('terreiro_id', idTerreiroGlobal);
         document.getElementById('totalMediuns').textContent = totalMediuns || '0';
 
         const agora = new Date().toISOString();
         const { data: agendaData } = await supabaseClient.from('agenda')
             .select('*')
-            .eq('terreiro_id', idTerreiroGlobal) // <--- Filtro Corrigido
+            .eq('terreiro_id', idTerreiroGlobal)
             .gte('data_hora_fim', agora)
             .order('data_hora_inicio')
             .limit(1);
@@ -213,7 +213,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             const { data: todosMediuns } = await supabaseClient.from('mediuns')
                 .select('id, auth_id, nome_completo')
-                .eq('terreiro_id', idTerreiroGlobal); // <--- Filtro Corrigido
+                .eq('terreiro_id', idTerreiroGlobal);
             
             document.getElementById('totalPresentes').textContent = presencas ? presencas.length : '0';
 
@@ -241,7 +241,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const tbody = document.getElementById('tabelaTodosMediuns');
         const { data } = await supabaseClient.from('mediuns')
             .select('id, nome_completo, grau, funcao, telefone, cadastro_completo, is_admin, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin, perm_visao_geral')
-            .eq('terreiro_id', idTerreiroGlobal) // <--- Filtro Corrigido
+            .eq('terreiro_id', idTerreiroGlobal)
             .order('nome_completo');
             
         tbody.innerHTML = '';
@@ -381,7 +381,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         const { data } = await supabaseClient.from('agenda')
             .select('*')
-            .eq('terreiro_id', idTerreiroGlobal) // <--- Filtro Corrigido
+            .eq('terreiro_id', idTerreiroGlobal)
             .gte('data_hora_fim', agora) 
             .order('data_hora_inicio', { ascending: true })
             .limit(15); 
@@ -441,11 +441,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('editGiraId').value = data.id;
         document.getElementById('editGiraTitulo').value = data.titulo;
         
+        // FUNÇÃO DE FORMATAÇÃO CORRIGIDA PARA IGNORAR O FUSO DO PC E USAR SEMPRE SÃO PAULO
         const formataParaInput = (isoString) => {
             if (!isoString) return '';
-            const d = new Date(isoString);
-            const offset = d.getTimezoneOffset() * 60000;
-            return (new Date(d.getTime() - offset)).toISOString().slice(0, 16);
+            const dataBanco = new Date(isoString);
+            
+            // Converte a data do banco forçando para o fuso de São Paulo
+            const spDateString = dataBanco.toLocaleString("en-US", {timeZone: "America/Sao_Paulo"});
+            const spDate = new Date(spDateString);
+            
+            // Extrai as partes para montar a string exata que o HTML pede: YYYY-MM-DDTHH:mm
+            const ano = spDate.getFullYear();
+            const mes = String(spDate.getMonth() + 1).padStart(2, '0');
+            const dia = String(spDate.getDate()).padStart(2, '0');
+            const horas = String(spDate.getHours()).padStart(2, '0');
+            const minutos = String(spDate.getMinutes()).padStart(2, '0');
+            
+            return `${ano}-${mes}-${dia}T${horas}:${minutos}`;
         };
 
         document.getElementById('editGiraInicio').value = formataParaInput(data.data_hora_inicio);
@@ -465,11 +477,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             try {
                 const id = document.getElementById('editGiraId').value;
+                const inicioRaw = document.getElementById('editGiraInicio').value;
+                const fimRaw = document.getElementById('editGiraFim').value;
+                
+                // FORÇA O CARIMBO DO FUSO DE BRASÍLIA AO ENVIAR PARA O BANCO
+                const inicioBR = inicioRaw ? `${inicioRaw}:00-03:00` : null;
+                const fimBR = fimRaw ? `${fimRaw}:00-03:00` : null;
+
                 const { error } = await supabaseClient.from('agenda')
                     .update({
                         titulo: document.getElementById('editGiraTitulo').value,
-                        data_hora_inicio: new Date(document.getElementById('editGiraInicio').value).toISOString(),
-                        data_hora_fim: new Date(document.getElementById('editGiraFim').value).toISOString(),
+                        data_hora_inicio: inicioBR, // Salvando com fuso explícito
+                        data_hora_fim: fimBR,       // Salvando com fuso explícito
                         gera_ata: document.getElementById('editGiraGeraAta').checked
                     })
                     .eq('id', id);
@@ -501,15 +520,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const fileInput = document.getElementById('giraArquivo');
                 const chkGeraAta = document.getElementById('giraGeraAta') ? document.getElementById('giraGeraAta').checked : false;
                 
+                // FORÇA O CARIMBO DO FUSO DE BRASÍLIA AO CRIAR NOVO EVENTO
+                const inicioBR = inicioRaw ? `${inicioRaw}:00-03:00` : null;
+                const fimBR = fimRaw ? `${fimRaw}:00-03:00` : null;
+                
                 let imagemFinal = linkA || '';
 
                 if (fileInput && fileInput.files.length > 0) {
                     const file = fileInput.files[0];
                     const fileName = `${idTerreiroGlobal}/evento_${Date.now()}.${file.name.split('.').pop()}`;
                     
-                    // ==============================================================
-                    // CORREÇÃO: Mudado de 'public' para 'giras' (Nome real do bucket)
-                    // ==============================================================
                     const { error: uploadError } = await supabaseClient.storage.from('giras').upload(fileName, file);
                     if (uploadError) throw uploadError;
                     
@@ -521,8 +541,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     terreiro_id: idTerreiroGlobal,
                     titulo: titulo,
                     tipo: 'Gira',
-                    data_hora_inicio: new Date(inicioRaw).toISOString(),
-                    data_hora_fim: new Date(fimRaw).toISOString(),
+                    data_hora_inicio: inicioBR, // Salvando com fuso explícito
+                    data_hora_fim: fimBR,       // Salvando com fuso explícito
                     imagem_url: imagemFinal,
                     raio_presenca_metros: 50,
                     gera_ata: chkGeraAta
@@ -703,7 +723,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             const { data: mediuns } = await supabaseClient.from('mediuns')
                 .select('id, auth_id, nome_completo, grau')
-                .eq('terreiro_id', idTerreiroGlobal); // <--- Filtro Corrigido
+                .eq('terreiro_id', idTerreiroGlobal);
                 
             const mapaMediuns = {};
             if(mediuns) {
@@ -820,7 +840,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         const { data } = await supabaseClient.from('mediuns')
             .select('id, nome_completo, grau, funcao')
-            .eq('terreiro_id', idTerreiroGlobal) // <--- Filtro Corrigido
+            .eq('terreiro_id', idTerreiroGlobal)
             .order('nome_completo');
             
         if (data) { mediunsGrauCache = data; renderizarGraus(data); }
@@ -868,7 +888,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         const { data: mediuns } = await supabaseClient.from('mediuns')
             .select('id, nome_completo')
-            .eq('terreiro_id', idTerreiroGlobal) // <--- Filtro Corrigido
+            .eq('terreiro_id', idTerreiroGlobal)
             .order('nome_completo');
             
         if(!mediuns || mediuns.length === 0) {
@@ -876,7 +896,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        // Busca apenas pagamentos pertencentes aos médiuns desta casa (Filtro Corrigido)
         const idsMediuns = mediuns.map(m => m.id);
         const { data: pgtos } = await supabaseClient.from('financeiro')
             .select('*')
@@ -1024,7 +1043,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             const { data: mediuns } = await supabaseClient.from('mediuns')
                 .select('auth_id, nome_completo')
-                .eq('terreiro_id', idTerreiroGlobal); // <--- Filtro Corrigido
+                .eq('terreiro_id', idTerreiroGlobal);
                 
             const { data: itens } = await supabaseClient.from('itens_doacao').select('id, nome, descricao');
             window.dadosDoacoesParaPDF = { doacoes, mediuns, itens };
@@ -1225,55 +1244,4 @@ document.querySelectorAll('.menu-item').forEach(item => {
             document.getElementById('overlayMobile').classList.add('hidden');
         }
     });
-});
-// --- LÓGICA DO MODAL DE EDIÇÃO DE EVENTOS ---
-document.getElementById('formEditarGira')?.addEventListener('submit', async (e) => {
-    e.preventDefault(); // Evita que a página recarregue antes de salvar
-    
-    // Pega os valores que estão nos campos da janela
-    const id = document.getElementById('editGiraId').value;
-    const titulo = document.getElementById('editGiraTitulo').value;
-    const inicio = document.getElementById('editGiraInicio').value;
-    const fim = document.getElementById('editGiraFim').value;
-    const geraAta = document.getElementById('editGiraGeraAta').checked;
-    
-    const btn = document.getElementById('btnSalvarEditGira');
-    const msg = document.getElementById('msgEditGira');
-    
-    // Desabilita o botão para não clicarem duas vezes
-    btn.disabled = true;
-    btn.innerText = "Salvando...";
-    
-    try {
-        // Envia a atualização para a tabela 'agenda' no Supabase
-        const { error } = await supabaseClient
-            .from('agenda')
-            .update({
-                titulo: titulo,
-                data_hora_inicio: inicio,
-                data_hora_fim: fim,
-                gera_ata: geraAta
-            })
-            .eq('id', id);
-            
-        if (error) throw error;
-        
-        // Mostra mensagem de sucesso
-        msg.textContent = "Evento atualizado com sucesso!";
-        msg.className = "mt-2 text-sm text-center font-bold text-green-600 block";
-        
-        // Espera 1,5 segundos e recarrega a página para atualizar a tabela por trás
-        setTimeout(() => {
-            window.location.reload();
-        }, 1500);
-        
-    } catch (error) {
-        console.error("Erro ao atualizar evento:", error);
-        msg.textContent = "Erro ao salvar: " + error.message;
-        msg.className = "mt-2 text-sm text-center font-bold text-red-600 block";
-        
-        // Reabilita o botão em caso de erro
-        btn.disabled = false;
-        btn.innerText = "Salvar Alterações";
-    }
 });
