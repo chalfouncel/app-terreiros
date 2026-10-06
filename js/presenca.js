@@ -32,7 +32,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             // O sistema vai atuar como detetive para achar a ficha e consertar!
             // ====================================================================
             
-            // Tenta achar pelo E-mail "fantasma" do Supabase (Ex: se fez login com o ID 32 -> 32@...com)
             if (session.user.email) {
                 const possivelId = session.user.email.split('@')[0];
                 if (!isNaN(possivelId)) {
@@ -41,27 +40,23 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             }
             
-            // Tenta achar pelo Telefone
             if (!perfil && session.user.phone) {
                 const { data: p3 } = await supabaseClient.from('mediuns').select('*').eq('telefone', session.user.phone).limit(1);
                 if (p3 && p3.length > 0) perfil = p3[0];
             }
             
-            // Tenta achar pelo cache local do celular
             const localId = localStorage.getItem('medium_id');
             if (!perfil && localId) {
                 const { data: p4 } = await supabaseClient.from('mediuns').select('*').eq('id', localId).limit(1);
                 if (p4 && p4.length > 0) perfil = p4[0];
             }
 
-            // SE O DETETIVE ACHOU A FICHA, ELE CONSERTA O BANCO DE DADOS NA HORA!
             if (perfil) {
                 await supabaseClient.from('mediuns').update({ auth_id: authId }).eq('id', perfil.id);
                 console.log("Sucesso: A ficha do médium foi vinculada automaticamente!");
             }
         }
 
-        // Se mesmo com o detetive não achar ninguém (Erro gravíssimo no banco)
         if (!perfil) {
             alert("Aviso: Sua senha está certa, mas sua ficha de médium foi deletada ou está sem nenhum vínculo. Fale com a Administração.");
             await supabaseClient.auth.signOut();
@@ -79,7 +74,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const txtNome = document.getElementById('nomeMedium');
         if (txtNome) txtNome.textContent = 'Olá, ' + nomeCurto;
 
-        // LIBERAÇÃO DO PAINEL ADMIN PARA QUEM TEM PERMISSÃO
+        // LIBERAÇÃO DO PAINEL ADMIN
         const temAcessoAoPainel = perfil.is_admin === true || 
                                   perfil.perm_agenda === true || 
                                   perfil.perm_grau === true || 
@@ -123,19 +118,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         // ====================================================================
-        // VERIFICA GIRA DE HOJE (CORRIGIDO PARA IGNORAR GIRAS QUE JÁ ACABARAM)
+        // VERIFICA GIRA DE HOJE
         // ====================================================================
         const agora = new Date();
-        const agoraIso = agora.toISOString(); // Hora exata de agora
+        const agoraIso = agora.toISOString(); 
         
-        // Final do dia de hoje para limitar a busca (23:59:59)
         const fimDia = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), 23, 59, 59, 999).toISOString();
 
         const { data: giras } = await supabaseClient.from('agenda').select('*')
             .eq('terreiro_id', idTerreiroGlobal)
             .eq('ata_encerrada', false)
-            .gte('data_hora_fim', agoraIso)  // <-- MAGICA AQUI: O Fim da gira tem que ser no futuro
-            .lte('data_hora_inicio', fimDia) // <-- MAGICA AQUI: O Início tem que ser antes do fim de hoje
+            .gte('data_hora_fim', agoraIso) 
+            .lte('data_hora_inicio', fimDia)
             .order('data_hora_inicio', { ascending: true })
             .limit(1);
 
@@ -146,16 +140,28 @@ document.addEventListener('DOMContentLoaded', async () => {
             const gira = giras[0];
             idGiraGlobal = gira.id;
             
-            // Define variáveis globais de horário
             const hrInicioGira = new Date(gira.data_hora_inicio);
             hrFimGiraGlobal = new Date(gira.data_hora_fim);
-            hrInicioPermitidoGlobal = new Date(hrInicioGira.getTime() - (90 * 60000)); // Libera 90 min antes
+            hrInicioPermitidoGlobal = new Date(hrInicioGira.getTime() - (90 * 60000)); 
 
             if (divSemGira) divSemGira.classList.add('hidden');
             if (divComGira) divComGira.classList.remove('hidden');
             
             const titleGira = document.getElementById('tituloGira');
             if (titleGira) titleGira.textContent = gira.titulo;
+
+            // ==============================================
+            // NOVO: PUXAR E EXIBIR A IMAGEM/CARTAZ DA GIRA
+            // ==============================================
+            const imgCartaz = document.getElementById('cartazGira');
+            if (imgCartaz) {
+                if (gira.imagem_url) {
+                    imgCartaz.src = gira.imagem_url;
+                    imgCartaz.classList.remove('hidden');
+                } else {
+                    imgCartaz.classList.add('hidden');
+                }
+            }
             
             const txtHrInicio = hrInicioGira.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
             const txtHrFim = hrFimGiraGlobal.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
@@ -167,7 +173,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 .eq('usuario_id', authId).eq('evento_id', idGiraGlobal).limit(1);
 
             if (presencas && presencas.length > 0) {
-                // Já bateu ponto
                 const areaPonto = document.getElementById('areaBaterPonto');
                 const areaSucesso = document.getElementById('areaSucesso');
                 const horaFeito = document.getElementById('horaCheckinFeito');
@@ -176,7 +181,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (areaSucesso) areaSucesso.classList.remove('hidden');
                 if (horaFeito) horaFeito.textContent = new Date(presencas[0].data_hora_checkin).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
             } else {
-                // Não bateu ponto ainda - Controla o botão por horário
                 const btnPonto = document.getElementById('btnCheckin');
                 const btnAgora = new Date();
                 
@@ -228,7 +232,6 @@ if (btnCheckin) {
     btnCheckin.addEventListener('click', async () => {
         const msg = document.getElementById('msgCheckin');
         
-        // Trava 1: Se o cara abriu o App cedão e não atualizou a página, previne dele clicar antes da hora
         const agoraClick = new Date();
         if (hrInicioPermitidoGlobal && agoraClick < hrInicioPermitidoGlobal) {
             if (msg) { msg.textContent = "A gira ainda não começou. Aguarde o horário."; msg.className = "mt-3 text-sm font-bold text-red-500 block"; }
@@ -257,7 +260,6 @@ if (btnCheckin) {
             const latUsuario = posicao.coords.latitude, lonUsuario = posicao.coords.longitude;
             const distanciaMetros = calcularDistancia(latUsuario, lonUsuario, coordsTerreiro.lat, coordsTerreiro.lng);
             
-            // TRAVA DE SEGURANÇA: 50 METROS
             if (distanciaMetros > 50) {
                 if (msg) { msg.innerHTML = `Você está muito longe do terreiro.<br>Distância atual: ${Math.round(distanciaMetros)} metros. (Máximo: 50m)`; msg.className = "mt-3 text-sm font-bold text-red-500 block"; }
                 restaurarBotao(btnCheckin); return;
