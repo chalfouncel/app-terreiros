@@ -6,7 +6,7 @@
     <title>Painel Admin - Templo</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- AQUI ESTÁ A BIBLIOTECA QUE FALTAVA PARA O PDF FUNCIONAR -->
+    <!-- AQUI ESTÁ A BIBLIOTECA PARA O PDF FUNCIONAR -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -136,8 +136,6 @@
                 </div>
             </div>
 
-            <!-- O bloco de GPS foi movido para a aba Config. da Casa -->
-
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                 <h3 class="text-lg font-bold text-tema-texto mb-4">Lista de Presença (Hoje)</h3>
                 <div class="overflow-x-auto">
@@ -213,6 +211,15 @@
                             <label class="block text-sm font-medium text-gray-700">Fim</label>
                             <input type="datetime-local" id="giraFim" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
                         </div>
+                        
+                        <!-- NOVO: TOGGLE DE GERAR ATA -->
+                        <div class="md:col-span-2 pt-3 border-t border-gray-100 mt-2">
+                            <label class="flex items-center space-x-3 cursor-pointer p-3 bg-purple-50 hover:bg-purple-100 rounded-lg border border-purple-200 transition">
+                                <input type="checkbox" id="giraGeraAta" checked class="w-5 h-5 text-purple-600 rounded focus:ring-purple-500">
+                                <span class="text-purple-900 font-medium"><i class="fas fa-file-signature text-purple-500 mr-2"></i> Gerar ATA em PDF (Livro de Presença) para este evento</span>
+                            </label>
+                        </div>
+                        <!-- FIM -->
                     </div>
                     <button type="submit" id="btnSalvarGira" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded shadow mt-4">
                         Salvar Evento
@@ -228,7 +235,7 @@
                             <tr class="bg-gray-50 border-b border-gray-200">
                                 <th class="p-3 text-sm font-semibold text-gray-600">EVENTO</th>
                                 <th class="p-3 text-sm font-semibold text-gray-600">DATA / HORA</th>
-                                <th class="p-3 text-sm font-semibold text-gray-600">IMAGEM</th>
+                                <th class="p-3 text-sm font-semibold text-gray-600 text-center">OPÇÕES / DOCUMENTOS</th>
                             </tr>
                         </thead>
                         <tbody id="tabelaGirasCadastradas"></tbody>
@@ -465,7 +472,7 @@
                     <div class="p-4 border border-gray-100 rounded-lg bg-gray-50 flex justify-between items-center hover:shadow-sm transition">
                         <div>
                             <h4 class="font-bold text-gray-800">Cor do Texto Principal</h4>
-                            <p class="text-xs text-gray-500">Textos em destaque, títulos e rótulos.</p>
+                            <p class="text-xs text-gray-500">Textos em destaque, titles e rótulos.</p>
                         </div>
                         <input type="color" id="corTexto" class="w-14 h-14 cursor-pointer border-0 rounded bg-transparent">
                     </div>
