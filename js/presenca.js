@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
         const { data: perfil } = await supabaseClient
             .from('mediuns')
-            .select('terreiro_id')
+            .select('terreiro_id, is_admin, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin')
             .eq('auth_id', session.user.id)
             .single();
 
