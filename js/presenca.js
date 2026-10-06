@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     let giraAtual = null;
     let terreiroData = null;
-    let carrinhoDoacoes = {}; // Guarda as quantidades escolhidas
+    let carrinhoDoacoes = {}; 
 
     try {
         const { data: perfil } = await supabaseClient
@@ -54,15 +54,18 @@ document.addEventListener('DOMContentLoaded', async () => {
                     imgLogo.classList.remove('hidden');
                 }
 
-                // Carrega os itens após pegar os dados do terreiro
                 carregarItensDoacao();
             }
         }
 
+        // BUSCA A GIRA DE HOJE (Corrige o problema de não aparecer no admin)
+        // Busca um evento que termina DEPOIS de agora, ordenado pelo que começa primeiro
+        const agora = new Date().toISOString();
         const { data: agenda, error } = await supabaseClient
             .from('agenda')
             .select('*')
-            .order('data_hora_inicio', { ascending: false })
+            .gte('data_hora_fim', agora) // Fim tem que ser maior que agora
+            .order('data_hora_inicio', { ascending: true })
             .limit(1);
 
         if (agenda && agenda.length > 0) {
@@ -77,7 +80,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             containerBotoes.classList.remove('hidden');
             containerBotoes.classList.add('flex');
         } else {
-            infoGira.textContent = 'Não há nenhuma gira cadastrada para hoje.';
+            infoGira.textContent = 'Não há nenhuma gira cadastrada ou em andamento para hoje.';
         }
     } catch (error) {
         console.error(error);
@@ -136,7 +139,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // Delegação de eventos para os botões de + e -
     listaItensDoacao.addEventListener('click', (e) => {
         const btn = e.target.closest('.btn-qtd');
         if (!btn) return;
@@ -219,7 +221,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    // --- LÓGICA DO BOTÃO DE PRESENÇA ---
+    // --- LÓGICA DO BOTÃO DE PRESENÇA (CORRIGIDO) ---
     btnPresenca.addEventListener('click', () => {
         btnPresenca.disabled = true;
         btnPresenca.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Calculando GPS...';
@@ -237,26 +239,32 @@ document.addEventListener('DOMContentLoaded', async () => {
                 
                 const latTerreiro = terreiroData?.latitude || -22.9068;
                 const lonTerreiro = terreiroData?.longitude || -43.1729;
-                const raioPermitido = giraAtual.raio_presenca_metros || 50000;
+                
+                // RAIO FIXO E ESTRITO DE 150 METROS (Nada de 50km!)
+                const raioPermitido = 150; 
 
                 const distancia = calcularDistancia(latUsuario, lonUsuario, latTerreiro, lonTerreiro);
                 const dentroDoRaio = distancia <= raioPermitido;
 
+                // SE ESTIVER FORA DO RAIO, BARRA AQUI! NÃO GRAVA NO BANCO!
+                if (!dentroDoRaio) {
+                    mostrarErro(`Ponto negado! Você está a ${Math.round(distancia)} metros do terreiro. Aproxime-se.`);
+                    return; 
+                }
+
+                // SÓ CHEGA AQUI SE ESTIVER DENTRO DO RAIO (< 150m)
                 try {
                     const { error } = await supabaseClient.from('presencas').insert([{
                         usuario_id: session.user.id,
                         evento_id: giraAtual.id,
                         distancia_metros: Math.round(distancia),
-                        localizacao_valida: dentroDoRaio
+                        localizacao_valida: true // Se chegou aqui, é true obrigatoriamente
                     }]);
 
                     if (error) throw error;
-
-                    if (dentroDoRaio) {
-                        mostrarSucesso(`Presença confirmada! Você está a ${Math.round(distancia)} metros.`);
-                    } else {
-                        mostrarErro(`Você está muito longe! (${Math.round(distancia)}m). Aproxime-se.`);
-                    }
+                    
+                    mostrarSucesso(`Presença confirmada! Distância: ${Math.round(distancia)} metros.`);
+                    
                 } catch (err) {
                     if (err.code === '23505') { 
                         mostrarSucesso('Sua presença já estava registrada para esta gira!');
