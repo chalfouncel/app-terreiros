@@ -6,6 +6,18 @@ let hrInicioPermitidoGlobal = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
     
+    // Variáveis do Modal de Doação
+    const modalDoacao = document.getElementById('modalDoacao');
+    const btnAbrirDoacao = document.getElementById('btnAbrirDoacao');
+    const btnAbrirDoacaoSucesso = document.getElementById('btnAbrirDoacaoSucesso');
+    const btnFecharDoacao = document.getElementById('btnFecharDoacao');
+    const btnCopiarPix = document.getElementById('btnCopiarPix');
+    const chavePix = document.getElementById('chavePix');
+    const listaItensDoacao = document.getElementById('listaItensDoacao');
+    const btnConfirmarDoacao = document.getElementById('btnConfirmarDoacao');
+    const qtdTotalDoacao = document.getElementById('qtdTotalDoacao');
+    let carrinhoDoacoes = {};
+
     const tituloTerreiro = document.getElementById('nomeTerreiro');
     if (tituloTerreiro) tituloTerreiro.textContent = "Carregando sistema...";
 
@@ -106,6 +118,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     img.src = terreiro.logo_url;
                     img.classList.remove('hidden');
                 }
+
+                // Inicia o carregamento dos itens de doação após pegar o ID do terreiro
+                carregarItensDoacao();
             }
         } else {
             if (tituloTerreiro) tituloTerreiro.textContent = 'Sem Terreiro Vinculado';
@@ -185,7 +200,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const dataFormatada = hrInicioGira.toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'});
                     textHorario.innerHTML = `<i class="far fa-calendar-alt"></i> Dia ${dataFormatada} - ${txtHrInicio} às ${txtHrFim}`;
                     
-                    // A MÁGICA: Procura qualquer lugar no cartão do evento escrito "EVENTO HOJE" e altera
                     const elementos = document.querySelectorAll('#estadoComGira span, #estadoComGira div, #estadoComGira p');
                     elementos.forEach(el => {
                         if (el.textContent.trim().toUpperCase() === 'EVENTO HOJE') {
@@ -243,6 +257,176 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    // ====================================================================
+    // FUNÇÕES DO MODAL E DO CARRINHO DE DOAÇÕES
+    // ====================================================================
+
+    async function carregarItensDoacao() {
+        try {
+            const { data: itens, error } = await supabaseClient
+                .from('itens_doacao')
+                .select('*')
+                .eq('terreiro_id', idTerreiroGlobal)
+                .eq('ativo', true)
+                .order('nome', { ascending: true }); // Baseado nas colunas corretas do seu banco
+
+            if (error) throw error;
+
+            if (!itens || itens.length === 0) {
+                if(listaItensDoacao) listaItensDoacao.innerHTML = '<p class="text-center text-gray-500 text-sm py-4">Apenas doações via PIX no momento.</p>';
+                return;
+            }
+
+            let html = '';
+            itens.forEach(item => {
+                html += `
+                <div class="flex justify-between items-center py-2 border-b border-gray-50 last:border-0 px-1">
+                    <div class="flex-1 pr-2">
+                        <p class="text-xs font-medium text-gray-800 leading-tight">${item.nome}</p>
+                        ${item.descricao ? `<p class="text-[10px] text-gray-500 mt-0.5">${item.descricao}</p>` : ''}
+                    </div>
+                    <div class="flex items-center space-x-2 bg-gray-100 rounded p-1">
+                        <button type="button" class="btn-qtd w-6 h-6 rounded bg-white text-red-500 font-bold shadow-sm flex items-center justify-center border border-gray-200 active:scale-95" data-id="${item.id}" data-delta="-1">
+                            <i class="fas fa-minus text-[10px] pointer-events-none"></i>
+                        </button>
+                        <span class="w-4 text-center text-xs font-bold text-gray-700" id="qtd-item-${item.id}">0</span>
+                        <button type="button" class="btn-qtd w-6 h-6 rounded bg-white text-green-600 font-bold shadow-sm flex items-center justify-center border border-gray-200 active:scale-95" data-id="${item.id}" data-delta="1">
+                            <i class="fas fa-plus text-[10px] pointer-events-none"></i>
+                        </button>
+                    </div>
+                </div>`;
+            });
+
+            if(listaItensDoacao) listaItensDoacao.innerHTML = html;
+        } catch (err) {
+            console.error('Erro ao carregar itens:', err);
+            if(listaItensDoacao) listaItensDoacao.innerHTML = '<p class="text-center text-red-500 text-xs py-4">Erro ao carregar itens.</p>';
+        }
+    }
+
+    if (listaItensDoacao) {
+        listaItensDoacao.addEventListener('click', (e) => {
+            const btn = e.target.closest('.btn-qtd');
+            if (!btn) return;
+            
+            const itemId = btn.getAttribute('data-id');
+            const delta = parseInt(btn.getAttribute('data-delta'));
+            
+            if (!carrinhoDoacoes[itemId]) carrinhoDoacoes[itemId] = 0;
+            
+            carrinhoDoacoes[itemId] += delta;
+            if (carrinhoDoacoes[itemId] < 0) carrinhoDoacoes[itemId] = 0;
+            
+            document.getElementById(`qtd-item-${itemId}`).textContent = carrinhoDoacoes[itemId];
+            
+            let total = 0;
+            for (let id in carrinhoDoacoes) total += carrinhoDoacoes[id];
+            
+            if (total > 0) {
+                if(qtdTotalDoacao) qtdTotalDoacao.textContent = total;
+                if(btnConfirmarDoacao) {
+                    btnConfirmarDoacao.classList.remove('hidden');
+                    btnConfirmarDoacao.classList.add('flex');
+                }
+            } else {
+                if(btnConfirmarDoacao) {
+                    btnConfirmarDoacao.classList.add('hidden');
+                    btnConfirmarDoacao.classList.remove('flex');
+                }
+            }
+        });
+    }
+
+    if (btnConfirmarDoacao) {
+        btnConfirmarDoacao.addEventListener('click', async () => {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            const originalText = btnConfirmarDoacao.innerHTML;
+            btnConfirmarDoacao.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Salvando...';
+            btnConfirmarDoacao.disabled = true;
+
+            const insercoes = [];
+            for (let itemId in carrinhoDoacoes) {
+                if (carrinhoDoacoes[itemId] > 0) {
+                    insercoes.push({
+                        terreiro_id: idTerreiroGlobal,
+                        medium_auth_id: session.user.id,
+                        item_id: parseInt(itemId),
+                        quantidade: carrinhoDoacoes[itemId]
+                    });
+                }
+            }
+
+            try {
+                const { error } = await supabaseClient.from('doacoes_registradas').insert(insercoes);
+                if (error) throw error;
+
+                btnConfirmarDoacao.innerHTML = '<i class="fas fa-check mr-2"></i> Doação Registrada!';
+                btnConfirmarDoacao.classList.replace('bg-green-600', 'bg-blue-600');
+                
+                setTimeout(() => {
+                    if(btnFecharDoacao) btnFecharDoacao.click();
+                    carrinhoDoacoes = {};
+                    if(btnConfirmarDoacao) {
+                        btnConfirmarDoacao.classList.add('hidden');
+                        btnConfirmarDoacao.classList.remove('flex');
+                    }
+                    carregarItensDoacao(); 
+                    btnConfirmarDoacao.innerHTML = originalText;
+                    btnConfirmarDoacao.disabled = false;
+                    btnConfirmarDoacao.classList.replace('bg-blue-600', 'bg-green-600');
+                }, 2000);
+
+            } catch (err) {
+                console.error('Erro ao salvar:', err);
+                btnConfirmarDoacao.innerHTML = '<i class="fas fa-times mr-2"></i> Erro ao salvar';
+                btnConfirmarDoacao.classList.replace('bg-green-600', 'bg-red-600');
+                setTimeout(() => {
+                    btnConfirmarDoacao.innerHTML = originalText;
+                    btnConfirmarDoacao.disabled = false;
+                    btnConfirmarDoacao.classList.replace('bg-red-600', 'bg-green-600');
+                }, 3000);
+            }
+        });
+    }
+
+    const abrirModal = () => {
+        if(modalDoacao) {
+            modalDoacao.classList.remove('hidden');
+            setTimeout(() => {
+                modalDoacao.querySelector('div').classList.remove('scale-95');
+                modalDoacao.querySelector('div').classList.add('scale-100');
+            }, 10);
+        }
+    };
+
+    if(btnAbrirDoacao) btnAbrirDoacao.addEventListener('click', abrirModal);
+    if(btnAbrirDoacaoSucesso) btnAbrirDoacaoSucesso.addEventListener('click', abrirModal);
+
+    if(btnFecharDoacao) {
+        btnFecharDoacao.addEventListener('click', () => {
+            modalDoacao.querySelector('div').classList.remove('scale-100');
+            modalDoacao.querySelector('div').classList.add('scale-95');
+            setTimeout(() => {
+                modalDoacao.classList.add('hidden');
+                if(btnCopiarPix) {
+                    btnCopiarPix.innerHTML = '<i class="fas fa-copy mr-2"></i> Copiar Chave';
+                    btnCopiarPix.classList.replace('bg-green-600', 'bg-gray-800');
+                }
+            }, 200);
+        });
+    }
+
+    if(btnCopiarPix) {
+        btnCopiarPix.addEventListener('click', () => {
+            if(chavePix) {
+                navigator.clipboard.writeText(chavePix.innerText).then(() => {
+                    btnCopiarPix.innerHTML = '<i class="fas fa-check mr-2"></i> Chave Copiada!';
+                    btnCopiarPix.classList.replace('bg-gray-800', 'bg-green-600');
+                });
+            }
+        });
+    }
+
     const btnSair = document.getElementById('btnSair');
     if (btnSair) {
         btnSair.addEventListener('click', async () => {
@@ -252,7 +436,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
-// GPS
+// ====================================================================
+// GPS DO CHECK-IN
+// ====================================================================
+
 const btnCheckin = document.getElementById('btnCheckin');
 if (btnCheckin) {
     btnCheckin.addEventListener('click', async () => {
@@ -260,11 +447,11 @@ if (btnCheckin) {
         
         const agoraClick = new Date();
         if (hrInicioPermitidoGlobal && agoraClick < hrInicioPermitidoGlobal) {
-            if (msg) { msg.textContent = "A gira ainda não começou. Aguarde o horário."; msg.className = "mt-3 text-sm font-bold text-red-500 block"; }
+            if (msg) { msg.textContent = "A gira ainda não começou. Aguarde o horário."; msg.className = "mt-3 text-sm font-bold text-red-500 block"; msg.classList.remove('hidden'); }
             return;
         }
         if (hrFimGiraGlobal && agoraClick > hrFimGiraGlobal) {
-            if (msg) { msg.textContent = "Esta gira já foi encerrada."; msg.className = "mt-3 text-sm font-bold text-red-500 block"; }
+            if (msg) { msg.textContent = "Esta gira já foi encerrada."; msg.className = "mt-3 text-sm font-bold text-red-500 block"; msg.classList.remove('hidden'); }
             return;
         }
 
@@ -273,12 +460,12 @@ if (btnCheckin) {
         if (msg) msg.classList.add('hidden');
 
         if (!coordsTerreiro || !coordsTerreiro.lat) {
-            if (msg) { msg.textContent = "O administrador ainda não configurou o GPS do terreiro."; msg.className = "mt-3 text-sm font-bold text-red-500 block"; }
+            if (msg) { msg.textContent = "O administrador ainda não configurou o GPS do terreiro."; msg.className = "mt-3 text-sm font-bold text-red-500 block"; msg.classList.remove('hidden'); }
             restaurarBotao(btnCheckin); return;
         }
 
         if (!navigator.geolocation) {
-            if (msg) { msg.textContent = "Seu navegador não suporta GPS."; msg.className = "mt-3 text-sm font-bold text-red-500 block"; }
+            if (msg) { msg.textContent = "Seu navegador não suporta GPS."; msg.className = "mt-3 text-sm font-bold text-red-500 block"; msg.classList.remove('hidden'); }
             restaurarBotao(btnCheckin); return;
         }
 
@@ -287,7 +474,7 @@ if (btnCheckin) {
             const distanciaMetros = calcularDistancia(latUsuario, lonUsuario, coordsTerreiro.lat, coordsTerreiro.lng);
             
             if (distanciaMetros > 50) {
-                if (msg) { msg.innerHTML = `Você está muito longe do terreiro.<br>Distância atual: ${Math.round(distanciaMetros)} metros. (Máximo: 50m)`; msg.className = "mt-3 text-sm font-bold text-red-500 block"; }
+                if (msg) { msg.innerHTML = `Você está muito longe do terreiro.<br>Distância atual: ${Math.round(distanciaMetros)} metros. (Máximo: 50m)`; msg.className = "mt-3 text-sm font-bold text-red-500 block"; msg.classList.remove('hidden'); }
                 restaurarBotao(btnCheckin); return;
             }
 
@@ -303,7 +490,7 @@ if (btnCheckin) {
             }]);
 
             if (error) {
-                if (msg) { msg.textContent = "Erro ao registrar: " + error.message; msg.className = "mt-3 text-sm font-bold text-red-500 block"; }
+                if (msg) { msg.textContent = "Erro ao registrar: " + error.message; msg.className = "mt-3 text-sm font-bold text-red-500 block"; msg.classList.remove('hidden'); }
                 restaurarBotao(btnCheckin);
             } else {
                 const areaPonto = document.getElementById('areaBaterPonto');
@@ -314,7 +501,7 @@ if (btnCheckin) {
                 if (horaFeito) horaFeito.textContent = new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
             }
         }, (err) => {
-            if (msg) { msg.textContent = "Ative a localização do celular no navegador."; msg.className = "mt-3 text-sm font-bold text-red-500 block"; }
+            if (msg) { msg.textContent = "Ative a localização do celular no navegador."; msg.className = "mt-3 text-sm font-bold text-red-500 block"; msg.classList.remove('hidden'); }
             restaurarBotao(btnCheckin);
         }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
     });
