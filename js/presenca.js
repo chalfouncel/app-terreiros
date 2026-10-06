@@ -10,18 +10,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     const msgStatus = document.getElementById('msgStatus');
     const containerBotoes = document.getElementById('containerBotoes');
 
+    // Elementos do Modal de Doação
     const modalDoacao = document.getElementById('modalDoacao');
     const btnAbrirDoacao = document.getElementById('btnAbrirDoacao');
     const btnFecharDoacao = document.getElementById('btnFecharDoacao');
     const btnCopiarPix = document.getElementById('btnCopiarPix');
     const chavePix = document.getElementById('chavePix');
-
-    // Elementos novos da Lista de Doações
+    
     const listaItensDoacao = document.getElementById('listaItensDoacao');
-    const containerItens = document.getElementById('containerItens');
+    const btnConfirmarDoacao = document.getElementById('btnConfirmarDoacao');
+    const qtdTotalDoacao = document.getElementById('qtdTotalDoacao');
 
     let giraAtual = null;
     let terreiroData = null;
+    let carrinhoDoacoes = {}; // Guarda as quantidades escolhidas
 
     try {
         const { data: perfil } = await supabaseClient
@@ -51,10 +53,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                     imgLogo.src = terreiro.logo_url;
                     imgLogo.classList.remove('hidden');
                 }
+
+                // Carrega os itens após pegar os dados do terreiro
+                carregarItensDoacao();
             }
-            
-            // Já inicia o carregamento da lista de doações em segundo plano
-            carregarItensDoacao(perfil.terreiro_id);
         }
 
         const { data: agenda, error } = await supabaseClient
@@ -76,64 +78,146 @@ document.addEventListener('DOMContentLoaded', async () => {
             containerBotoes.classList.add('flex');
         } else {
             infoGira.textContent = 'Não há nenhuma gira cadastrada para hoje.';
-            // Exibe o botão de doação mesmo se não tiver gira (opcional, mas bom pra arrecadar)
-            document.getElementById('btnAbrirDoacao').classList.remove('hidden');
-            containerBotoes.classList.remove('hidden');
-            containerBotoes.classList.add('flex');
-            document.getElementById('btnPresenca').classList.add('hidden');
         }
     } catch (error) {
         console.error(error);
         infoGira.textContent = 'Erro ao carregar os dados da gira.';
     }
 
-    // --- NOVA LÓGICA: BUSCAR ITENS DE DOAÇÃO ---
-    async function carregarItensDoacao(terreiroId) {
+    // --- LÓGICA DO CARRINHO DE DOAÇÕES ---
+    async function carregarItensDoacao() {
         try {
-            const { data, error } = await supabaseClient
+            const { data: itens, error } = await supabaseClient
                 .from('itens_doacao')
                 .select('*')
-                .eq('terreiro_id', terreiroId)
+                .eq('terreiro_id', terreiroData.id)
                 .eq('ativo', true)
-                .order('created_at', { ascending: false });
+                .order('descricao', { ascending: true })
+                .order('nome', { ascending: true });
 
             if (error) throw error;
 
-            if (data && data.length > 0) {
-                listaItensDoacao.classList.remove('hidden');
-                containerItens.innerHTML = ''; // limpa o container
-
-                data.forEach(item => {
-                    const valorFormatado = item.valor_sugerido 
-                        ? `<span class="font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded text-sm">R$ ${parseFloat(item.valor_sugerido).toFixed(2).replace('.', ',')}</span>` 
-                        : '<span class="text-xs text-gray-500 italic">Valor livre</span>';
-                    
-                    const desc = item.descricao ? `<p class="text-xs text-gray-500 mt-1 line-clamp-2">${item.descricao}</p>` : '';
-                    
-                    const img = item.imagem_url 
-                        ? `<img src="${item.imagem_url}" class="w-12 h-12 rounded-lg object-cover border border-gray-200 flex-shrink-0">` 
-                        : `<div class="w-12 h-12 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center flex-shrink-0"><i class="fas fa-gift text-gray-400"></i></div>`;
-
-                    containerItens.innerHTML += `
-                        <div class="flex items-center gap-3 p-3 bg-white border border-gray-100 shadow-sm rounded-xl hover:border-gray-300 transition">
-                            ${img}
-                            <div class="flex-1 min-w-0">
-                                <div class="flex justify-between items-start gap-2">
-                                    <h5 class="text-sm font-bold text-gray-800 truncate">${item.nome}</h5>
-                                    ${valorFormatado}
-                                </div>
-                                ${desc}
-                            </div>
-                        </div>
-                    `;
-                });
-            } else {
-                listaItensDoacao.classList.add('hidden');
+            if (!itens || itens.length === 0) {
+                listaItensDoacao.innerHTML = '<p class="text-center text-gray-500 text-sm py-4">Apenas doações via PIX no momento.</p>';
+                return;
             }
+
+            let html = '';
+            let categoriaAtual = '';
+
+            itens.forEach(item => {
+                const cat = item.descricao || 'Diversos';
+                if (cat !== categoriaAtual) {
+                    html += `<h5 class="font-bold text-gray-600 text-[10px] uppercase tracking-wider mt-3 mb-1 bg-gray-100/80 p-1 px-2 rounded">${cat}</h5>`;
+                    categoriaAtual = cat;
+                }
+
+                html += `
+                <div class="flex justify-between items-center py-2 border-b border-gray-50 last:border-0 px-1">
+                    <div class="flex-1 pr-2">
+                        <p class="text-xs font-medium text-gray-800 leading-tight">${item.nome}</p>
+                    </div>
+                    <div class="flex items-center space-x-2 bg-gray-100 rounded p-1">
+                        <button type="button" class="btn-qtd w-6 h-6 rounded bg-white text-red-500 font-bold shadow-sm flex items-center justify-center border border-gray-200 active:scale-95" data-id="${item.id}" data-delta="-1">
+                            <i class="fas fa-minus text-[10px] pointer-events-none"></i>
+                        </button>
+                        <span class="w-4 text-center text-xs font-bold text-gray-700" id="qtd-item-${item.id}">0</span>
+                        <button type="button" class="btn-qtd w-6 h-6 rounded bg-white text-green-600 font-bold shadow-sm flex items-center justify-center border border-gray-200 active:scale-95" data-id="${item.id}" data-delta="1">
+                            <i class="fas fa-plus text-[10px] pointer-events-none"></i>
+                        </button>
+                    </div>
+                </div>`;
+            });
+
+            listaItensDoacao.innerHTML = html;
         } catch (err) {
-            console.error('Erro ao carregar itens de doação:', err);
+            console.error('Erro ao carregar itens:', err);
+            listaItensDoacao.innerHTML = '<p class="text-center text-red-500 text-xs py-4">Erro ao carregar itens.</p>';
         }
     }
+
+    // Delegação de eventos para os botões de + e -
+    listaItensDoacao.addEventListener('click', (e) => {
+        const btn = e.target.closest('.btn-qtd');
+        if (!btn) return;
+        
+        const itemId = btn.getAttribute('data-id');
+        const delta = parseInt(btn.getAttribute('data-delta'));
+        
+        if (!carrinhoDoacoes[itemId]) carrinhoDoacoes[itemId] = 0;
+        
+        carrinhoDoacoes[itemId] += delta;
+        if (carrinhoDoacoes[itemId] < 0) carrinhoDoacoes[itemId] = 0;
+        
+        document.getElementById(`qtd-item-${itemId}`).textContent = carrinhoDoacoes[itemId];
+        
+        atualizarBotaoConfirmar();
+    });
+
+    function atualizarBotaoConfirmar() {
+        let total = 0;
+        for (let id in carrinhoDoacoes) {
+            total += carrinhoDoacoes[id];
+        }
+        
+        if (total > 0) {
+            qtdTotalDoacao.textContent = total;
+            btnConfirmarDoacao.classList.remove('hidden');
+            btnConfirmarDoacao.classList.add('flex');
+        } else {
+            btnConfirmarDoacao.classList.add('hidden');
+            btnConfirmarDoacao.classList.remove('flex');
+        }
+    }
+
+    btnConfirmarDoacao.addEventListener('click', async () => {
+        const originalText = btnConfirmarDoacao.innerHTML;
+        btnConfirmarDoacao.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Salvando intenção...';
+        btnConfirmarDoacao.disabled = true;
+
+        const insercoes = [];
+        for (let itemId in carrinhoDoacoes) {
+            if (carrinhoDoacoes[itemId] > 0) {
+                insercoes.push({
+                    terreiro_id: terreiroData.id,
+                    medium_auth_id: session.user.id,
+                    item_id: parseInt(itemId),
+                    quantidade: carrinhoDoacoes[itemId]
+                });
+            }
+        }
+
+        try {
+            const { error } = await supabaseClient
+                .from('doacoes_registradas')
+                .insert(insercoes);
+
+            if (error) throw error;
+
+            btnConfirmarDoacao.innerHTML = '<i class="fas fa-check mr-2"></i> Intenção Registrada!';
+            btnConfirmarDoacao.classList.replace('bg-green-600', 'bg-blue-600');
+            
+            setTimeout(() => {
+                btnFecharDoacao.click();
+                carrinhoDoacoes = {};
+                atualizarBotaoConfirmar();
+                carregarItensDoacao(); 
+                btnConfirmarDoacao.innerHTML = originalText;
+                btnConfirmarDoacao.disabled = false;
+                btnConfirmarDoacao.classList.replace('bg-blue-600', 'bg-green-600');
+            }, 2000);
+
+        } catch (err) {
+            console.error('Erro ao salvar doações:', err);
+            btnConfirmarDoacao.innerHTML = '<i class="fas fa-times mr-2"></i> Erro ao salvar';
+            btnConfirmarDoacao.classList.replace('bg-green-600', 'bg-red-600');
+            setTimeout(() => {
+                btnConfirmarDoacao.innerHTML = originalText;
+                btnConfirmarDoacao.disabled = false;
+                btnConfirmarDoacao.classList.replace('bg-red-600', 'bg-green-600');
+            }, 3000);
+        }
+    });
 
     // --- LÓGICA DO BOTÃO DE PRESENÇA ---
     btnPresenca.addEventListener('click', () => {
@@ -188,7 +272,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         );
     });
 
-    // --- LÓGICA DO MODAL DE DOAÇÃO ---
+    // --- ABRIR / FECHAR MODAL ---
     btnAbrirDoacao.addEventListener('click', () => {
         modalDoacao.classList.remove('hidden');
         setTimeout(() => {
@@ -214,7 +298,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
 
-    // Funções utilitárias
+    // Funções utilitárias de Presença
     function mostrarSucesso(msg) {
         btnPresenca.innerHTML = '<i class="fas fa-check-circle mr-2"></i> Presença Registrada!';
         msgStatus.textContent = msg;
