@@ -10,12 +10,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     const msgStatus = document.getElementById('msgStatus');
     const containerBotoes = document.getElementById('containerBotoes');
 
-    // Elementos do Modal de Doação
     const modalDoacao = document.getElementById('modalDoacao');
     const btnAbrirDoacao = document.getElementById('btnAbrirDoacao');
     const btnFecharDoacao = document.getElementById('btnFecharDoacao');
     const btnCopiarPix = document.getElementById('btnCopiarPix');
     const chavePix = document.getElementById('chavePix');
+
+    // Elementos novos da Lista de Doações
+    const listaItensDoacao = document.getElementById('listaItensDoacao');
+    const containerItens = document.getElementById('containerItens');
 
     let giraAtual = null;
     let terreiroData = null;
@@ -49,6 +52,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     imgLogo.classList.remove('hidden');
                 }
             }
+            
+            // Já inicia o carregamento da lista de doações em segundo plano
+            carregarItensDoacao(perfil.terreiro_id);
         }
 
         const { data: agenda, error } = await supabaseClient
@@ -66,16 +72,67 @@ document.addEventListener('DOMContentLoaded', async () => {
                 document.getElementById('containerImagemGira').classList.remove('hidden');
             }
             
-            // Exibe os botões (Presença + Doação)
             containerBotoes.classList.remove('hidden');
             containerBotoes.classList.add('flex');
         } else {
             infoGira.textContent = 'Não há nenhuma gira cadastrada para hoje.';
-            // Mesmo sem gira, podemos exibir o botão de doação se quiser, mas por padrão deixamos oculto
+            // Exibe o botão de doação mesmo se não tiver gira (opcional, mas bom pra arrecadar)
+            document.getElementById('btnAbrirDoacao').classList.remove('hidden');
+            containerBotoes.classList.remove('hidden');
+            containerBotoes.classList.add('flex');
+            document.getElementById('btnPresenca').classList.add('hidden');
         }
     } catch (error) {
         console.error(error);
         infoGira.textContent = 'Erro ao carregar os dados da gira.';
+    }
+
+    // --- NOVA LÓGICA: BUSCAR ITENS DE DOAÇÃO ---
+    async function carregarItensDoacao(terreiroId) {
+        try {
+            const { data, error } = await supabaseClient
+                .from('itens_doacao')
+                .select('*')
+                .eq('terreiro_id', terreiroId)
+                .eq('ativo', true)
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+
+            if (data && data.length > 0) {
+                listaItensDoacao.classList.remove('hidden');
+                containerItens.innerHTML = ''; // limpa o container
+
+                data.forEach(item => {
+                    const valorFormatado = item.valor_sugerido 
+                        ? `<span class="font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded text-sm">R$ ${parseFloat(item.valor_sugerido).toFixed(2).replace('.', ',')}</span>` 
+                        : '<span class="text-xs text-gray-500 italic">Valor livre</span>';
+                    
+                    const desc = item.descricao ? `<p class="text-xs text-gray-500 mt-1 line-clamp-2">${item.descricao}</p>` : '';
+                    
+                    const img = item.imagem_url 
+                        ? `<img src="${item.imagem_url}" class="w-12 h-12 rounded-lg object-cover border border-gray-200 flex-shrink-0">` 
+                        : `<div class="w-12 h-12 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center flex-shrink-0"><i class="fas fa-gift text-gray-400"></i></div>`;
+
+                    containerItens.innerHTML += `
+                        <div class="flex items-center gap-3 p-3 bg-white border border-gray-100 shadow-sm rounded-xl hover:border-gray-300 transition">
+                            ${img}
+                            <div class="flex-1 min-w-0">
+                                <div class="flex justify-between items-start gap-2">
+                                    <h5 class="text-sm font-bold text-gray-800 truncate">${item.nome}</h5>
+                                    ${valorFormatado}
+                                </div>
+                                ${desc}
+                            </div>
+                        </div>
+                    `;
+                });
+            } else {
+                listaItensDoacao.classList.add('hidden');
+            }
+        } catch (err) {
+            console.error('Erro ao carregar itens de doação:', err);
+        }
     }
 
     // --- LÓGICA DO BOTÃO DE PRESENÇA ---
@@ -134,7 +191,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- LÓGICA DO MODAL DE DOAÇÃO ---
     btnAbrirDoacao.addEventListener('click', () => {
         modalDoacao.classList.remove('hidden');
-        // Pequeno atraso para a animação de escala funcionar
         setTimeout(() => {
             modalDoacao.querySelector('div').classList.remove('scale-95');
             modalDoacao.querySelector('div').classList.add('scale-100');
