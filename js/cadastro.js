@@ -96,6 +96,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             const { data: perfil, error } = await query.single();
             
             if (perfil) {
+                // TRAVA DE SEGURANÇA: Impede roubo de conta de outros terreiros
+                // Se não estiver logado, mas a ficha já tem auth_id, significa que já foi ativada.
+                if (!session && perfil.auth_id) {
+                    alert("Acesso Negado: Esta conta já foi ativada e protegida por senha! Por favor, faça login.");
+                    localStorage.removeItem('novo_acesso_id');
+                    window.location.href = 'index.html';
+                    return;
+                }
+
                 const preencher = (id, valor) => {
                     const campo = document.getElementById(id);
                     if (campo && valor) campo.value = valor;
