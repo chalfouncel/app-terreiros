@@ -6,7 +6,6 @@
     <title>Presença - Terreiro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- Adicionado FontAwesome para os ícones novos -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
@@ -29,13 +28,18 @@
         .focus-ring-tema { 
             --tw-ring-color: var(--cor-secundaria) !important; 
         }
+
+        /* Barra de rolagem suave para a lista de itens */
+        .scroll-suave::-webkit-scrollbar { width: 6px; }
+        .scroll-suave::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+        .scroll-suave::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .scroll-suave::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center justify-center p-4">
     
     <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-md text-center border-t-4 border-tema-primaria relative z-10">
         
-        <!-- Logo da Casa -->
         <div class="flex justify-center mb-4">
             <img id="logoCasa" src="" alt="Logo da Casa" class="hidden h-20 object-contain">
         </div>
@@ -43,20 +47,16 @@
         <h2 class="text-2xl font-bold text-tema-texto mb-2">Check-in da Gira</h2>
         <div id="infoGira" class="text-gray-600 mb-6 font-medium text-lg">Buscando gira de hoje...</div>
         
-        <!-- Bloco Oculto para a Imagem da Gira -->
         <div id="containerImagemGira" class="hidden w-full mb-6 rounded-lg overflow-hidden shadow-md">
             <img id="imgGira" src="" alt="Arte da Gira" class="w-full h-auto object-cover max-h-72">
         </div>
         
-        <!-- Container dos Botões -->
         <div id="containerBotoes" class="hidden w-full flex-col gap-3">
-            <!-- Botão de Presença (Agora menor e mais elegante) -->
             <button id="btnPresenca" class="w-full flex items-center justify-center py-3 px-4 border border-transparent rounded-xl shadow-md text-lg font-bold text-white bg-tema-secundaria hover:opacity-90 focus:outline-none focus:ring-4 focus-ring-tema transition-all transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
                 <i class="fas fa-map-marker-alt mr-2 text-xl"></i>
                 Registrar Presença
             </button>
 
-            <!-- Novo Botão de Doações -->
             <button id="btnAbrirDoacao" class="w-full flex items-center justify-center py-3 px-4 border-2 border-tema-primaria rounded-xl shadow-sm text-lg font-bold text-tema-primaria bg-white hover:bg-gray-50 focus:outline-none transition-all transform hover:scale-105 active:scale-95">
                 <i class="fas fa-heart text-red-500 mr-2 text-xl"></i>
                 Fazer uma Doação
@@ -66,28 +66,43 @@
         <div id="msgStatus" class="mt-6 text-sm font-semibold rounded p-3 hidden"></div>
     </div>
 
-    <!-- Gaveta/Modal de Doação (Escondida por padrão) -->
+    <!-- Modal de Doação -->
     <div id="modalDoacao" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50 transition-opacity">
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 text-center transform scale-95 transition-all">
-            <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
-                <i class="fas fa-hands-holding-heart text-3xl text-red-500"></i>
-            </div>
-            <h3 class="text-xl font-bold text-gray-800 mb-2">Apoie nossa Casa</h3>
-            <p class="text-gray-600 mb-6 text-sm">Sua contribuição ajuda a manter o terreiro aberto e fortalecer nossos trabalhos de caridade.</p>
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 text-center transform scale-95 transition-all max-h-[90vh] flex flex-col">
+            
+            <div class="flex-shrink-0">
+                <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
+                    <i class="fas fa-hands-holding-heart text-3xl text-red-500"></i>
+                </div>
+                <h3 class="text-xl font-bold text-gray-800 mb-2">Apoie nossa Casa</h3>
+                <p class="text-gray-600 mb-4 text-sm">Sua contribuição ajuda a manter o terreiro aberto e fortalecer nossos trabalhos de caridade.</p>
 
-            <div class="bg-gray-100 p-4 rounded-xl mb-4 relative border border-gray-200">
-                <p class="text-xs text-gray-500 font-bold uppercase mb-1">Chave PIX</p>
-                <!-- TROQUE A CHAVE ABAIXO PELA SUA DE VERDADE -->
-                <p id="chavePix" class="text-lg font-mono font-bold text-gray-800 break-all">ciccantinho@gmail.com</p>
-                
-                <button id="btnCopiarPix" class="mt-4 w-full bg-gray-800 text-white font-bold py-2.5 px-4 rounded-lg hover:bg-gray-700 transition flex items-center justify-center shadow-md active:scale-95">
-                    <i class="fas fa-copy mr-2"></i> Copiar Chave
+                <!-- Box do PIX -->
+                <div class="bg-gray-100 p-4 rounded-xl mb-4 relative border border-gray-200">
+                    <p class="text-xs text-gray-500 font-bold uppercase mb-1">Chave PIX (Email)</p>
+                    <p id="chavePix" class="text-lg font-mono font-bold text-gray-800 break-all">ciccantinho@gmail.com</p>
+                    
+                    <button id="btnCopiarPix" class="mt-4 w-full bg-gray-800 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-700 transition flex items-center justify-center shadow-md active:scale-95 text-sm">
+                        <i class="fas fa-copy mr-2"></i> Copiar Chave
+                    </button>
+                </div>
+            </div>
+
+            <!-- NOVA ÁREA: Lista de Itens Dinâmica -->
+            <div id="listaItensDoacao" class="flex-1 overflow-y-auto scroll-suave text-left border-t border-gray-100 pt-4 hidden">
+                <h4 class="text-sm font-bold text-gray-700 mb-3 uppercase tracking-wider flex items-center">
+                    <i class="fas fa-box-open mr-2 text-gray-400"></i> O que estamos precisando:
+                </h4>
+                <div id="containerItens" class="space-y-3 pb-2">
+                    <!-- Itens serão injetados aqui via JS -->
+                </div>
+            </div>
+
+            <div class="flex-shrink-0 mt-4 pt-2 border-t border-gray-100">
+                <button id="btnFecharDoacao" class="w-full text-gray-500 font-semibold hover:text-gray-800 transition p-2 uppercase text-sm tracking-wider">
+                    Voltar
                 </button>
             </div>
-
-            <button id="btnFecharDoacao" class="text-gray-500 font-semibold hover:text-gray-800 transition p-2 uppercase text-sm tracking-wider">
-                Voltar
-            </button>
         </div>
     </div>
 
