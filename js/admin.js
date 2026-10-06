@@ -71,6 +71,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.getElementById('menuMaster').classList.remove('hidden');
         }
 
+        // MOSTRAR MENU MASTER (Se for o dono do sistema)
+        if (perfil.is_master) {
+            const menuMaster = document.getElementById('menuMaster');
+            if(menuMaster) menuMaster.classList.remove('hidden');
+        }
+
         // ESCONDER MENUS não autorizados (Apenas se NÃO for o Super Admin)
         if (!perfil.is_admin) {
             if (!perfil.perm_agenda) document.getElementById('menuAgendaGiras').classList.add('hidden');
@@ -1006,4 +1012,83 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         });
     }
+
+    // ==========================================
+    // MÓDULO MASTER (SAAS) - MULTI TERREIROS
+    // ==========================================
+    window.carregarListaTerreiros = async () => {
+        const tbody = document.getElementById('tabelaMasterTerreiros');
+        if(!tbody) return;
+        tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center">Buscando clientes...</td></tr>';
+        
+        const { data, error } = await supabaseClient.from('terreiros').select('id, nome, status_bloqueado').order('id');
+        
+        if (error) {
+            tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-red-500">Erro: ${error.message}</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = '';
+        data.forEach(t => {
+            const statusHtml = t.status_bloqueado 
+                ? '<span class="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold">Bloqueado</span>'
+                : '<span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold">Ativo</span>';
+            
+            const acaoHtml = t.status_bloqueado
+                ? `<button onclick="bloquearTerreiro(${t.id}, false)" class="bg-green-500 hover:bg-green-600 text-white text-xs px-3 py-1 rounded font-bold shadow">Desbloquear</button>`
+                : `<button onclick="bloquearTerreiro(${t.id}, true)" class="bg-red-500 hover:bg-red-600 text-white text-xs px-3 py-1 rounded font-bold shadow">Bloquear</button>`;
+
+            tbody.innerHTML += `
+                <tr class="border-b border-gray-100 hover:bg-gray-50">
+                    <td class="p-3 text-gray-500 text-sm">#${t.id}</td>
+                    <td class="p-3 text-gray-800 font-bold">${t.nome}</td>
+                    <td class="p-3 text-center">${statusHtml}</td>
+                    <td class="p-3 text-center">${acaoHtml}</td>
+                </tr>
+            `;
+        });
+    };
+
+    window.bloquearTerreiro = async (id, status) => {
+        const acao = status ? 'BLOQUEAR' : 'DESBLOQUEAR';
+        if(!confirm(`Tem certeza que deseja ${acao} o acesso deste terreiro à plataforma?`)) return;
+
+        const { error } = await supabaseClient.from('terreiros').update({ status_bloqueado: status }).eq('id', id);
+        
+        if(error) alert('Erro ao alterar status: ' + error.message);
+        else carregarListaTerreiros();
+    };
+
+    const formNovoTerreiro = document.getElementById('formNovoTerreiro');
+    if(formNovoTerreiro) {
+        formNovoTerreiro.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btnSalvarTerreiro');
+            const msg = document.getElementById('msgNovoTerreiro');
+            const nome = document.getElementById('novoTerreiroNome').value;
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Cadastrando...';
+            
+            const { error } = await supabaseClient.from('terreiros').insert([{ 
+                nome, 
+                status_bloqueado: false 
+            }]);
+
+            btn.disabled = false;
+            btn.innerHTML = 'Cadastrar Sistema';
+
+            if(error) {
+                msg.textContent = 'Erro: ' + error.message;
+                msg.className = 'text-sm mt-2 text-red-400 block';
+            } else {
+                msg.textContent = '✅ Terreiro cadastrado! Eles já podem fazer o primeiro acesso.';
+                msg.className = 'text-sm mt-2 text-green-400 block font-bold';
+                formNovoTerreiro.reset();
+                carregarListaTerreiros();
+                setTimeout(() => msg.classList.add('hidden'), 4000);
+            }
+        });
+    }
+
 });
