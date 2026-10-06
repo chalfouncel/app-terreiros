@@ -47,14 +47,40 @@
             <img id="imgGira" src="" alt="Arte da Gira" class="w-full h-auto object-cover max-h-72">
         </div>
         
-        <!-- O Botão usa a Cor Secundária -->
-        <button id="btnPresenca" class="hidden w-full flex flex-col items-center justify-center py-6 px-4 border border-transparent rounded-2xl shadow-lg text-xl font-bold text-white bg-tema-secundaria hover:opacity-90 focus:outline-none focus:ring-4 focus-ring-tema transition-all transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
-            <svg class="w-12 h-12 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
-            </svg>
-            Registrar Presença
-        </button>
+        <!-- Container dos Botões -->
+        <div class="flex flex-col space-y-4 mt-2">
+            
+            <!-- Botão Reduzido (Cor Secundária) -->
+            <button id="btnPresenca" class="hidden w-full flex flex-row items-center justify-center py-3 px-4 border border-transparent rounded-xl shadow-md text-base font-bold text-white bg-tema-secundaria hover:opacity-90 focus:outline-none focus:ring-2 focus-ring-tema transition-all transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+                <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                </svg>
+                Registrar Presença
+            </button>
+
+            <!-- Botão de Doações (Contorno Cor Primária) -->
+            <button id="btnDoacao" onclick="document.getElementById('modalDoacao').classList.toggle('hidden')" class="w-full flex flex-row items-center justify-center py-3 px-4 border-2 border-tema-primaria rounded-xl shadow-sm text-base font-bold text-tema-primaria bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all transform hover:scale-105 active:scale-95">
+                <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+                </svg>
+                Fazer uma Doação
+            </button>
+            
+        </div>
+
+        <!-- Painel Simples de Doação Oculto (Abre ao clicar) -->
+        <div id="modalDoacao" class="hidden mt-4 p-5 bg-gray-50 border border-gray-200 rounded-xl text-left shadow-inner transition-all">
+            <h3 class="text-sm font-bold text-gray-800 mb-1">Chave PIX da Casa:</h3>
+            <p class="text-xs text-gray-600 mb-3">Sua ajuda é fundamental para a manutenção da nossa casa. Toda contribuição é bem-vinda!</p>
+            <div class="flex items-center justify-between bg-white p-3 border border-gray-300 rounded-lg shadow-sm">
+                <!-- Troque esse CNPJ/Telefone pelo PIX real da casa depois -->
+                <span class="font-mono text-sm text-gray-800 font-bold select-all">12.345.678/0001-90</span>
+                <button onclick="navigator.clipboard.writeText('12.345.678/0001-90'); alert('Chave PIX copiada!')" class="text-tema-primaria hover:opacity-70" title="Copiar PIX">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                </button>
+            </div>
+        </div>
 
         <div id="msgStatus" class="mt-6 text-sm font-semibold rounded p-3 hidden"></div>
     </div>
