@@ -5,7 +5,30 @@ let perfilAdminLogado = null; // Guarda quem está logado para validar acessos
 document.addEventListener('DOMContentLoaded', async () => {
     // Data Cabeçalho
     const dataOpcoes = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-    document.getElementById('dataHoje').textContent = new Date().toLocaleDateString('pt-BR', dataOpcoes);
+    const dataStr = new Date().toLocaleDateString('pt-BR', dataOpcoes);
+    document.getElementById('dataHoje').textContent = dataStr;
+    if(document.getElementById('dataHojeMobile')) document.getElementById('dataHojeMobile').textContent = dataStr;
+
+    // Controle do Menu Mobile
+    const sidebar = document.getElementById('sidebar');
+    const overlayMobile = document.getElementById('overlayMobile');
+    const btnAbrirMenu = document.getElementById('btnAbrirMenu');
+    const btnFecharMenu = document.getElementById('btnFecharMenu');
+
+    function toggleMenu() {
+        const isOpen = !sidebar.classList.contains('-translate-x-full');
+        if (isOpen) {
+            sidebar.classList.add('-translate-x-full');
+            overlayMobile.classList.add('hidden');
+        } else {
+            sidebar.classList.remove('-translate-x-full');
+            overlayMobile.classList.remove('hidden');
+        }
+    }
+
+    if(btnAbrirMenu) btnAbrirMenu.addEventListener('click', toggleMenu);
+    if(btnFecharMenu) btnFecharMenu.addEventListener('click', toggleMenu);
+    if(overlayMobile) overlayMobile.addEventListener('click', toggleMenu);
 
     // Verifica Sessão
     const { data: { session } } = await supabaseClient.auth.getSession();
