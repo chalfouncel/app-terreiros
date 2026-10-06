@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const tituloTerreiro = document.getElementById('nomeTerreiro');
     if (tituloTerreiro) tituloTerreiro.textContent = "Carregando sistema...";
 
-    // Verifica Sessão
+    // 1. Verifica Sessão de Login
     const { data: { session }, error: erroSessao } = await supabaseClient.auth.getSession();
     
     if (erroSessao || !session) {
@@ -16,39 +16,68 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     try {
-        // CORREÇÃO AQUI: Em vez de .single() que trava se houver duplicidade de testes, usamos .limit(1)
-        const { data: perfis, error: erroPerfil } = await supabaseClient
-            .from('mediuns')
-            .select('*')
-            .eq('auth_id', session.user.id)
-            .limit(1);
+        let perfil = null;
+        const authId = session.user.id;
 
-        if (erroPerfil) {
-            alert("Erro de leitura do banco: " + erroPerfil.message);
+        // TENTATIVA 1: Busca o médium pelo vínculo correto (auth_id)
+        const { data: p1 } = await supabaseClient.from('mediuns').select('*').eq('auth_id', authId).limit(1);
+        
+        if (p1 && p1.length > 0) {
+            perfil = p1[0];
+        } else {
+            // ====================================================================
+            // AUTO-CONSERTO: Se falhou, a conta está desvinculada no banco.
+            // O sistema vai atuar como detetive para achar a ficha e consertar!
+            // ====================================================================
+            
+            // Tenta achar pelo E-mail "fantasma" do Supabase (Ex: se fez login com o ID 32 -> 32@...com)
+            if (session.user.email) {
+                const possivelId = session.user.email.split('@')[0];
+                if (!isNaN(possivelId)) {
+                    const { data: p2 } = await supabaseClient.from('mediuns').select('*').eq('id', possivelId).limit(1);
+                    if (p2 && p2.length > 0) perfil = p2[0];
+                }
+            }
+            
+            // Tenta achar pelo Telefone
+            if (!perfil && session.user.phone) {
+                const { data: p3 } = await supabaseClient.from('mediuns').select('*').eq('telefone', session.user.phone).limit(1);
+                if (p3 && p3.length > 0) perfil = p3[0];
+            }
+            
+            // Tenta achar pelo cache local do celular
+            const localId = localStorage.getItem('medium_id');
+            if (!perfil && localId) {
+                const { data: p4 } = await supabaseClient.from('mediuns').select('*').eq('id', localId).limit(1);
+                if (p4 && p4.length > 0) perfil = p4[0];
+            }
+
+            // SE O DETETIVE ACHOU A FICHA, ELE CONSERTA O BANCO DE DADOS NA HORA!
+            if (perfil) {
+                await supabaseClient.from('mediuns').update({ auth_id: authId }).eq('id', perfil.id);
+                console.log("Sucesso: A ficha do médium foi vinculada automaticamente!");
+            }
+        }
+
+        // Se mesmo com o detetive não achar ninguém (Erro gravíssimo no banco)
+        if (!perfil) {
+            alert("Aviso: Sua senha está certa, mas sua ficha de médium foi deletada ou está sem nenhum vínculo. Fale com a Administração.");
             await supabaseClient.auth.signOut();
             window.location.href = 'index.html';
             return;
         }
 
-        if (!perfis || perfis.length === 0) {
-            alert("Seu cadastro não foi encontrado no banco de dados.");
-            await supabaseClient.auth.signOut();
-            window.location.href = 'index.html';
-            return;
-        }
-
-        // Pega o primeiro perfil com segurança
-        const perfil = perfis[0];
-
+        // ====================================================================
+        // LOGIN BEM SUCEDIDO! CARREGANDO A TELA
+        // ====================================================================
+        
         idTerreiroGlobal = perfil.terreiro_id;
         
         const nomeCurto = perfil.nome_completo ? perfil.nome_completo.split(' ')[0] : 'Médium';
         const txtNome = document.getElementById('nomeMedium');
         if (txtNome) txtNome.textContent = 'Olá, ' + nomeCurto;
 
-        // ========================================================
-        // 2. LÓGICA DE EXIBIÇÃO DO BOTÃO ADMIN 
-        // ========================================================
+        // LIBERAÇÃO DO PAINEL ADMIN PARA QUEM TEM PERMISSÃO (COMO A IVY)
         const temAcessoAoPainel = perfil.is_admin === true || 
                                   perfil.perm_agenda === true || 
                                   perfil.perm_grau === true || 
@@ -63,19 +92,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const btnPainel = document.getElementById('btnPainelAdmin');
         if (btnPainel) {
-            btnPainel.addEventListener('click', () => {
-                window.location.href = 'admin.html';
-            });
+            btnPainel.addEventListener('click', () => window.location.href = 'admin.html');
         }
-        // ========================================================
 
-        // 3. BUSCA DADOS DO TERREIRO 
+        // BUSCA DADOS DO TERREIRO
         if (idTerreiroGlobal) {
-            const { data: terreiros } = await supabaseClient
-                .from('terreiros')
-                .select('*')
-                .eq('id', idTerreiroGlobal)
-                .limit(1);
+            const { data: terreiros } = await supabaseClient.from('terreiros').select('*').eq('id', idTerreiroGlobal).limit(1);
             
             if (terreiros && terreiros.length > 0) {
                 const terreiro = terreiros[0];
@@ -98,19 +120,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (tituloTerreiro) tituloTerreiro.textContent = 'Sem Terreiro Vinculado';
         }
 
-        // 4. VERIFICA SE TEM GIRA HOJE
+        // VERIFICA GIRA DE HOJE
         const hoje = new Date();
         const inicioDia = new Date(hoje.setHours(0,0,0,0)).toISOString();
         const fimDia = new Date(hoje.setHours(23,59,59,999)).toISOString();
 
-        const { data: giras } = await supabaseClient
-            .from('agenda')
-            .select('*')
+        const { data: giras } = await supabaseClient.from('agenda').select('*')
             .eq('terreiro_id', idTerreiroGlobal)
-            .gte('data_hora_inicio', inicioDia)
-            .lte('data_hora_inicio', fimDia)
-            .order('data_hora_inicio', { ascending: true })
-            .limit(1);
+            .gte('data_hora_inicio', inicioDia).lte('data_hora_inicio', fimDia)
+            .order('data_hora_inicio', { ascending: true }).limit(1);
 
         const divSemGira = document.getElementById('estadoSemGira');
         const divComGira = document.getElementById('estadoComGira');
@@ -130,12 +148,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             const textHorario = document.getElementById('horarioGira');
             if (textHorario) textHorario.innerHTML = `<i class="far fa-clock"></i> ${hrInicio} às ${hrFim}`;
 
-            const { data: presencas } = await supabaseClient
-                .from('presencas')
-                .select('*')
-                .eq('usuario_id', session.user.id)
-                .eq('evento_id', idGiraGlobal)
-                .limit(1);
+            // Verifica Check-in
+            const { data: presencas } = await supabaseClient.from('presencas').select('*')
+                .eq('usuario_id', authId).eq('evento_id', idGiraGlobal).limit(1);
 
             if (presencas && presencas.length > 0) {
                 const areaPonto = document.getElementById('areaBaterPonto');
@@ -153,7 +168,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     } catch (error) {
         console.error("Erro fatal:", error);
-        
         const divSemGira = document.getElementById('estadoSemGira');
         if (divSemGira) {
             divSemGira.classList.remove('hidden');
@@ -161,7 +175,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <i class="fas fa-exclamation-triangle text-red-500 text-5xl mb-4"></i>
                 <h2 class="text-xl font-bold text-gray-700">Erro Interno</h2>
                 <p class="text-red-500 mt-2 font-bold">${error.message}</p>
-                <p class="text-gray-500 text-sm mt-2">Atualize a página e tente novamente.</p>
+                <p class="text-gray-500 text-sm mt-2">Tente atualizar a página.</p>
             `;
         }
     }
@@ -175,104 +189,60 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
+// GPS
 const btnCheckin = document.getElementById('btnCheckin');
 if (btnCheckin) {
     btnCheckin.addEventListener('click', async () => {
         const msg = document.getElementById('msgCheckin');
-        
         btnCheckin.disabled = true;
         btnCheckin.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Validando GPS...';
         if (msg) msg.classList.add('hidden');
 
         if (!coordsTerreiro || !coordsTerreiro.lat) {
-            if (msg) {
-                msg.textContent = "O administrador ainda não configurou o GPS do terreiro.";
-                msg.className = "mt-3 text-sm font-bold text-red-500 block";
-            }
-            restaurarBotao(btnCheckin);
-            return;
+            if (msg) { msg.textContent = "O administrador ainda não configurou o GPS do terreiro."; msg.className = "mt-3 text-sm font-bold text-red-500 block"; }
+            restaurarBotao(btnCheckin); return;
         }
 
         if (!navigator.geolocation) {
-            if (msg) {
-                msg.textContent = "Seu navegador não suporta GPS.";
-                msg.className = "mt-3 text-sm font-bold text-red-500 block";
-            }
-            restaurarBotao(btnCheckin);
-            return;
+            if (msg) { msg.textContent = "Seu navegador não suporta GPS."; msg.className = "mt-3 text-sm font-bold text-red-500 block"; }
+            restaurarBotao(btnCheckin); return;
         }
 
         navigator.geolocation.getCurrentPosition(async (posicao) => {
-            const latUsuario = posicao.coords.latitude;
-            const lonUsuario = posicao.coords.longitude;
-            
+            const latUsuario = posicao.coords.latitude, lonUsuario = posicao.coords.longitude;
             const distanciaMetros = calcularDistancia(latUsuario, lonUsuario, coordsTerreiro.lat, coordsTerreiro.lng);
-            const TOLERANCIA = 100; 
-
-            if (distanciaMetros > TOLERANCIA) {
-                if (msg) {
-                    msg.innerHTML = `Você está muito longe do terreiro.<br>Distância atual: ${Math.round(distanciaMetros)} metros.`;
-                    msg.className = "mt-3 text-sm font-bold text-red-500 block";
-                }
-                restaurarBotao(btnCheckin);
-                return;
+            if (distanciaMetros > 100) {
+                if (msg) { msg.innerHTML = `Você está muito longe do terreiro.<br>Distância atual: ${Math.round(distanciaMetros)} metros.`; msg.className = "mt-3 text-sm font-bold text-red-500 block"; }
+                restaurarBotao(btnCheckin); return;
             }
 
             const { data: { session } } = await supabaseClient.auth.getSession();
-            
             btnCheckin.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Registrando...';
 
-            const { error } = await supabaseClient.from('presencas').insert([{
-                evento_id: idGiraGlobal,
-                usuario_id: session.user.id,
-                data_hora_checkin: new Date().toISOString()
-            }]);
+            const { error } = await supabaseClient.from('presencas').insert([{ evento_id: idGiraGlobal, usuario_id: session.user.id, data_hora_checkin: new Date().toISOString() }]);
 
             if (error) {
-                if (msg) {
-                    msg.textContent = "Erro ao registrar: " + error.message;
-                    msg.className = "mt-3 text-sm font-bold text-red-500 block";
-                }
+                if (msg) { msg.textContent = "Erro ao registrar: " + error.message; msg.className = "mt-3 text-sm font-bold text-red-500 block"; }
                 restaurarBotao(btnCheckin);
             } else {
                 const areaPonto = document.getElementById('areaBaterPonto');
                 const areaSucesso = document.getElementById('areaSucesso');
                 const horaFeito = document.getElementById('horaCheckinFeito');
-                
                 if (areaPonto) areaPonto.classList.add('hidden');
                 if (areaSucesso) areaSucesso.classList.remove('hidden');
                 if (horaFeito) horaFeito.textContent = new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
             }
-
         }, (err) => {
-            if (msg) {
-                msg.textContent = "Erro de GPS. Ative a localização do celular e permita o acesso no navegador.";
-                msg.className = "mt-3 text-sm font-bold text-red-500 block";
-            }
+            if (msg) { msg.textContent = "Ative a localização do celular no navegador."; msg.className = "mt-3 text-sm font-bold text-red-500 block"; }
             restaurarBotao(btnCheckin);
-        }, {
-            enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 0
-        });
+        }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
     });
 }
 
-function restaurarBotao(btn) {
-    if (btn) {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-map-marker-alt"></i> Confirmar Presença';
-    }
-}
+function restaurarBotao(btn) { if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-map-marker-alt"></i> Confirmar Presença'; } }
 
 function calcularDistancia(lat1, lon1, lat2, lon2) {
-    const R = 6371e3;
-    const p1 = lat1 * Math.PI/180;
-    const p2 = lat2 * Math.PI/180;
-    const dp = (lat2-lat1) * Math.PI/180;
-    const dl = (lon2-lon1) * Math.PI/180;
-
+    const R = 6371e3, p1 = lat1 * Math.PI/180, p2 = lat2 * Math.PI/180, dp = (lat2-lat1) * Math.PI/180, dl = (lon2-lon1) * Math.PI/180;
     const a = Math.sin(dp/2) * Math.sin(dp/2) + Math.cos(p1) * Math.cos(p2) * Math.sin(dl/2) * Math.sin(dl/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c; 
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
 }
