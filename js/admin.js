@@ -130,15 +130,36 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const tabelaPresencas = document.getElementById('tabelaPresencas');
         if (giraAtualId) {
-            const { data: presencas } = await supabaseClient.from('presencas').select('data_hora_checkin, mediuns(nome_completo)').eq('evento_id', giraAtualId).order('data_hora_checkin', { ascending: false });
+            // BUSCA 100% SEGURO: Pega presenças e cruza nomes no Javascript
+            const { data: presencas, error: errPresencas } = await supabaseClient
+                .from('presencas')
+                .select('*')
+                .eq('evento_id', giraAtualId)
+                .order('data_hora_checkin', { ascending: false });
+
+            if (errPresencas) console.error("Erro ao buscar presenças: ", errPresencas);
+
             document.getElementById('totalPresentes').textContent = presencas ? presencas.length : '0';
 
             if (presencas && presencas.length > 0) {
+                // Busca a lista de mediuns para o cruzamento
+                const { data: listaMediuns } = await supabaseClient.from('mediuns').select('auth_id, nome_completo');
+
                 tabelaPresencas.innerHTML = ''; 
                 presencas.forEach(p => {
-                    const nome = p.mediuns?.nome_completo || 'Médium';
-                    const hora = new Date(p.data_hora_checkin).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                    tabelaPresencas.innerHTML += `<tr class="border-b border-gray-100 hover:bg-gray-50"><td class="p-3 text-gray-800 font-medium">${nome}</td><td class="p-3 text-gray-600">${hora}</td><td class="p-3"><span class="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-bold">PRESENTE</span></td></tr>`;
+                    // Cruza o usuario_id da presenca com o auth_id do médium
+                    const mediumObj = listaMediuns?.find(m => m.auth_id === p.usuario_id);
+                    const nome = mediumObj ? mediumObj.nome_completo : 'Médium (Sem Nome)';
+                    
+                    const horaStr = p.data_hora_checkin ? new Date(p.data_hora_checkin).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '--:--';
+                    
+                    tabelaPresencas.innerHTML += `
+                        <tr class="border-b border-gray-100 hover:bg-gray-50">
+                            <td class="p-3 text-gray-800 font-medium">${nome}</td>
+                            <td class="p-3 text-gray-600">${horaStr}</td>
+                            <td class="p-3"><span class="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-bold">PRESENTE</span></td>
+                        </tr>
+                    `;
                 });
             } else {
                 tabelaPresencas.innerHTML = `<tr><td colspan="3" class="p-6 text-center text-gray-500">Nenhum check-in ainda.</td></tr>`;
@@ -518,7 +539,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 tbody.innerHTML = '';
                 doacoes.forEach(d => {
                     const medium = mediuns?.find(m => m.auth_id === d.medium_auth_id)?.nome_completo || 'Médium';
-                    const itemObj = itens?.find(i => i.id == d.item_id); // Modificado para == (corrige bug de Texto x Número)
+                    const itemObj = itens?.find(i => i.id == d.item_id); 
                     const itemNome = itemObj ? `${itemObj.nome} <br><span class="text-[10px] text-gray-400 font-normal">${itemObj.descricao || ''}</span>` : 'Item Desconhecido';
                     
                     const dataFormatada = new Date(d.data_registro).toLocaleDateString('pt-BR');
@@ -719,7 +740,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
 
-            // Passamos a string `html` direto (corrige o travamento da biblioteca)
             html2pdf().set(opt).from(html).save().then(() => {
                 btn.innerHTML = textoOriginal;
                 btn.disabled = false;
