@@ -6,7 +6,6 @@
     <title>Painel Admin - Templo</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- AQUI ESTÁ A BIBLIOTECA QUE FALTAVA PARA O PDF FUNCIONAR -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -187,19 +186,20 @@
 
                 <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="bg-gray-50 border-b border-gray-200">
-                            <th class="p-3 text-sm font-semibold text-gray-600">NOME COMPLETO</th>
-                            <th class="p-3 text-sm font-semibold text-gray-600">GRAU / FUNÇÃO</th>
-                            <th class="p-3 text-sm font-semibold text-gray-600">WHATSAPP</th>
-                            <th class="p-3 text-sm font-semibold text-gray-600">STATUS</th>
-                            <th class="p-3 text-sm font-semibold text-gray-600 text-center w-20">AÇÕES</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tabelaTodosMediuns"></tbody>
-                </table>
+                        <thead>
+                            <tr class="bg-gray-50 border-b border-gray-200">
+                                <th class="p-3 text-sm font-semibold text-gray-600">NOME COMPLETO</th>
+                                <th class="p-3 text-sm font-semibold text-gray-600">GRAU / FUNÇÃO</th>
+                                <th class="p-3 text-sm font-semibold text-gray-600">WHATSAPP</th>
+                                <th class="p-3 text-sm font-semibold text-gray-600">STATUS</th>
+                                <th class="p-3 text-sm font-semibold text-gray-600 text-center w-20">AÇÕES</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelaTodosMediuns"></tbody>
+                    </table>
+                </div>
             </div>
-        </div>
+        </div> <!-- ✅ AQUI ESTÁ O FECHAMENTO QUE FALTAVA! -->
 
         <!-- SECÃO 3: AGENDA DE EVENTOS -->
         <div id="secAgendaGiras" class="secao-painel hidden">
@@ -457,7 +457,7 @@
                     <div class="p-4 border border-gray-100 rounded-lg bg-gray-50 flex justify-between items-center hover:shadow-sm transition">
                         <div>
                             <h4 class="font-bold text-gray-800">Cor do Texto Principal</h4>
-                            <p class="text-xs text-gray-500">Textos em destaque, títulos e rótulos.</p>
+                            <p class="text-xs text-gray-500">Textos em destaque, titles e rótulos.</p>
                         </div>
                         <input type="color" id="corTexto" class="w-14 h-14 cursor-pointer border-0 rounded bg-transparent">
                     </div>
