@@ -39,6 +39,14 @@
             color: var(--cor-texto);
             transition: background-color 0.3s ease;
         }
+
+        /* Regras para Impressão limpa do Relatório em A4 */
+        @media print {
+            body * { visibility: hidden; }
+            #areaImpressaoMediuns, #areaImpressaoMediuns * { visibility: visible; }
+            #areaImpressaoMediuns { position: absolute; left: 0; top: 0; width: 100%; }
+            .no-print { display: none !important; }
+        }
     </style>
 </head>
 <body class="min-h-screen flex transition-colors duration-300 overflow-hidden">
@@ -164,32 +172,101 @@
 
         <!-- SECÃO 2: QUADRO DE MÉDIUNS -->
         <div id="secQuadroMediuns" class="secao-painel hidden">
-            <div class="bg-white rounded-xl shadow-sm border-t-4 border-tema-primaria p-6 mb-8">
-                <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                    <div>
-                        <h3 class="text-xl font-bold text-tema-texto">Gestão de Médiuns</h3>
-                        <p class="text-sm text-gray-500">Gerencie a corrente da casa e adicione novos médiuns.</p>
-                    </div>
-                    <button onclick="abrirModalNovoMedium()" class="w-full md:w-auto bg-tema-secundaria hover:opacity-90 text-white font-bold py-2.5 px-5 rounded-lg shadow-sm transition flex items-center justify-center active:scale-95">
-                        <i class="fas fa-user-plus mr-2"></i> Novo Médium
+            
+            <div class="mb-6 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800">Quadro de Médiuns</h2>
+                    <p class="text-gray-500 text-sm mt-1">Gerencie a corrente da casa e adicione novos médiuns.</p>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <button id="btnImprimirMediuns" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg font-bold shadow transition flex items-center gap-2 text-sm active:scale-95">
+                        <i class="fas fa-print"></i> PDF / A4
+                    </button>
+                    <button onclick="abrirModalNovoMedium()" class="bg-tema-primaria hover:opacity-90 text-white px-4 py-2 rounded-lg font-bold shadow transition flex items-center gap-2 text-sm active:scale-95">
+                        <i class="fas fa-user-plus"></i> Novo Médium
                     </button>
                 </div>
-
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="bg-gray-50 border-b border-gray-200">
-                            <th class="p-3 text-sm font-semibold text-gray-600">NOME COMPLETO</th>
-                            <th class="p-3 text-sm font-semibold text-gray-600">GRAU / FUNÇÃO</th>
-                            <th class="p-3 text-sm font-semibold text-gray-600">WHATSAPP</th>
-                            <th class="p-3 text-sm font-semibold text-gray-600">STATUS</th>
-                            <th class="p-3 text-sm font-semibold text-gray-600 text-center w-20">AÇÕES</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tabelaTodosMediuns"></tbody>
-                </table>
             </div>
-        </div>
+
+            <!-- Barra de Filtros -->
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-6 flex flex-col md:flex-row gap-4 no-print border-t-4 border-tema-primaria">
+                <div class="flex-1">
+                    <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Nome Completo</label>
+                    <input type="text" id="filtroNomeMedium" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-tema-primaria outline-none" placeholder="Buscar médium...">
+                </div>
+                <div class="w-full md:w-48">
+                    <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Grau / Função</label>
+                    <select id="filtroGrauMedium" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-tema-primaria">
+                        <option value="">Todos os Graus</option>
+                        <option value="I">I / IJ</option>
+                        <option value="B">B / BJ</option>
+                        <option value="T">T / TJ</option>
+                        <option value="SCT">SCT</option>
+                        <option value="CT">CT / Escola de CT</option>
+                        <option value="CCT">CCT / Escola de CCT</option>
+                        <option value="Dirigente">Dirigente</option>
+                    </select>
+                </div>
+                <div class="w-full md:w-32">
+                    <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Status</label>
+                    <select id="filtroStatusMedium" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-tema-primaria">
+                        <option value="">Todos</option>
+                        <option value="Ativo">Ativo</option>
+                        <option value="Pendente">Pendente</option>
+                    </select>
+                </div>
+                <div class="w-full md:w-40">
+                    <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Mês de Nasc.</label>
+                    <select id="filtroMesNascimento" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-tema-primaria">
+                        <option value="">Todos</option>
+                        <option value="01">Janeiro</option><option value="02">Fevereiro</option>
+                        <option value="03">Março</option><option value="04">Abril</option>
+                        <option value="05">Maio</option><option value="06">Junho</option>
+                        <option value="07">Julho</option><option value="08">Agosto</option>
+                        <option value="09">Setembro</option><option value="10">Outubro</option>
+                        <option value="11">Novembro</option><option value="12">Dezembro</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="flex flex-col xl:flex-row gap-6">
+                <!-- Tabela Principal da Corrente -->
+                <div id="areaImpressaoMediuns" class="flex-1 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="p-4 border-b border-gray-100 bg-gray-50 no-print hidden print:block">
+                        <h3 class="font-bold text-gray-800 text-lg text-center">Corrente Mediúnica</h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse min-w-max">
+                            <thead>
+                                <tr class="bg-gray-100 text-gray-500 text-[10px] uppercase tracking-wider border-b border-gray-200">
+                                    <th class="p-4 font-bold">Nome Completo</th>
+                                    <th class="p-4 font-bold text-center">Nascimento</th>
+                                    <th class="p-4 font-bold">Grau / Função</th>
+                                    <th class="p-4 font-bold">WhatsApp</th>
+                                    <th class="p-4 font-bold text-center">Status</th>
+                                    <th class="p-4 font-bold text-center no-print">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabelaTodosMediuns" class="text-sm divide-y divide-gray-100">
+                                <tr><td colspan="6" class="p-6 text-center text-gray-500">Buscando corrente...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Bloco Lateral: Aniversariantes do Mês -->
+                <div class="w-full xl:w-80 bg-white rounded-xl shadow-sm border border-gray-200 h-fit no-print">
+                    <div class="p-4 border-b border-gray-100 bg-blue-50/50 rounded-t-xl flex items-center gap-2">
+                        <i class="fas fa-gift text-blue-500"></i>
+                        <h3 class="font-bold text-blue-900 text-sm" id="tituloAniversariantesMes">Aniversariantes</h3>
+                    </div>
+                    <div class="p-0">
+                        <ul id="listaAniversariantes" class="divide-y divide-gray-100 max-h-[500px] overflow-y-auto">
+                            <li class="p-4 text-center text-gray-500 text-sm">Carregando...</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- SECÃO 3: AGENDA DE EVENTOS -->
