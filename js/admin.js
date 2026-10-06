@@ -359,7 +359,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // ==========================================
-    // AGENDA E EVENTOS (COM CORREÇÃO DE FUSO E ATA PADRÃO)
+    // AGENDA E EVENTOS (COM CORREÇÃO DE FUSO E ATA PADRÃO E UPLOAD)
     // ==========================================
     async function carregarAgenda() {
         const tbody = document.getElementById('tabelaGirasCadastradas');
@@ -448,7 +448,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (document.getElementById('formEditarGira')) {
         document.getElementById('formEditarGira').addEventListener('submit', async (e) => {
             e.preventDefault();
-            // CORREÇÃO: Usando o ID exato que está no HTML (btnSalvarEditGira)
             const btn = document.getElementById('btnSalvarEditGira');
             if (btn) { btn.disabled = true; btn.innerHTML = 'Salvando...'; }
 
@@ -457,7 +456,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const inicioRaw = document.getElementById('editGiraInicio').value;
                 const fimRaw = document.getElementById('editGiraFim').value;
                 
-                // CORREÇÃO: Adiciona a assinatura de fuso horário "-03:00" explicitamente
                 const inicioBR = inicioRaw ? `${inicioRaw}:00-03:00` : null;
                 const fimBR = fimRaw ? `${fimRaw}:00-03:00` : null;
 
@@ -496,10 +494,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const linkA = document.getElementById('giraImagem').value;
                 const fileInput = document.getElementById('giraArquivo');
                 
-                // CORREÇÃO: Gera a ATA por padrão a menos que esteja explicitamente desmarcado
                 const chkGeraAta = document.getElementById('giraGeraAta') ? document.getElementById('giraGeraAta').checked : true;
-                
-                // CORREÇÃO: Adiciona a assinatura de fuso horário "-03:00" explicitamente
                 const inicioBR = inicioRaw ? `${inicioRaw}:00-03:00` : null;
                 const fimBR = fimRaw ? `${fimRaw}:00-03:00` : null;
                 
@@ -508,9 +503,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (fileInput && fileInput.files.length > 0) {
                     const file = fileInput.files[0];
                     const fileName = `${idTerreiroGlobal}/evento_${Date.now()}.${file.name.split('.').pop()}`;
-                    const { error: uploadError } = await supabaseClient.storage.from('public').upload(fileName, file);
+                    const { error: uploadError } = await supabaseClient.storage.from('giras').upload(fileName, file);
                     if (uploadError) throw uploadError;
-                    const { data: { publicUrl } } = supabaseClient.storage.from('public').getPublicUrl(fileName);
+                    const { data: { publicUrl } } = supabaseClient.storage.from('giras').getPublicUrl(fileName);
                     imagemFinal = publicUrl;
                 }
 
@@ -958,7 +953,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         const { data, error } = await supabaseClient.from('terreiros')
                             .update({ latitude: lat, longitude: lon })
                             .eq('id', idTerreiroGlobal)
-                            .select(); // <-- AQUI ESTÁ A CORREÇÃO
+                            .select(); 
 
                         if(error) {
                             if(msg) { msg.className = 'mt-4 text-sm font-bold text-red-600 block'; msg.textContent = 'Erro ao salvar no banco: ' + error.message; }
@@ -999,7 +994,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const { data, error } = await supabaseClient.from('terreiros')
                 .update({ latitude: lat, longitude: lng })
                 .eq('id', idTerreiroGlobal)
-                .select(); // <-- AQUI ESTÁ A CORREÇÃO
+                .select(); 
                 
             btn.disabled = false; btn.innerHTML = '<i class="fas fa-save mr-2"></i> Salvar Manualmente';
             
