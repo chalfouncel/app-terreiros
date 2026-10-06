@@ -36,8 +36,11 @@ document.querySelector('form').addEventListener('submit', async (e) => {
                 throw new Error('ID não encontrado no sistema. Procure a administração.');
             }
 
-            if (medium.senha_cadastrada || medium.cadastro_completo) {
-                throw new Error('Seu cadastro já foi ativado! Use seu Nome ou Telefone e a Nova Senha que você criou para entrar.');
+            // >>> AQUI ESTÁ A SUPER TRAVA DE SEGURANÇA <<<
+            // Se a pessoa já tem um auth_id (já tem login no Supabase),
+            // ou se já tem o cadastro_completo = true, BLOQUEIA o acesso por ID.
+            if (medium.auth_id || medium.cadastro_completo || medium.senha_cadastrada) {
+                throw new Error('Seu cadastro já está ativo! Feche este aviso e faça o login normal usando seu Nome ou Telefone e a sua Nova Senha.');
             }
 
             // SUCESSO DO PRIMEIRO ACESSO! Salva os dados na memória para a próxima tela
