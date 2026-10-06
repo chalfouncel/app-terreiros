@@ -229,6 +229,66 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    // --- LÓGICA NOVO MÉDIUM ---
+    const modalNovoMedium = document.getElementById('modalNovoMedium');
+    const formNovoMedium = document.getElementById('formNovoMedium');
+
+    window.abrirModalNovoMedium = () => {
+        document.getElementById('msgNovoMedium').classList.add('hidden');
+        document.getElementById('resultadoNovoMedium').classList.add('hidden');
+        if (formNovoMedium) {
+            formNovoMedium.reset();
+            formNovoMedium.classList.remove('hidden');
+        }
+        if (modalNovoMedium) modalNovoMedium.classList.remove('hidden');
+    };
+
+    window.fecharModalNovoMedium = () => {
+        if (modalNovoMedium) modalNovoMedium.classList.add('hidden');
+        carregarQuadroMediuns(); // Recarrega a tabela para mostrar o novo médium
+    };
+
+    if (formNovoMedium) {
+        formNovoMedium.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btnSalvarNovoMedium');
+            const msg = document.getElementById('msgNovoMedium');
+            const nome = document.getElementById('novoMediumNome').value.trim();
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Salvando...';
+            msg.classList.add('hidden');
+
+            try {
+                // Insere no banco e pede o ID gerado de volta
+                const { data, error } = await supabaseClient
+                    .from('mediuns')
+                    .insert([{
+                        terreiro_id: idTerreiroGlobal,
+                        nome_completo: nome,
+                        cadastro_completo: false // Força ele a passar pela tela de cadastro
+                    }])
+                    .select('id, nome_completo')
+                    .single();
+
+                if (error) throw error;
+
+                // Esconde o formulário e mostra a tela de sucesso com o ID
+                formNovoMedium.classList.add('hidden');
+                document.getElementById('idGeradoNovoMedium').textContent = data.id;
+                document.getElementById('resultadoNovoMedium').classList.remove('hidden');
+
+            } catch (error) {
+                console.error(error);
+                msg.textContent = 'Erro ao cadastrar: ' + error.message;
+                msg.className = 'text-sm mt-3 text-red-600 block font-bold text-center';
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'Cadastrar Médium';
+            }
+        });
+    }
+
     // --- LÓGICA DE EXCLUSÃO DE MÉDIUM ---
     window.excluirMedium = async (id, nome) => {
         if(!confirm(`ATENÇÃO: Tem certeza que deseja excluir DEFINITIVAMENTE o médium ${nome}?\n\nEle perderá o acesso ao aplicativo imediatamente e todo o histórico será afetado.`)) return;
