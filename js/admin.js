@@ -89,6 +89,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                     document.getElementById('secFinanceiro').classList.remove('hidden');
                     titulo.textContent = 'Controle Financeiro';
                     carregarFinanceiro();
+                } else if (menu.id === 'menuDoacoes') {
+                    document.getElementById('secDoacoes').classList.remove('hidden');
+                    titulo.textContent = 'Doações e Campanhas';
+                    carregarDoacoes();
                 } else if (menu.id === 'menuAdmin') {
                     document.getElementById('secAdministracao').classList.remove('hidden');
                     titulo.textContent = 'Administração do Terreiro';
@@ -269,78 +273,29 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (passou && !pago) emDia = false;
 
                 const checkStr = pago ? 'checked' : '';
-                // Adicionei uma classe (check-pgto) e um data-mes para identificarmos o clique
                 htmlMeses += `
                     <td class="py-1 px-1 border-b border-gray-100">
-                        <input type="checkbox" ${checkStr} class="w-4 h-4 cursor-pointer accent-tema-secundaria check-pgto-${m.id}" data-mes="${i}"
+                        <input type="checkbox" ${checkStr} class="w-4 h-4 cursor-pointer accent-tema-secundaria" 
                         onchange="salvarPagamento(${m.id}, ${i}, ${ano}, this.checked)">
                     </td>
                 `;
             }
 
             const statusHtml = emDia 
-                ? '<span class="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded shadow-sm">Em Dia</span>'
-                : '<span class="bg-red-100 text-red-700 text-xs font-bold px-2 py-1 rounded shadow-sm">Pendente</span>';
+                ? '<span class="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded">Em Dia</span>'
+                : '<span class="bg-red-100 text-red-700 text-xs font-bold px-2 py-1 rounded">Pendente</span>';
 
             tbody.innerHTML += `
-                <tr class="hover:bg-gray-50 transition">
+                <tr class="hover:bg-gray-50">
                     <td class="py-2 px-3 border-b border-gray-100 text-left font-medium text-gray-800 text-xs truncate max-w-[220px]" title="${m.nome_completo}">
                         ${m.nome_completo}
                     </td>
                     ${htmlMeses}
-                    <td class="py-2 px-2 border-b border-gray-100 bg-gray-50 text-center" id="celula_status_${m.id}">${statusHtml}</td>
+                    <td class="py-2 px-2 border-b border-gray-100 bg-gray-50">${statusHtml}</td>
                 </tr>
             `;
         });
     }
-
-    document.getElementById('selectAnoFinanceiro').addEventListener('change', carregarFinanceiro);
-
-    window.salvarPagamento = async (mediumId, mes, ano, status) => {
-        // 1. Atualiza o status visualmente na MESMA HORA para o usuário
-        atualizarStatusVisual(mediumId, ano);
-
-        // 2. Salva a informação no banco de dados em segundo plano
-        const { error } = await supabaseClient.from('financeiro').upsert({
-            medium_id: mediumId,
-            mes: mes,
-            ano: ano,
-            pago: status
-        }, { onConflict: 'medium_id,mes,ano' });
-        
-        if(error) {
-            alert('Erro no banco: ' + error.message);
-            carregarFinanceiro(); // Se der erro, desfaz a tela
-        }
-    };
-
-    // Função NOVA: Recalcula se o médium está em dia assim que você clica
-    function atualizarStatusVisual(mediumId, anoSelecionado) {
-        const checks = document.querySelectorAll(`.check-pgto-${mediumId}`);
-        let emDia = true;
-        const mesAtual = new Date().getMonth() + 1;
-        const anoAtual = new Date().getFullYear();
-
-        checks.forEach(chk => {
-            const i = parseInt(chk.getAttribute('data-mes'));
-            const pago = chk.checked;
-            
-            // Regra: se o mês já passou e a caixinha não está marcada, fica pendente
-            const passou = (anoSelecionado < anoAtual) || (anoSelecionado === anoAtual && i < mesAtual);
-            if (passou && !pago) {
-                emDia = false;
-            }
-        });
-
-        // Troca a etiqueta de Pendente para Em dia instantaneamente
-        const celula = document.getElementById(`celula_status_${mediumId}`);
-        if(celula) {
-            celula.innerHTML = emDia 
-                ? '<span class="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded shadow-sm">Em Dia</span>'
-                : '<span class="bg-red-100 text-red-700 text-xs font-bold px-2 py-1 rounded shadow-sm">Pendente</span>';
-        }
-    }
-
 
     document.getElementById('selectAnoFinanceiro').addEventListener('change', carregarFinanceiro);
 
