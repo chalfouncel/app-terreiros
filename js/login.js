@@ -32,12 +32,10 @@ document.querySelector('form').addEventListener('submit', async (e) => {
                 throw new Error('Para o primeiro acesso, use a senha padrão: 123456');
             }
 
-            // Usamos o 'db' que criamos ali em cima!
-            const { data: medium, error: dbError } = await db
-                .from('mediuns')
-                .select('*')
-                .eq('id', parseInt(identificacao))
-                .single();
+            // NOVA FORMA: Bate na Função (RPC) que burla o RLS para checar o ID
+            const { data: medium, error: dbError } = await db.rpc('validar_primeiro_acesso', {
+                id_buscado: parseInt(identificacao)
+            });
 
             if (dbError || !medium) {
                 throw new Error('ID não encontrado no sistema. Procure a administração.');
