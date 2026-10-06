@@ -1,5 +1,6 @@
 let idTerreiroGlobal = null; 
 let mediunsGrauCache = []; 
+let perfilAdminLogado = null; // Guarda quem está logado para validar acessos
 
 document.addEventListener('DOMContentLoaded', async () => {
     // Data Cabeçalho
@@ -11,18 +12,32 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!session) return window.location.href = 'index.html';
 
     try {
-        // Busca Admin
+        // Busca Perfil logado e suas permissões
         const { data: perfil, error: erroPerfil } = await supabaseClient
             .from('mediuns')
-            .select('nome_completo, is_admin, terreiro_id')
+            .select('nome_completo, is_admin, terreiro_id, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin')
             .eq('auth_id', session.user.id)
             .single();
 
         if (erroPerfil) throw erroPerfil;
+        
+        perfilAdminLogado = perfil;
 
-        if (!perfil.is_admin) {
-            alert('Acesso negado. Esta área é restrita para administradores.');
+        // O usuário tem direito de entrar no painel? (É super admin OU tem pelo menos uma permissão?)
+        const temAcessoPainel = perfil.is_admin || perfil.perm_agenda || perfil.perm_grau || perfil.perm_financeiro || perfil.perm_doacoes || perfil.perm_admin;
+
+        if (!temAcessoPainel) {
+            alert('Acesso negado. Você não tem permissão para acessar o Painel de Gestão.');
             return window.location.href = 'presenca.html';
+        }
+
+        // ESCONDER MENUS não autorizados (Apenas se NÃO for o Super Admin)
+        if (!perfil.is_admin) {
+            if (!perfil.perm_agenda) document.getElementById('menuAgendaGiras').classList.add('hidden');
+            if (!perfil.perm_grau) document.getElementById('menuGrau').classList.add('hidden');
+            if (!perfil.perm_financeiro) document.getElementById('menuFinanceiro').classList.add('hidden');
+            if (!perfil.perm_doacoes) document.getElementById('menuDoacoes').classList.add('hidden');
+            if (!perfil.perm_admin) document.getElementById('menuAdmin').classList.add('hidden');
         }
 
         document.getElementById('nomeAdmin').textContent = 'Olá, ' + perfil.nome_completo.split(' ')[0];
@@ -46,7 +61,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if(terreiro.cor_fundo) root.style.setProperty('--cor-fundo', terreiro.cor_fundo);
                 if(terreiro.cor_texto) root.style.setProperty('--cor-texto', terreiro.cor_texto);
 
-                // Aplica Logo (se existir)
                 if(terreiro.logo_url) {
                     const img = document.getElementById('logoSidebar');
                     img.src = terreiro.logo_url;
@@ -117,11 +131,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('totalMediuns').textContent = totalMediuns || '0';
 
         const agora = new Date().toISOString();
-        const { data: agendaData } = await supabaseClient.from('agenda')
-            .select('*')
-            .gte('data_hora_fim', agora)
-            .order('data_hora_inicio')
-            .limit(1);
+        const { data: agendaData } = await supabaseClient.from('agenda').select('*').gte('data_hora_fim', agora).order('data_hora_inicio').limit(1);
 
         let giraAtualId = null;
         if (agendaData && agendaData.length > 0) {
@@ -134,39 +144,21 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const tabelaPresencas = document.getElementById('tabelaPresencas');
         if (giraAtualId) {
-            // Busca as presenças cruas
-            const { data: presencas } = await supabaseClient
-                .from('presencas')
-                .select('usuario_id, data_hora_checkin')
-                .eq('evento_id', giraAtualId)
-                .order('data_hora_checkin', { ascending: false });
-
+            // Busca presenças e médiuns em paralelo (cruza os dados no Javascript para evitar erros)
+            const { data: presencas } = await supabaseClient.from('presencas').select('usuario_id, data_hora_checkin').eq('evento_id', giraAtualId).order('data_hora_checkin', { ascending: false });
+            const { data: todosMediuns } = await supabaseClient.from('mediuns').select('id, auth_id, nome_completo');
+            
             document.getElementById('totalPresentes').textContent = presencas ? presencas.length : '0';
 
             if (presencas && presencas.length > 0) {
-                tabelaPresencas.innerHTML = '<tr><td colspan="3" class="p-6 text-center text-gray-500">Cruzando dados...</td></tr>';
-                
-                // Busca TODOS os médiuns para cruzar
-                const { data: mediuns } = await supabaseClient
-                    .from('mediuns')
-                    .select('id, auth_id, nome_completo');
-
                 tabelaPresencas.innerHTML = ''; 
-                
                 presencas.forEach(p => {
-                    // Busca dupla: tenta parear pelo auth_id (novo padrão) ou id numérico (testes legados)
-                    const medium = mediuns?.find(m => m.auth_id === p.usuario_id || m.id == p.usuario_id);
-                    
-                    const nome = medium ? medium.nome_completo : 'Médium (Excluído/Desconhecido)';
+                    // Tenta achar o médium cruzando pelo auth_id (novo) ou id numerico (antigo)
+                    const md = todosMediuns?.find(m => m.auth_id === p.usuario_id || String(m.id) === String(p.usuario_id));
+                    const nome = md ? md.nome_completo : 'Médium Excluído/Desconhecido';
                     const hora = new Date(p.data_hora_checkin).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
                     
-                    tabelaPresencas.innerHTML += `
-                        <tr class="border-b border-gray-100 hover:bg-gray-50">
-                            <td class="p-3 text-gray-800 font-medium">${nome}</td>
-                            <td class="p-3 text-gray-600">${hora}</td>
-                            <td class="p-3"><span class="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-bold">PRESENTE</span></td>
-                        </tr>
-                    `;
+                    tabelaPresencas.innerHTML += `<tr class="border-b border-gray-100 hover:bg-gray-50"><td class="p-3 text-gray-800 font-medium">${nome}</td><td class="p-3 text-gray-600">${hora}</td><td class="p-3"><span class="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-bold">PRESENTE</span></td></tr>`;
                 });
             } else {
                 tabelaPresencas.innerHTML = `<tr><td colspan="3" class="p-6 text-center text-gray-500">Nenhum check-in ainda.</td></tr>`;
@@ -176,49 +168,117 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function carregarQuadroMediuns() {
         const tbody = document.getElementById('tabelaTodosMediuns');
-        // Agora busca o ID também para podermos excluir
-        const { data } = await supabaseClient.from('mediuns')
-            .select('id, auth_id, nome_completo, grau, funcao, telefone, cadastro_completo')
-            .order('nome_completo');
-            
+        // Agora buscamos as permissões junto
+        const { data } = await supabaseClient.from('mediuns').select('id, nome_completo, grau, funcao, telefone, cadastro_completo, is_admin, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin').order('nome_completo');
         tbody.innerHTML = '';
+        
         if(data) data.forEach(m => {
             const cargo = [m.grau, m.funcao].filter(Boolean).join(' / ') || '-';
-            const status = m.cadastro_completo 
-                ? '<span class="text-green-600 font-bold">Ativo</span>' 
-                : '<span class="text-yellow-600 font-bold">Pendente</span>';
-                
-            // Botão de Excluir adicionado
-            const btnExcluir = `
-                <button onclick="excluirMedium('${m.id}')" class="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-1.5 rounded transition" title="Excluir Médium Permanentemente">
-                    <i class="fas fa-trash-alt"></i>
-                </button>
-            `;
+            const status = m.cadastro_completo ? '<span class="text-green-600 font-bold">Ativo</span>' : '<span class="text-yellow-600 font-bold">Pendente</span>';
             
+            let acoesHtml = '<span class="text-gray-400 text-xs">Sem acesso</span>';
+            
+            // SOMENTE o Super Admin (is_admin = true) vê os botões de Lixeira e Permissões
+            if (perfilAdminLogado && perfilAdminLogado.is_admin) {
+                // Junta as permissões numa string para passar fácil pra função
+                const perms = `${m.perm_agenda || false},${m.perm_grau || false},${m.perm_financeiro || false},${m.perm_doacoes || false},${m.perm_admin || false}`;
+                
+                acoesHtml = `
+                    <div class="flex items-center justify-center space-x-4">
+                        <button onclick="abrirModalPermissoes(${m.id}, '${m.nome_completo}', '${perms}')" class="text-blue-500 hover:text-blue-700 transition" title="Permissões de Acesso">
+                            <i class="fas fa-key"></i>
+                        </button>
+                        <button onclick="excluirMedium(${m.id}, '${m.nome_completo}')" class="text-red-500 hover:text-red-700 transition" title="Excluir Médium">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                `;
+            }
+
             tbody.innerHTML += `
                 <tr class="border-b border-gray-100 hover:bg-gray-50 py-1">
                     <td class="py-2 px-3 text-gray-800">${m.nome_completo}</td>
                     <td class="py-2 px-3 text-gray-600">${cargo}</td>
                     <td class="py-2 px-3 text-gray-600">${m.telefone || '-'}</td>
                     <td class="py-2 px-3">${status}</td>
-                    <td class="py-2 px-3 text-center">${btnExcluir}</td>
-                </tr>
-            `;
+                    <td class="py-2 px-3 text-center">${acoesHtml}</td>
+                </tr>`;
         });
     }
 
-    // Função Global de Exclusão
-    window.excluirMedium = async (id) => {
-        if(confirm('🚨 ATENÇÃO: Tem certeza que deseja excluir este médium definitivamente?\n\nO acesso dele à plataforma será revogado imediatamente e os dados removidos do painel.')) {
-            const { error } = await supabaseClient.from('mediuns').delete().eq('id', id);
-            if(error) {
-                alert('Erro ao excluir médium: ' + error.message);
-            } else {
-                alert('Médium excluído com sucesso!');
-                carregarQuadroMediuns(); // Recarrega a tabela
-            }
+    // --- LÓGICA DE EXCLUSÃO DE MÉDIUM ---
+    window.excluirMedium = async (id, nome) => {
+        if(!confirm(`ATENÇÃO: Tem certeza que deseja excluir DEFINITIVAMENTE o médium ${nome}?\n\nEle perderá o acesso ao aplicativo imediatamente e todo o histórico será afetado.`)) return;
+        
+        const { error } = await supabaseClient.from('mediuns').delete().eq('id', id);
+        
+        if (error) {
+            alert('Erro ao excluir: ' + error.message);
+        } else {
+            alert('Médium excluído com sucesso!');
+            carregarQuadroMediuns();
         }
     };
+
+    // --- LÓGICA DO MODAL DE PERMISSÕES ---
+    const modalPermissoes = document.getElementById('modalPermissoes');
+        
+    window.abrirModalPermissoes = (id, nome, permsString) => {
+        document.getElementById('idMediumPermissao').value = id;
+        document.getElementById('nomeMediumPermissao').textContent = nome;
+        
+        const [pAgenda, pGrau, pFin, pDoa, pAdmin] = permsString.split(',');
+        
+        document.getElementById('chkPermAgenda').checked = pAgenda === 'true';
+        document.getElementById('chkPermGrau').checked = pGrau === 'true';
+        document.getElementById('chkPermFinanceiro').checked = pFin === 'true';
+        document.getElementById('chkPermDoacoes').checked = pDoa === 'true';
+        document.getElementById('chkPermAdmin').checked = pAdmin === 'true';
+
+        modalPermissoes.classList.remove('hidden');
+    };
+
+    const btnFecharPermissoes = document.getElementById('btnFecharPermissoes');
+    if (btnFecharPermissoes) {
+        btnFecharPermissoes.addEventListener('click', () => {
+            modalPermissoes.classList.add('hidden');
+        });
+    }
+
+    const btnSalvarPermissoes = document.getElementById('btnSalvarPermissoes');
+    if (btnSalvarPermissoes) {
+        btnSalvarPermissoes.addEventListener('click', async () => {
+            const btn = document.getElementById('btnSalvarPermissoes');
+            const idMedium = document.getElementById('idMediumPermissao').value;
+            
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Salvando...';
+            
+            const pAgenda = document.getElementById('chkPermAgenda').checked;
+            const pGrau = document.getElementById('chkPermGrau').checked;
+            const pFin = document.getElementById('chkPermFinanceiro').checked;
+            const pDoa = document.getElementById('chkPermDoacoes').checked;
+            const pAdmin = document.getElementById('chkPermAdmin').checked;
+
+            const { error } = await supabaseClient.from('mediuns').update({
+                perm_agenda: pAgenda,
+                perm_grau: pGrau,
+                perm_financeiro: pFin,
+                perm_doacoes: pDoa,
+                perm_admin: pAdmin
+            }).eq('id', idMedium);
+
+            btn.disabled = false;
+            btn.innerHTML = 'Salvar Permissões';
+
+            if (error) {
+                alert('Erro ao salvar permissões: ' + error.message);
+            } else {
+                modalPermissoes.classList.add('hidden');
+                carregarQuadroMediuns(); // Recarrega para ver os dados atualizados
+            }
+        });
+    }
 
     async function carregarAgenda() {
         const tbody = document.getElementById('tabelaGirasCadastradas');
@@ -400,7 +460,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // Pré-visualização da Imagem ao selecionar o arquivo
     const inputUploadLogo = document.getElementById('uploadLogo');
     if(inputUploadLogo) {
         inputUploadLogo.addEventListener('change', function(e) {
@@ -417,7 +476,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Salvar Logo Definitivamente no Supabase
     const btnLogo = document.getElementById('btnSalvarLogo');
     if(btnLogo) {
         btnLogo.addEventListener('click', async () => {
@@ -463,7 +521,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Salvar Cores
     const btnCores = document.getElementById('btnSalvarCores');
     if(btnCores) {
         btnCores.addEventListener('click', async () => {
@@ -505,7 +562,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // GPS 
     const btnGps = document.getElementById('btnGravarLocalizacao');
     if (btnGps) {
         btnGps.addEventListener('click', async () => {
@@ -544,7 +600,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             const { data: mediuns } = await supabaseClient.from('mediuns').select('auth_id, nome_completo');
             const { data: itens } = await supabaseClient.from('itens_doacao').select('id, nome, descricao');
 
-            // Salva globalmente para o botão PDF conseguir usar
             window.dadosDoacoesParaPDF = { doacoes, mediuns, itens };
 
             if (!doacoes || doacoes.length === 0) {
@@ -556,10 +611,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 tbody.innerHTML = '';
                 doacoes.forEach(d => {
                     const medium = mediuns?.find(m => m.auth_id === d.medium_auth_id)?.nome_completo || 'Médium';
-                    
-                    // COMPARAÇÃO TOLERANTE PARA O ITEM DESCONHECIDO (==)
                     const itemObj = itens?.find(i => i.id == d.item_id);
-                    
                     const itemNome = itemObj ? `${itemObj.nome} <br><span class="text-[10px] text-gray-400 font-normal">${itemObj.descricao || ''}</span>` : 'Item Desconhecido';
                     
                     const dataFormatada = new Date(d.data_registro).toLocaleDateString('pt-BR');
@@ -650,7 +702,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!error) carregarDoacoesCatalogo();
     };
 
-    // Cadastro de Novo Item de Doação
     const formNovoItemDoacao = document.getElementById('formNovoItemDoacao');
     if (formNovoItemDoacao) {
         formNovoItemDoacao.addEventListener('submit', async (e) => {
@@ -693,7 +744,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // GERADOR DE PDF DAS DOAÇÕES - CORRIGIDO
     const btnGerarPDF = document.getElementById('btnGerarPDF');
     if(btnGerarPDF) {
         btnGerarPDF.addEventListener('click', () => {
@@ -709,26 +759,29 @@ document.addEventListener('DOMContentLoaded', async () => {
             btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Gerando...';
             btn.disabled = true;
 
+            const containerPDF = document.createElement('div');
+            containerPDF.style.padding = '30px';
+            containerPDF.style.fontFamily = 'Arial, sans-serif';
+            containerPDF.style.color = '#333';
+
             const nomeCasa = document.getElementById('nomeTerreiroSidebar').textContent;
 
-            // Constrói uma string HTML crua para o conversor de PDF ler sem se perder
-            let htmlString = `
-                <div style="padding: 20px; font-family: Arial, sans-serif; color: #333; background: #fff;">
-                    <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #16a34a; padding-bottom: 10px;">
-                        <h2 style="margin: 0; color: #1e3a8a; font-size: 24px;">Relatório de Doações</h2>
-                        <h3 style="margin: 5px 0 0 0; color: #444; font-size: 16px;">${nomeCasa}</h3>
-                        <p style="margin: 5px 0 0 0; color: #666; font-size: 12px;">Emitido em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</p>
-                    </div>
-                    <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-                        <thead>
-                            <tr style="background-color: #f3f4f6;">
-                                <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Médium</th>
-                                <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Item</th>
-                                <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Qtd</th>
-                                <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
+            let html = `
+                <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #16a34a; padding-bottom: 10px;">
+                    <h2 style="margin: 0; color: #1e3a8a; font-size: 24px;">Relatório de Doações</h2>
+                    <h3 style="margin: 5px 0 0 0; color: #444; font-size: 16px;">${nomeCasa}</h3>
+                    <p style="margin: 5px 0 0 0; color: #666; font-size: 12px;">Emitido em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</p>
+                </div>
+                <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                    <thead>
+                        <tr style="background-color: #f3f4f6;">
+                            <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Médium</th>
+                            <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Item</th>
+                            <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Qtd</th>
+                            <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
             `;
 
             dados.doacoes.forEach(d => {
@@ -737,7 +790,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const itemNome = itemObj ? itemObj.nome : 'Item Desconhecido';
                 const status = d.entregue ? '<span style="color: #16a34a; font-weight: bold;">Entregue</span>' : '<span style="color: #ca8a04;">Pendente</span>';
 
-                htmlString += `
+                html += `
                     <tr>
                         <td style="padding: 8px; border: 1px solid #ddd;">${medium}</td>
                         <td style="padding: 8px; border: 1px solid #ddd;">${itemNome}</td>
@@ -747,7 +800,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 `;
             });
 
-            htmlString += `</tbody></table></div>`;
+            html += `</tbody></table>`;
+            containerPDF.innerHTML = html;
 
             const opt = {
                 margin:       10,
@@ -757,13 +811,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
 
-            // Mandando gerar direto a partir da string
-            html2pdf().set(opt).from(htmlString).save().then(() => {
-                btn.innerHTML = textoOriginal;
-                btn.disabled = false;
-            }).catch(err => {
-                console.error("Erro no PDF:", err);
-                alert("Ocorreu um erro ao gerar o PDF.");
+            html2pdf().set(opt).from(containerPDF).save().then(() => {
                 btn.innerHTML = textoOriginal;
                 btn.disabled = false;
             });
