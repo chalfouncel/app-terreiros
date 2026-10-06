@@ -17,6 +17,13 @@ document.querySelector('form').addEventListener('submit', async (e) => {
     btnSubmit.disabled = true;
 
     try {
+        // >>> MATADOR DE SESSÕES FANTASMAS <<<
+        // Se você estava logado antes (como admin, etc), isso força o navegador a esquecer
+        // antes de processar o novo login ou ID.
+        await db.auth.signOut();
+        localStorage.removeItem('novo_acesso_id');
+        localStorage.removeItem('novo_acesso_nome');
+
         // REGRA 1: É O PRIMEIRO ACESSO? (Testa se digitaram um ID numérico curto)
         const isId = /^\d+$/.test(identificacao) && identificacao.length < 5;
 
@@ -36,9 +43,7 @@ document.querySelector('form').addEventListener('submit', async (e) => {
                 throw new Error('ID não encontrado no sistema. Procure a administração.');
             }
 
-            // >>> AQUI ESTÁ A SUPER TRAVA DE SEGURANÇA <<<
-            // Se a pessoa já tem um auth_id (já tem login no Supabase),
-            // ou se já tem o cadastro_completo = true, BLOQUEIA o acesso por ID.
+            // >>> SUPER TRAVA DE SEGURANÇA <<<
             if (medium.auth_id || medium.cadastro_completo || medium.senha_cadastrada) {
                 throw new Error('Seu cadastro já está ativo! Feche este aviso e faça o login normal usando seu Nome ou Telefone e a sua Nova Senha.');
             }
