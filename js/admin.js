@@ -46,10 +46,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     try {
-        // Busca Perfil logado (Agora puxando o is_master)
+        // Busca Perfil logado incluindo a nova coluna perm_visao_geral
         const { data: perfil, error: erroPerfil } = await supabaseClient
             .from('mediuns')
-            .select('nome_completo, is_admin, terreiro_id, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin, is_master')
+            .select('nome_completo, is_admin, terreiro_id, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin, is_master, perm_visao_geral')
             .eq('auth_id', session.user.id)
             .single();
 
@@ -60,8 +60,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         perfilAdminLogado = perfil;
 
-        // O usuário tem direito de entrar no painel?
-        const temAcessoPainel = perfil.is_admin || perfil.perm_agenda || perfil.perm_grau || perfil.perm_financeiro || perfil.perm_doacoes || perfil.perm_admin;
+        // O usuário tem direito de entrar no painel? (Se tiver qualquer permissão)
+        const temAcessoPainel = perfil.is_admin || perfil.perm_visao_geral || perfil.perm_agenda || perfil.perm_grau || perfil.perm_financeiro || perfil.perm_doacoes || perfil.perm_admin;
 
         if (!temAcessoPainel) {
             alert('Acesso negado. Você não tem permissão para acessar o Painel de Gestão.');
@@ -70,8 +70,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // ESCONDER MENUS não autorizados
         if (!perfil.is_admin) {
-            document.getElementById('menuVisaoGeral').classList.add('hidden'); // Restrito a Admin
-            
+            if (!perfil.perm_visao_geral) document.getElementById('menuVisaoGeral').classList.add('hidden');
             if (!perfil.perm_agenda) document.getElementById('menuAgendaGiras').classList.add('hidden');
             if (!perfil.perm_grau) document.getElementById('menuGrau').classList.add('hidden');
             if (!perfil.perm_financeiro) document.getElementById('menuFinanceiro').classList.add('hidden');
@@ -166,7 +165,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         // Iniciar na aba correta dependendo da permissão do usuário logado
-        if (perfil.is_admin) {
+        if (perfil.is_admin || perfil.perm_visao_geral) {
             document.getElementById('menuVisaoGeral').click();
         } else {
             // Se for assistente, clica na primeira aba que ele tem acesso
@@ -225,7 +224,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function carregarQuadroMediuns() {
         const tbody = document.getElementById('tabelaTodosMediuns');
-        const { data } = await supabaseClient.from('mediuns').select('id, nome_completo, grau, funcao, telefone, cadastro_completo, is_admin, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin').order('nome_completo');
+        const { data } = await supabaseClient.from('mediuns').select('id, nome_completo, grau, funcao, telefone, cadastro_completo, is_admin, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin, perm_visao_geral').order('nome_completo');
         tbody.innerHTML = '';
         
         if(data) data.forEach(m => {
@@ -235,7 +234,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             let acoesHtml = '<span class="text-gray-400 text-xs">Sem acesso</span>';
             
             if (perfilAdminLogado && perfilAdminLogado.is_admin) {
-                const perms = `${m.perm_agenda || false},${m.perm_grau || false},${m.perm_financeiro || false},${m.perm_doacoes || false},${m.perm_admin || false}`;
+                const perms = `${m.perm_agenda || false},${m.perm_grau || false},${m.perm_financeiro || false},${m.perm_doacoes || false},${m.perm_admin || false},${m.perm_visao_geral || false}`;
                 acoesHtml = `
                     <div class="flex items-center justify-center space-x-4">
                         <button onclick="abrirModalPermissoes(${m.id}, '${m.nome_completo}', '${perms}')" class="text-blue-500 hover:text-blue-700 transition" title="Permissões de Acesso"><i class="fas fa-key"></i></button>
@@ -247,7 +246,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             let linkWhats = '-';
             if (m.telefone) {
                 const numeroLimpo = m.telefone.replace(/\D/g, '');
-                // Assume Brasil (55) se o usuário não tiver digitado o DDI
                 const ddi = numeroLimpo.startsWith('55') ? '' : '55';
                 linkWhats = `<a href="https://wa.me/${ddi}${numeroLimpo}" target="_blank" class="text-green-600 hover:text-green-700 hover:underline flex items-center gap-1 font-medium" title="Chamar no WhatsApp"><i class="fab fa-whatsapp text-lg"></i> ${m.telefone}</a>`;
             }
@@ -309,12 +307,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.abrirModalPermissoes = (id, nome, permsString) => {
         document.getElementById('idMediumPermissao').value = id;
         document.getElementById('nomeMediumPermissao').textContent = nome;
-        const [pAgenda, pGrau, pFin, pDoa, pAdmin] = permsString.split(',');
+        const [pAgenda, pGrau, pFin, pDoa, pAdmin, pVisao] = permsString.split(',');
+        
         document.getElementById('chkPermAgenda').checked = pAgenda === 'true';
         document.getElementById('chkPermGrau').checked = pGrau === 'true';
         document.getElementById('chkPermFinanceiro').checked = pFin === 'true';
         document.getElementById('chkPermDoacoes').checked = pDoa === 'true';
         document.getElementById('chkPermAdmin').checked = pAdmin === 'true';
+        
+        if (document.getElementById('chkPermVisao')) {
+            document.getElementById('chkPermVisao').checked = pVisao === 'true';
+        }
+        
         document.getElementById('modalPermissoes').classList.remove('hidden');
     };
 
@@ -331,13 +335,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             btn.disabled = true;
             btn.innerHTML = 'Salvando...';
             
-            const { error } = await supabaseClient.from('mediuns').update({
+            const payload = {
                 perm_agenda: document.getElementById('chkPermAgenda').checked,
                 perm_grau: document.getElementById('chkPermGrau').checked,
                 perm_financeiro: document.getElementById('chkPermFinanceiro').checked,
                 perm_doacoes: document.getElementById('chkPermDoacoes').checked,
                 perm_admin: document.getElementById('chkPermAdmin').checked
-            }).eq('id', idMedium);
+            };
+
+            if (document.getElementById('chkPermVisao')) {
+                payload.perm_visao_geral = document.getElementById('chkPermVisao').checked;
+            }
+            
+            const { error } = await supabaseClient.from('mediuns').update(payload).eq('id', idMedium);
 
             btn.disabled = false;
             btn.innerHTML = 'Salvar Permissões';
