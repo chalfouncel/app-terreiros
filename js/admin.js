@@ -185,11 +185,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     // VISÃO GERAL
     // ==========================================
     async function carregarPainelInicial() {
-        const { count: totalMediuns } = await supabaseClient.from('mediuns').select('*', { count: 'exact', head: true });
+        const { count: totalMediuns } = await supabaseClient.from('mediuns')
+            .select('*', { count: 'exact', head: true })
+            .eq('terreiro_id', idTerreiroGlobal); // <--- Filtro Corrigido
         document.getElementById('totalMediuns').textContent = totalMediuns || '0';
 
         const agora = new Date().toISOString();
-        const { data: agendaData } = await supabaseClient.from('agenda').select('*').gte('data_hora_fim', agora).order('data_hora_inicio').limit(1);
+        const { data: agendaData } = await supabaseClient.from('agenda')
+            .select('*')
+            .eq('terreiro_id', idTerreiroGlobal) // <--- Filtro Corrigido
+            .gte('data_hora_fim', agora)
+            .order('data_hora_inicio')
+            .limit(1);
 
         let giraAtualId = null;
         if (agendaData && agendaData.length > 0) {
@@ -203,7 +210,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         const tabelaPresencas = document.getElementById('tabelaPresencas');
         if (giraAtualId) {
             const { data: presencas } = await supabaseClient.from('presencas').select('usuario_id, data_hora_checkin').eq('evento_id', giraAtualId).order('data_hora_checkin', { ascending: false });
-            const { data: todosMediuns } = await supabaseClient.from('mediuns').select('id, auth_id, nome_completo');
+            
+            const { data: todosMediuns } = await supabaseClient.from('mediuns')
+                .select('id, auth_id, nome_completo')
+                .eq('terreiro_id', idTerreiroGlobal); // <--- Filtro Corrigido
             
             document.getElementById('totalPresentes').textContent = presencas ? presencas.length : '0';
 
@@ -218,6 +228,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             } else {
                 tabelaPresencas.innerHTML = `<tr><td colspan="3" class="p-6 text-center text-gray-500">Nenhum check-in ainda.</td></tr>`;
             }
+        } else {
+            tabelaPresencas.innerHTML = `<tr><td colspan="3" class="p-6 text-center text-gray-500">Sem evento no momento.</td></tr>`;
+            document.getElementById('totalPresentes').textContent = '0';
         }
     }
 
@@ -226,7 +239,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ==========================================
     async function carregarQuadroMediuns() {
         const tbody = document.getElementById('tabelaTodosMediuns');
-        const { data } = await supabaseClient.from('mediuns').select('id, nome_completo, grau, funcao, telefone, cadastro_completo, is_admin, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin, perm_visao_geral').order('nome_completo');
+        const { data } = await supabaseClient.from('mediuns')
+            .select('id, nome_completo, grau, funcao, telefone, cadastro_completo, is_admin, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin, perm_visao_geral')
+            .eq('terreiro_id', idTerreiroGlobal) // <--- Filtro Corrigido
+            .order('nome_completo');
+            
         tbody.innerHTML = '';
         
         if(data) data.forEach(m => {
@@ -316,7 +333,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('chkPermDoacoes').checked = pDoa === 'true';
         document.getElementById('chkPermAdmin').checked = pAdmin === 'true';
         if (document.getElementById('chkPermVisao')) document.getElementById('chkPermVisao').checked = pVisao === 'true';
-        if (document.getElementById('chkPermAta')) document.getElementById('chkPermAta').checked = false; // Add pAta logically if available, default false
+        if (document.getElementById('chkPermAta')) document.getElementById('chkPermAta').checked = false; // Add pAta logically se estiver lá
         
         document.getElementById('modalPermissoes').classList.remove('hidden');
     };
@@ -361,7 +378,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function carregarAgenda() {
         const tbody = document.getElementById('tabelaGirasCadastradas');
         const agora = new Date().toISOString();
-        const { data } = await supabaseClient.from('agenda').select('*').gte('data_hora_fim', agora).order('data_hora_inicio').limit(15); 
+        
+        const { data } = await supabaseClient.from('agenda')
+            .select('*')
+            .eq('terreiro_id', idTerreiroGlobal) // <--- Filtro Corrigido
+            .gte('data_hora_fim', agora) // <-- É ESTA A LINHA QUE OCULTA OS EVENTOS PASSADOS DA SUA TELA
+            .order('data_hora_inicio', { ascending: true })
+            .limit(15); 
+            
         tbody.innerHTML = '';
         if(data && data.length > 0) {
             data.forEach(g => {
@@ -389,7 +413,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 `;
             });
         } else {
-            tbody.innerHTML = '<tr><td colspan="3" class="p-6 text-center text-gray-500">Nenhum evento agendado no momento.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="3" class="p-6 text-center text-gray-500">Nenhum evento futuro ou em andamento.</td></tr>';
         }
     }
 
@@ -671,7 +695,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             const numeroAta = eventosAnteriores ? eventosAnteriores.length : 1;
 
             const { data: presencas } = await supabaseClient.from('presencas').select('data_hora_checkin, usuario_id').eq('evento_id', eventoId).order('data_hora_checkin', { ascending: true });
-            const { data: mediuns } = await supabaseClient.from('mediuns').select('id, auth_id, nome_completo, grau').eq('terreiro_id', idTerreiroGlobal);
+            
+            const { data: mediuns } = await supabaseClient.from('mediuns')
+                .select('id, auth_id, nome_completo, grau')
+                .eq('terreiro_id', idTerreiroGlobal); // <--- Filtro Corrigido
                 
             const mapaMediuns = {};
             if(mediuns) {
@@ -708,7 +735,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             const logoHtml = logoTerreiroGlobal ? `<img src="${logoTerreiroGlobal}" style="max-height: 80px; margin-bottom: 15px;">` : '';
             const nomeCasa = nomeTerreiroGlobal || 'Templo';
 
-            // Verifica se tem texto escrito pela diretoria ou usa o padrão
             const corpoTextoAta = evento.texto_ata 
                 ? `<p style="text-align: justify; line-height: 1.8; font-size: 14px; margin-bottom: 30px; white-space: pre-wrap;">${evento.texto_ata}</p>`
                 : `<p style="text-align: justify; line-height: 1.8; font-size: 14px; margin-bottom: 30px; text-indent: 40px;">
@@ -786,7 +812,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function carregarTabelaGraus() {
         const tbody = document.getElementById('tabelaGraus');
         tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center">Buscando...</td></tr>';
-        const { data } = await supabaseClient.from('mediuns').select('id, nome_completo, grau, funcao').order('nome_completo');
+        
+        const { data } = await supabaseClient.from('mediuns')
+            .select('id, nome_completo, grau, funcao')
+            .eq('terreiro_id', idTerreiroGlobal) // <--- Filtro Corrigido
+            .order('nome_completo');
+            
         if (data) { mediunsGrauCache = data; renderizarGraus(data); }
     }
 
@@ -830,10 +861,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         const tbody = document.getElementById('tabelaFinanceiro');
         tbody.innerHTML = '<tr><td colspan="14" class="p-6 text-center text-gray-500">Buscando histórico...</td></tr>';
         
-        const { data: mediuns } = await supabaseClient.from('mediuns').select('id, nome_completo').order('nome_completo');
-        const { data: pgtos } = await supabaseClient.from('financeiro').select('*').eq('ano', ano);
+        const { data: mediuns } = await supabaseClient.from('mediuns')
+            .select('id, nome_completo')
+            .eq('terreiro_id', idTerreiroGlobal) // <--- Filtro Corrigido
+            .order('nome_completo');
+            
+        if(!mediuns || mediuns.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="14" class="p-6 text-center">Nenhum médium.</td></tr>';
+            return;
+        }
+
+        // Busca apenas pagamentos pertencentes aos médiuns desta casa (Filtro Corrigido)
+        const idsMediuns = mediuns.map(m => m.id);
+        const { data: pgtos } = await supabaseClient.from('financeiro')
+            .select('*')
+            .eq('ano', ano)
+            .in('medium_id', idsMediuns); 
         
-        if(!mediuns) return;
         tbody.innerHTML = '';
         
         mediuns.forEach(m => {
@@ -972,7 +1016,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             const { data: doacoes, error: errD } = await supabaseClient.from('doacoes_registradas').select('*').eq('terreiro_id', idTerreiroGlobal).order('entregue', { ascending: true }).order('data_registro', { ascending: false }); 
             if (errD) throw errD;
-            const { data: mediuns } = await supabaseClient.from('mediuns').select('auth_id, nome_completo');
+            
+            const { data: mediuns } = await supabaseClient.from('mediuns')
+                .select('auth_id, nome_completo')
+                .eq('terreiro_id', idTerreiroGlobal); // <--- Filtro Corrigido
+                
             const { data: itens } = await supabaseClient.from('itens_doacao').select('id, nome, descricao');
             window.dadosDoacoesParaPDF = { doacoes, mediuns, itens };
 
