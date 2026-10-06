@@ -47,10 +47,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ==========================================
 
     try {
-        // Busca Perfil logado e suas permissões
+        // Busca Perfil logado e suas permissões (agora trazendo is_master)
         const { data: perfil, error: erroPerfil } = await supabaseClient
             .from('mediuns')
-            .select('nome_completo, is_admin, terreiro_id, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin')
+            .select('nome_completo, is_admin, terreiro_id, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin, is_master')
             .eq('auth_id', session.user.id)
             .single();
 
@@ -64,6 +64,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!temAcessoPainel) {
             alert('Acesso negado. Você não tem permissão para acessar o Painel de Gestão.');
             return window.location.href = 'presenca.html';
+        }
+
+        // MOSTRAR MENU PLATAFORMA SÓ PARA O DONO (MÁRIO)
+        if (perfil.is_master) {
+            document.getElementById('menuMaster').classList.remove('hidden');
         }
 
         // ESCONDER MENUS não autorizados (Apenas se NÃO for o Super Admin)
@@ -145,8 +150,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                     carregarDoacoesCatalogo();
                 } else if (menu.id === 'menuAdmin') {
                     document.getElementById('secAdministracao').classList.remove('hidden');
-                    titulo.textContent = 'Administração do Terreiro';
+                    titulo.textContent = 'Configurações da Casa';
                     carregarConfiguracoesCasa();
+                } else if (menu.id === 'menuMaster') {
+                    document.getElementById('secMaster').classList.remove('hidden');
+                    titulo.textContent = 'Gestão da Plataforma (SaaS)';
+                    carregarGestaoPlataforma();
                 }
             });
         });
@@ -670,6 +679,91 @@ document.addEventListener('DOMContentLoaded', async () => {
                 },
                 (err) => alert('Erro no GPS: Libere a permissão.')
             );
+        });
+    }
+
+    // ==========================================
+    // GESTÃO DA PLATAFORMA (SÓ MÁRIO)
+    // ==========================================
+
+    window.carregarGestaoPlataforma = async () => {
+        const tbody = document.getElementById('tabelaMasterTerreiros');
+        if(!tbody) return;
+        
+        tbody.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-gray-500"><i class="fas fa-spinner fa-spin"></i> Carregando terreiros...</td></tr>';
+        
+        const { data, error } = await supabaseClient.from('terreiros').select('id, nome, status_bloqueado').order('id', { ascending: true });
+        
+        if (error) {
+            tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-red-500">Erro: ${error.message}</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = '';
+        data.forEach(t => {
+            const statusHtml = t.status_bloqueado 
+                ? '<span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded font-bold"><i class="fas fa-lock mr-1"></i> Bloqueado</span>'
+                : '<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded font-bold"><i class="fas fa-check-circle mr-1"></i> Ativo</span>';
+                
+            const acaoHtml = t.status_bloqueado
+                ? `<button onclick="alternarBloqueioTerreiro(${t.id}, false)" class="text-xs bg-gray-800 hover:bg-gray-700 text-white py-1 px-3 rounded shadow">Desbloquear</button>`
+                : `<button onclick="alternarBloqueioTerreiro(${t.id}, true)" class="text-xs bg-red-600 hover:bg-red-700 text-white py-1 px-3 rounded shadow">Bloquear</button>`;
+
+            const estiloLinha = t.status_bloqueado ? 'bg-red-50/30 opacity-75' : '';
+
+            tbody.innerHTML += `
+                <tr class="border-b border-gray-100 hover:bg-gray-50 transition ${estiloLinha}">
+                    <td class="p-3 text-gray-500 font-mono text-sm">${t.id}</td>
+                    <td class="p-3 text-gray-800 font-bold">${t.nome}</td>
+                    <td class="p-3 text-center">${statusHtml}</td>
+                    <td class="p-3 text-center">${acaoHtml}</td>
+                </tr>
+            `;
+        });
+    };
+
+    window.alternarBloqueioTerreiro = async (idTerreiro, vaiBloquear) => {
+        const acaoStr = vaiBloquear ? "BLOQUEAR" : "DESBLOQUEAR";
+        if(!confirm(`Tem certeza que deseja ${acaoStr} o terreiro ID ${idTerreiro}?`)) return;
+
+        const { error } = await supabaseClient.from('terreiros').update({ status_bloqueado: vaiBloquear }).eq('id', idTerreiro);
+        if(error) alert("Erro: " + error.message);
+        else carregarGestaoPlataforma();
+    };
+
+    const formNovoTerreiro = document.getElementById('formNovoTerreiro');
+    if (formNovoTerreiro) {
+        formNovoTerreiro.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btnSalvarTerreiro');
+            const msg = document.getElementById('msgNovoTerreiro');
+            const nome = document.getElementById('novoTerreiroNome').value;
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Cadastrando...';
+            msg.classList.add('hidden');
+
+            const { error } = await supabaseClient.from('terreiros').insert([{ 
+                nome, 
+                cor_primaria: '#1e3a8a', 
+                cor_secundaria: '#16a34a', 
+                cor_fundo: '#f3f4f6', 
+                cor_texto: '#1f2937' 
+            }]);
+
+            btn.disabled = false;
+            btn.innerHTML = 'Cadastrar Sistema';
+
+            if (error) {
+                msg.textContent = 'Erro: ' + error.message;
+                msg.className = 'text-sm mt-2 text-red-500 block';
+            } else {
+                msg.textContent = '✅ Terreiro cadastrado com sucesso!';
+                msg.className = 'text-sm mt-2 text-green-400 block font-bold';
+                formNovoTerreiro.reset();
+                carregarGestaoPlataforma();
+                setTimeout(() => msg.classList.add('hidden'), 3000);
+            }
         });
     }
 
