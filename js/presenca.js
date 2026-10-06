@@ -1,6 +1,8 @@
 let idTerreiroGlobal = null;
 let idGiraGlobal = null;
 let coordsTerreiro = null;
+let hrFimGiraGlobal = null;
+let hrInicioPermitidoGlobal = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
     
@@ -77,7 +79,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const txtNome = document.getElementById('nomeMedium');
         if (txtNome) txtNome.textContent = 'Olá, ' + nomeCurto;
 
-        // LIBERAÇÃO DO PAINEL ADMIN PARA QUEM TEM PERMISSÃO (COMO A IVY)
+        // LIBERAÇÃO DO PAINEL ADMIN PARA QUEM TEM PERMISSÃO
         const temAcessoAoPainel = perfil.is_admin === true || 
                                   perfil.perm_agenda === true || 
                                   perfil.perm_grau === true || 
@@ -127,7 +129,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const { data: giras } = await supabaseClient.from('agenda').select('*')
             .eq('terreiro_id', idTerreiroGlobal)
-            .eq('ata_encerrada', false) // <--- TRAVA AQUI!
+            .eq('ata_encerrada', false)
             .gte('data_hora_inicio', inicioDia).lte('data_hora_inicio', fimDia)
             .order('data_hora_inicio', { ascending: true }).limit(1);
 
@@ -138,22 +140,28 @@ document.addEventListener('DOMContentLoaded', async () => {
             const gira = giras[0];
             idGiraGlobal = gira.id;
             
+            // Define variáveis globais de horário
+            const hrInicioGira = new Date(gira.data_hora_inicio);
+            hrFimGiraGlobal = new Date(gira.data_hora_fim);
+            hrInicioPermitidoGlobal = new Date(hrInicioGira.getTime() - (90 * 60000)); // Libera 30 min antes
+
             if (divSemGira) divSemGira.classList.add('hidden');
             if (divComGira) divComGira.classList.remove('hidden');
             
             const titleGira = document.getElementById('tituloGira');
             if (titleGira) titleGira.textContent = gira.titulo;
             
-            const hrInicio = new Date(gira.data_hora_inicio).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
-            const hrFim = new Date(gira.data_hora_fim).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+            const txtHrInicio = hrInicioGira.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+            const txtHrFim = hrFimGiraGlobal.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
             const textHorario = document.getElementById('horarioGira');
-            if (textHorario) textHorario.innerHTML = `<i class="far fa-clock"></i> ${hrInicio} às ${hrFim}`;
+            if (textHorario) textHorario.innerHTML = `<i class="far fa-clock"></i> ${txtHrInicio} às ${txtHrFim}`;
 
-            // Verifica Check-in
+            // Verifica Check-in Atual
             const { data: presencas } = await supabaseClient.from('presencas').select('*')
                 .eq('usuario_id', authId).eq('evento_id', idGiraGlobal).limit(1);
 
             if (presencas && presencas.length > 0) {
+                // Já bateu ponto
                 const areaPonto = document.getElementById('areaBaterPonto');
                 const areaSucesso = document.getElementById('areaSucesso');
                 const horaFeito = document.getElementById('horaCheckinFeito');
@@ -161,6 +169,24 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (areaPonto) areaPonto.classList.add('hidden');
                 if (areaSucesso) areaSucesso.classList.remove('hidden');
                 if (horaFeito) horaFeito.textContent = new Date(presencas[0].data_hora_checkin).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+            } else {
+                // Não bateu ponto ainda - Controla o botão por horário
+                const btnPonto = document.getElementById('btnCheckin');
+                const agora = new Date();
+                
+                if (btnPonto) {
+                    if (agora < hrInicioPermitidoGlobal) {
+                        btnPonto.disabled = true;
+                        btnPonto.innerHTML = '<i class="fas fa-lock"></i> Libera 90 min antes';
+                        btnPonto.classList.add('opacity-60', 'cursor-not-allowed', 'bg-gray-500');
+                        btnPonto.classList.remove('bg-tema-secundaria', 'hover:opacity-90');
+                    } else if (agora > hrFimGiraGlobal) {
+                        btnPonto.disabled = true;
+                        btnPonto.innerHTML = '<i class="fas fa-times-circle"></i> Gira Encerrada';
+                        btnPonto.classList.add('opacity-60', 'cursor-not-allowed', 'bg-gray-500');
+                        btnPonto.classList.remove('bg-tema-secundaria', 'hover:opacity-90');
+                    }
+                }
             }
         } else {
             if (divComGira) divComGira.classList.add('hidden');
@@ -195,6 +221,18 @@ const btnCheckin = document.getElementById('btnCheckin');
 if (btnCheckin) {
     btnCheckin.addEventListener('click', async () => {
         const msg = document.getElementById('msgCheckin');
+        
+        // Trava 1: Se o cara abriu o App cedão e não atualizou a página, previne dele clicar antes da hora
+        const agora = new Date();
+        if (hrInicioPermitidoGlobal && agora < hrInicioPermitidoGlobal) {
+            if (msg) { msg.textContent = "A gira ainda não começou. Aguarde o horário."; msg.className = "mt-3 text-sm font-bold text-red-500 block"; }
+            return;
+        }
+        if (hrFimGiraGlobal && agora > hrFimGiraGlobal) {
+            if (msg) { msg.textContent = "Esta gira já foi encerrada."; msg.className = "mt-3 text-sm font-bold text-red-500 block"; }
+            return;
+        }
+
         btnCheckin.disabled = true;
         btnCheckin.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Validando GPS...';
         if (msg) msg.classList.add('hidden');
@@ -222,7 +260,6 @@ if (btnCheckin) {
             const { data: { session } } = await supabaseClient.auth.getSession();
             btnCheckin.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Registrando...';
 
-            // ATUALIZADO: Agora envia localizacao_valida e a distancia pro banco para não dar erro
             const { error } = await supabaseClient.from('presencas').insert([{ 
                 evento_id: idGiraGlobal, 
                 usuario_id: session.user.id, 
