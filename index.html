@@ -17,23 +17,40 @@
         </div>
 
         <form id="formLogin" class="space-y-5">
+            <!-- Campo de Identificação -->
             <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-1">Identificação (Nome ou WhatsApp)</label>
-                <input type="text" id="identificacao" required
-                    class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-gray-800 focus:border-transparent transition"
-                    placeholder="Primeiro acesso? Digite o ID fornecido">
-                <p class="text-xs text-gray-500 mt-1">Ex: 32</p>
+                <label class="block text-sm font-semibold text-gray-700 mb-1">Identificação (ID ou WhatsApp)</label>
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i class="fas fa-user text-gray-400"></i>
+                    </div>
+                    <!-- type="tel" e inputmode="numeric" forçam o teclado de números no celular -->
+                    <input type="tel" id="identificacao" required
+                        inputmode="numeric" pattern="[0-9]*"
+                        class="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-gray-800 focus:border-transparent transition"
+                        placeholder="Ex: 32 ou 21999999999">
+                </div>
+                <p class="text-xs text-gray-500 mt-1">Primeiro acesso? Digite o ID fornecido.</p>
             </div>
 
+            <!-- Campo de Senha -->
             <div>
                 <label class="block text-sm font-semibold text-gray-700 mb-1">Senha</label>
-                <input type="password" id="senha" required
-                    class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-gray-800 focus:border-transparent transition"
-                    placeholder="Sua senha de acesso">
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i class="fas fa-lock text-gray-400"></i>
+                    </div>
+                    <!-- inputmode="numeric" força o teclado de números, type="password" oculta os caracteres -->
+                    <input type="password" id="senha" required
+                        inputmode="numeric" pattern="[0-9]*"
+                        class="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-gray-800 focus:border-transparent transition"
+                        placeholder="Sua senha numérica">
+                </div>
             </div>
 
             <button type="submit" id="btnEntrar"
                 class="w-full bg-gray-800 hover:bg-gray-900 text-white font-bold py-3 px-4 rounded-lg shadow-md transition-all flex justify-center items-center">
+                <i class="fas fa-sign-in-alt mr-2"></i>
                 <span>Entrar no Sistema</span>
             </button>
         </form>
@@ -48,44 +65,5 @@
 
     <script src="js/supabase.js"></script>
     <script src="js/login.js"></script>
-    <!-- Campo de WhatsApp -->
-<div>
-    <label class="block text-gray-700 text-sm font-bold mb-2" for="telefoneLogin">
-        Seu WhatsApp (Somente números)
-    </label>
-    <div class="relative">
-        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <i class="fab fa-whatsapp text-gray-400"></i>
-        </div>
-        <!-- AS PROPRIEDADES TYPE="TEL" E INPUTMODE FORÇAM O TECLADO NUMÉRICO -->
-        <input class="w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-green-600 focus:ring-1 focus:ring-green-600 transition" 
-               id="telefoneLogin" 
-               type="tel" 
-               inputmode="numeric" 
-               pattern="[0-9]*" 
-               placeholder="Ex: 21999999999" 
-               required>
-    </div>
-</div>
-
-<!-- Campo de Senha -->
-<div>
-    <label class="block text-gray-700 text-sm font-bold mb-2" for="senhaLogin">
-        Senha de Acesso (Números)
-    </label>
-    <div class="relative">
-        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <i class="fas fa-lock text-gray-400"></i>
-        </div>
-        <!-- AS PROPRIEDADES INPUTMODE E PATTERN AVISAM AO CELULAR QUE É NUMÉRICO -->
-        <input class="w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-green-600 focus:ring-1 focus:ring-green-600 transition" 
-               id="senhaLogin" 
-               type="password" 
-               inputmode="numeric" 
-               pattern="[0-9]*" 
-               placeholder="Sua senha de 6 dígitos" 
-               required>
-    </div>
-</div>
 </body>
 </html>
