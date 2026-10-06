@@ -6,9 +6,10 @@
     <title>Presença - Terreiro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Adicionado FontAwesome para os ícones novos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
-        /* Define as cores padrão neutras. Elas serão sobrescritas pelo JS na hora que logar */
         :root {
             --cor-primaria: #1e3a8a;   
             --cor-secundaria: #16a34a; 
@@ -32,9 +33,9 @@
 </head>
 <body class="min-h-screen flex flex-col items-center justify-center p-4">
     
-    <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-md text-center border-t-4 border-tema-primaria">
+    <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-md text-center border-t-4 border-tema-primaria relative z-10">
         
-        <!-- Logo da Casa (Fica escondida até o JS puxar do banco) -->
+        <!-- Logo da Casa -->
         <div class="flex justify-center mb-4">
             <img id="logoCasa" src="" alt="Logo da Casa" class="hidden h-20 object-contain">
         </div>
@@ -48,41 +49,46 @@
         </div>
         
         <!-- Container dos Botões -->
-        <div class="flex flex-col space-y-4 mt-2">
-            
-            <!-- Botão Reduzido (Cor Secundária) -->
-            <button id="btnPresenca" class="hidden w-full flex flex-row items-center justify-center py-3 px-4 border border-transparent rounded-xl shadow-md text-base font-bold text-white bg-tema-secundaria hover:opacity-90 focus:outline-none focus:ring-2 focus-ring-tema transition-all transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
-                <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                </svg>
+        <div id="containerBotoes" class="hidden w-full flex-col gap-3">
+            <!-- Botão de Presença (Agora menor e mais elegante) -->
+            <button id="btnPresenca" class="w-full flex items-center justify-center py-3 px-4 border border-transparent rounded-xl shadow-md text-lg font-bold text-white bg-tema-secundaria hover:opacity-90 focus:outline-none focus:ring-4 focus-ring-tema transition-all transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+                <i class="fas fa-map-marker-alt mr-2 text-xl"></i>
                 Registrar Presença
             </button>
 
-            <!-- Botão de Doações (Contorno Cor Primária) -->
-            <button id="btnDoacao" onclick="document.getElementById('modalDoacao').classList.toggle('hidden')" class="w-full flex flex-row items-center justify-center py-3 px-4 border-2 border-tema-primaria rounded-xl shadow-sm text-base font-bold text-tema-primaria bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all transform hover:scale-105 active:scale-95">
-                <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
-                </svg>
+            <!-- Novo Botão de Doações -->
+            <button id="btnAbrirDoacao" class="w-full flex items-center justify-center py-3 px-4 border-2 border-tema-primaria rounded-xl shadow-sm text-lg font-bold text-tema-primaria bg-white hover:bg-gray-50 focus:outline-none transition-all transform hover:scale-105 active:scale-95">
+                <i class="fas fa-heart text-red-500 mr-2 text-xl"></i>
                 Fazer uma Doação
             </button>
-            
-        </div>
-
-        <!-- Painel Simples de Doação Oculto (Abre ao clicar) -->
-        <div id="modalDoacao" class="hidden mt-4 p-5 bg-gray-50 border border-gray-200 rounded-xl text-left shadow-inner transition-all">
-            <h3 class="text-sm font-bold text-gray-800 mb-1">Chave PIX da Casa:</h3>
-            <p class="text-xs text-gray-600 mb-3">Sua ajuda é fundamental para a manutenção da nossa casa. Toda contribuição é bem-vinda!</p>
-            <div class="flex items-center justify-between bg-white p-3 border border-gray-300 rounded-lg shadow-sm">
-                <!-- Troque esse CNPJ/Telefone pelo PIX real da casa depois -->
-                <span class="font-mono text-sm text-gray-800 font-bold select-all">12.345.678/0001-90</span>
-                <button onclick="navigator.clipboard.writeText('12.345.678/0001-90'); alert('Chave PIX copiada!')" class="text-tema-primaria hover:opacity-70" title="Copiar PIX">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
-                </button>
-            </div>
         </div>
 
         <div id="msgStatus" class="mt-6 text-sm font-semibold rounded p-3 hidden"></div>
+    </div>
+
+    <!-- Gaveta/Modal de Doação (Escondida por padrão) -->
+    <div id="modalDoacao" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50 transition-opacity">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 text-center transform scale-95 transition-all">
+            <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
+                <i class="fas fa-hands-holding-heart text-3xl text-red-500"></i>
+            </div>
+            <h3 class="text-xl font-bold text-gray-800 mb-2">Apoie nossa Casa</h3>
+            <p class="text-gray-600 mb-6 text-sm">Sua contribuição ajuda a manter o terreiro aberto e fortalecer nossos trabalhos de caridade.</p>
+
+            <div class="bg-gray-100 p-4 rounded-xl mb-4 relative border border-gray-200">
+                <p class="text-xs text-gray-500 font-bold uppercase mb-1">Chave PIX</p>
+                <!-- TROQUE A CHAVE ABAIXO PELA SUA DE VERDADE -->
+                <p id="chavePix" class="text-lg font-mono font-bold text-gray-800 break-all">12.345.678/0001-90</p>
+                
+                <button id="btnCopiarPix" class="mt-4 w-full bg-gray-800 text-white font-bold py-2.5 px-4 rounded-lg hover:bg-gray-700 transition flex items-center justify-center shadow-md active:scale-95">
+                    <i class="fas fa-copy mr-2"></i> Copiar Chave
+                </button>
+            </div>
+
+            <button id="btnFecharDoacao" class="text-gray-500 font-semibold hover:text-gray-800 transition p-2 uppercase text-sm tracking-wider">
+                Voltar
+            </button>
+        </div>
     </div>
 
     <script src="js/supabase.js"></script>
