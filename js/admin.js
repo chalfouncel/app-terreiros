@@ -89,6 +89,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                     document.getElementById('secFinanceiro').classList.remove('hidden');
                     titulo.textContent = 'Controle Financeiro';
                     carregarFinanceiro();
+                } else if (menu.id === 'menuDoacoes') {
+                    document.getElementById('secDoacoes').classList.remove('hidden');
+                    titulo.textContent = 'Doações e Campanhas';
+                    carregarDoacoesPrometidas();
+                    carregarDoacoesCatalogo();
                 } else if (menu.id === 'menuAdmin') {
                     document.getElementById('secAdministracao').classList.remove('hidden');
                     titulo.textContent = 'Administração do Terreiro';
@@ -333,102 +338,109 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Pré-visualização da Imagem ao selecionar o arquivo
-    document.getElementById('uploadLogo').addEventListener('change', function(e) {
-        const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = function(evt) {
-                document.getElementById('previewLogo').src = evt.target.result;
-                document.getElementById('previewLogo').classList.remove('hidden');
-                document.getElementById('placeholderLogo').classList.add('hidden');
+    const inputUploadLogo = document.getElementById('uploadLogo');
+    if(inputUploadLogo) {
+        inputUploadLogo.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    document.getElementById('previewLogo').src = evt.target.result;
+                    document.getElementById('previewLogo').classList.remove('hidden');
+                    document.getElementById('placeholderLogo').classList.add('hidden');
+                }
+                reader.readAsDataURL(file);
             }
-            reader.readAsDataURL(file);
-        }
-    });
+        });
+    }
 
     // Salvar Logo Definitivamente no Supabase
     const btnLogo = document.getElementById('btnSalvarLogo');
-    btnLogo.addEventListener('click', async () => {
-        const input = document.getElementById('uploadLogo');
-        const msg = document.getElementById('msgLogo');
-        if(!input.files || input.files.length === 0) {
-            alert('Selecione uma imagem primeiro clicando em "Escolher arquivo".');
-            return;
-        }
-        
-        btnLogo.disabled = true;
-        btnLogo.textContent = 'Enviando...';
-        msg.classList.remove('hidden');
-        msg.textContent = 'Fazendo upload da imagem...';
-        msg.className = 'text-xs font-bold mt-2 text-tema-primaria';
-        
-        try {
-            const arquivo = input.files[0];
-            const extensao = arquivo.name.split('.').pop();
-            const nomeArquivo = `logo_${idTerreiroGlobal}_${Date.now()}.${extensao}`;
+    if(btnLogo) {
+        btnLogo.addEventListener('click', async () => {
+            const input = document.getElementById('uploadLogo');
+            const msg = document.getElementById('msgLogo');
+            if(!input.files || input.files.length === 0) {
+                alert('Selecione uma imagem primeiro clicando em "Escolher arquivo".');
+                return;
+            }
             
-            const { error: errUp } = await supabaseClient.storage.from('logos').upload(nomeArquivo, arquivo);
-            if (errUp) throw errUp;
+            btnLogo.disabled = true;
+            btnLogo.textContent = 'Enviando...';
+            msg.classList.remove('hidden');
+            msg.textContent = 'Fazendo upload da imagem...';
+            msg.className = 'text-xs font-bold mt-2 text-tema-primaria';
             
-            const { data: urlData } = supabaseClient.storage.from('logos').getPublicUrl(nomeArquivo);
-            const novaUrl = urlData.publicUrl;
-            
-            const { error: errBd } = await supabaseClient.from('terreiros').update({ logo_url: novaUrl }).eq('id', idTerreiroGlobal);
-            if (errBd) throw errBd;
-            
-            document.getElementById('logoSidebar').src = novaUrl;
-            document.getElementById('logoSidebar').classList.remove('hidden');
-            
-            msg.textContent = '✅ Logo salva com sucesso no sistema!';
-            msg.className = 'text-xs font-bold mt-2 text-tema-secundaria';
-        } catch (error) {
-            msg.textContent = '❌ Erro: ' + error.message;
-            msg.className = 'text-xs font-bold mt-2 text-red-600';
-        } finally {
-            btnLogo.disabled = false;
-            btnLogo.textContent = 'Salvar Imagem';
-        }
-    });
+            try {
+                const arquivo = input.files[0];
+                const extensao = arquivo.name.split('.').pop();
+                const nomeArquivo = `logo_${idTerreiroGlobal}_${Date.now()}.${extensao}`;
+                
+                const { error: errUp } = await supabaseClient.storage.from('logos').upload(nomeArquivo, arquivo);
+                if (errUp) throw errUp;
+                
+                const { data: urlData } = supabaseClient.storage.from('logos').getPublicUrl(nomeArquivo);
+                const novaUrl = urlData.publicUrl;
+                
+                const { error: errBd } = await supabaseClient.from('terreiros').update({ logo_url: novaUrl }).eq('id', idTerreiroGlobal);
+                if (errBd) throw errBd;
+                
+                document.getElementById('logoSidebar').src = novaUrl;
+                document.getElementById('logoSidebar').classList.remove('hidden');
+                
+                msg.textContent = '✅ Logo salva com sucesso no sistema!';
+                msg.className = 'text-xs font-bold mt-2 text-tema-secundaria';
+            } catch (error) {
+                msg.textContent = '❌ Erro: ' + error.message;
+                msg.className = 'text-xs font-bold mt-2 text-red-600';
+            } finally {
+                btnLogo.disabled = false;
+                btnLogo.textContent = 'Salvar Imagem';
+            }
+        });
+    }
 
     // Salvar Cores
     const btnCores = document.getElementById('btnSalvarCores');
-    btnCores.addEventListener('click', async () => {
-        const cor1 = document.getElementById('corPrimaria').value;
-        const cor2 = document.getElementById('corSecundaria').value;
-        const corF = document.getElementById('corFundo').value;
-        const corT = document.getElementById('corTexto').value;
-        const msg = document.getElementById('msgCores');
-        
-        btnCores.disabled = true;
-        btnCores.textContent = 'Salvando...';
-        
-        try {
-            const { error } = await supabaseClient.from('terreiros').update({
-                cor_primaria: cor1,
-                cor_secundaria: cor2,
-                cor_fundo: corF,
-                cor_texto: corT
-            }).eq('id', idTerreiroGlobal);
+    if(btnCores) {
+        btnCores.addEventListener('click', async () => {
+            const cor1 = document.getElementById('corPrimaria').value;
+            const cor2 = document.getElementById('corSecundaria').value;
+            const corF = document.getElementById('corFundo').value;
+            const corT = document.getElementById('corTexto').value;
+            const msg = document.getElementById('msgCores');
             
-            if (error) throw error;
+            btnCores.disabled = true;
+            btnCores.textContent = 'Salvando...';
             
-            const root = document.documentElement;
-            root.style.setProperty('--cor-primaria', cor1);
-            root.style.setProperty('--cor-secundaria', cor2);
-            root.style.setProperty('--cor-fundo', corF);
-            root.style.setProperty('--cor-texto', corT);
-            
-            msg.textContent = '✅ Tema atualizado!';
-            msg.className = 'text-sm font-bold mt-3 text-tema-secundaria block';
-            setTimeout(() => msg.classList.add('hidden'), 5000);
-        } catch (error) {
-            msg.textContent = '❌ Erro: ' + error.message;
-            msg.className = 'text-sm font-bold mt-3 text-red-600 block';
-        } finally {
-            btnCores.disabled = false;
-            btnCores.textContent = 'Salvar e Aplicar Cores';
-        }
-    });
+            try {
+                const { error } = await supabaseClient.from('terreiros').update({
+                    cor_primaria: cor1,
+                    cor_secundaria: cor2,
+                    cor_fundo: corF,
+                    cor_texto: corT
+                }).eq('id', idTerreiroGlobal);
+                
+                if (error) throw error;
+                
+                const root = document.documentElement;
+                root.style.setProperty('--cor-primaria', cor1);
+                root.style.setProperty('--cor-secundaria', cor2);
+                root.style.setProperty('--cor-fundo', corF);
+                root.style.setProperty('--cor-texto', corT);
+                
+                msg.textContent = '✅ Tema atualizado!';
+                msg.className = 'text-sm font-bold mt-3 text-tema-secundaria block';
+                setTimeout(() => msg.classList.add('hidden'), 5000);
+            } catch (error) {
+                msg.textContent = '❌ Erro: ' + error.message;
+                msg.className = 'text-sm font-bold mt-3 text-red-600 block';
+            } finally {
+                btnCores.disabled = false;
+                btnCores.textContent = 'Salvar e Aplicar Cores';
+            }
+        });
+    }
 
     // GPS 
     const btnGps = document.getElementById('btnGravarLocalizacao');
@@ -444,6 +456,249 @@ document.addEventListener('DOMContentLoaded', async () => {
                 },
                 (err) => alert('Erro no GPS: Libere a permissão.')
             );
+        });
+    }
+
+    // ==========================================
+    // MÓDULOS DE DOAÇÃO ADICIONADOS
+    // ==========================================
+
+    window.carregarDoacoesPrometidas = async () => {
+        if (!idTerreiroGlobal) return;
+        const tbody = document.getElementById('tabelaDoacoesPrometidas');
+        if(tbody) tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i> Buscando histórico...</td></tr>';
+
+        try {
+            const { data: doacoes, error: errD } = await supabaseClient
+                .from('doacoes_registradas')
+                .select('id, medium_auth_id, item_id, quantidade, entregue, data_registro')
+                .eq('terreiro_id', idTerreiroGlobal)
+                .order('entregue', { ascending: true }) 
+                .order('data_registro', { ascending: false }); 
+
+            if (errD) throw errD;
+
+            const { data: mediuns } = await supabaseClient.from('mediuns').select('auth_id, nome_completo');
+            const { data: itens } = await supabaseClient.from('itens_doacao').select('id, nome, descricao');
+
+            // Salva globalmente para o botão PDF conseguir usar
+            window.dadosDoacoesParaPDF = { doacoes, mediuns, itens };
+
+            if (!doacoes || doacoes.length === 0) {
+                if(tbody) tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-gray-500">Nenhum registro encontrado ainda.</td></tr>';
+                return;
+            }
+
+            if(tbody) {
+                tbody.innerHTML = '';
+                doacoes.forEach(d => {
+                    const medium = mediuns?.find(m => m.auth_id === d.medium_auth_id)?.nome_completo || 'Médium';
+                    const itemObj = itens?.find(i => i.id === d.item_id);
+                    const itemNome = itemObj ? `${itemObj.nome} <br><span class="text-[10px] text-gray-400 font-normal">${itemObj.descricao || ''}</span>` : 'Item Desconhecido';
+                    
+                    const dataFormatada = new Date(d.data_registro).toLocaleDateString('pt-BR');
+                    
+                    const statusHtml = d.entregue 
+                        ? '<span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded font-bold whitespace-nowrap"><i class="fas fa-check mr-1"></i> Entregue</span>'
+                        : '<span class="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded font-bold whitespace-nowrap"><i class="fas fa-clock mr-1"></i> Pendente</span>';
+
+                    const acaoHtml = d.entregue
+                        ? `<button onclick="marcarDoacao('${d.id}', false)" class="text-xs text-gray-400 hover:text-gray-800 underline mt-1 whitespace-nowrap">Desfazer</button>`
+                        : `<button onclick="marcarDoacao('${d.id}', true)" class="bg-tema-secundaria hover:opacity-90 text-white text-xs font-bold py-1.5 px-3 rounded shadow-sm whitespace-nowrap mt-1">Dar Baixa</button>`;
+
+                    const estiloLinha = d.entregue ? 'bg-gray-50 opacity-80' : 'bg-white';
+
+                    tbody.innerHTML += `
+                        <tr class="border-b border-gray-100 transition ${estiloLinha}">
+                            <td class="p-3 text-gray-800 font-medium text-sm">${medium}</td>
+                            <td class="p-3 text-gray-700 text-sm font-semibold leading-tight">${itemNome}</td>
+                            <td class="p-3 text-center text-lg font-black text-tema-primaria">${d.quantidade}</td>
+                            <td class="p-3 text-gray-500 text-xs">${dataFormatada}</td>
+                            <td class="p-3 text-center flex flex-col items-center justify-center">
+                                ${statusHtml}
+                                ${acaoHtml}
+                            </td>
+                        </tr>
+                    `;
+                });
+            }
+        } catch (error) {
+            console.error('Erro ao listar doações prometidas:', error);
+            if(tbody) tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-red-500">Erro ao carregar dados.</td></tr>`;
+        }
+    };
+
+    window.marcarDoacao = async (registroId, statusEntregue) => {
+        const payload = { entregue: statusEntregue };
+        if (statusEntregue) payload.data_entrega = new Date().toISOString();
+        else payload.data_entrega = null;
+
+        const { error } = await supabaseClient.from('doacoes_registradas').update(payload).eq('id', registroId);
+        
+        if (!error) {
+            carregarDoacoesPrometidas(); 
+        } else {
+            alert('Erro ao atualizar o status: ' + error.message);
+        }
+    };
+
+    window.carregarDoacoesCatalogo = async () => {
+        if (!idTerreiroGlobal) return;
+        const tbody = document.getElementById('tabelaItensDoacao');
+        if(!tbody) return;
+
+        const { data, error } = await supabaseClient
+            .from('itens_doacao')
+            .select('*')
+            .eq('terreiro_id', idTerreiroGlobal)
+            .order('descricao', { ascending: true })
+            .order('nome', { ascending: true });
+
+        if (error) return;
+
+        tbody.innerHTML = '';
+        if (data && data.length > 0) {
+            data.forEach(item => {
+                const btnAtivo = item.ativo 
+                    ? `<button onclick="alternarStatusCatalogo('${item.id}', false)" class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded font-bold whitespace-nowrap hover:bg-red-200">Ocultar</button>`
+                    : `<button onclick="alternarStatusCatalogo('${item.id}', true)" class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-bold whitespace-nowrap hover:bg-green-200">Ativar</button>`;
+                
+                const estiloLinha = item.ativo ? '' : 'opacity-40 grayscale';
+                const categoria = item.descricao || '-';
+                
+                tbody.innerHTML += `
+                    <tr class="border-b border-gray-100 hover:bg-gray-50 ${estiloLinha}">
+                        <td class="p-3 text-gray-800 text-sm font-medium">${item.nome}</td>
+                        <td class="p-3 text-gray-500 text-xs">${categoria}</td>
+                        <td class="p-3 text-center">${btnAtivo}</td>
+                    </tr>
+                `;
+            });
+        } else {
+            tbody.innerHTML = '<tr><td colspan="3" class="p-6 text-center text-gray-500">Nenhum item cadastrado ainda.</td></tr>';
+        }
+    }
+
+    window.alternarStatusCatalogo = async (id, status) => {
+        const { error } = await supabaseClient.from('itens_doacao').update({ ativo: status }).eq('id', id);
+        if (!error) carregarDoacoesCatalogo();
+    };
+
+    // Cadastro de Novo Item de Doação
+    const formNovoItemDoacao = document.getElementById('formNovoItemDoacao');
+    if (formNovoItemDoacao) {
+        formNovoItemDoacao.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btnSalvarDoacao');
+            const msg = document.getElementById('msgDoacao');
+            
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Salvando...';
+            msg.classList.add('hidden');
+
+            const nome = document.getElementById('doacaoNome').value;
+            const descricao = document.getElementById('doacaoDescricao').value;
+            const valorRaw = document.getElementById('doacaoValor').value;
+            const valor = valorRaw ? parseFloat(valorRaw) : null;
+            const imagem_url = document.getElementById('doacaoImagem').value;
+
+            const { error } = await supabaseClient.from('itens_doacao').insert([{
+                terreiro_id: idTerreiroGlobal,
+                nome,
+                descricao,
+                valor_sugerido: valor,
+                imagem_url,
+                ativo: true
+            }]);
+
+            btn.disabled = false;
+            btn.textContent = 'Cadastrar Item';
+
+            if (error) {
+                msg.textContent = 'Erro ao salvar: ' + error.message;
+                msg.className = 'text-sm mt-2 text-red-600 block font-bold';
+            } else {
+                msg.textContent = '✅ Item cadastrado com sucesso!';
+                msg.className = 'text-sm mt-2 text-green-600 block font-bold';
+                formNovoItemDoacao.reset();
+                carregarDoacoesCatalogo();
+                setTimeout(() => msg.classList.add('hidden'), 3000);
+            }
+        });
+    }
+
+    // GERADOR DE PDF DAS DOAÇÕES
+    const btnGerarPDF = document.getElementById('btnGerarPDF');
+    if(btnGerarPDF) {
+        btnGerarPDF.addEventListener('click', () => {
+            const dados = window.dadosDoacoesParaPDF;
+            
+            if (!dados || !dados.doacoes || dados.doacoes.length === 0) {
+                alert('Não há doações para exportar.');
+                return;
+            }
+
+            const btn = document.getElementById('btnGerarPDF');
+            const textoOriginal = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Gerando...';
+            btn.disabled = true;
+
+            const containerPDF = document.createElement('div');
+            containerPDF.style.padding = '30px';
+            containerPDF.style.fontFamily = 'Arial, sans-serif';
+            containerPDF.style.color = '#333';
+
+            const nomeCasa = document.getElementById('nomeTerreiroSidebar').textContent;
+
+            let html = `
+                <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #16a34a; padding-bottom: 10px;">
+                    <h2 style="margin: 0; color: #1e3a8a; font-size: 24px;">Relatório de Doações</h2>
+                    <h3 style="margin: 5px 0 0 0; color: #444; font-size: 16px;">${nomeCasa}</h3>
+                    <p style="margin: 5px 0 0 0; color: #666; font-size: 12px;">Emitido em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</p>
+                </div>
+                <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                    <thead>
+                        <tr style="background-color: #f3f4f6;">
+                            <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Médium</th>
+                            <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Item</th>
+                            <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Qtd</th>
+                            <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            dados.doacoes.forEach(d => {
+                const medium = dados.mediuns?.find(m => m.auth_id === d.medium_auth_id)?.nome_completo || 'Médium';
+                const itemObj = dados.itens?.find(i => i.id === d.item_id);
+                const itemNome = itemObj ? itemObj.nome : 'Item Desconhecido';
+                const status = d.entregue ? '<span style="color: #16a34a; font-weight: bold;">Entregue</span>' : '<span style="color: #ca8a04;">Pendente</span>';
+
+                html += `
+                    <tr>
+                        <td style="padding: 8px; border: 1px solid #ddd;">${medium}</td>
+                        <td style="padding: 8px; border: 1px solid #ddd;">${itemNome}</td>
+                        <td style="padding: 8px; border: 1px solid #ddd; text-align: center; font-weight: bold;">${d.quantidade}</td>
+                        <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${status}</td>
+                    </tr>
+                `;
+            });
+
+            html += `</tbody></table>`;
+            containerPDF.innerHTML = html;
+
+            const opt = {
+                margin:       10,
+                filename:     'Relatorio_Doacoes.pdf',
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2 },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            html2pdf().set(opt).from(containerPDF).save().then(() => {
+                btn.innerHTML = textoOriginal;
+                btn.disabled = false;
+            });
         });
     }
 });
