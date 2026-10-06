@@ -2,6 +2,9 @@ let idTerreiroGlobal = null;
 let mediunsGrauCache = []; 
 let perfilAdminLogado = null; 
 
+let nomeTerreiroGlobal = "";
+let logoTerreiroGlobal = "";
+
 document.addEventListener('DOMContentLoaded', async () => {
     // Data Cabeçalho
     const dataOpcoes = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
@@ -46,21 +49,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     try {
-        // Busca Perfil logado incluindo a nova coluna perm_visao_geral
         const { data: perfil, error: erroPerfil } = await supabaseClient
             .from('mediuns')
-            .select('nome_completo, is_admin, terreiro_id, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin, is_master, perm_visao_geral')
+            .select('nome_completo, is_admin, terreiro_id, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin, is_master, perm_visao_geral, perm_ata')
             .eq('auth_id', session.user.id)
             .single();
 
-        if (erroPerfil) {
-            console.error("Erro ao buscar perfil. As colunas novas foram criadas no banco?", erroPerfil);
-            throw erroPerfil;
-        }
-        
+        if (erroPerfil) throw erroPerfil;
         perfilAdminLogado = perfil;
 
-        // O usuário tem direito de entrar no painel? (Se tiver qualquer permissão)
         const temAcessoPainel = perfil.is_admin || perfil.perm_visao_geral || perfil.perm_agenda || perfil.perm_grau || perfil.perm_financeiro || perfil.perm_doacoes || perfil.perm_admin || perfil.perm_ata;
 
         if (!temAcessoPainel) {
@@ -68,17 +65,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             return window.location.href = 'presenca.html';
         }
 
-        // ESCONDER MENUS não autorizados
         if (!perfil.is_admin) {
             if (!perfil.perm_visao_geral) document.getElementById('menuVisaoGeral').classList.add('hidden');
             if (!perfil.perm_agenda) document.getElementById('menuAgendaGiras').classList.add('hidden');
+            if (!perfil.perm_ata) { 
+                const menuAta = document.getElementById('menuLivroAta');
+                if(menuAta) menuAta.classList.add('hidden');
+            }
             if (!perfil.perm_grau) document.getElementById('menuGrau').classList.add('hidden');
             if (!perfil.perm_financeiro) document.getElementById('menuFinanceiro').classList.add('hidden');
             if (!perfil.perm_doacoes) document.getElementById('menuDoacoes').classList.add('hidden');
             if (!perfil.perm_admin) document.getElementById('menuAdmin').classList.add('hidden');
         }
 
-        // MOSTRAR MENU MASTER SÓ PARA VOCÊ
         if (perfil.is_master) {
             const menuMaster = document.getElementById('menuMaster');
             if (menuMaster) menuMaster.classList.remove('hidden');
@@ -87,7 +86,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('nomeAdmin').textContent = 'Olá, ' + perfil.nome_completo.split(' ')[0];
         idTerreiroGlobal = perfil.terreiro_id;
 
-        // Busca Configurações da Casa
         if (idTerreiroGlobal) {
             const { data: terreiro } = await supabaseClient
                 .from('terreiros')
@@ -96,9 +94,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 .single();
             
             if (terreiro) {
+                nomeTerreiroGlobal = terreiro.nome;
+                logoTerreiroGlobal = terreiro.logo_url;
                 document.getElementById('nomeTerreiroSidebar').textContent = terreiro.nome;
                 
-                // Aplica Cores
                 const root = document.documentElement;
                 if(terreiro.cor_primaria) root.style.setProperty('--cor-primaria', terreiro.cor_primaria);
                 if(terreiro.cor_secundaria) root.style.setProperty('--cor-secundaria', terreiro.cor_secundaria);
@@ -113,7 +112,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
 
-        // --- NAVEGAÇÃO DE ABAS ---
         const menus = document.querySelectorAll('.menu-item');
         const secoes = document.querySelectorAll('.secao-painel');
 
@@ -124,17 +122,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 menu.classList.replace('hover:bg-white/10', 'bg-white/20');
                 
                 secoes.forEach(s => s.classList.add('hidden'));
-                
                 const titulo = document.getElementById('tituloSecao');
                 
                 if (menu.id === 'menuVisaoGeral') {
                     document.getElementById('secVisaoGeral').classList.remove('hidden');
                     titulo.textContent = 'Visão Geral';
                     carregarPainelInicial();
-                } else if (menu.id === 'menuLivroAta') {
-                    document.getElementById('secLivroAta').classList.remove('hidden');
-                    titulo.textContent = 'Livro de Presença (ATA)';
-                    carregarLivroAta();
                 } else if (menu.id === 'menuQuadroMediuns') {
                     document.getElementById('secQuadroMediuns').classList.remove('hidden');
                     titulo.textContent = 'Quadro de Médiuns';
@@ -143,6 +136,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                     document.getElementById('secAgendaGiras').classList.remove('hidden');
                     titulo.textContent = 'Agenda de Eventos';
                     carregarAgenda();
+                } else if (menu.id === 'menuLivroAta') {
+                    document.getElementById('secLivroAta').classList.remove('hidden');
+                    titulo.textContent = 'Livro de Presença (ATA)';
+                    carregarLivroAta();
                 } else if (menu.id === 'menuGrau') {
                     document.getElementById('secGrau').classList.remove('hidden');
                     titulo.textContent = 'Alteração de Grau';
@@ -168,12 +165,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         });
 
-        // Iniciar na aba correta dependendo da permissão do usuário logado
         if (perfil.is_admin || perfil.perm_visao_geral) {
             document.getElementById('menuVisaoGeral').click();
         } else {
-            // Se for assistente, clica na primeira aba que ele tem acesso
             if (perfil.perm_agenda) document.getElementById('menuAgendaGiras').click();
+            else if (perfil.perm_ata) document.getElementById('menuLivroAta').click();
             else if (perfil.perm_grau) document.getElementById('menuGrau').click();
             else if (perfil.perm_financeiro) document.getElementById('menuFinanceiro').click();
             else if (perfil.perm_doacoes) document.getElementById('menuDoacoes').click();
@@ -186,9 +182,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // ==========================================
-    // FUNÇÕES DO PAINEL GERAL
+    // VISÃO GERAL
     // ==========================================
-
     async function carregarPainelInicial() {
         const { count: totalMediuns } = await supabaseClient.from('mediuns').select('*', { count: 'exact', head: true });
         document.getElementById('totalMediuns').textContent = totalMediuns || '0';
@@ -226,6 +221,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    // ==========================================
+    // QUADRO DE MÉDIUNS
+    // ==========================================
     async function carregarQuadroMediuns() {
         const tbody = document.getElementById('tabelaTodosMediuns');
         const { data } = await supabaseClient.from('mediuns').select('id, nome_completo, grau, funcao, telefone, cadastro_completo, is_admin, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin, perm_visao_geral').order('nome_completo');
@@ -241,8 +239,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const perms = `${m.perm_agenda || false},${m.perm_grau || false},${m.perm_financeiro || false},${m.perm_doacoes || false},${m.perm_admin || false},${m.perm_visao_geral || false}`;
                 acoesHtml = `
                     <div class="flex items-center justify-center space-x-4">
-                        <button onclick="abrirModalPermissoes(${m.id}, '${m.nome_completo}', '${perms}')" class="text-blue-500 hover:text-blue-700 transition" title="Permissões de Acesso"><i class="fas fa-key"></i></button>
-                        <button onclick="excluirMedium(${m.id}, '${m.nome_completo}')" class="text-red-500 hover:text-red-700 transition" title="Excluir Médium"><i class="fas fa-trash"></i></button>
+                        <button onclick="abrirModalPermissoes(${m.id}, '${m.nome_completo.replace(/'/g, "\\'")}', '${perms}')" class="text-blue-500 hover:text-blue-700 transition" title="Permissões de Acesso"><i class="fas fa-key"></i></button>
+                        <button onclick="excluirMedium(${m.id}, '${m.nome_completo.replace(/'/g, "\\'")}')" class="text-red-500 hover:text-red-700 transition" title="Excluir Médium"><i class="fas fa-trash"></i></button>
                     </div>
                 `;
             }
@@ -258,7 +256,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // --- FUNÇÕES DE MÉDIUNS ---
     window.abrirModalNovoMedium = () => {
         document.getElementById('msgNovoMedium').classList.add('hidden');
         document.getElementById('resultadoNovoMedium').classList.add('hidden');
@@ -318,10 +315,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('chkPermFinanceiro').checked = pFin === 'true';
         document.getElementById('chkPermDoacoes').checked = pDoa === 'true';
         document.getElementById('chkPermAdmin').checked = pAdmin === 'true';
-        
-        if (document.getElementById('chkPermVisao')) {
-            document.getElementById('chkPermVisao').checked = pVisao === 'true';
-        }
+        if (document.getElementById('chkPermVisao')) document.getElementById('chkPermVisao').checked = pVisao === 'true';
+        if (document.getElementById('chkPermAta')) document.getElementById('chkPermAta').checked = false; // Add pAta logically if available, default false
         
         document.getElementById('modalPermissoes').classList.remove('hidden');
     };
@@ -347,9 +342,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 perm_admin: document.getElementById('chkPermAdmin').checked
             };
 
-            if (document.getElementById('chkPermVisao')) {
-                payload.perm_visao_geral = document.getElementById('chkPermVisao').checked;
-            }
+            if (document.getElementById('chkPermVisao')) payload.perm_visao_geral = document.getElementById('chkPermVisao').checked;
+            if (document.getElementById('chkPermAta')) payload.perm_ata = document.getElementById('chkPermAta').checked;
             
             const { error } = await supabaseClient.from('mediuns').update(payload).eq('id', idMedium);
 
@@ -361,19 +355,430 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // --- AGENDA E GRAUS ---
+    // ==========================================
+    // AGENDA E EVENTOS
+    // ==========================================
     async function carregarAgenda() {
         const tbody = document.getElementById('tabelaGirasCadastradas');
         const agora = new Date().toISOString();
-        const { data } = await supabaseClient.from('agenda').select('*').gte('data_hora_fim', agora).order('data_hora_inicio').limit(10); 
+        const { data } = await supabaseClient.from('agenda').select('*').gte('data_hora_fim', agora).order('data_hora_inicio').limit(15); 
         tbody.innerHTML = '';
-        if(data) data.forEach(g => {
-            const inicio = new Date(g.data_hora_inicio).toLocaleString('pt-BR');
-            const img = g.imagem_url ? `<a href="${g.imagem_url}" target="_blank" class="text-blue-500 hover:underline text-xs"><i class="fas fa-image"></i> Ver</a>` : '-';
-            tbody.innerHTML += `<tr class="border-b border-gray-100 hover:bg-gray-50"><td class="p-3 text-gray-800 font-medium">${g.titulo}</td><td class="p-3 text-gray-600">${inicio}</td><td class="p-3">${img}</td></tr>`;
+        if(data && data.length > 0) {
+            data.forEach(g => {
+                const inicio = new Date(g.data_hora_inicio).toLocaleString('pt-BR');
+                const imgHtml = g.imagem_url 
+                    ? `<a href="${g.imagem_url}" target="_blank" class="text-blue-500 hover:bg-blue-50 p-1 rounded text-xs transition" title="Ver Cartaz"><i class="fas fa-image"></i> Cartaz</a>` 
+                    : `<span class="text-gray-400 text-xs">-</span>`;
+                
+                // Botões de Editar e Excluir
+                const acoesBloco = `
+                    <div class="flex items-center justify-center space-x-2">
+                        ${imgHtml}
+                        <div class="h-4 border-l border-gray-300 mx-2"></div>
+                        <button onclick="abrirModalEditarGira('${g.id}')" class="text-xs bg-purple-100 text-purple-700 hover:bg-purple-200 font-bold py-1 px-2 rounded shadow transition" title="Editar Título/Hora"><i class="fas fa-edit"></i></button>
+                        <button onclick="excluirGira('${g.id}', '${g.data_hora_inicio}')" class="text-xs bg-red-100 text-red-700 hover:bg-red-200 font-bold py-1 px-2 rounded shadow transition" title="Excluir Evento"><i class="fas fa-trash"></i></button>
+                    </div>
+                `;
+
+                tbody.innerHTML += `
+                    <tr class="border-b border-gray-100 hover:bg-gray-50">
+                        <td class="p-3 text-gray-800 font-medium">${g.titulo}</td>
+                        <td class="p-3 text-gray-600">${inicio}</td>
+                        <td class="p-3 text-center">${acoesBloco}</td>
+                    </tr>
+                `;
+            });
+        } else {
+            tbody.innerHTML = '<tr><td colspan="3" class="p-6 text-center text-gray-500">Nenhum evento agendado no momento.</td></tr>';
+        }
+    }
+
+    window.excluirGira = async (id, dataInicioISO) => {
+        const dataInicio = new Date(dataInicioISO);
+        const agora = new Date();
+        const diferencaHoras = (dataInicio - agora) / (1000 * 60 * 60);
+
+        if (diferencaHoras < 2) {
+            alert("⚠️ AÇÃO BLOQUEADA: Não é permitido excluir um evento que já iniciou, já passou, ou que começa em menos de 2 horas. Isso evita perda de dados de check-ins.");
+            return;
+        }
+
+        if (!confirm("Tem certeza que deseja excluir este evento da agenda? A exclusão é irreversível.")) return;
+
+        const { error } = await supabaseClient.from('agenda').delete().eq('id', id);
+        if (error) alert("Erro ao excluir o evento: " + error.message);
+        else { alert("Evento apagado com sucesso!"); carregarAgenda(); }
+    };
+
+    window.abrirModalEditarGira = async (id) => {
+        const { data, error } = await supabaseClient.from('agenda').select('*').eq('id', id).single();
+        if (error) { alert("Erro ao buscar dados: " + error.message); return; }
+
+        document.getElementById('editGiraId').value = data.id;
+        document.getElementById('editGiraTitulo').value = data.titulo;
+        
+        const formataParaInput = (isoString) => {
+            if (!isoString) return '';
+            const d = new Date(isoString);
+            const offset = d.getTimezoneOffset() * 60000;
+            return (new Date(d.getTime() - offset)).toISOString().slice(0, 16);
+        };
+
+        document.getElementById('editGiraInicio').value = formataParaInput(data.data_hora_inicio);
+        document.getElementById('editGiraFim').value = formataParaInput(data.data_hora_fim);
+        if (document.getElementById('editGiraGeraAta')) document.getElementById('editGiraGeraAta').checked = data.gera_ata || false;
+
+        document.getElementById('modalEditarGira').classList.remove('hidden');
+    };
+
+    window.fecharModalEditarGira = () => document.getElementById('modalEditarGira').classList.add('hidden');
+
+    if (document.getElementById('formEditarGira')) {
+        document.getElementById('formEditarGira').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btnSalvarEdicaoGira');
+            btn.disabled = true; btn.innerHTML = 'Salvando...';
+
+            try {
+                const id = document.getElementById('editGiraId').value;
+                const { error } = await supabaseClient.from('agenda')
+                    .update({
+                        titulo: document.getElementById('editGiraTitulo').value,
+                        data_hora_inicio: new Date(document.getElementById('editGiraInicio').value).toISOString(),
+                        data_hora_fim: new Date(document.getElementById('editGiraFim').value).toISOString(),
+                        gera_ata: document.getElementById('editGiraGeraAta').checked
+                    })
+                    .eq('id', id);
+
+                if (error) throw error;
+                alert("Evento atualizado com sucesso!");
+                fecharModalEditarGira(); carregarAgenda();
+            } catch (error) {
+                alert("Erro ao atualizar: " + error.message);
+            } finally {
+                btn.disabled = false; btn.innerHTML = 'Atualizar Evento';
+            }
         });
     }
 
+    if (document.getElementById('formNovaGira')) {
+        document.getElementById('formNovaGira').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btnSalvarGira');
+            const msg = document.getElementById('msgGira');
+            
+            btn.disabled = true; btn.innerHTML = 'Salvando...'; msg.classList.add('hidden');
+
+            try {
+                const titulo = document.getElementById('giraTitulo').value;
+                const inicioRaw = document.getElementById('giraInicio').value;
+                const fimRaw = document.getElementById('giraFim').value;
+                const linkA = document.getElementById('giraImagem').value;
+                const fileInput = document.getElementById('giraArquivo');
+                const chkGeraAta = document.getElementById('giraGeraAta') ? document.getElementById('giraGeraAta').checked : false;
+                
+                let imagemFinal = linkA || '';
+
+                if (fileInput && fileInput.files.length > 0) {
+                    const file = fileInput.files[0];
+                    const fileName = `${idTerreiroGlobal}/evento_${Date.now()}.${file.name.split('.').pop()}`;
+                    const { error: uploadError } = await supabaseClient.storage.from('public').upload(fileName, file);
+                    if (uploadError) throw uploadError;
+                    const { data: { publicUrl } } = supabaseClient.storage.from('public').getPublicUrl(fileName);
+                    imagemFinal = publicUrl;
+                }
+
+                const { error } = await supabaseClient.from('agenda').insert([{
+                    terreiro_id: idTerreiroGlobal,
+                    titulo: titulo,
+                    tipo: 'Gira',
+                    data_hora_inicio: new Date(inicioRaw).toISOString(),
+                    data_hora_fim: new Date(fimRaw).toISOString(),
+                    imagem_url: imagemFinal,
+                    raio_presenca_metros: 50,
+                    gera_ata: chkGeraAta
+                }]);
+
+                if (error) throw error;
+
+                document.getElementById('formNovaGira').reset();
+                carregarAgenda();
+                
+                msg.textContent = "Evento salvo com sucesso!";
+                msg.className = "text-green-600 text-sm mt-2 block font-bold";
+                msg.classList.remove('hidden');
+                setTimeout(() => { msg.classList.add('hidden'); }, 3000);
+
+            } catch (err) {
+                msg.textContent = "Erro: " + err.message;
+                msg.className = "text-red-600 text-sm mt-2 block font-bold";
+                msg.classList.remove('hidden');
+            } finally {
+                btn.disabled = false; btn.innerHTML = 'Salvar Evento';
+            }
+        });
+    }
+
+    // ==========================================
+    // LIVRO DE PRESENÇA (ATA)
+    // ==========================================
+    window.carregarLivroAta = async () => {
+        const tbody = document.getElementById('tabelaLivroAta');
+        if(!tbody) return;
+        tbody.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-gray-500">Buscando histórico de ATAs...</td></tr>';
+        
+        try {
+            const { data, error } = await supabaseClient.from('agenda')
+                .select('id, titulo, data_hora_inicio, ata_encerrada')
+                .eq('terreiro_id', idTerreiroGlobal)
+                .eq('gera_ata', true)
+                .order('data_hora_inicio', { ascending: false })
+                .limit(30);
+
+            if (error) throw error;
+
+            tbody.innerHTML = '';
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-gray-500">Nenhum evento foi configurado para gerar ATA ainda.</td></tr>';
+                return;
+            }
+
+            data.forEach(g => {
+                const inicio = new Date(g.data_hora_inicio).toLocaleString('pt-BR');
+                const encerrada = g.ata_encerrada;
+                
+                const statusHtml = encerrada 
+                    ? '<span class="bg-gray-200 text-gray-800 text-xs px-2 py-1 rounded font-bold"><i class="fas fa-lock mr-1"></i> Finalizada</span>'
+                    : '<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded font-bold"><i class="fas fa-lock-open mr-1"></i> Em Aberto</span>';
+
+                let acoesHtml = '';
+                if (encerrada) {
+                    acoesHtml = `<button onclick="gerarPDF_ATA('${g.id}')" class="text-xs bg-gray-800 hover:bg-gray-900 text-white font-bold py-1.5 px-3 rounded shadow transition"><i class="fas fa-file-pdf mr-1 text-red-400"></i> Baixar Documento</button>`;
+                } else {
+                    acoesHtml = `
+                        <div class="flex items-center justify-center space-x-2">
+                            <button onclick="abrirModalEscreverAta('${g.id}')" class="text-xs bg-indigo-100 text-indigo-700 hover:bg-indigo-200 font-bold py-1 px-3 rounded shadow transition" title="Redigir ATA"><i class="fas fa-pen"></i> Redigir</button>
+                            <button onclick="encerrarAta('${g.id}')" class="text-xs bg-red-500 hover:bg-red-600 text-white font-bold py-1 px-3 rounded shadow transition" title="Travar Check-ins e Gerar PDF"><i class="fas fa-check-double"></i> Encerrar e Gerar</button>
+                        </div>
+                    `;
+                }
+
+                tbody.innerHTML += `
+                    <tr class="border-b border-gray-100 hover:bg-gray-50">
+                        <td class="p-3 text-gray-800 font-medium">${g.titulo}</td>
+                        <td class="p-3 text-gray-600 text-sm">${inicio}</td>
+                        <td class="p-3 text-center">${statusHtml}</td>
+                        <td class="p-3 text-center">${acoesHtml}</td>
+                    </tr>
+                `;
+            });
+        } catch (error) {
+            tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-red-500">Erro: ${error.message}</td></tr>`;
+        }
+    };
+
+    window.abrirModalEscreverAta = async (id) => {
+        try {
+            const { data } = await supabaseClient.from('agenda').select('texto_ata').eq('id', id).single();
+            document.getElementById('ataEventoId').value = id;
+            document.getElementById('ataTexto').value = data?.texto_ata || '';
+            document.getElementById('modalEscreverAta').classList.remove('hidden');
+            document.getElementById('msgEscreverAta').classList.add('hidden');
+        } catch (error) {
+            alert("Erro ao buscar texto: " + error.message);
+        }
+    };
+
+    window.fecharModalEscreverAta = () => {
+        document.getElementById('modalEscreverAta').classList.add('hidden');
+    };
+
+    if (document.getElementById('formEscreverAta')) {
+        document.getElementById('formEscreverAta').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btnSalvarTextoAta');
+            const msg = document.getElementById('msgEscreverAta');
+            const id = document.getElementById('ataEventoId').value;
+            const texto = document.getElementById('ataTexto').value;
+
+            btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Salvando...';
+            
+            const { error } = await supabaseClient.from('agenda').update({ texto_ata: texto }).eq('id', id);
+            
+            btn.disabled = false; btn.innerHTML = '<i class="fas fa-save mr-2"></i> Salvar Texto da Ata';
+            
+            if (error) {
+                msg.textContent = 'Erro: ' + error.message;
+                msg.className = 'text-red-500 text-sm font-bold mt-2 block';
+                msg.classList.remove('hidden');
+            } else {
+                msg.textContent = 'Texto salvo com sucesso!';
+                msg.className = 'text-green-600 text-sm font-bold mt-2 block';
+                msg.classList.remove('hidden');
+                setTimeout(() => fecharModalEscreverAta(), 1500);
+            }
+        });
+    }
+
+    window.encerrarAta = async (id) => {
+        if(!confirm("Atenção! Ao encerrar a ATA, os check-ins serão bloqueados para este evento e o documento não poderá mais ser alterado. Confirmar fechamento?")) return;
+        
+        const { error } = await supabaseClient.from('agenda').update({ ata_encerrada: true }).eq('id', id);
+        
+        if (error) {
+            alert("Erro ao encerrar: " + error.message);
+        } else {
+            alert("Sessão Encerrada! O documento oficial está disponível para download.");
+            carregarLivroAta();
+        }
+    };
+
+    window.baixarLivroAnual = async () => {
+        alert("Atenção: A consolidação do Livro Anual gera um arquivo muito pesado. Esta função está sendo adaptada para rodar em segundo plano e será liberada em breve. Por favor, baixe as atas de forma individual na tabela abaixo.");
+    };
+
+    window.arquivarAnoAnterior = async () => {
+        const anoAtual = new Date().getFullYear();
+        if(!confirm(`ATENÇÃO EXTREMA: Você está prestes a excluir definitivamente todas as ATAs anteriores a ${anoAtual}. Certifique-se de já ter baixado e feito backup dos PDFs. Deseja prosseguir com a exclusão?`)) return;
+        
+        const { error } = await supabaseClient.from('agenda')
+            .delete()
+            .eq('terreiro_id', idTerreiroGlobal)
+            .eq('gera_ata', true)
+            .lte('data_hora_inicio', `${anoAtual}-01-01T00:00:00`);
+            
+        if (error) alert("Erro ao limpar dados antigos: " + error.message);
+        else {
+            alert("Limpeza do exercício anterior concluída com sucesso!");
+            carregarLivroAta();
+        }
+    };
+
+    window.gerarPDF_ATA = async (eventoId) => {
+        try {
+            const { data: evento, error: errEv } = await supabaseClient.from('agenda').select('*').eq('id', eventoId).single();
+            if (errEv || !evento) throw new Error("Erro ao buscar dados do evento.");
+
+            const anoEvento = new Date(evento.data_hora_inicio).getFullYear();
+            const { data: eventosAnteriores } = await supabaseClient
+                .from('agenda')
+                .select('id')
+                .eq('terreiro_id', idTerreiroGlobal)
+                .eq('gera_ata', true)
+                .gte('data_hora_inicio', `${anoEvento}-01-01T00:00:00`)
+                .lte('data_hora_inicio', evento.data_hora_inicio);
+                
+            const numeroAta = eventosAnteriores ? eventosAnteriores.length : 1;
+
+            const { data: presencas } = await supabaseClient.from('presencas').select('data_hora_checkin, usuario_id').eq('evento_id', eventoId).order('data_hora_checkin', { ascending: true });
+            const { data: mediuns } = await supabaseClient.from('mediuns').select('id, auth_id, nome_completo, grau').eq('terreiro_id', idTerreiroGlobal);
+                
+            const mapaMediuns = {};
+            if(mediuns) {
+                mediuns.forEach(m => {
+                    mapaMediuns[m.id] = m;
+                    if(m.auth_id) mapaMediuns[m.auth_id] = m;
+                });
+            }
+
+            const dataEv = new Date(evento.data_hora_inicio);
+            const dia = dataEv.getDate().toString().padStart(2, '0');
+            const meses = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+            const mesExtenso = meses[dataEv.getMonth()];
+            const ano = dataEv.getFullYear();
+            const hora = dataEv.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+            let trs = '';
+            if (presencas && presencas.length > 0) {
+                presencas.forEach(p => {
+                    const medium = mapaMediuns[p.usuario_id] || { nome_completo: 'Médium não identificado', grau: '-' };
+                    const horaCheckin = new Date(p.data_hora_checkin).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                    trs += `
+                        <tr>
+                            <td style="border-bottom: 1px solid #ddd; padding: 6px 4px;">${medium.nome_completo}</td>
+                            <td style="border-bottom: 1px solid #ddd; padding: 6px 4px; text-align: center;">${medium.grau || '-'}</td>
+                            <td style="border-bottom: 1px solid #ddd; padding: 6px 4px; text-align: right;">${horaCheckin}</td>
+                        </tr>
+                    `;
+                });
+            } else {
+                trs = `<tr><td colspan="3" style="text-align: center; padding: 20px; font-style: italic;">Nenhum check-in registrado na plataforma para esta data.</td></tr>`;
+            }
+
+            const logoHtml = logoTerreiroGlobal ? `<img src="${logoTerreiroGlobal}" style="max-height: 80px; margin-bottom: 15px;">` : '';
+            const nomeCasa = nomeTerreiroGlobal || 'Templo';
+
+            // Verifica se tem texto escrito pela diretoria ou usa o padrão
+            const corpoTextoAta = evento.texto_ata 
+                ? `<p style="text-align: justify; line-height: 1.8; font-size: 14px; margin-bottom: 30px; white-space: pre-wrap;">${evento.texto_ata}</p>`
+                : `<p style="text-align: justify; line-height: 1.8; font-size: 14px; margin-bottom: 30px; text-indent: 40px;">
+                    Aos <strong>${dia}</strong> dias do mês de <strong>${mesExtenso}</strong> do ano de <strong>${ano}</strong>,
+                    com início às <strong>${hora}</strong>, realizou-se a sessão de <strong>${evento.titulo}</strong> nas dependências
+                    do templo <strong>${nomeCasa}</strong>. Abaixo, assinam digitalmente, através de validação
+                    presencial por geolocalização no sistema, os médiuns que compuseram a corrente neste trabalho:
+                   </p>`;
+
+            const div = document.createElement('div');
+            div.style.padding = '40px';
+            div.style.fontFamily = 'Arial, sans-serif';
+            div.style.color = '#000';
+            div.style.backgroundColor = '#fff';
+            
+            div.innerHTML = `
+                <div style="text-align: center; margin-bottom: 30px;">
+                    ${logoHtml}
+                    <h1 style="font-size: 20px; font-weight: bold; text-transform: uppercase; margin: 0 0 5px 0;">${nomeCasa}</h1>
+                    <h2 style="font-size: 16px; font-weight: normal; margin: 0; letter-spacing: 2px;">LIVRO DE ATAS E PRESENÇAS</h2>
+                </div>
+                
+                <h3 style="text-align: center; font-size: 16px; margin-bottom: 25px; text-transform: uppercase; background-color: #f3f4f6; padding: 10px; border-radius: 4px;">
+                    ATA Nº ${numeroAta.toString().padStart(3, '0')}/${ano} - ${evento.titulo}
+                </h3>
+                
+                ${corpoTextoAta}
+                
+                <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 40px;">
+                    <thead>
+                        <tr>
+                            <th style="border-bottom: 2px solid #000; padding: 8px 4px; text-align: left;">NOME DO MÉDIUM</th>
+                            <th style="border-bottom: 2px solid #000; padding: 8px 4px; text-align: center;">GRAU</th>
+                            <th style="border-bottom: 2px solid #000; padding: 8px 4px; text-align: right;">HORA DO CHECK-IN</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${trs}
+                    </tbody>
+                </table>
+                
+                <div style="margin-top: 60px; text-align: center; page-break-inside: avoid;">
+                    <p style="margin: 0;">________________________________________________________</p>
+                    <p style="font-size: 14px; margin-top: 5px;"><strong>Direção / Presidência</strong></p>
+                    <p style="font-size: 10px; color: #777; margin-top: 25px;">
+                        ATA gerada eletronicamente pelo Sistema de Gestão em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}
+                    </p>
+                </div>
+            `;
+
+            const opt = {
+                margin:       10,
+                filename:     `ATA_${numeroAta.toString().padStart(3, '0')}_${ano}_${evento.titulo.replace(/\s+/g, '_')}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            alert("Gerando Livro de Presença (PDF)... Aguarde um instante.");
+            html2pdf().set(opt).from(div).save();
+
+        } catch (error) {
+            console.error(error);
+            alert("Não foi possível gerar a ATA: " + error.message);
+        }
+    };
+
+    // ==========================================
+    // GRAUS E FUNÇÕES
+    // ==========================================
     const opcoesGrau = ['-', 'I', 'IJ', 'B', 'BJ', 'T', 'TJ', 'SCT', 'Escola de CT', 'CT', 'SCCT', 'Escola de CCT', 'CCT'];
     const opcoesFuncao = ['-', 'MG', 'MGA', 'MC', 'MCA', 'MD', 'MDA', 'Cantina'];
     function renderizarOpcoes(lista, valorAtual) { return lista.map(op => `<option value="${op === '-' ? '' : op}" ${op === valorAtual ? 'selected' : ''}>${op}</option>`).join(''); }
@@ -417,7 +822,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     };
 
-    // --- FINANCEIRO ---
+    // ==========================================
+    // FINANCEIRO
+    // ==========================================
     async function carregarFinanceiro() {
         const ano = parseInt(document.getElementById('selectAnoFinanceiro').value);
         const tbody = document.getElementById('tabelaFinanceiro');
@@ -453,7 +860,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         if(error) { alert('Erro: ' + error.message); carregarFinanceiro(); }
     };
 
-    // --- CONFIG DA CASA ---
+    // ==========================================
+    // CONFIGURAÇÕES DA CASA
+    // ==========================================
     async function carregarConfiguracoesCasa() {
         if (!idTerreiroGlobal) return;
         const { data } = await supabaseClient.from('terreiros').select('logo_url, cor_primaria, cor_secundaria, cor_fundo, cor_texto').eq('id', idTerreiroGlobal).single();
@@ -502,6 +911,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const { data: urlData } = supabaseClient.storage.from('logos').getPublicUrl(nomeArquivo);
                 const { error: errBd } = await supabaseClient.from('terreiros').update({ logo_url: urlData.publicUrl }).eq('id', idTerreiroGlobal);
                 if (errBd) throw errBd;
+                
+                logoTerreiroGlobal = urlData.publicUrl;
+                
                 document.getElementById('logoSidebar').src = urlData.publicUrl;
                 document.getElementById('logoSidebar').classList.remove('hidden');
                 msg.textContent = '✅ Logo salva!'; msg.className = 'text-xs font-bold mt-2 text-tema-secundaria';
@@ -550,7 +962,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // --- DOAÇÕES ---
+    // ==========================================
+    // DOAÇÕES
+    // ==========================================
     window.carregarDoacoesPrometidas = async () => {
         if (!idTerreiroGlobal) return;
         const tbody = document.getElementById('tabelaDoacoesPrometidas');
@@ -611,7 +1025,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     // ==========================================
-    // SAAS - GESTÃO DA PLATAFORMA (SÓ MÁRIO) E IMPORTAÇÃO CSV
+    // SAAS / GESTÃO
     // ==========================================
     window.carregarGestaoPlataforma = async () => {
         const tbody = document.getElementById('tabelaMasterTerreiros');
@@ -626,7 +1040,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             const statusHtml = t.status_bloqueado ? '<span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded font-bold">Bloqueado</span>' : '<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded font-bold">Ativo</span>';
             const btnBloqueio = t.status_bloqueado ? `<button onclick="alternarBloqueioTerreiro(${t.id}, false)" class="text-xs bg-gray-800 text-white py-1 px-3 rounded shadow">Desbloquear</button>` : `<button onclick="alternarBloqueioTerreiro(${t.id}, true)" class="text-xs bg-red-600 text-white py-1 px-3 rounded shadow">Bloquear</button>`;
             
-            // Botão Novo: Importar CSV
             const btnImportar = `<button onclick="abrirModalImportacao(${t.id}, '${t.nome.replace(/'/g, "\\'")}')" class="text-xs bg-blue-600 hover:bg-blue-700 text-white py-1 px-3 rounded shadow ml-2"><i class="fas fa-file-csv"></i> CSV</button>`;
             
             const acaoHtml = `<div class="flex justify-center items-center">${btnBloqueio}${btnImportar}</div>`;
@@ -664,7 +1077,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // MODAL IMPORTAÇÃO E PROCESSAMENTO CSV (NOVO)
     window.abrirModalImportacao = (idTerreiro, nomeTerreiro) => {
         document.getElementById('idTerreiroImport').value = idTerreiro;
         document.getElementById('nomeTerreiroImport').textContent = nomeTerreiro;
@@ -698,16 +1110,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             reader.onload = async function(event) {
                 try {
                     const text = event.target.result;
-                    // Quebra por linhas e remove as vazias
                     const linhas = text.split(/\r?\n/).filter(l => l.trim() !== '');
                     if (linhas.length <= 1) throw new Error("O arquivo parece vazio ou só tem cabeçalho.");
 
                     const mediunsParaInserir = [];
-                    // Pula o cabeçalho (começa do índice 1)
                     for (let i = 1; i < linhas.length; i++) {
-                        // Suporta vírgula ou ponto e vírgula
                         const colunas = linhas[i].split(/[,;]/);
-                        
                         const nome = colunas[0] ? colunas[0].trim() : '';
                         const telefone = colunas[1] ? colunas[1].trim() : '';
                         const grau = colunas[2] ? colunas[2].trim() : '-';
@@ -735,9 +1143,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     msg.textContent = `✅ ${mediunsParaInserir.length} cadastros importados com sucesso!`;
                     msg.className = 'text-sm mt-3 text-green-600 block font-bold text-center';
                     
-                    setTimeout(() => {
-                        fecharModalImportacao();
-                    }, 3000);
+                    setTimeout(() => { fecharModalImportacao(); }, 3000);
 
                 } catch (error) {
                     msg.textContent = '❌ Erro: ' + error.message;
@@ -757,4 +1163,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             reader.readAsText(file);
         });
     }
+});
+
+document.querySelectorAll('.menu-item').forEach(item => {
+    item.addEventListener('click', () => {
+        if (window.innerWidth < 768) {
+            document.getElementById('sidebar').classList.add('-translate-x-full');
+            document.getElementById('overlayMobile').classList.add('hidden');
+        }
+    });
 });
