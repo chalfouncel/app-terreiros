@@ -333,7 +333,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('chkPermDoacoes').checked = pDoa === 'true';
         document.getElementById('chkPermAdmin').checked = pAdmin === 'true';
         if (document.getElementById('chkPermVisao')) document.getElementById('chkPermVisao').checked = pVisao === 'true';
-        if (document.getElementById('chkPermAta')) document.getElementById('chkPermAta').checked = false; // Add pAta logically se estiver lá
+        if (document.getElementById('chkPermAta')) document.getElementById('chkPermAta').checked = false; 
         
         document.getElementById('modalPermissoes').classList.remove('hidden');
     };
@@ -382,7 +382,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const { data } = await supabaseClient.from('agenda')
             .select('*')
             .eq('terreiro_id', idTerreiroGlobal) // <--- Filtro Corrigido
-            .gte('data_hora_fim', agora) // <-- É ESTA A LINHA QUE OCULTA OS EVENTOS PASSADOS DA SUA TELA
+            .gte('data_hora_fim', agora) 
             .order('data_hora_inicio', { ascending: true })
             .limit(15); 
             
@@ -480,7 +480,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             } catch (error) {
                 alert("Erro ao atualizar: " + error.message);
             } finally {
-                btn.disabled = false; btn.innerHTML = 'Atualizar Evento';
+                btn.disabled = false; btn.innerHTML = 'Salvar Alterações';
             }
         });
     }
