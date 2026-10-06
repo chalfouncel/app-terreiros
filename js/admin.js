@@ -312,7 +312,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         else { alert('Médium excluído!'); carregarQuadroMediuns(); }
     };
 
-    // Note que mantive a sua ordem correta que você tinha construído.
     window.abrirModalPermissoes = (id, nome, permsString) => {
         document.getElementById('idMediumPermissao').value = id;
         document.getElementById('nomeMediumPermissao').textContent = nome;
@@ -391,7 +390,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Função de Salvar a Gira (que estava faltando no seu arquivo de produção!)
+    // Função de Salvar a Gira
     if (document.getElementById('formNovaGira')) {
         document.getElementById('formNovaGira').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -424,12 +423,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                     imagemFinal = publicUrl;
                 }
 
+                // ===== CORREÇÃO DO FUSO HORÁRIO =====
+                // Transformamos a data "crua" do input em um formato ISO completo (UTC) para o Supabase não se perder nos fusos.
                 const { error } = await supabaseClient.from('agenda').insert([{
                     terreiro_id: idTerreiroGlobal,
                     titulo: titulo,
                     tipo: 'Gira',
-                    data_hora_inicio: inicio,
-                    data_hora_fim: fim,
+                    data_hora_inicio: new Date(inicio).toISOString(),
+                    data_hora_fim: new Date(fim).toISOString(),
                     imagem_url: imagemFinal,
                     raio_presenca_metros: 50,
                     gera_ata: chkGeraAta
