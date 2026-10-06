@@ -448,8 +448,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (document.getElementById('formEditarGira')) {
         document.getElementById('formEditarGira').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const btn = document.getElementById('btnSalvarEdicaoGira');
-            btn.disabled = true; btn.innerHTML = 'Salvando...';
+            // CORREÇÃO: Usando o ID exato que está no HTML (btnSalvarEditGira)
+            const btn = document.getElementById('btnSalvarEditGira');
+            if (btn) { btn.disabled = true; btn.innerHTML = 'Salvando...'; }
 
             try {
                 const id = document.getElementById('editGiraId').value;
@@ -475,7 +476,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             } catch (error) {
                 alert("Erro ao atualizar: " + error.message);
             } finally {
-                btn.disabled = false; btn.innerHTML = 'Salvar Alterações';
+                if (btn) { btn.disabled = false; btn.innerHTML = 'Salvar Alterações'; }
             }
         });
     }
