@@ -7,6 +7,10 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- BIBLIOTECA QUE GERA O PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
     <style>
         :root {
             --cor-primaria: #1e3a8a;   
@@ -164,7 +168,6 @@
 
         <!-- SECÃO 3: AGENDA DE EVENTOS -->
         <div id="secAgendaGiras" class="secao-painel hidden">
-            <!-- Funcionalidade Simplificada - Mantida Original -->
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                 <h3 class="text-lg font-bold text-tema-texto mb-4">Eventos Agendados</h3>
                 <div class="overflow-x-auto">
@@ -202,16 +205,23 @@
         </div>
 
         <!-- SECÃO 5: FINANCEIRO -->
-        <div id="secFinanceiro" class="secao-painel hidden">
-            <!-- (Mantido Oculto do Resumo Visual) -->
-        </div>
+        <div id="secFinanceiro" class="secao-painel hidden"></div>
 
         <!-- SECÃO: DOAÇÕES E CAMPANHAS -->
         <div id="secDoacoes" class="secao-painel hidden">
             
-            <!-- LISTA DE DOAÇÕES PROMETIDAS (NOVO) -->
+            <!-- LISTA DE DOAÇÕES PROMETIDAS COM BOTÃO PDF -->
             <div class="bg-white p-6 rounded-xl shadow-sm border-t-4 border-tema-secundaria mb-8">
-                <h3 class="text-xl font-bold text-tema-texto mb-2"><i class="fas fa-box-open mr-2 text-tema-secundaria"></i> Doações Registradas</h3>
+                
+                <div class="flex justify-between items-center mb-2 flex-wrap gap-3">
+                    <h3 class="text-xl font-bold text-tema-texto">
+                        <i class="fas fa-box-open mr-2 text-tema-secundaria"></i> Doações Registradas
+                    </h3>
+                    <button id="btnGerarPDF" class="bg-gray-800 text-white text-sm font-bold px-4 py-2 rounded-lg shadow hover:bg-gray-700 transition flex items-center active:scale-95">
+                        <i class="fas fa-file-pdf mr-2 text-red-400"></i> Exportar para PDF
+                    </button>
+                </div>
+
                 <p class="text-sm text-gray-500 mb-6">Acompanhe aqui o que os médiuns se comprometeram a trazer e dê baixa quando for entregue.</p>
                 
                 <div class="overflow-x-auto">
@@ -257,7 +267,6 @@
 
         <!-- SECÃO 6: ADMINISTRAÇÃO -->
         <div id="secAdministracao" class="secao-painel hidden">
-            <!-- CORES E LOGO (MANTIDO) -->
             <div class="bg-white rounded-xl shadow-sm border-t-4 border-tema-secundaria p-6">
                 <h3 class="text-xl font-bold text-tema-texto mb-2"><i class="fas fa-palette mr-2 text-tema-secundaria"></i> Identidade Visual (Cores)</h3>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
