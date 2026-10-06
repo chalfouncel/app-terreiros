@@ -84,16 +84,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 3. PUXAR OS DADOS DO BANCO PARA PREENCHER A TELA
     if (session || idPrimeiroAcesso) {
         try {
-            let query = supabaseClient.from('mediuns').select('*');
+            let perfil = null;
             
-            // Corrige o bug de busca: logados usam 'auth_id', primeiro acesso usa 'id' comum
+            // Corrige o bug de busca: logados usam 'auth_id' via select. Primeiro acesso usa 'rpc' furando RLS.
             if (session) {
-                query = query.eq('auth_id', session.user.id);
+                const { data, error } = await supabaseClient.from('mediuns')
+                    .select('*')
+                    .eq('auth_id', session.user.id)
+                    .single();
+                
+                if (error) throw error;
+                perfil = data;
             } else {
-                query = query.eq('id', idPrimeiroAcesso);
+                const { data, error } = await supabaseClient.rpc('validar_primeiro_acesso', {
+                    id_buscado: parseInt(idPrimeiroAcesso)
+                });
+                
+                if (error) throw error;
+                perfil = data;
             }
-            
-            const { data: perfil, error } = await query.single();
             
             if (perfil) {
                 // TRAVA DE SEGURANÇA: Impede roubo de conta de outros terreiros
