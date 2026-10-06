@@ -215,6 +215,16 @@
                             <input type="datetime-local" id="giraFim" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
                         </div>
                     </div>
+
+                    <!-- NOVO CHECKBOX DE ATA AQUI -->
+                    <div class="mt-4 flex items-center">
+                        <input type="checkbox" id="giraGeraAta" class="w-4 h-4 text-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500" checked>
+                        <label for="giraGeraAta" class="ml-2 block text-sm font-medium text-gray-700">
+                            Gerar Livro de Presença (ATA) para este evento
+                        </label>
+                    </div>
+                    <!-- FIM DO CHECKBOX -->
+
                     <button type="submit" id="btnSalvarGira" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded shadow mt-4">
                         Salvar Evento
                     </button>
@@ -617,7 +627,6 @@
             <input type="hidden" id="idMediumPermissao">
             
             <div class="space-y-3 mb-6">
-                <!-- NOVA PERMISSÃO AQUI -->
                 <label class="flex items-center space-x-3 cursor-pointer p-2 hover:bg-gray-50 rounded">
                     <input type="checkbox" id="chkPermVisao" class="w-5 h-5 text-tema-primaria rounded focus:ring-tema-primaria">
                     <span class="text-gray-700 font-medium"><i class="fas fa-home w-5 text-center text-gray-400 mr-1"></i> Visão Geral</span>
@@ -627,7 +636,6 @@
                     <input type="checkbox" id="chkPermAta" class="w-5 h-5 text-tema-primaria rounded focus:ring-tema-primaria">
                     <span class="text-gray-700 font-medium"><i class="fas fa-book-open w-5 text-center text-gray-400 mr-1"></i> Livro de Presença (ATA)</span>
                 </label>
-                <!-- FIM DA NOVA PERMISSÃO -->
                 
                 <label class="flex items-center space-x-3 cursor-pointer p-2 hover:bg-gray-50 rounded">
                     <input type="checkbox" id="chkPermAgenda" class="w-5 h-5 text-tema-primaria rounded focus:ring-tema-primaria">
@@ -706,6 +714,49 @@
                     Processar e Importar
                 </button>
                 <p id="msgImportacao" class="hidden text-center mt-2"></p>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL EDITAR GIRA/EVENTO -->
+    <div id="modalEditarGira" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 transition-opacity">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 transform transition-all">
+            <div class="flex justify-between items-center mb-4 border-b pb-2">
+                <h3 class="text-xl font-bold text-tema-texto"><i class="fas fa-edit text-purple-500 mr-2"></i> Editar Evento</h3>
+                <button onclick="fecharModalEditarGira()" class="text-gray-400 hover:text-gray-600 transition"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            
+            <form id="formEditarGira" class="space-y-4">
+                <input type="hidden" id="editGiraId">
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Título do Evento</label>
+                    <input type="text" id="editGiraTitulo" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm outline-none focus:ring-2 focus:ring-purple-400">
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Início</label>
+                        <input type="datetime-local" id="editGiraInicio" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Fim</label>
+                        <input type="datetime-local" id="editGiraFim" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                    </div>
+                </div>
+
+                <div class="flex items-center mt-2">
+                    <input type="checkbox" id="editGiraGeraAta" class="w-4 h-4 text-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500">
+                    <label for="editGiraGeraAta" class="ml-2 block text-sm font-medium text-gray-700">
+                        Gerar Livro de Presença (ATA)
+                    </label>
+                </div>
+                
+                <p id="msgEditGira" class="hidden text-sm mt-2 text-center font-bold"></p>
+
+                <button type="submit" id="btnSalvarEdicaoGira" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-xl shadow transition mt-4 flex items-center justify-center">
+                    Salvar Alterações
+                </button>
             </form>
         </div>
     </div>
