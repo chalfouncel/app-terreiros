@@ -4,6 +4,9 @@ let perfilAdminLogado = null;
 
 let nomeTerreiroGlobal = "";
 let logoTerreiroGlobal = "";
+let mapaGlobal = null;
+let marcadorGlobal = null;
+let circuloGlobal = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
     // Data Cabeçalho
@@ -185,18 +188,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     // VISÃO GERAL
     // ==========================================
     async function carregarPainelInicial() {
-        const { count: totalMediuns } = await supabaseClient.from('mediuns')
-            .select('*', { count: 'exact', head: true })
-            .eq('terreiro_id', idTerreiroGlobal);
+        const { count: totalMediuns } = await supabaseClient.from('mediuns').select('*', { count: 'exact', head: true });
         document.getElementById('totalMediuns').textContent = totalMediuns || '0';
 
         const agora = new Date().toISOString();
-        const { data: agendaData } = await supabaseClient.from('agenda')
-            .select('*')
-            .eq('terreiro_id', idTerreiroGlobal)
-            .gte('data_hora_fim', agora)
-            .order('data_hora_inicio')
-            .limit(1);
+        const { data: agendaData } = await supabaseClient.from('agenda').select('*').gte('data_hora_fim', agora).order('data_hora_inicio').limit(1);
 
         let giraAtualId = null;
         if (agendaData && agendaData.length > 0) {
@@ -210,10 +206,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const tabelaPresencas = document.getElementById('tabelaPresencas');
         if (giraAtualId) {
             const { data: presencas } = await supabaseClient.from('presencas').select('usuario_id, data_hora_checkin').eq('evento_id', giraAtualId).order('data_hora_checkin', { ascending: false });
-            
-            const { data: todosMediuns } = await supabaseClient.from('mediuns')
-                .select('id, auth_id, nome_completo')
-                .eq('terreiro_id', idTerreiroGlobal);
+            const { data: todosMediuns } = await supabaseClient.from('mediuns').select('id, auth_id, nome_completo');
             
             document.getElementById('totalPresentes').textContent = presencas ? presencas.length : '0';
 
@@ -228,9 +221,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             } else {
                 tabelaPresencas.innerHTML = `<tr><td colspan="3" class="p-6 text-center text-gray-500">Nenhum check-in ainda.</td></tr>`;
             }
-        } else {
-            tabelaPresencas.innerHTML = `<tr><td colspan="3" class="p-6 text-center text-gray-500">Sem evento no momento.</td></tr>`;
-            document.getElementById('totalPresentes').textContent = '0';
         }
     }
 
@@ -239,11 +229,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ==========================================
     async function carregarQuadroMediuns() {
         const tbody = document.getElementById('tabelaTodosMediuns');
-        const { data } = await supabaseClient.from('mediuns')
-            .select('id, nome_completo, grau, funcao, telefone, cadastro_completo, is_admin, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin, perm_visao_geral')
-            .eq('terreiro_id', idTerreiroGlobal)
-            .order('nome_completo');
-            
+        const { data } = await supabaseClient.from('mediuns').select('id, nome_completo, grau, funcao, telefone, cadastro_completo, is_admin, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin, perm_visao_geral').order('nome_completo');
         tbody.innerHTML = '';
         
         if(data) data.forEach(m => {
@@ -373,19 +359,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // ==========================================
-    // AGENDA E EVENTOS
+    // AGENDA E EVENTOS (COM CORREÇÃO DE FUSO E ATA PADRÃO)
     // ==========================================
     async function carregarAgenda() {
         const tbody = document.getElementById('tabelaGirasCadastradas');
         const agora = new Date().toISOString();
-        
-        const { data } = await supabaseClient.from('agenda')
-            .select('*')
-            .eq('terreiro_id', idTerreiroGlobal)
-            .gte('data_hora_fim', agora) 
-            .order('data_hora_inicio', { ascending: true })
-            .limit(15); 
-            
+        const { data } = await supabaseClient.from('agenda').select('*').gte('data_hora_fim', agora).order('data_hora_inicio').limit(15); 
         tbody.innerHTML = '';
         if(data && data.length > 0) {
             data.forEach(g => {
@@ -413,7 +392,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 `;
             });
         } else {
-            tbody.innerHTML = '<tr><td colspan="3" class="p-6 text-center text-gray-500">Nenhum evento futuro ou em andamento.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="3" class="p-6 text-center text-gray-500">Nenhum evento agendado no momento.</td></tr>';
         }
     }
 
@@ -441,16 +420,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('editGiraId').value = data.id;
         document.getElementById('editGiraTitulo').value = data.titulo;
         
-        // FUNÇÃO DE FORMATAÇÃO CORRIGIDA PARA IGNORAR O FUSO DO PC E USAR SEMPRE SÃO PAULO
+        // CORREÇÃO: Formata forçando a hora que veio do banco de volta pro GMT-3 (São Paulo) no input
         const formataParaInput = (isoString) => {
             if (!isoString) return '';
             const dataBanco = new Date(isoString);
-            
-            // Converte a data do banco forçando para o fuso de São Paulo
             const spDateString = dataBanco.toLocaleString("en-US", {timeZone: "America/Sao_Paulo"});
             const spDate = new Date(spDateString);
             
-            // Extrai as partes para montar a string exata que o HTML pede: YYYY-MM-DDTHH:mm
             const ano = spDate.getFullYear();
             const mes = String(spDate.getMonth() + 1).padStart(2, '0');
             const dia = String(spDate.getDate()).padStart(2, '0');
@@ -480,15 +456,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const inicioRaw = document.getElementById('editGiraInicio').value;
                 const fimRaw = document.getElementById('editGiraFim').value;
                 
-                // FORÇA O CARIMBO DO FUSO DE BRASÍLIA AO ENVIAR PARA O BANCO
+                // CORREÇÃO: Adiciona a assinatura de fuso horário "-03:00" explicitamente
                 const inicioBR = inicioRaw ? `${inicioRaw}:00-03:00` : null;
                 const fimBR = fimRaw ? `${fimRaw}:00-03:00` : null;
 
                 const { error } = await supabaseClient.from('agenda')
                     .update({
                         titulo: document.getElementById('editGiraTitulo').value,
-                        data_hora_inicio: inicioBR, // Salvando com fuso explícito
-                        data_hora_fim: fimBR,       // Salvando com fuso explícito
+                        data_hora_inicio: inicioBR,
+                        data_hora_fim: fimBR,
                         gera_ata: document.getElementById('editGiraGeraAta').checked
                     })
                     .eq('id', id);
@@ -518,9 +494,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const fimRaw = document.getElementById('giraFim').value;
                 const linkA = document.getElementById('giraImagem').value;
                 const fileInput = document.getElementById('giraArquivo');
-                const chkGeraAta = document.getElementById('giraGeraAta') ? document.getElementById('giraGeraAta').checked : false;
                 
-                // FORÇA O CARIMBO DO FUSO DE BRASÍLIA AO CRIAR NOVO EVENTO
+                // CORREÇÃO: Gera a ATA por padrão a menos que esteja explicitamente desmarcado
+                const chkGeraAta = document.getElementById('giraGeraAta') ? document.getElementById('giraGeraAta').checked : true;
+                
+                // CORREÇÃO: Adiciona a assinatura de fuso horário "-03:00" explicitamente
                 const inicioBR = inicioRaw ? `${inicioRaw}:00-03:00` : null;
                 const fimBR = fimRaw ? `${fimRaw}:00-03:00` : null;
                 
@@ -529,11 +507,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (fileInput && fileInput.files.length > 0) {
                     const file = fileInput.files[0];
                     const fileName = `${idTerreiroGlobal}/evento_${Date.now()}.${file.name.split('.').pop()}`;
-                    
-                    const { error: uploadError } = await supabaseClient.storage.from('giras').upload(fileName, file);
+                    const { error: uploadError } = await supabaseClient.storage.from('public').upload(fileName, file);
                     if (uploadError) throw uploadError;
-                    
-                    const { data: { publicUrl } } = supabaseClient.storage.from('giras').getPublicUrl(fileName);
+                    const { data: { publicUrl } } = supabaseClient.storage.from('public').getPublicUrl(fileName);
                     imagemFinal = publicUrl;
                 }
 
@@ -541,8 +517,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     terreiro_id: idTerreiroGlobal,
                     titulo: titulo,
                     tipo: 'Gira',
-                    data_hora_inicio: inicioBR, // Salvando com fuso explícito
-                    data_hora_fim: fimBR,       // Salvando com fuso explícito
+                    data_hora_inicio: inicioBR,
+                    data_hora_fim: fimBR,
                     imagem_url: imagemFinal,
                     raio_presenca_metros: 50,
                     gera_ata: chkGeraAta
@@ -551,6 +527,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (error) throw error;
 
                 document.getElementById('formNovaGira').reset();
+                if(document.getElementById('giraGeraAta')) document.getElementById('giraGeraAta').checked = true; // Mantém marcado após resetar
                 carregarAgenda();
                 
                 msg.textContent = "Evento salvo com sucesso!";
@@ -720,10 +697,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const numeroAta = eventosAnteriores ? eventosAnteriores.length : 1;
 
             const { data: presencas } = await supabaseClient.from('presencas').select('data_hora_checkin, usuario_id').eq('evento_id', eventoId).order('data_hora_checkin', { ascending: true });
-            
-            const { data: mediuns } = await supabaseClient.from('mediuns')
-                .select('id, auth_id, nome_completo, grau')
-                .eq('terreiro_id', idTerreiroGlobal);
+            const { data: mediuns } = await supabaseClient.from('mediuns').select('id, auth_id, nome_completo, grau').eq('terreiro_id', idTerreiroGlobal);
                 
             const mapaMediuns = {};
             if(mediuns) {
@@ -837,12 +811,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function carregarTabelaGraus() {
         const tbody = document.getElementById('tabelaGraus');
         tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center">Buscando...</td></tr>';
-        
-        const { data } = await supabaseClient.from('mediuns')
-            .select('id, nome_completo, grau, funcao')
-            .eq('terreiro_id', idTerreiroGlobal)
-            .order('nome_completo');
-            
+        const { data } = await supabaseClient.from('mediuns').select('id, nome_completo, grau, funcao').order('nome_completo');
         if (data) { mediunsGrauCache = data; renderizarGraus(data); }
     }
 
@@ -886,22 +855,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         const tbody = document.getElementById('tabelaFinanceiro');
         tbody.innerHTML = '<tr><td colspan="14" class="p-6 text-center text-gray-500">Buscando histórico...</td></tr>';
         
-        const { data: mediuns } = await supabaseClient.from('mediuns')
-            .select('id, nome_completo')
-            .eq('terreiro_id', idTerreiroGlobal)
-            .order('nome_completo');
-            
-        if(!mediuns || mediuns.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="14" class="p-6 text-center">Nenhum médium.</td></tr>';
-            return;
-        }
-
-        const idsMediuns = mediuns.map(m => m.id);
-        const { data: pgtos } = await supabaseClient.from('financeiro')
-            .select('*')
-            .eq('ano', ano)
-            .in('medium_id', idsMediuns); 
+        const { data: mediuns } = await supabaseClient.from('mediuns').select('id, nome_completo').order('nome_completo');
+        const { data: pgtos } = await supabaseClient.from('financeiro').select('*').eq('ano', ano);
         
+        if(!mediuns) return;
         tbody.innerHTML = '';
         
         mediuns.forEach(m => {
@@ -929,11 +886,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     // ==========================================
-    // CONFIGURAÇÕES DA CASA
+    // CONFIGURAÇÕES DA CASA & MAPA DE GPS
     // ==========================================
     async function carregarConfiguracoesCasa() {
         if (!idTerreiroGlobal) return;
-        const { data } = await supabaseClient.from('terreiros').select('logo_url, cor_primaria, cor_secundaria, cor_fundo, cor_texto').eq('id', idTerreiroGlobal).single();
+        const { data } = await supabaseClient.from('terreiros').select('logo_url, cor_primaria, cor_secundaria, cor_fundo, cor_texto, latitude, longitude').eq('id', idTerreiroGlobal).single();
         if (data) {
             if(data.logo_url) {
                 document.getElementById('previewLogo').src = data.logo_url;
@@ -944,8 +901,106 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.getElementById('corSecundaria').value = data.cor_secundaria || '#16a34a';
             document.getElementById('corFundo').value = data.cor_fundo || '#f3f4f6';
             document.getElementById('corTexto').value = data.cor_texto || '#1f2937';
+
+            if(document.getElementById('inputLat')) {
+                document.getElementById('inputLat').value = data.latitude || '';
+                document.getElementById('inputLng').value = data.longitude || '';
+                
+                let lat = data.latitude || -14.2350; 
+                let lng = data.longitude || -51.9253;
+                let zoom = data.latitude ? 18 : 4;
+                iniciarMapa(lat, lng, zoom);
+            }
         }
     }
+
+    // CORREÇÃO: Lógica do Leaflet (Minimapa) e Salvamento Manual Embutidos Corretamente no JS
+    function iniciarMapa(lat, lng, zoomLvl) {
+        const mapEl = document.getElementById('mapaLocalizacao');
+        const overlay = document.getElementById('mapaOverlay');
+        if(!mapaGlobal && mapEl && typeof L !== 'undefined') {
+            if(overlay) overlay.classList.add('hidden');
+            mapaGlobal = L.map('mapaLocalizacao').setView([lat, lng], zoomLvl);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(mapaGlobal);
+            
+            marcadorGlobal = L.marker([lat, lng]).addTo(mapaGlobal);
+            circuloGlobal = L.circle([lat, lng], { color: 'green', fillColor: '#22c55e', fillOpacity: 0.2, radius: 50 }).addTo(mapaGlobal);
+
+            mapaGlobal.on('click', function(e) {
+                document.getElementById('inputLat').value = e.latlng.lat;
+                document.getElementById('inputLng').value = e.latlng.lng;
+                marcadorGlobal.setLatLng([e.latlng.lat, e.latlng.lng]);
+                circuloGlobal.setLatLng([e.latlng.lat, e.latlng.lng]);
+            });
+        } else if(mapaGlobal) {
+            if(overlay) overlay.classList.add('hidden');
+            mapaGlobal.setView([lat, lng], zoomLvl);
+            marcadorGlobal.setLatLng([lat, lng]);
+            circuloGlobal.setLatLng([lat, lng]);
+        }
+        setTimeout(() => { if(mapaGlobal) mapaGlobal.invalidateSize(); }, 300);
+    }
+
+    if (document.getElementById('btnGravarLocalizacao')) {
+        document.getElementById('btnGravarLocalizacao').addEventListener('click', async () => {
+            const btn = document.getElementById('btnGravarLocalizacao');
+            const msg = document.getElementById('msgLocalizacao');
+            if(msg) {
+                msg.classList.remove('hidden');
+                msg.className = 'mt-4 text-sm font-bold text-blue-600 block';
+                msg.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Lendo GPS do celular...';
+            }
+            
+            navigator.geolocation.getCurrentPosition(
+                async (pos) => {
+                    const lat = pos.coords.latitude, lon = pos.coords.longitude;
+                    if(idTerreiroGlobal) {
+                        const { error } = await supabaseClient.from('terreiros').update({ latitude: lat, longitude: lon }).eq('id', idTerreiroGlobal);
+                        if(error) {
+                            if(msg) { msg.className = 'mt-4 text-sm font-bold text-red-600 block'; msg.textContent = 'Erro ao salvar no banco: ' + error.message; }
+                        } else {
+                            if(msg) { msg.className = 'mt-4 text-sm font-bold text-green-600 block'; msg.innerHTML = '<i class="fas fa-check-circle mr-2"></i> Ponto Registrado!'; setTimeout(() => msg.classList.add('hidden'), 3000); }
+                            if(document.getElementById('inputLat')) {
+                                document.getElementById('inputLat').value = lat;
+                                document.getElementById('inputLng').value = lon;
+                            }
+                            iniciarMapa(lat, lon, 18);
+                        }
+                    }
+                },
+                (err) => {
+                    if(msg) { msg.className = 'mt-4 text-sm font-bold text-red-600 block'; msg.textContent = 'Erro no GPS: Libere a permissão de localização do seu navegador.'; }
+                },
+                { enableHighAccuracy: true }
+            );
+        });
+    }
+
+    if (document.getElementById('btnSalvarLocalizacaoManual')) {
+        document.getElementById('btnSalvarLocalizacaoManual').addEventListener('click', async () => {
+            const btn = document.getElementById('btnSalvarLocalizacaoManual');
+            const msg = document.getElementById('msgLocalizacao');
+            const lat = parseFloat(document.getElementById('inputLat').value);
+            const lng = parseFloat(document.getElementById('inputLng').value);
+            
+            if(isNaN(lat) || isNaN(lng)) {
+                alert("Por favor, digite latitude e longitude válidas ou clique no mapa para marcar.");
+                return;
+            }
+
+            btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Salvando...';
+            const { error } = await supabaseClient.from('terreiros').update({ latitude: lat, longitude: lng }).eq('id', idTerreiroGlobal);
+            btn.disabled = false; btn.innerHTML = '<i class="fas fa-save mr-2"></i> Salvar Manualmente';
+            
+            if(error) {
+                if(msg) { msg.textContent = "Erro: " + error.message; msg.className = "mt-4 text-sm font-bold text-red-600 block"; msg.classList.remove('hidden'); }
+            } else {
+                if(msg) { msg.textContent = "Localização salva com sucesso!"; msg.className = "mt-4 text-sm font-bold text-green-600 block"; msg.classList.remove('hidden'); setTimeout(() => msg.classList.add('hidden'), 3000); }
+                iniciarMapa(lat, lng, 18);
+            }
+        });
+    }
+
 
     if(document.getElementById('uploadLogo')) {
         document.getElementById('uploadLogo').addEventListener('change', function(e) {
@@ -1015,21 +1070,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    if (document.getElementById('btnGravarLocalizacao')) {
-        document.getElementById('btnGravarLocalizacao').addEventListener('click', async () => {
-            navigator.geolocation.getCurrentPosition(
-                async (pos) => {
-                    const lat = pos.coords.latitude, lon = pos.coords.longitude;
-                    if(idTerreiroGlobal) {
-                        await supabaseClient.from('terreiros').update({ latitude: lat, longitude: lon }).eq('id', idTerreiroGlobal);
-                        alert('GPS Gravado com sucesso!');
-                    }
-                },
-                (err) => alert('Erro no GPS: Libere a permissão.')
-            );
-        });
-    }
-
     // ==========================================
     // DOAÇÕES
     // ==========================================
@@ -1040,11 +1080,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             const { data: doacoes, error: errD } = await supabaseClient.from('doacoes_registradas').select('*').eq('terreiro_id', idTerreiroGlobal).order('entregue', { ascending: true }).order('data_registro', { ascending: false }); 
             if (errD) throw errD;
-            
-            const { data: mediuns } = await supabaseClient.from('mediuns')
-                .select('auth_id, nome_completo')
-                .eq('terreiro_id', idTerreiroGlobal);
-                
+            const { data: mediuns } = await supabaseClient.from('mediuns').select('auth_id, nome_completo');
             const { data: itens } = await supabaseClient.from('itens_doacao').select('id, nome, descricao');
             window.dadosDoacoesParaPDF = { doacoes, mediuns, itens };
 
