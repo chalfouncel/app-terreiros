@@ -1226,3 +1226,54 @@ document.querySelectorAll('.menu-item').forEach(item => {
         }
     });
 });
+// --- LÓGICA DO MODAL DE EDIÇÃO DE EVENTOS ---
+document.getElementById('formEditarGira')?.addEventListener('submit', async (e) => {
+    e.preventDefault(); // Evita que a página recarregue antes de salvar
+    
+    // Pega os valores que estão nos campos da janela
+    const id = document.getElementById('editGiraId').value;
+    const titulo = document.getElementById('editGiraTitulo').value;
+    const inicio = document.getElementById('editGiraInicio').value;
+    const fim = document.getElementById('editGiraFim').value;
+    const geraAta = document.getElementById('editGiraGeraAta').checked;
+    
+    const btn = document.getElementById('btnSalvarEditGira');
+    const msg = document.getElementById('msgEditGira');
+    
+    // Desabilita o botão para não clicarem duas vezes
+    btn.disabled = true;
+    btn.innerText = "Salvando...";
+    
+    try {
+        // Envia a atualização para a tabela 'agenda' no Supabase
+        const { error } = await supabaseClient
+            .from('agenda')
+            .update({
+                titulo: titulo,
+                data_hora_inicio: inicio,
+                data_hora_fim: fim,
+                gera_ata: geraAta
+            })
+            .eq('id', id);
+            
+        if (error) throw error;
+        
+        // Mostra mensagem de sucesso
+        msg.textContent = "Evento atualizado com sucesso!";
+        msg.className = "mt-2 text-sm text-center font-bold text-green-600 block";
+        
+        // Espera 1,5 segundos e recarrega a página para atualizar a tabela por trás
+        setTimeout(() => {
+            window.location.reload();
+        }, 1500);
+        
+    } catch (error) {
+        console.error("Erro ao atualizar evento:", error);
+        msg.textContent = "Erro ao salvar: " + error.message;
+        msg.className = "mt-2 text-sm text-center font-bold text-red-600 block";
+        
+        // Reabilita o botão em caso de erro
+        btn.disabled = false;
+        btn.innerText = "Salvar Alterações";
+    }
+});
