@@ -27,11 +27,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (p1 && p1.length > 0) {
             perfil = p1[0];
         } else {
-            // ====================================================================
-            // AUTO-CONSERTO: Se falhou, a conta está desvinculada no banco.
-            // O sistema vai atuar como detetive para achar a ficha e consertar!
-            // ====================================================================
-            
+            // AUTO-CONSERTO DO BANCO DE DADOS
             if (session.user.email) {
                 const possivelId = session.user.email.split('@')[0];
                 if (!isNaN(possivelId)) {
@@ -53,7 +49,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (perfil) {
                 await supabaseClient.from('mediuns').update({ auth_id: authId }).eq('id', perfil.id);
-                console.log("Sucesso: A ficha do médium foi vinculada automaticamente!");
             }
         }
 
@@ -67,7 +62,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         // ====================================================================
         // LOGIN BEM SUCEDIDO! CARREGANDO A TELA
         // ====================================================================
-        
         idTerreiroGlobal = perfil.terreiro_id;
         
         const nomeCurto = perfil.nome_completo ? perfil.nome_completo.split(' ')[0] : 'Médium';
@@ -118,31 +112,43 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         // ====================================================================
-        // VERIFICA GIRA DE HOJE
+        // VERIFICA GIRA DE HOJE (LÓGICA BLINDADA COM JAVASCRIPT)
         // ====================================================================
-        const agora = new Date();
-        const agoraIso = agora.toISOString(); 
-        
-        const fimDia = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), 23, 59, 59, 999).toISOString();
+        const dataAtual = new Date();
+        const ano = dataAtual.getFullYear();
+        const mes = dataAtual.getMonth();
+        const dia = dataAtual.getDate();
 
-        const { data: giras } = await supabaseClient.from('agenda').select('*')
+        // Delimita o dia de hoje inteiro (00:00 até 23:59)
+        const inicioDia = new Date(ano, mes, dia, 0, 0, 0, 0).toISOString();
+        const fimDia = new Date(ano, mes, dia, 23, 59, 59, 999).toISOString();
+
+        // 1. Busca TODAS as giras de hoje no banco
+        const { data: girasDoDia } = await supabaseClient.from('agenda').select('*')
             .eq('terreiro_id', idTerreiroGlobal)
-            .eq('ata_encerrada', false)
-            .gte('data_hora_fim', agoraIso) 
+            // Usa .or para aceitar tanto false quanto null (novos eventos podem vir null)
+            .or('ata_encerrada.eq.false,ata_encerrada.is.null') 
+            .gte('data_hora_inicio', inicioDia)
             .lte('data_hora_inicio', fimDia)
-            .order('data_hora_inicio', { ascending: true })
-            .limit(1);
+            .order('data_hora_inicio', { ascending: true });
 
         const divSemGira = document.getElementById('estadoSemGira');
         const divComGira = document.getElementById('estadoComGira');
 
-        if (giras && giras.length > 0) {
-            const gira = giras[0];
+        let gira = null;
+        const horaNavegador = new Date();
+
+        if (girasDoDia && girasDoDia.length > 0) {
+            // 2. O próprio navegador (que tem a hora local exata) acha a gira que AINDA NÃO ACABOU
+            gira = girasDoDia.find(g => new Date(g.data_hora_fim) > horaNavegador);
+        }
+
+        if (gira) {
             idGiraGlobal = gira.id;
             
             const hrInicioGira = new Date(gira.data_hora_inicio);
             hrFimGiraGlobal = new Date(gira.data_hora_fim);
-            hrInicioPermitidoGlobal = new Date(hrInicioGira.getTime() - (90 * 60000)); 
+            hrInicioPermitidoGlobal = new Date(hrInicioGira.getTime() - (90 * 60000)); // Libera 90 min antes
 
             if (divSemGira) divSemGira.classList.add('hidden');
             if (divComGira) divComGira.classList.remove('hidden');
@@ -150,9 +156,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const titleGira = document.getElementById('tituloGira');
             if (titleGira) titleGira.textContent = gira.titulo;
 
-            // ==============================================
-            // NOVO: PUXAR E EXIBIR A IMAGEM/CARTAZ DA GIRA
-            // ==============================================
+            // EXIBE A IMAGEM/CARTAZ DA GIRA SE TIVER
             const imgCartaz = document.getElementById('cartazGira');
             if (imgCartaz) {
                 if (gira.imagem_url) {
@@ -199,6 +203,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             }
         } else {
+            // Não achou gira válida para hoje
             if (divComGira) divComGira.classList.add('hidden');
             if (divSemGira) divSemGira.classList.remove('hidden');
         }
