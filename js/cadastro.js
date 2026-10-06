@@ -29,14 +29,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         camposTitleCase.forEach(id => {
             const campo = document.getElementById(id);
             if (campo) campo.addEventListener('input', (e) => {
-                const start = e.target.selectionStart; // Guarda a posição do cursor
+                const start = e.target.selectionStart; 
                 e.target.value = formatarTitleCase(e.target.value);
-                e.target.setSelectionRange(start, start); // Devolve o cursor pro lugar certo
+                e.target.setSelectionRange(start, start); 
             });
         });
 
         // Textos TUDO EM MAIÚSCULO
-        const camposUpperCase = ['palavra']; // Grau e Função agora são Selects
+        const camposUpperCase = ['palavra']; 
         camposUpperCase.forEach(id => {
             const campo = document.getElementById(id);
             if (campo) campo.addEventListener('input', (e) => {
@@ -45,6 +45,32 @@ document.addEventListener('DOMContentLoaded', async () => {
                 e.target.setSelectionRange(start, start);
             });
         });
+
+        // Máscara Automática para a Data de Nascimento (DD/MM/AAAA)
+        const campoData = document.getElementById('dataNascimento');
+        if (campoData) {
+            campoData.addEventListener('input', (e) => {
+                let v = e.target.value.replace(/\D/g, ''); // Tira tudo que não é número
+                if (v.length > 8) v = v.substring(0, 8); // Limita a 8 números
+                
+                // Coloca as barras
+                if (v.length > 4) {
+                    v = v.substring(0, 2) + '/' + v.substring(2, 4) + '/' + v.substring(4, 8);
+                } else if (v.length > 2) {
+                    v = v.substring(0, 2) + '/' + v.substring(2, 4);
+                }
+                
+                e.target.value = v;
+            });
+        }
+        
+        // Bloqueio para a Senha (só aceitar números)
+        const campoSenha = document.getElementById('novaSenha');
+        if (campoSenha) {
+            campoSenha.addEventListener('input', (e) => {
+                e.target.value = e.target.value.replace(/\D/g, '');
+            });
+        }
     };
     
     configFormatacaoTempoReal();
@@ -80,7 +106,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 preencher('grau', perfil.grau || '');
                 preencher('funcao', perfil.funcao || '');
                 preencher('palavra', perfil.palavra ? perfil.palavra.toUpperCase() : '');
-                preencher('dataNascimento', perfil.data_nascimento);
+                
+                // Converte a data do banco (AAAA-MM-DD) pra DD/MM/AAAA para a tela
+                if (perfil.data_nascimento) {
+                    const partes = perfil.data_nascimento.split('-');
+                    if (partes.length === 3) preencher('dataNascimento', `${partes[2]}/${partes[1]}/${partes[0]}`);
+                    else preencher('dataNascimento', perfil.data_nascimento);
+                }
+                
                 preencher('telefone', perfil.telefone);
             }
         } catch (err) {
@@ -106,7 +139,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         const grau = document.getElementById('grau').value; 
         const funcao = document.getElementById('funcao').value; 
         const palavra = document.getElementById('palavra').value.toUpperCase(); 
-        const dataNascimento = document.getElementById('dataNascimento').value;
+        
+        // Converte a data de DD/MM/AAAA para AAAA-MM-DD pro banco entender
+        const dataBruta = document.getElementById('dataNascimento').value;
+        let dataNascimento = dataBruta;
+        if (dataBruta.includes('/')) {
+            const partes = dataBruta.split('/');
+            if (partes.length === 3) dataNascimento = `${partes[2]}-${partes[1]}-${partes[0]}`;
+        }
+        
         const telefone = document.getElementById('telefone').value;
         
         const campoSenha = document.getElementById('novaSenha');
