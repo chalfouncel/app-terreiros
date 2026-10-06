@@ -754,3 +754,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 });
+// Fechar o menu lateral automaticamente no celular ao clicar em uma opção
+document.querySelectorAll('.menu-item').forEach(item => {
+    item.addEventListener('click', () => {
+        // Verifica se é tela de celular (largura menor que 768px, padrão do md do Tailwind)
+        if (window.innerWidth < 768) {
+            document.getElementById('sidebar').classList.add('-translate-x-full');
+            document.getElementById('overlayMobile').classList.add('hidden');
+        }
+    });
+});
+
