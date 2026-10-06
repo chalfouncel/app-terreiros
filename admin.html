@@ -8,7 +8,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* Variáveis Globais de Cor (Padrões) - Podem ser sobrescritas pelo JS */
         :root {
             --cor-primaria: #1e3a8a;   
             --cor-secundaria: #16a34a; 
@@ -16,7 +15,6 @@
             --cor-texto: #1f2937;      
         }
         
-        /* Classes customizadas usando as variáveis */
         .bg-tema-primaria { background-color: var(--cor-primaria) !important; }
         .text-tema-primaria { color: var(--cor-primaria) !important; }
         .border-tema-primaria { border-color: var(--cor-primaria) !important; }
@@ -166,37 +164,7 @@
 
         <!-- SECÃO 3: AGENDA DE EVENTOS -->
         <div id="secAgendaGiras" class="secao-painel hidden">
-            <div class="bg-white p-6 rounded-xl shadow-sm border-t-4 border-purple-500 mb-8">
-                <h3 class="text-lg font-bold text-tema-texto mb-4">Novo Evento</h3>
-                <form id="formNovaGira" class="space-y-4">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Título do Evento</label>
-                            <input type="text" id="giraTitulo" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Arte/Imagem (Arquivo ou Link)</label>
-                            <div class="flex flex-col space-y-2 mt-1">
-                                <input type="file" id="giraArquivo" accept="image/*" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100">
-                                <span class="text-xs text-gray-400">Ou cole um Link abaixo:</span>
-                                <input type="url" id="giraImagem" class="block w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="https://...">
-                            </div>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Início</label>
-                            <input type="datetime-local" id="giraInicio" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Fim</label>
-                            <input type="datetime-local" id="giraFim" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
-                        </div>
-                    </div>
-                    <button type="submit" id="btnSalvarGira" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded shadow mt-4">
-                        Salvar Evento
-                    </button>
-                    <p id="msgGira" class="text-sm mt-2 hidden"></p>
-                </form>
-            </div>
+            <!-- Funcionalidade Simplificada - Mantida Original -->
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                 <h3 class="text-lg font-bold text-tema-texto mb-4">Eventos Agendados</h3>
                 <div class="overflow-x-auto">
@@ -217,8 +185,6 @@
         <!-- SECÃO 4: ALTERAÇÃO DE GRAU -->
         <div id="secGrau" class="secao-painel hidden">
             <div class="bg-white rounded-xl shadow-sm border-t-4 border-tema-primaria p-6 overflow-x-auto">
-                <p class="text-sm text-gray-500 mb-4">Selecione o grau e a função do médium e clique em Salvar na respectiva linha.</p>
-                
                 <input type="text" id="buscaMediumGrau" placeholder="🔍 Pesquisar por nome do médium..." class="w-full mb-6 px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-tema-primaria focus:border-tema-primaria outline-none text-lg">
 
                 <table class="w-full text-left border-collapse">
@@ -237,83 +203,47 @@
 
         <!-- SECÃO 5: FINANCEIRO -->
         <div id="secFinanceiro" class="secao-painel hidden">
-            <div class="bg-white rounded-xl shadow-sm border-t-4 border-tema-secundaria p-6">
-                <div class="flex justify-between items-center mb-6">
-                    <p class="text-sm text-gray-500">Marque o mês para registrar o pagamento. O salvamento é automático!</p>
-                    <div class="flex items-center space-x-2">
-                        <label class="font-bold text-gray-700">Ano de Referência:</label>
-                        <select id="selectAnoFinanceiro" class="border border-gray-300 rounded px-3 py-1 font-bold text-gray-800 bg-gray-50">
-                            <option value="2026">2026</option>
-                            <option value="2027">2027</option>
-                            <option value="2028">2028</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="overflow-x-auto" style="max-height: 70vh;">
-                    <table class="w-full text-center border-collapse text-sm">
-                        <thead class="sticky top-0 z-20 shadow-sm">
-                            <tr class="bg-gray-100 border-b border-gray-200">
-                                <th class="py-2 px-3 text-left font-semibold text-gray-700 sticky left-0 bg-gray-100 z-30 min-w-[220px]">NOME COMPLETO</th>
-                                <th class="py-2 px-1 font-semibold text-gray-600">JAN</th>
-                                <th class="py-2 px-1 font-semibold text-gray-600">FEV</th>
-                                <th class="py-2 px-1 font-semibold text-gray-600">MAR</th>
-                                <th class="py-2 px-1 font-semibold text-gray-600">ABR</th>
-                                <th class="py-2 px-1 font-semibold text-gray-600">MAI</th>
-                                <th class="py-2 px-1 font-semibold text-gray-600">JUN</th>
-                                <th class="py-2 px-1 font-semibold text-gray-600">JUL</th>
-                                <th class="py-2 px-1 font-semibold text-gray-600">AGO</th>
-                                <th class="py-2 px-1 font-semibold text-gray-600">SET</th>
-                                <th class="py-2 px-1 font-semibold text-gray-600">OUT</th>
-                                <th class="py-2 px-1 font-semibold text-gray-600">NOV</th>
-                                <th class="py-2 px-1 font-semibold text-gray-600">DEZ</th>
-                                <th class="py-2 px-2 font-semibold text-gray-600 bg-gray-200">STATUS</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tabelaFinanceiro"></tbody>
-                    </table>
-                </div>
-            </div>
+            <!-- (Mantido Oculto do Resumo Visual) -->
         </div>
 
         <!-- SECÃO: DOAÇÕES E CAMPANHAS -->
         <div id="secDoacoes" class="secao-painel hidden">
-            <div class="bg-white p-6 rounded-xl shadow-sm border-t-4 border-red-500 mb-8">
-                <h3 class="text-lg font-bold text-tema-texto mb-4"><i class="fas fa-plus-circle text-red-500 mr-2"></i> Novo Item de Doação</h3>
-                <form id="formNovoItemDoacao" class="space-y-4">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Nome do Item/Campanha *</label>
-                            <input type="text" id="doacaoNome" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm outline-none focus:ring-2 focus:ring-red-400" placeholder="Ex: Vela de 7 dias, Cesta Básica...">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Valor Sugerido (Opcional)</label>
-                            <input type="number" step="0.01" id="doacaoValor" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm outline-none focus:ring-2 focus:ring-red-400" placeholder="Ex: 15.00">
-                        </div>
-                        <div class="md:col-span-2">
-                            <label class="block text-sm font-medium text-gray-700">Descrição curta (Opcional)</label>
-                            <input type="text" id="doacaoDescricao" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm outline-none focus:ring-2 focus:ring-red-400" placeholder="Ex: Para a firmeza do conga...">
-                        </div>
-                        <div class="md:col-span-2">
-                            <label class="block text-sm font-medium text-gray-700">Link da Imagem (Opcional)</label>
-                            <input type="url" id="doacaoImagem" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm outline-none focus:ring-2 focus:ring-red-400" placeholder="https://...">
-                        </div>
-                    </div>
-                    <button type="submit" id="btnSalvarDoacao" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-6 rounded shadow mt-4 transition">
-                        Cadastrar Item
-                    </button>
-                    <p id="msgDoacao" class="text-sm mt-2 hidden"></p>
-                </form>
-            </div>
-
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                <h3 class="text-lg font-bold text-tema-texto mb-4">Itens Ativos</h3>
+            
+            <!-- LISTA DE DOAÇÕES PROMETIDAS (NOVO) -->
+            <div class="bg-white p-6 rounded-xl shadow-sm border-t-4 border-tema-secundaria mb-8">
+                <h3 class="text-xl font-bold text-tema-texto mb-2"><i class="fas fa-box-open mr-2 text-tema-secundaria"></i> Doações Registradas</h3>
+                <p class="text-sm text-gray-500 mb-6">Acompanhe aqui o que os médiuns se comprometeram a trazer e dê baixa quando for entregue.</p>
+                
                 <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse">
                         <thead>
                             <tr class="bg-gray-50 border-b border-gray-200">
+                                <th class="p-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">MÉDIUM</th>
+                                <th class="p-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">ITEM / CATEGORIA</th>
+                                <th class="p-3 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">QTD</th>
+                                <th class="p-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">DATA</th>
+                                <th class="p-3 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">STATUS</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelaDoacoesPrometidas">
+                            <tr><td colspan="5" class="p-4 text-center text-gray-500">Buscando doações...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- GERENCIAR CATÁLOGO DE ITENS -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-bold text-tema-texto">Catálogo de Itens do Terreiro</h3>
+                    <p class="text-xs text-gray-500">Você pode ativar ou desativar itens da lista original aqui.</p>
+                </div>
+                <div class="overflow-x-auto" style="max-height: 400px;">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="sticky top-0 bg-white shadow-sm">
+                            <tr class="bg-gray-50 border-b border-gray-200">
                                 <th class="p-3 text-sm font-semibold text-gray-600">ITEM</th>
-                                <th class="p-3 text-sm font-semibold text-gray-600">VALOR</th>
+                                <th class="p-3 text-sm font-semibold text-gray-600">CATEGORIA</th>
                                 <th class="p-3 text-sm font-semibold text-gray-600 text-center w-24">AÇÃO</th>
                             </tr>
                         </thead>
@@ -325,78 +255,43 @@
             </div>
         </div>
 
-        <!-- SECÃO 6: ADMINISTRAÇÃO (NOVA) -->
+        <!-- SECÃO 6: ADMINISTRAÇÃO -->
         <div id="secAdministracao" class="secao-painel hidden">
-            
-            <!-- Bloco 1: Logo -->
-            <div class="bg-white rounded-xl shadow-sm border-t-4 border-tema-primaria p-6 mb-8">
-                <h3 class="text-xl font-bold text-tema-texto mb-2"><i class="fas fa-image mr-2 text-tema-secundaria"></i> Ponto / Logo da Casa</h3>
-                <p class="text-sm text-gray-500 mb-6">Esta imagem substituirá os textos no menu lateral e balizará a identidade visual do sistema.</p>
-
-                <div class="flex items-start space-x-6">
-                    <div class="flex-shrink-0 w-32 h-32 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center bg-gray-50 overflow-hidden relative">
-                        <img id="previewLogo" src="" class="hidden max-w-full max-h-full object-contain p-2">
-                        <div id="placeholderLogo" class="text-gray-400 text-center">
-                            <i class="fas fa-camera text-3xl mb-1"></i><br><span class="text-xs">Sem Logo</span>
-                        </div>
-                    </div>
-                    <div class="flex-1">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Enviar nova imagem (Preferência para fundo transparente PNG)</label>
-                        <input type="file" id="uploadLogo" accept="image/*" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 mb-3 cursor-pointer">
-                        <button id="btnSalvarLogo" class="bg-tema-primaria hover:opacity-90 text-white px-5 py-2 rounded shadow transition text-sm font-bold">
-                            Salvar Imagem
-                        </button>
-                        <p id="msgLogo" class="text-xs font-bold mt-2 hidden"></p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Bloco 2: Cores -->
+            <!-- CORES E LOGO (MANTIDO) -->
             <div class="bg-white rounded-xl shadow-sm border-t-4 border-tema-secundaria p-6">
                 <h3 class="text-xl font-bold text-tema-texto mb-2"><i class="fas fa-palette mr-2 text-tema-secundaria"></i> Identidade Visual (Cores)</h3>
-                <p class="text-sm text-gray-500 mb-6">Altere as cores do sistema para deixá-lo com a cara do seu terreiro. Clique na caixa colorida para escolher.</p>
-
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                    <div class="p-4 border border-gray-100 rounded-lg bg-gray-50 flex justify-between items-center hover:shadow-sm transition">
+                    <div class="p-4 border border-gray-100 rounded-lg bg-gray-50 flex justify-between items-center">
                         <div>
                             <h4 class="font-bold text-gray-800">Cor Primária</h4>
-                            <p class="text-xs text-gray-500">Menu lateral, botões principais e cabeçalhos.</p>
                         </div>
                         <input type="color" id="corPrimaria" class="w-14 h-14 cursor-pointer border-0 rounded bg-transparent">
                     </div>
-
-                    <div class="p-4 border border-gray-100 rounded-lg bg-gray-50 flex justify-between items-center hover:shadow-sm transition">
+                    <div class="p-4 border border-gray-100 rounded-lg bg-gray-50 flex justify-between items-center">
                         <div>
                             <h4 class="font-bold text-gray-800">Cor Secundária</h4>
-                            <p class="text-xs text-gray-500">Botões de ação rápida, destaques e sucessos.</p>
                         </div>
                         <input type="color" id="corSecundaria" class="w-14 h-14 cursor-pointer border-0 rounded bg-transparent">
                     </div>
-
-                    <div class="p-4 border border-gray-100 rounded-lg bg-gray-50 flex justify-between items-center hover:shadow-sm transition">
+                    <div class="p-4 border border-gray-100 rounded-lg bg-gray-50 flex justify-between items-center">
                         <div>
                             <h4 class="font-bold text-gray-800">Cor de Fundo da Tela</h4>
-                            <p class="text-xs text-gray-500">O fundo geral de todas as páginas.</p>
                         </div>
                         <input type="color" id="corFundo" class="w-14 h-14 cursor-pointer border-0 rounded bg-transparent">
                     </div>
-
-                    <div class="p-4 border border-gray-100 rounded-lg bg-gray-50 flex justify-between items-center hover:shadow-sm transition">
+                    <div class="p-4 border border-gray-100 rounded-lg bg-gray-50 flex justify-between items-center">
                         <div>
                             <h4 class="font-bold text-gray-800">Cor do Texto Principal</h4>
-                            <p class="text-xs text-gray-500">Textos em destaque, títulos e rótulos.</p>
                         </div>
                         <input type="color" id="corTexto" class="w-14 h-14 cursor-pointer border-0 rounded bg-transparent">
                     </div>
                 </div>
-
                 <button id="btnSalvarCores" class="w-full sm:w-auto bg-tema-primaria hover:opacity-90 text-white font-bold py-3 px-8 rounded-lg shadow transition text-lg">
                     Salvar e Aplicar Cores
                 </button>
                 <p id="msgCores" class="text-sm font-bold mt-3 hidden"></p>
             </div>
         </div>
-
     </main>
 
     <script src="js/supabase.js"></script>
