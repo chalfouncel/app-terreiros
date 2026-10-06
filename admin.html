@@ -62,6 +62,10 @@
                 <i class="fas fa-file-invoice-dollar w-6 mr-2"></i> Financeiro
             </a>
             <hr class="border-white/10 my-2">
+            <a href="#" id="menuDoacoes" class="menu-item block py-2.5 px-4 rounded-lg hover:bg-white/10 transition flex items-center font-medium">
+                <i class="fas fa-hand-holding-heart w-6 mr-2 text-red-400"></i> Doações / Campanhas
+            </a>
+            <hr class="border-white/10 my-2">
             <a href="#" id="menuAdmin" class="menu-item block py-2.5 px-4 rounded-lg hover:bg-white/10 transition flex items-center font-bold text-yellow-300">
                 <i class="fas fa-cog w-6 mr-2"></i> Administração
             </a>
@@ -272,7 +276,92 @@
             </div>
         </div>
 
-        <!-- SECÃO 6: ADMINISTRAÇÃO (NOVA) -->
+        <!-- SECÃO 6: DOAÇÕES E CAMPANHAS -->
+        <div id="secDoacoes" class="secao-painel hidden">
+            
+            <!-- LISTA DE DOAÇÕES REGISTRADAS -->
+            <div class="bg-white p-6 rounded-xl shadow-sm border-t-4 border-tema-secundaria mb-8">
+                <div class="flex justify-between items-center mb-2 flex-wrap gap-3">
+                    <h3 class="text-xl font-bold text-tema-texto">
+                        <i class="fas fa-box-open mr-2 text-tema-secundaria"></i> Doações Registradas
+                    </h3>
+                    <button id="btnGerarPDF" class="bg-gray-800 text-white text-sm font-bold px-4 py-2 rounded-lg shadow hover:bg-gray-700 transition flex items-center active:scale-95">
+                        <i class="fas fa-file-pdf mr-2 text-red-400"></i> Exportar para PDF
+                    </button>
+                </div>
+                <p class="text-sm text-gray-500 mb-6">Acompanhe aqui o que os médiuns se comprometeram a trazer e dê baixa quando for entregue.</p>
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-50 border-b border-gray-200">
+                                <th class="p-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">MÉDIUM</th>
+                                <th class="p-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">ITEM / CATEGORIA</th>
+                                <th class="p-3 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">QTD</th>
+                                <th class="p-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">DATA</th>
+                                <th class="p-3 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">STATUS</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelaDoacoesPrometidas">
+                            <tr><td colspan="5" class="p-4 text-center text-gray-500">Buscando doações...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- NOVO ITEM DE DOAÇÃO -->
+            <div class="bg-white p-6 rounded-xl shadow-sm border-t-4 border-red-500 mb-8">
+                <h3 class="text-lg font-bold text-tema-texto mb-4"><i class="fas fa-plus-circle text-red-500 mr-2"></i> Novo Item de Doação</h3>
+                <form id="formNovoItemDoacao" class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Nome do Item/Campanha *</label>
+                            <input type="text" id="doacaoNome" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm outline-none focus:ring-2 focus:ring-red-400" placeholder="Ex: Vela de 7 dias, Cesta Básica...">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Valor Sugerido (Opcional)</label>
+                            <input type="number" step="0.01" id="doacaoValor" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm outline-none focus:ring-2 focus:ring-red-400" placeholder="Ex: 15.00">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700">Descrição curta (Opcional)</label>
+                            <input type="text" id="doacaoDescricao" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm outline-none focus:ring-2 focus:ring-red-400" placeholder="Ex: Para a firmeza do conga...">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700">Link da Imagem (Opcional)</label>
+                            <input type="url" id="doacaoImagem" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm outline-none focus:ring-2 focus:ring-red-400" placeholder="https://...">
+                        </div>
+                    </div>
+                    <button type="submit" id="btnSalvarDoacao" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-6 rounded shadow mt-4 transition">
+                        Cadastrar Item
+                    </button>
+                    <p id="msgDoacao" class="text-sm mt-2 hidden"></p>
+                </form>
+            </div>
+
+            <!-- ITENS ATIVOS -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-bold text-tema-texto">Catálogo de Itens do Terreiro</h3>
+                    <p class="text-xs text-gray-500">Você pode ativar ou desativar itens da lista original aqui.</p>
+                </div>
+                <div class="overflow-x-auto" style="max-height: 400px;">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="sticky top-0 bg-white shadow-sm">
+                            <tr class="bg-gray-50 border-b border-gray-200">
+                                <th class="p-3 text-sm font-semibold text-gray-600">ITEM</th>
+                                <th class="p-3 text-sm font-semibold text-gray-600">CATEGORIA</th>
+                                <th class="p-3 text-sm font-semibold text-gray-600 text-center w-24">AÇÃO</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelaItensDoacao">
+                            <tr><td colspan="3" class="p-4 text-center text-gray-500">Buscando itens...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- SECÃO 7: ADMINISTRAÇÃO -->
         <div id="secAdministracao" class="secao-painel hidden">
             
             <!-- Bloco 1: Logo -->
