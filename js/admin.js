@@ -227,12 +227,52 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ==========================================
     // QUADRO DE MÉDIUNS
     // ==========================================
+    let listaMediunsGlobal = []; 
+
     async function carregarQuadroMediuns() {
         const tbody = document.getElementById('tabelaTodosMediuns');
-        const { data } = await supabaseClient.from('mediuns').select('id, nome_completo, grau, funcao, telefone, cadastro_completo, is_admin, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin, perm_visao_geral').order('nome_completo');
+        if (!tbody) return;
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center p-8 text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>Buscando corrente...</td></tr>';
+
+        try {
+            const { data, error } = await supabaseClient
+                .from('mediuns')
+                .select('id, nome_completo, nome_social, data_nascimento, grau, funcao, telefone, cadastro_completo, is_admin, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin, perm_visao_geral')
+                .order('nome_completo');
+
+            if (error) throw error;
+
+            listaMediunsGlobal = data || [];
+            renderizarTabelaMediuns(listaMediunsGlobal);
+            renderizarAniversariantes(listaMediunsGlobal);
+            
+        } catch (err) {
+            console.error('Erro ao buscar:', err);
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-red-500 font-bold">Erro ao carregar dados.</td></tr>`;
+        }
+    }
+
+    function renderizarTabelaMediuns(lista) {
+        const tbody = document.getElementById('tabelaTodosMediuns');
+        if (!tbody) return;
         tbody.innerHTML = '';
-        
-        if(data) data.forEach(m => {
+
+        if (lista.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center p-8 text-gray-500 font-medium">Nenhum médium encontrado com estes filtros.</td></tr>';
+            return;
+        }
+
+        lista.forEach(m => {
+            let dataNascFormatada = '-';
+            if (m.data_nascimento) {
+                if (m.data_nascimento.includes('-')) {
+                    const partes = m.data_nascimento.split('-');
+                    if(partes.length === 3) dataNascFormatada = `${partes[2]}/${partes[1]}/${partes[0]}`;
+                } else {
+                    dataNascFormatada = m.data_nascimento; 
+                }
+            }
+
             const cargo = [m.grau, m.funcao].filter(Boolean).join(' / ') || '-';
             const status = m.cadastro_completo ? '<span class="text-green-600 font-bold">Ativo</span>' : '<span class="text-yellow-600 font-bold">Pendente</span>';
             
@@ -255,9 +295,138 @@ document.addEventListener('DOMContentLoaded', async () => {
                 linkWhats = `<a href="https://wa.me/${ddi}${numeroLimpo}" target="_blank" class="text-green-600 hover:text-green-700 hover:underline flex items-center gap-1 font-medium" title="Chamar no WhatsApp"><i class="fab fa-whatsapp text-lg"></i> ${m.telefone}</a>`;
             }
 
-            tbody.innerHTML += `<tr class="border-b border-gray-100 hover:bg-gray-50 py-1"><td class="py-2 px-3 text-gray-800">${m.nome_completo}</td><td class="py-2 px-3 text-gray-600">${cargo}</td><td class="py-2 px-3 text-gray-600">${linkWhats}</td><td class="py-2 px-3">${status}</td><td class="py-2 px-3 text-center">${acoesHtml}</td></tr>`;
+            const nomeHtml = m.nome_social 
+                ? `${m.nome_completo}<br><span class="text-[10px] text-gray-500">Social: ${m.nome_social}</span>`
+                : m.nome_completo;
+
+            tbody.innerHTML += `
+                <tr class="border-b border-gray-100 hover:bg-gray-50 py-1 transition-colors group">
+                    <td class="py-2 px-3 text-gray-800 whitespace-nowrap">${nomeHtml}</td>
+                    <td class="py-2 px-3 text-gray-600 text-center whitespace-nowrap">${dataNascFormatada}</td>
+                    <td class="py-2 px-3 text-gray-600 whitespace-nowrap">${cargo}</td>
+                    <td class="py-2 px-3 text-gray-600">${linkWhats}</td>
+                    <td class="py-2 px-3">${status}</td>
+                    <td class="py-2 px-3 text-center no-print">${acoesHtml}</td>
+                </tr>`;
         });
     }
+
+    function renderizarAniversariantes(lista) {
+        const ul = document.getElementById('listaAniversariantes');
+        const titulo = document.getElementById('tituloAniversariantesMes');
+        if (!ul) return;
+
+        const dataAtual = new Date();
+        const mesAtualNum = (dataAtual.getMonth() + 1).toString().padStart(2, '0');
+        const nomeMesAtual = dataAtual.toLocaleString('pt-BR', { month: 'long' });
+        
+        if(titulo) titulo.textContent = `Aniversariantes de ${nomeMesAtual.charAt(0).toUpperCase() + nomeMesAtual.slice(1)}`;
+
+        const aniversariantes = lista.filter(m => {
+            if (!m.data_nascimento) return false;
+            let mesNasc = '';
+            if (m.data_nascimento.includes('-')) mesNasc = m.data_nascimento.split('-')[1];
+            else if (m.data_nascimento.includes('/')) mesNasc = m.data_nascimento.split('/')[1];
+            return mesNasc === mesAtualNum;
+        });
+
+        aniversariantes.sort((a, b) => {
+            let diaA = 0, diaB = 0;
+            if(a.data_nascimento.includes('-')) diaA = parseInt(a.data_nascimento.split('-')[2]);
+            if(b.data_nascimento.includes('-')) diaB = parseInt(b.data_nascimento.split('-')[2]);
+            return diaA - diaB;
+        });
+
+        ul.innerHTML = '';
+
+        if (aniversariantes.length === 0) {
+            ul.innerHTML = `
+                <li class="p-6 text-center text-gray-400 flex flex-col items-center justify-center gap-2">
+                    <i class="fas fa-calendar-times text-2xl mb-1"></i>
+                    <span class="text-sm">Nenhum médium faz aniversário<br>neste mês.</span>
+                </li>`;
+            return;
+        }
+
+        aniversariantes.forEach(m => {
+            let dia = '00';
+            let mes = '00';
+            if (m.data_nascimento.includes('-')) {
+                const p = m.data_nascimento.split('-');
+                dia = p[2]; mes = p[1];
+            } else if (m.data_nascimento.includes('/')) {
+                const p = m.data_nascimento.split('/');
+                dia = p[0]; mes = p[1];
+            }
+
+            const nomeExibicao = m.nome_social ? m.nome_social : (m.nome_completo ? m.nome_completo.split(' ')[0] : 'Médium');
+            const badgeSocial = m.nome_social ? `<span class="bg-blue-100 text-blue-700 text-[9px] px-1.5 py-0.5 rounded ml-1 font-bold">SOCIAL</span>` : '';
+
+            ul.innerHTML += `
+                <li class="p-3 hover:bg-gray-50 flex items-center justify-between transition-colors border-l-4 border-transparent hover:border-blue-500">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-extrabold shadow-inner border border-blue-200">
+                            ${dia}
+                        </div>
+                        <div>
+                            <p class="text-sm font-bold text-gray-800 flex items-center">${nomeExibicao} ${badgeSocial}</p>
+                            <p class="text-[10px] text-gray-500 uppercase">${m.grau || 'Médium'}</p>
+                        </div>
+                    </div>
+                    <span class="text-xs font-bold text-gray-500 bg-white border border-gray-200 px-2 py-1 rounded shadow-sm">${dia}/${mes}</span>
+                </li>
+            `;
+        });
+    }
+
+    function aplicarFiltrosMediuns() {
+        const termoNome = (document.getElementById('filtroNomeMedium')?.value || '').toLowerCase();
+        const termoGrau = document.getElementById('filtroGrauMedium')?.value || '';
+        const termoStatus = document.getElementById('filtroStatusMedium')?.value || '';
+        const termoMes = document.getElementById('filtroMesNascimento')?.value || '';
+
+        const listaFiltrada = listaMediunsGlobal.filter(medium => {
+            const nomeCompletoStr = (medium.nome_completo || '').toLowerCase();
+            const nomeSocialStr = (medium.nome_social || '').toLowerCase();
+            const passaNome = nomeCompletoStr.includes(termoNome) || nomeSocialStr.includes(termoNome);
+
+            let passaGrau = true;
+            if (termoGrau !== '') {
+                const grauStr = `${medium.grau || ''} ${medium.funcao || ''}`.toLowerCase();
+                passaGrau = grauStr.includes(termoGrau.toLowerCase());
+            }
+
+            let passaStatus = true;
+            if (termoStatus !== '') {
+                const statusAtual = medium.cadastro_completo ? 'Ativo' : 'Pendente';
+                passaStatus = (statusAtual === termoStatus);
+            }
+
+            let passaMes = true;
+            if (termoMes !== '') {
+                if (!medium.data_nascimento) {
+                    passaMes = false;
+                } else {
+                    let mesNasc = '';
+                    if (medium.data_nascimento.includes('-')) mesNasc = medium.data_nascimento.split('-')[1];
+                    else if (medium.data_nascimento.includes('/')) mesNasc = medium.data_nascimento.split('/')[1];
+                    
+                    passaMes = (mesNasc === termoMes);
+                }
+            }
+
+            return passaNome && passaGrau && passaStatus && passaMes;
+        });
+
+        renderizarTabelaMediuns(listaFiltrada);
+    }
+
+    // Configurando os eventos dos filtros e botão de PDF
+    document.getElementById('filtroNomeMedium')?.addEventListener('input', aplicarFiltrosMediuns);
+    document.getElementById('filtroGrauMedium')?.addEventListener('change', aplicarFiltrosMediuns);
+    document.getElementById('filtroStatusMedium')?.addEventListener('change', aplicarFiltrosMediuns);
+    document.getElementById('filtroMesNascimento')?.addEventListener('change', aplicarFiltrosMediuns);
+    document.getElementById('btnImprimirMediuns')?.addEventListener('click', () => { window.print(); });
 
     window.abrirModalNovoMedium = () => {
         document.getElementById('msgNovoMedium').classList.add('hidden');
