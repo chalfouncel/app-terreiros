@@ -127,6 +127,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const { data: giras } = await supabaseClient.from('agenda').select('*')
             .eq('terreiro_id', idTerreiroGlobal)
+            .eq('ata_encerrada', false) // <--- TRAVA AQUI!
             .gte('data_hora_inicio', inicioDia).lte('data_hora_inicio', fimDia)
             .order('data_hora_inicio', { ascending: true }).limit(1);
 
