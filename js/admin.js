@@ -34,6 +34,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (!session) return window.location.href = 'index.html';
 
+    // === CÓDIGO DO BOTÃO SAIR (ADICIONADO) ===
+    const btnSair = document.getElementById('btnSair');
+    if (btnSair) {
+        btnSair.addEventListener('click', async () => {
+            btnSair.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Saindo...';
+            await supabaseClient.auth.signOut(); // Limpa a sessão no Supabase
+            localStorage.clear(); // Limpa o cache do navegador
+            window.location.href = 'index.html'; // Volta pra tela de login
+        });
+    }
+    // ==========================================
+
     try {
         // Busca Perfil logado e suas permissões
         const { data: perfil, error: erroPerfil } = await supabaseClient
