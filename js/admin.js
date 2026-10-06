@@ -71,7 +71,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     document.getElementById('secDoacoes').classList.remove('hidden');
                     titulo.textContent = 'Doações e Campanhas';
                     carregarDoacoesCatalogo();
-                    carregarDoacoesPrometidas(); // NOVO!
+                    carregarDoacoesPrometidas(); 
                 } else if (menu.id === 'menuAdmin') {
                     document.getElementById('secAdministracao').classList.remove('hidden');
                     titulo.textContent = 'Administração do Terreiro';
@@ -109,28 +109,27 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (data) mediunsGrauCache = data;
     }
 
-    // --- NOVO MÓDULO: DOAÇÕES PROMETIDAS ---
+    // --- MÓDULO: DOAÇÕES PROMETIDAS ---
     window.carregarDoacoesPrometidas = async () => {
         if (!idTerreiroGlobal) return;
         const tbody = document.getElementById('tabelaDoacoesPrometidas');
         tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i> Buscando histórico...</td></tr>';
 
         try {
-            // Pega as intenções gravadas no banco
             const { data: doacoes, error: errD } = await supabaseClient
                 .from('doacoes_registradas')
                 .select('id, medium_auth_id, item_id, quantidade, entregue, data_registro')
                 .eq('terreiro_id', idTerreiroGlobal)
-                .order('entregue', { ascending: true }) // Pendentes no topo
-                .order('data_registro', { ascending: false }); // Mais recentes primeiro
+                .order('entregue', { ascending: true }) 
+                .order('data_registro', { ascending: false }); 
 
             if (errD) throw errD;
 
-            // Busca os nomes dos mediuns para traduzir o ID Auth -> Nome
             const { data: mediuns } = await supabaseClient.from('mediuns').select('auth_id, nome_completo');
-            
-            // Busca o catálogo de itens para traduzir o item_id -> Nome da Vela, etc.
             const { data: itens } = await supabaseClient.from('itens_doacao').select('id, nome, descricao');
+
+            // Salva globalmente para o botão PDF conseguir usar
+            window.dadosDoacoesParaPDF = { doacoes, mediuns, itens };
 
             if (!doacoes || doacoes.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-gray-500">Nenhum registro encontrado ainda.</td></tr>';
@@ -151,8 +150,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     : '<span class="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded font-bold whitespace-nowrap"><i class="fas fa-clock mr-1"></i> Pendente</span>';
 
                 const acaoHtml = d.entregue
-                    ? `<button onclick="marcarDoacao(${d.id}, false)" class="text-xs text-gray-400 hover:text-gray-800 underline mt-1 whitespace-nowrap">Desfazer</button>`
-                    : `<button onclick="marcarDoacao(${d.id}, true)" class="bg-tema-secundaria hover:opacity-90 text-white text-xs font-bold py-1.5 px-3 rounded shadow-sm whitespace-nowrap mt-1">Dar Baixa</button>`;
+                    ? `<button onclick="marcarDoacao('${d.id}', false)" class="text-xs text-gray-400 hover:text-gray-800 underline mt-1 whitespace-nowrap">Desfazer</button>`
+                    : `<button onclick="marcarDoacao('${d.id}', true)" class="bg-tema-secundaria hover:opacity-90 text-white text-xs font-bold py-1.5 px-3 rounded shadow-sm whitespace-nowrap mt-1">Dar Baixa</button>`;
 
                 const estiloLinha = d.entregue ? 'bg-gray-50 opacity-80' : 'bg-white';
 
@@ -175,7 +174,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     };
 
-    // Função de botão disparada na listagem (Dá baixa na promessa)
     window.marcarDoacao = async (registroId, statusEntregue) => {
         const payload = { entregue: statusEntregue };
         if (statusEntregue) payload.data_entrega = new Date().toISOString();
@@ -184,13 +182,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         const { error } = await supabaseClient.from('doacoes_registradas').update(payload).eq('id', registroId);
         
         if (!error) {
-            carregarDoacoesPrometidas(); // Recarrega a tabela para ver a mudança
+            carregarDoacoesPrometidas(); 
         } else {
             alert('Erro ao atualizar o status: ' + error.message);
         }
     };
 
-    // --- GERENCIAR CATÁLOGO (LISTA GERAL) ---
+    // --- GERENCIAR CATÁLOGO ---
     async function carregarDoacoesCatalogo() {
         if (!idTerreiroGlobal) return;
         const tbody = document.getElementById('tabelaItensDoacao');
@@ -208,8 +206,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (data && data.length > 0) {
             data.forEach(item => {
                 const btnAtivo = item.ativo 
-                    ? `<button onclick="alternarStatusCatalogo(${item.id}, false)" class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded font-bold whitespace-nowrap hover:bg-red-200">Ocultar</button>`
-                    : `<button onclick="alternarStatusCatalogo(${item.id}, true)" class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-bold whitespace-nowrap hover:bg-green-200">Ativar</button>`;
+                    ? `<button onclick="alternarStatusCatalogo('${item.id}', false)" class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded font-bold whitespace-nowrap hover:bg-red-200">Ocultar</button>`
+                    : `<button onclick="alternarStatusCatalogo('${item.id}', true)" class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-bold whitespace-nowrap hover:bg-green-200">Ativar</button>`;
                 
                 const estiloLinha = item.ativo ? '' : 'opacity-40 grayscale';
                 const categoria = item.descricao || '-';
@@ -256,6 +254,81 @@ document.addEventListener('DOMContentLoaded', async () => {
         root.style.setProperty('--cor-fundo', corF);
         root.style.setProperty('--cor-texto', corT);
         alert('Cores atualizadas!');
+    });
+
+    // --- GERADOR DE PDF DE DOAÇÕES ---
+    document.getElementById('btnGerarPDF')?.addEventListener('click', () => {
+        const dados = window.dadosDoacoesParaPDF;
+        
+        if (!dados || !dados.doacoes || dados.doacoes.length === 0) {
+            alert('Não há doações para exportar.');
+            return;
+        }
+
+        const btn = document.getElementById('btnGerarPDF');
+        const textoOriginal = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Gerando...';
+        btn.disabled = true;
+
+        // Cria uma estrutura HTML temporária super limpa só para o PDF
+        const containerPDF = document.createElement('div');
+        containerPDF.style.padding = '30px';
+        containerPDF.style.fontFamily = 'Arial, sans-serif';
+        containerPDF.style.color = '#333';
+
+        const nomeCasa = document.getElementById('nomeTerreiroSidebar').textContent;
+
+        let html = `
+            <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #16a34a; padding-bottom: 10px;">
+                <h2 style="margin: 0; color: #1e3a8a; font-size: 24px;">Relatório de Doações</h2>
+                <h3 style="margin: 5px 0 0 0; color: #444; font-size: 16px;">${nomeCasa}</h3>
+                <p style="margin: 5px 0 0 0; color: #666; font-size: 12px;">Emitido em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</p>
+            </div>
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                <thead>
+                    <tr style="background-color: #f3f4f6;">
+                        <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Médium</th>
+                        <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Item</th>
+                        <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Qtd</th>
+                        <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        // Monta as linhas da tabela
+        dados.doacoes.forEach(d => {
+            const medium = dados.mediuns?.find(m => m.auth_id === d.medium_auth_id)?.nome_completo || 'Médium';
+            const itemObj = dados.itens?.find(i => i.id === d.item_id);
+            const itemNome = itemObj ? itemObj.nome : 'Item Desconhecido';
+            const status = d.entregue ? '<span style="color: #16a34a; font-weight: bold;">Entregue</span>' : '<span style="color: #ca8a04;">Pendente</span>';
+
+            html += `
+                <tr>
+                    <td style="padding: 8px; border: 1px solid #ddd;">${medium}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">${itemNome}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd; text-align: center; font-weight: bold;">${d.quantidade}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${status}</td>
+                </tr>
+            `;
+        });
+
+        html += `</tbody></table>`;
+        containerPDF.innerHTML = html;
+
+        // Configuração da folha A4 e download
+        const opt = {
+            margin:       10,
+            filename:     'Relatorio_Doacoes.pdf',
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2 },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+
+        html2pdf().set(opt).from(containerPDF).save().then(() => {
+            btn.innerHTML = textoOriginal;
+            btn.disabled = false;
+        });
     });
 
 });
