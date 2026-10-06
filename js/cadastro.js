@@ -14,7 +14,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!texto) return '';
         const preposicoes = ['de', 'da', 'do', 'das', 'dos', 'e'];
         return texto.toLowerCase().split(' ').map((palavra, index) => {
-            // Se for preposição no meio do nome, mantém minúscula
             if (preposicoes.includes(palavra) && index !== 0) {
                 return palavra;
             }
@@ -24,7 +23,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 2. APLICA A FORMATAÇÃO EM TEMPO REAL (Enquanto digita)
     const configFormatacaoTempoReal = () => {
-        // Nomes com a Primeira Letra Maiúscula
         const camposTitleCase = ['nomeSocial', 'nomeCompleto'];
         camposTitleCase.forEach(id => {
             const campo = document.getElementById(id);
@@ -35,7 +33,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         });
 
-        // Textos TUDO EM MAIÚSCULO
         const camposUpperCase = ['palavra']; 
         camposUpperCase.forEach(id => {
             const campo = document.getElementById(id);
@@ -46,14 +43,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         });
 
-        // Máscara Automática para a Data de Nascimento (DD/MM/AAAA)
         const campoData = document.getElementById('dataNascimento');
         if (campoData) {
             campoData.addEventListener('input', (e) => {
-                let v = e.target.value.replace(/\D/g, ''); // Tira tudo que não é número
-                if (v.length > 8) v = v.substring(0, 8); // Limita a 8 números
+                let v = e.target.value.replace(/\D/g, ''); 
+                if (v.length > 8) v = v.substring(0, 8); 
                 
-                // Coloca as barras
                 if (v.length > 4) {
                     v = v.substring(0, 2) + '/' + v.substring(2, 4) + '/' + v.substring(4, 8);
                 } else if (v.length > 2) {
@@ -64,7 +59,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
         
-        // Bloqueio para a Senha (só aceitar números)
         const campoSenha = document.getElementById('novaSenha');
         if (campoSenha) {
             campoSenha.addEventListener('input', (e) => {
@@ -86,27 +80,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             let perfil = null;
             
-            // Corrige o bug de busca: logados usam 'auth_id' via select. Primeiro acesso usa 'rpc' furando RLS.
             if (session) {
-                const { data, error } = await supabaseClient.from('mediuns')
-                    .select('*')
-                    .eq('auth_id', session.user.id)
-                    .single();
-                
+                const { data, error } = await supabaseClient.from('mediuns').select('*').eq('auth_id', session.user.id).single();
                 if (error) throw error;
                 perfil = data;
             } else {
-                const { data, error } = await supabaseClient.rpc('validar_primeiro_acesso', {
-                    id_buscado: parseInt(idPrimeiroAcesso)
-                });
-                
+                const { data, error } = await supabaseClient.rpc('obter_dados_primeiro_acesso', { p_id: parseInt(idPrimeiroAcesso) });
                 if (error) throw error;
                 perfil = data;
             }
             
             if (perfil) {
-                // TRAVA DE SEGURANÇA: Impede roubo de conta de outros terreiros
-                // Se não estiver logado, mas a ficha já tem auth_id, significa que já foi ativada.
                 if (!session && perfil.auth_id) {
                     alert("Acesso Negado: Esta conta já foi ativada e protegida por senha! Por favor, faça login.");
                     localStorage.removeItem('novo_acesso_id');
@@ -125,7 +109,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 preencher('funcao', perfil.funcao || '');
                 preencher('palavra', perfil.palavra ? perfil.palavra.toUpperCase() : '');
                 
-                // Converte a data do banco (AAAA-MM-DD) pra DD/MM/AAAA para a tela
                 if (perfil.data_nascimento) {
                     const partes = perfil.data_nascimento.split('-');
                     if (partes.length === 3) preencher('dataNascimento', `${partes[2]}/${partes[1]}/${partes[0]}`);
@@ -151,14 +134,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         btnSalvar.textContent = 'Salvando...';
         msgErro.classList.add('hidden');
 
-        // Pega os valores e formata novamente por segurança
         const nomeCompleto = formatarTitleCase(document.getElementById('nomeCompleto').value);
         const nomeSocial = formatarTitleCase(document.getElementById('nomeSocial').value);
         const grau = document.getElementById('grau').value; 
         const funcao = document.getElementById('funcao').value; 
         const palavra = document.getElementById('palavra').value.toUpperCase(); 
         
-        // Converte a data de DD/MM/AAAA para AAAA-MM-DD pro banco entender
         const dataBruta = document.getElementById('dataNascimento').value;
         let dataNascimento = dataBruta;
         if (dataBruta.includes('/')) {
@@ -167,7 +148,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         
         const telefone = document.getElementById('telefone').value;
-        
         const campoSenha = document.getElementById('novaSenha');
         const novaSenha = campoSenha ? campoSenha.value : null;
 
@@ -193,6 +173,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // Pega o ID que o cofre acabou de gerar!
                 if (authData && authData.user) {
                     novoAuthId = authData.user.id;
+
+                    // >>> SOLUÇÃO AQUI: VINCULAR A CONTA ANTES DE SALVAR OS DADOS <<<
+                    const { error: errVincular } = await supabaseClient.rpc('vincular_conta_medium', {
+                        p_id: parseInt(idPrimeiroAcesso),
+                        p_auth_id: novoAuthId
+                    });
+
+                    if (errVincular) throw new Error("Erro de conexão no banco: " + errVincular.message);
                 }
             }
 
@@ -208,12 +196,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 cadastro_completo: true
             };
 
-            // PASSO 3: COLAR O ID NOVO NA FICHA (A mágica que faltava)
             if (novoAuthId) {
                 dadosParaSalvar.auth_id = novoAuthId;
             }
 
-            // PASSO 4: SALVAR TUDO NA TABELA
+            // PASSO 4: SALVAR TUDO NA TABELA (Agora vai funcionar porque o RLS reconhece o dono!)
             let updateQuery = supabaseClient.from('mediuns').update(dadosParaSalvar);
                 
             if (session) {
@@ -224,7 +211,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             const { error: errorUpdate } = await updateQuery;
 
-            // Se der erro ao salvar os dados (ex: telefone duplicado), ele avisa!
             if (errorUpdate) throw new Error(errorUpdate.message);
 
             // Tudo certo! Limpa o acesso temporário e redireciona
@@ -233,7 +219,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         } catch (error) {
             console.error(error);
-            // Melhora a mensagem de erro de telefone duplicado para ficar amigável
             if (error.message.includes('unique constraint "mediuns_telefone_key"')) {
                 msgErro.textContent = "Este número de WhatsApp já está cadastrado em outra ficha.";
             } else {
