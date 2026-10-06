@@ -6,9 +6,11 @@
     <title>Painel Admin - Templo</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- AQUI ESTÁ A BIBLIOTECA QUE FALTAVA PARA O PDF FUNCIONAR -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        /* Variáveis Globais de Cor (Padrões) - Podem ser sobrescritas pelo JS */
         :root {
             --cor-primaria: #1e3a8a;   
             --cor-secundaria: #16a34a; 
@@ -16,6 +18,7 @@
             --cor-texto: #1f2937;      
         }
         
+        /* Classes customizadas usando as variáveis */
         .bg-tema-primaria { background-color: var(--cor-primaria) !important; }
         .text-tema-primaria { color: var(--cor-primaria) !important; }
         .border-tema-primaria { border-color: var(--cor-primaria) !important; }
@@ -36,8 +39,10 @@
 </head>
 <body class="min-h-screen flex transition-colors duration-300 overflow-hidden">
 
+    <!-- Overlay Mobile -->
     <div id="overlayMobile" class="fixed inset-0 bg-black/50 z-40 hidden md:hidden transition-opacity"></div>
 
+    <!-- Menu Lateral (Sidebar) -->
     <aside id="sidebar" class="fixed md:static inset-y-0 left-0 transform -translate-x-full md:translate-x-0 z-50 w-64 bg-tema-primaria text-white flex flex-col shadow-xl transition-transform duration-300">
         <div class="p-6 text-center border-b border-white/10 flex flex-col items-center relative">
             <button id="btnFecharMenu" class="md:hidden absolute top-4 right-4 text-white/70 hover:text-white">
@@ -57,6 +62,9 @@
             <a href="#" id="menuAgendaGiras" class="menu-item block py-2.5 px-4 rounded-lg hover:bg-white/10 transition flex items-center">
                 <i class="fas fa-calendar-alt w-6 mr-2"></i> Agenda de Eventos
             </a>
+            <a href="#" id="menuLivroAta" class="menu-item block py-2.5 px-4 rounded-lg hover:bg-white/10 transition flex items-center font-medium">
+                <i class="fas fa-book-open w-6 mr-2"></i> Livro de Presença
+            </a>
             <hr class="border-white/10 my-2">
             <a href="#" id="menuGrau" class="menu-item block py-2.5 px-4 rounded-lg hover:bg-white/10 transition flex items-center">
                 <i class="fas fa-graduation-cap w-6 mr-2"></i> Alteração de Grau
@@ -72,6 +80,7 @@
             <a href="#" id="menuAdmin" class="menu-item block py-2.5 px-4 rounded-lg hover:bg-white/10 transition flex items-center font-bold text-yellow-300">
                 <i class="fas fa-cog w-6 mr-2"></i> Config. da Casa
             </a>
+            <!-- MENU MASTER (SÓ VOCÊ VÊ) -->
             <a href="#" id="menuMaster" class="menu-item hidden py-2.5 px-4 rounded-lg bg-gray-900/50 hover:bg-gray-900/80 border border-gray-700 transition flex items-center font-black text-white mt-4 shadow-inner">
                 <i class="fas fa-globe w-6 mr-2 text-blue-400"></i> Gestão Plataforma
             </a>
@@ -83,7 +92,9 @@
         </div>
     </aside>
 
+    <!-- Conteúdo Principal -->
     <div class="flex-1 flex flex-col h-screen overflow-hidden">
+        <!-- Header Mobile -->
         <div class="md:hidden bg-white border-b border-gray-200 p-4 flex justify-between items-center shadow-sm flex-shrink-0">
             <div class="flex items-center gap-3">
                 <button id="btnAbrirMenu" class="text-tema-primaria focus:outline-none">
@@ -108,8 +119,10 @@
                 </div>
             </header>
             
+            <!-- Data Mobile -->
             <p class="md:hidden text-gray-500 text-sm mb-4 font-medium" id="dataHojeMobile"></p>
 
+        <!-- SECÃO 1: VISÃO GERAL -->
         <div id="secVisaoGeral" class="secao-painel">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-tema-secundaria">
@@ -145,6 +158,7 @@
             </div>
         </div>
 
+        <!-- SECÃO 2: QUADRO DE MÉDIUNS -->
         <div id="secQuadroMediuns" class="secao-painel hidden">
             <div class="bg-white rounded-xl shadow-sm border-t-4 border-tema-primaria p-6 mb-8">
                 <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
@@ -174,6 +188,7 @@
         </div>
         </div>
 
+        <!-- SECÃO 3: AGENDA DE EVENTOS -->
         <div id="secAgendaGiras" class="secao-painel hidden">
             <div class="bg-white p-6 rounded-xl shadow-sm border-t-4 border-purple-500 mb-8">
                 <h3 class="text-lg font-bold text-tema-texto mb-4">Novo Evento</h3>
@@ -200,12 +215,6 @@
                             <input type="datetime-local" id="giraFim" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
                         </div>
                     </div>
-                    
-                    <div class="bg-purple-50 p-3 rounded-lg border border-purple-100 flex items-center space-x-2 mt-2">
-                        <input type="checkbox" id="giraGeraAta" class="w-5 h-5 text-purple-600 rounded focus:ring-purple-500 cursor-pointer">
-                        <label for="giraGeraAta" class="text-sm font-bold text-purple-900 cursor-pointer select-none"><i class="fas fa-file-signature mr-1"></i> Gerar ATA em PDF (Livro de Presença) para este evento</label>
-                    </div>
-
                     <button type="submit" id="btnSalvarGira" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded shadow mt-4">
                         Salvar Evento
                     </button>
@@ -220,10 +229,46 @@
                             <tr class="bg-gray-50 border-b border-gray-200">
                                 <th class="p-3 text-sm font-semibold text-gray-600">EVENTO</th>
                                 <th class="p-3 text-sm font-semibold text-gray-600">DATA / HORA</th>
-                                <th class="p-3 text-sm font-semibold text-gray-600 text-center">OPÇÕES / DOCUMENTOS</th>
+                                <th class="p-3 text-sm font-semibold text-gray-600">IMAGEM</th>
                             </tr>
                         </thead>
                         <tbody id="tabelaGirasCadastradas"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- SECÃO 4: ALTERAÇÃO DE GRAU -->
+        <div id="secLivroAta" class="secao-painel hidden">
+            <div class="bg-white p-6 rounded-xl shadow-sm border-t-4 border-indigo-500 mb-8">
+                <div class="flex justify-between items-center mb-6 flex-wrap gap-4">
+                    <div>
+                        <h3 class="text-lg font-bold text-tema-texto">Livro de Presença (ATAs)</h3>
+                        <p class="text-sm text-gray-500">Redija as observações da gira, encerre para travar check-ins e gere os relatórios oficiais.</p>
+                    </div>
+                    <div class="flex gap-2 flex-wrap">
+                        <button onclick="baixarLivroAnual()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded shadow text-sm transition">
+                            <i class="fas fa-book mr-2"></i> Baixar Livro Anual
+                        </button>
+                        <button onclick="arquivarAnoAnterior()" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded shadow text-sm transition">
+                            <i class="fas fa-archive mr-2"></i> Arquivar Ano Anterior
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-50 border-b border-gray-200">
+                                <th class="p-3 text-sm font-semibold text-gray-600">EVENTO</th>
+                                <th class="p-3 text-sm font-semibold text-gray-600">DATA / HORA</th>
+                                <th class="p-3 text-sm font-semibold text-gray-600 text-center">STATUS DA ATA</th>
+                                <th class="p-3 text-sm font-semibold text-gray-600 text-center">AÇÕES</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelaLivroAta">
+                            <tr><td colspan="4" class="p-6 text-center text-gray-500">Carregando atas...</td></tr>
+                        </tbody>
                     </table>
                 </div>
             </div>
@@ -249,6 +294,7 @@
             </div>
         </div>
 
+        <!-- SECÃO 5: FINANCEIRO -->
         <div id="secFinanceiro" class="secao-painel hidden">
             <div class="bg-white rounded-xl shadow-sm border-t-4 border-tema-secundaria p-6">
                 <div class="flex justify-between items-center mb-6">
@@ -289,8 +335,10 @@
             </div>
         </div>
 
+        <!-- SECÃO 6: DOAÇÕES E CAMPANHAS -->
         <div id="secDoacoes" class="secao-painel hidden">
             
+            <!-- LISTA DE DOAÇÕES REGISTRADAS -->
             <div class="bg-white p-6 rounded-xl shadow-sm border-t-4 border-tema-secundaria mb-8">
                 <div class="flex justify-between items-center mb-2 flex-wrap gap-3">
                     <h3 class="text-xl font-bold text-tema-texto">
@@ -320,6 +368,7 @@
                 </div>
             </div>
 
+            <!-- NOVO ITEM DE DOAÇÃO -->
             <div class="bg-white p-6 rounded-xl shadow-sm border-t-4 border-red-500 mb-8">
                 <h3 class="text-lg font-bold text-tema-texto mb-4"><i class="fas fa-plus-circle text-red-500 mr-2"></i> Novo Item de Doação</h3>
                 <form id="formNovoItemDoacao" class="space-y-4">
@@ -348,6 +397,7 @@
                 </form>
             </div>
 
+            <!-- ITENS ATIVOS -->
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-lg font-bold text-tema-texto">Catálogo de Itens do Terreiro</h3>
@@ -370,7 +420,10 @@
             </div>
         </div>
 
+        <!-- SECÃO 7: CONFIGURAÇÕES DA CASA -->
         <div id="secAdministracao" class="secao-painel hidden">
+            
+            <!-- Bloco 0: GPS MOVIDO PARA CÁ -->
             <div class="bg-white p-6 rounded-xl shadow-sm border-t-4 border-green-500 mb-8">
                 <div class="flex items-center mb-4">
                     <div class="bg-green-100 p-3 rounded-full mr-4 text-green-600">
@@ -392,6 +445,7 @@
                 </div>
             </div>
 
+            <!-- Bloco 1: Logo -->
             <div class="bg-white rounded-xl shadow-sm border-t-4 border-tema-primaria p-6 mb-8">
                 <h3 class="text-xl font-bold text-tema-texto mb-2"><i class="fas fa-image mr-2 text-tema-secundaria"></i> Ponto / Logo da Casa</h3>
                 <p class="text-sm text-gray-500 mb-6">Esta imagem substituirá os textos no menu lateral e balizará a identidade visual do sistema.</p>
@@ -414,6 +468,7 @@
                 </div>
             </div>
 
+            <!-- Bloco 2: Cores -->
             <div class="bg-white rounded-xl shadow-sm border-t-4 border-tema-secundaria p-6">
                 <h3 class="text-xl font-bold text-tema-texto mb-2"><i class="fas fa-palette mr-2 text-tema-secundaria"></i> Identidade Visual (Cores)</h3>
                 <p class="text-sm text-gray-500 mb-6">Altere as cores do sistema para deixá-lo com a cara do seu terreiro. Clique na caixa colorida para escolher.</p>
@@ -459,7 +514,10 @@
             </div>
         </div>
 
+        <!-- SECÃO 8: GESTÃO DA PLATAFORMA (SUPER ADMIN / SAAS) -->
         <div id="secMaster" class="secao-painel hidden">
+            
+            <!-- Novo Terreiro -->
             <div class="bg-gray-900 p-6 rounded-xl shadow-lg border-t-4 border-blue-500 mb-8">
                 <h3 class="text-lg font-bold text-white mb-4"><i class="fas fa-plus-circle text-blue-400 mr-2"></i> Novo Terreiro (Cliente)</h3>
                 <form id="formNovoTerreiro" class="space-y-4">
@@ -474,6 +532,7 @@
                 </form>
             </div>
 
+            <!-- Lista de Terreiros -->
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-lg font-bold text-gray-800">Terreiros Ativos na Plataforma</h3>
@@ -558,10 +617,17 @@
             <input type="hidden" id="idMediumPermissao">
             
             <div class="space-y-3 mb-6">
+                <!-- NOVA PERMISSÃO AQUI -->
                 <label class="flex items-center space-x-3 cursor-pointer p-2 hover:bg-gray-50 rounded">
                     <input type="checkbox" id="chkPermVisao" class="w-5 h-5 text-tema-primaria rounded focus:ring-tema-primaria">
                     <span class="text-gray-700 font-medium"><i class="fas fa-home w-5 text-center text-gray-400 mr-1"></i> Visão Geral</span>
                 </label>
+                
+                <label class="flex items-center space-x-3 cursor-pointer p-2 hover:bg-gray-50 rounded">
+                    <input type="checkbox" id="chkPermAta" class="w-5 h-5 text-tema-primaria rounded focus:ring-tema-primaria">
+                    <span class="text-gray-700 font-medium"><i class="fas fa-book-open w-5 text-center text-gray-400 mr-1"></i> Livro de Presença (ATA)</span>
+                </label>
+                <!-- FIM DA NOVA PERMISSÃO -->
                 
                 <label class="flex items-center space-x-3 cursor-pointer p-2 hover:bg-gray-50 rounded">
                     <input type="checkbox" id="chkPermAgenda" class="w-5 h-5 text-tema-primaria rounded focus:ring-tema-primaria">
@@ -591,12 +657,33 @@
         </div>
     </div>
 
+    <!-- MODAL ESCREVER ATA -->
+    <div id="modalEscreverAta" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 transition-opacity">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl p-6 transform transition-all">
+            <div class="flex justify-between items-center mb-4 border-b pb-2">
+                <h3 class="text-xl font-bold text-tema-texto"><i class="fas fa-pen text-indigo-500 mr-2"></i> Redigir Ata do Dia</h3>
+                <button onclick="fecharModalEscreverAta()" class="text-gray-400 hover:text-gray-600 transition"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            <form id="formEscreverAta" class="space-y-4">
+                <input type="hidden" id="ataEventoId">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Relatório do Evento (Ocorrências, recados, visitas, etc)</label>
+                    <textarea id="ataTexto" rows="10" required class="w-full px-3 py-2 border border-gray-300 rounded-md outline-none focus:ring-2 focus:ring-indigo-400" placeholder="Digite aqui o histórico do trabalho..."></textarea>
+                </div>
+                <button type="submit" id="btnSalvarTextoAta" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl shadow transition mt-4 flex items-center justify-center">
+                    <i class="fas fa-save mr-2"></i> Salvar Texto da Ata
+                </button>
+                <p id="msgEscreverAta" class="hidden text-center mt-2"></p>
+            </form>
+        </div>
+    </div>
+
     <!-- MODAL IMPORTAÇÃO DE DADOS (CSV) -->
     <div id="modalImportarCSV" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 transition-opacity">
         <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 transform transition-all">
             <div class="flex justify-between items-center mb-4 border-b pb-2">
                 <h3 class="text-xl font-bold text-gray-800"><i class="fas fa-file-csv text-blue-500 mr-2"></i> Importar Médiuns</h3>
-                <button onclick="fecharModalImportacao()" class="text-gray-400 hover:text-gray-600 transition"><i class="fas fa-times text-xl"></i></button>
+                <button onclick="fecharModalImportacao()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times text-xl"></i></button>
             </div>
             
             <p class="text-sm text-gray-600 mb-4">Você está importando dados para a base de:<br><strong id="nomeTerreiroImport" class="text-blue-600 text-lg"></strong></p>
@@ -619,45 +706,6 @@
                     Processar e Importar
                 </button>
                 <p id="msgImportacao" class="hidden text-center mt-2"></p>
-            </form>
-        </div>
-    </div>
-
-    <!-- MODAL EDITAR EVENTO (NOVO) -->
-    <div id="modalEditarGira" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 transition-opacity">
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 transform transition-all">
-            <div class="flex justify-between items-center mb-4 border-b pb-2">
-                <h3 class="text-xl font-bold text-tema-texto"><i class="fas fa-edit text-purple-500 mr-2"></i> Editar Evento</h3>
-                <button onclick="fecharModalEditarGira()" class="text-gray-400 hover:text-gray-600 transition"><i class="fas fa-times text-xl"></i></button>
-            </div>
-            
-            <form id="formEditarGira" class="space-y-4">
-                <input type="hidden" id="editGiraId">
-                
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Título do Evento</label>
-                    <input type="text" id="editGiraTitulo" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md outline-none focus:ring-2 focus:ring-purple-400">
-                </div>
-                
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Início</label>
-                        <input type="datetime-local" id="editGiraInicio" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Fim</label>
-                        <input type="datetime-local" id="editGiraFim" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
-                    </div>
-                </div>
-
-                <div class="bg-purple-50 p-3 rounded-lg border border-purple-100 flex items-center space-x-2 mt-2">
-                    <input type="checkbox" id="editGiraGeraAta" class="w-5 h-5 text-purple-600 rounded focus:ring-purple-500 cursor-pointer">
-                    <label for="editGiraGeraAta" class="text-sm font-bold text-purple-900 cursor-pointer select-none"><i class="fas fa-file-signature mr-1"></i> Gerar ATA em PDF (Livro de Presença) para este evento</label>
-                </div>
-                
-                <button type="submit" id="btnSalvarEdicaoGira" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-xl shadow transition mt-4">
-                    Atualizar Evento
-                </button>
             </form>
         </div>
     </div>
