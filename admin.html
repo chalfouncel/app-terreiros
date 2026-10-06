@@ -9,6 +9,10 @@
     <!-- AQUI ESTÁ A BIBLIOTECA QUE FALTAVA PARA O PDF FUNCIONAR -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- LEAFLET MAPS (Mapa Gratuito para GPS) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
         /* Variáveis Globais de Cor (Padrões) - Podem ser sobrescritas pelo JS */
         :root {
@@ -215,15 +219,13 @@
                             <input type="datetime-local" id="giraFim" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
                         </div>
                     </div>
-
-                    <!-- NOVO CHECKBOX DE ATA AQUI -->
+                    
                     <div class="mt-4 flex items-center">
                         <input type="checkbox" id="giraGeraAta" class="w-4 h-4 text-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500" checked>
                         <label for="giraGeraAta" class="ml-2 block text-sm font-medium text-gray-700">
                             Gerar Livro de Presença (ATA) para este evento
                         </label>
                     </div>
-                    <!-- FIM DO CHECKBOX -->
 
                     <button type="submit" id="btnSalvarGira" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded shadow mt-4">
                         Salvar Evento
@@ -441,17 +443,44 @@
                     </div>
                     <div>
                         <h3 class="text-xl font-bold text-tema-texto">Localização Sede (GPS)</h3>
-                        <p class="text-sm text-gray-500">Define o ponto exato para a validação do check-in dos médiuns.</p>
+                        <p class="text-sm text-gray-500">Define o ponto exato para a validação do check-in. O raio verde aponta a margem de 50 metros.</p>
                     </div>
                 </div>
-                <p class="text-sm text-gray-600 mb-5 pl-16">
-                    Vá fisicamente até o centro do terreiro com o seu celular e clique no botão abaixo. Isso garantirá que o sistema registre a coordenada exata.
-                </p>
-                <div class="pl-16">
-                    <button id="btnGravarLocalizacao" class="w-full sm:w-auto bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg shadow flex items-center justify-center transition-all">
-                        Gravar Localização Atual
-                    </button>
-                    <div id="msgLocalizacao" class="mt-4 hidden"></div>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 pl-0 md:pl-16">
+                    <div>
+                        <p class="text-sm text-gray-600 mb-4">
+                            Vá até o terreiro e grave pelo botão abaixo, ou clique no mapa para inserir as coordenadas manualmente.
+                        </p>
+                        <button id="btnGravarLocalizacao" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg shadow flex items-center justify-center transition-all mb-6">
+                            <i class="fas fa-crosshairs mr-2"></i> Capturar GPS do Celular
+                        </button>
+                        
+                        <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                            <h4 class="font-bold text-gray-700 mb-3 text-sm">Inserção Manual</h4>
+                            <div class="grid grid-cols-2 gap-2 mb-3">
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500">Latitude</label>
+                                    <input type="number" step="any" id="inputLat" class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-green-500 focus:border-green-500 text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500">Longitude</label>
+                                    <input type="number" step="any" id="inputLng" class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-green-500 focus:border-green-500 text-sm">
+                                </div>
+                            </div>
+                            <button id="btnSalvarLocalizacaoManual" class="w-full bg-gray-800 hover:bg-gray-900 text-white font-bold py-2 px-4 rounded shadow flex items-center justify-center transition-all text-sm">
+                                <i class="fas fa-save mr-2"></i> Salvar Manualmente
+                            </button>
+                        </div>
+                        <div id="msgLocalizacao" class="mt-4 hidden text-sm font-bold"></div>
+                    </div>
+                    
+                    <div class="relative rounded-lg border border-gray-300 overflow-hidden h-64 bg-gray-100" style="min-height: 250px;">
+                        <div id="mapaLocalizacao" class="absolute inset-0 z-0"></div>
+                        <div id="mapaOverlay" class="absolute inset-0 z-10 flex items-center justify-center bg-gray-100/80">
+                            <span class="text-gray-500 text-sm font-bold">Carregando mapa...</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -627,6 +656,7 @@
             <input type="hidden" id="idMediumPermissao">
             
             <div class="space-y-3 mb-6">
+                <!-- NOVA PERMISSÃO AQUI -->
                 <label class="flex items-center space-x-3 cursor-pointer p-2 hover:bg-gray-50 rounded">
                     <input type="checkbox" id="chkPermVisao" class="w-5 h-5 text-tema-primaria rounded focus:ring-tema-primaria">
                     <span class="text-gray-700 font-medium"><i class="fas fa-home w-5 text-center text-gray-400 mr-1"></i> Visão Geral</span>
@@ -636,6 +666,7 @@
                     <input type="checkbox" id="chkPermAta" class="w-5 h-5 text-tema-primaria rounded focus:ring-tema-primaria">
                     <span class="text-gray-700 font-medium"><i class="fas fa-book-open w-5 text-center text-gray-400 mr-1"></i> Livro de Presença (ATA)</span>
                 </label>
+                <!-- FIM DA NOVA PERMISSÃO -->
                 
                 <label class="flex items-center space-x-3 cursor-pointer p-2 hover:bg-gray-50 rounded">
                     <input type="checkbox" id="chkPermAgenda" class="w-5 h-5 text-tema-primaria rounded focus:ring-tema-primaria">
@@ -723,7 +754,7 @@
         <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 transform transition-all">
             <div class="flex justify-between items-center mb-4 border-b pb-2">
                 <h3 class="text-xl font-bold text-tema-texto"><i class="fas fa-edit text-purple-500 mr-2"></i> Editar Evento</h3>
-                <button onclick="fecharModalEditarGira()" class="text-gray-400 hover:text-gray-600 transition"><i class="fas fa-times text-xl"></i></button>
+                <button onclick="document.getElementById('modalEditarGira').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 transition"><i class="fas fa-times text-xl"></i></button>
             </div>
             
             <form id="formEditarGira" class="space-y-4">
@@ -754,7 +785,7 @@
                 
                 <p id="msgEditGira" class="hidden text-sm mt-2 text-center font-bold"></p>
 
-                <button type="submit" id="btnSalvarEdicaoGira" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-xl shadow transition mt-4 flex items-center justify-center">
+                <button type="submit" id="btnSalvarEditGira" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-xl shadow transition mt-4 flex items-center justify-center">
                     Salvar Alterações
                 </button>
             </form>
@@ -763,5 +794,92 @@
 
     <script src="js/supabase.js"></script>
     <script src="js/admin.js"></script>
+
+    <!-- LÓGICA DO MAPA DE GPS (LEAFLET) -->
+    <script>
+        let mapaGlobal = null;
+        let marcadorGlobal = null;
+        let circuloGlobal = null;
+
+        // Inicia o mapa apenas quando a aba de Configurações da Casa for aberta
+        const observerConfig = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if(mutation.target.classList.contains('hidden') === false) {
+                    if(typeof idTerreiroGlobal !== 'undefined' && idTerreiroGlobal) {
+                        supabaseClient.from('terreiros').select('latitude, longitude').eq('id', idTerreiroGlobal).single().then(({data}) => {
+                            if(data) {
+                                document.getElementById('inputLat').value = data.latitude || '';
+                                document.getElementById('inputLng').value = data.longitude || '';
+                                // Valores padrão (Centro do Brasil) caso ainda não tenha GPS cadastrado
+                                let lat = data.latitude || -14.2350; 
+                                let lng = data.longitude || -51.9253;
+                                let zoom = data.latitude ? 18 : 4;
+                                iniciarMapa(lat, lng, zoom);
+                            }
+                        });
+                    }
+                }
+            });
+        });
+        
+        const secAdmin = document.getElementById('secAdministracao');
+        if(secAdmin) observerConfig.observe(secAdmin, { attributes: true, attributeFilter: ['class'] });
+
+        function iniciarMapa(lat, lng, zoomLvl) {
+            document.getElementById('mapaOverlay').classList.add('hidden');
+            if(!mapaGlobal) {
+                mapaGlobal = L.map('mapaLocalizacao').setView([lat, lng], zoomLvl);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(mapaGlobal);
+                
+                marcadorGlobal = L.marker([lat, lng]).addTo(mapaGlobal);
+                circuloGlobal = L.circle([lat, lng], { color: 'green', fillColor: '#22c55e', fillOpacity: 0.2, radius: 50 }).addTo(mapaGlobal);
+
+                // Ao clicar no mapa, atualiza as inputs e arrasta o marcador/raio
+                mapaGlobal.on('click', function(e) {
+                    document.getElementById('inputLat').value = e.latlng.lat;
+                    document.getElementById('inputLng').value = e.latlng.lng;
+                    marcadorGlobal.setLatLng([e.latlng.lat, e.latlng.lng]);
+                    circuloGlobal.setLatLng([e.latlng.lat, e.latlng.lng]);
+                });
+            } else {
+                mapaGlobal.setView([lat, lng], zoomLvl);
+                marcadorGlobal.setLatLng([lat, lng]);
+                circuloGlobal.setLatLng([lat, lng]);
+            }
+            // Resolve o bug de renderização de mapas dentro de abas ocultas (hidden)
+            setTimeout(() => mapaGlobal.invalidateSize(), 300);
+        }
+
+        // Salvar as coordenadas digitadas/clicadas manualmente
+        document.getElementById('btnSalvarLocalizacaoManual')?.addEventListener('click', async () => {
+            const btn = document.getElementById('btnSalvarLocalizacaoManual');
+            const msg = document.getElementById('msgLocalizacao');
+            const lat = parseFloat(document.getElementById('inputLat').value);
+            const lng = parseFloat(document.getElementById('inputLng').value);
+            
+            if(isNaN(lat) || isNaN(lng)) {
+                alert("Por favor, digite latitude e longitude válidas ou clique no mapa.");
+                return;
+            }
+
+            btn.disabled = true; btn.innerHTML = "Salvando...";
+            const { error } = await supabaseClient.from('terreiros').update({ latitude: lat, longitude: lng }).eq('id', idTerreiroGlobal);
+            btn.disabled = false; btn.innerHTML = '<i class="fas fa-save mr-2"></i> Salvar Manualmente';
+            
+            if(error) {
+                msg.textContent = "Erro: " + error.message;
+                msg.className = "mt-4 text-sm font-bold text-red-600 block";
+            } else {
+                msg.textContent = "Localização salva com sucesso!";
+                msg.className = "mt-4 text-sm font-bold text-green-600 block";
+                if(marcadorGlobal) { 
+                    marcadorGlobal.setLatLng([lat, lng]); 
+                    circuloGlobal.setLatLng([lat, lng]); 
+                    mapaGlobal.setView([lat, lng], 18); 
+                }
+                setTimeout(() => msg.classList.add('hidden'), 3000);
+            }
+        });
+    </script>
 </body>
 </html>
