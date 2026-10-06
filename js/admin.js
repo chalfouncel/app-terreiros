@@ -117,7 +117,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('totalMediuns').textContent = totalMediuns || '0';
 
         const agora = new Date().toISOString();
-        const { data: agendaData } = await supabaseClient.from('agenda').select('*').gte('data_hora_fim', agora).order('data_hora_inicio').limit(1);
+        const { data: agendaData } = await supabaseClient.from('agenda')
+            .select('*')
+            .gte('data_hora_fim', agora)
+            .order('data_hora_inicio')
+            .limit(1);
 
         let giraAtualId = null;
         if (agendaData && agendaData.length > 0) {
@@ -130,33 +134,36 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const tabelaPresencas = document.getElementById('tabelaPresencas');
         if (giraAtualId) {
-            // BUSCA 100% SEGURO: Pega presenças e cruza nomes no Javascript
-            const { data: presencas, error: errPresencas } = await supabaseClient
+            // Busca as presenças cruas
+            const { data: presencas } = await supabaseClient
                 .from('presencas')
-                .select('*')
+                .select('usuario_id, data_hora_checkin')
                 .eq('evento_id', giraAtualId)
                 .order('data_hora_checkin', { ascending: false });
-
-            if (errPresencas) console.error("Erro ao buscar presenças: ", errPresencas);
 
             document.getElementById('totalPresentes').textContent = presencas ? presencas.length : '0';
 
             if (presencas && presencas.length > 0) {
-                // Busca a lista de mediuns para o cruzamento
-                const { data: listaMediuns } = await supabaseClient.from('mediuns').select('auth_id, nome_completo');
+                tabelaPresencas.innerHTML = '<tr><td colspan="3" class="p-6 text-center text-gray-500">Cruzando dados...</td></tr>';
+                
+                // Busca TODOS os médiuns para cruzar
+                const { data: mediuns } = await supabaseClient
+                    .from('mediuns')
+                    .select('id, auth_id, nome_completo');
 
                 tabelaPresencas.innerHTML = ''; 
+                
                 presencas.forEach(p => {
-                    // Cruza o usuario_id da presenca com o auth_id do médium
-                    const mediumObj = listaMediuns?.find(m => m.auth_id === p.usuario_id);
-                    const nome = mediumObj ? mediumObj.nome_completo : 'Médium (Sem Nome)';
+                    // Busca dupla: tenta parear pelo auth_id (novo padrão) ou id numérico (testes legados)
+                    const medium = mediuns?.find(m => m.auth_id === p.usuario_id || m.id == p.usuario_id);
                     
-                    const horaStr = p.data_hora_checkin ? new Date(p.data_hora_checkin).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '--:--';
+                    const nome = medium ? medium.nome_completo : 'Médium (Excluído/Desconhecido)';
+                    const hora = new Date(p.data_hora_checkin).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
                     
                     tabelaPresencas.innerHTML += `
                         <tr class="border-b border-gray-100 hover:bg-gray-50">
                             <td class="p-3 text-gray-800 font-medium">${nome}</td>
-                            <td class="p-3 text-gray-600">${horaStr}</td>
+                            <td class="p-3 text-gray-600">${hora}</td>
                             <td class="p-3"><span class="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-bold">PRESENTE</span></td>
                         </tr>
                     `;
@@ -169,36 +176,46 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function carregarQuadroMediuns() {
         const tbody = document.getElementById('tabelaTodosMediuns');
-        // Busca 'id' junto para poder excluir
-        const { data } = await supabaseClient.from('mediuns').select('id, nome_completo, grau, funcao, telefone, cadastro_completo').order('nome_completo');
+        // Agora busca o ID também para podermos excluir
+        const { data } = await supabaseClient.from('mediuns')
+            .select('id, auth_id, nome_completo, grau, funcao, telefone, cadastro_completo')
+            .order('nome_completo');
+            
         tbody.innerHTML = '';
         if(data) data.forEach(m => {
             const cargo = [m.grau, m.funcao].filter(Boolean).join(' / ') || '-';
-            const status = m.cadastro_completo ? '<span class="text-green-600 font-bold">Ativo</span>' : '<span class="text-yellow-600 font-bold">Pendente</span>';
+            const status = m.cadastro_completo 
+                ? '<span class="text-green-600 font-bold">Ativo</span>' 
+                : '<span class="text-yellow-600 font-bold">Pendente</span>';
+                
+            // Botão de Excluir adicionado
+            const btnExcluir = `
+                <button onclick="excluirMedium('${m.id}')" class="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-1.5 rounded transition" title="Excluir Médium Permanentemente">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
+            `;
+            
             tbody.innerHTML += `
                 <tr class="border-b border-gray-100 hover:bg-gray-50 py-1">
                     <td class="py-2 px-3 text-gray-800">${m.nome_completo}</td>
                     <td class="py-2 px-3 text-gray-600">${cargo}</td>
                     <td class="py-2 px-3 text-gray-600">${m.telefone || '-'}</td>
                     <td class="py-2 px-3">${status}</td>
-                    <td class="py-2 px-3 text-center">
-                        <button onclick="excluirMedium(${m.id}, '${m.nome_completo}')" class="text-red-500 hover:text-red-700 transition p-1" title="Excluir Médium">
-                            <i class="fas fa-trash-alt"></i>
-                        </button>
-                    </td>
-                </tr>`;
+                    <td class="py-2 px-3 text-center">${btnExcluir}</td>
+                </tr>
+            `;
         });
     }
 
-    // Função de Exclusão global
-    window.excluirMedium = async (id, nome) => {
-        if(confirm(`ATENÇÃO: Deseja realmente excluir o(a) médium ${nome}?\n\nEle(a) perderá o acesso ao sistema e todo o seu histórico será apagado.`)) {
+    // Função Global de Exclusão
+    window.excluirMedium = async (id) => {
+        if(confirm('🚨 ATENÇÃO: Tem certeza que deseja excluir este médium definitivamente?\n\nO acesso dele à plataforma será revogado imediatamente e os dados removidos do painel.')) {
             const { error } = await supabaseClient.from('mediuns').delete().eq('id', id);
             if(error) {
-                alert('Erro ao excluir: ' + error.message);
+                alert('Erro ao excluir médium: ' + error.message);
             } else {
-                carregarQuadroMediuns();
-                carregarPainelInicial(); // Atualiza contador principal
+                alert('Médium excluído com sucesso!');
+                carregarQuadroMediuns(); // Recarrega a tabela
             }
         }
     };
@@ -539,7 +556,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 tbody.innerHTML = '';
                 doacoes.forEach(d => {
                     const medium = mediuns?.find(m => m.auth_id === d.medium_auth_id)?.nome_completo || 'Médium';
-                    const itemObj = itens?.find(i => i.id == d.item_id); 
+                    
+                    // COMPARAÇÃO TOLERANTE PARA O ITEM DESCONHECIDO (==)
+                    const itemObj = itens?.find(i => i.id == d.item_id);
+                    
                     const itemNome = itemObj ? `${itemObj.nome} <br><span class="text-[10px] text-gray-400 font-normal">${itemObj.descricao || ''}</span>` : 'Item Desconhecido';
                     
                     const dataFormatada = new Date(d.data_registro).toLocaleDateString('pt-BR');
@@ -673,7 +693,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // GERADOR DE PDF DAS DOAÇÕES
+    // GERADOR DE PDF DAS DOAÇÕES - CORRIGIDO
     const btnGerarPDF = document.getElementById('btnGerarPDF');
     if(btnGerarPDF) {
         btnGerarPDF.addEventListener('click', () => {
@@ -689,29 +709,26 @@ document.addEventListener('DOMContentLoaded', async () => {
             btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Gerando...';
             btn.disabled = true;
 
-            const containerPDF = document.createElement('div');
-            containerPDF.style.padding = '30px';
-            containerPDF.style.fontFamily = 'Arial, sans-serif';
-            containerPDF.style.color = '#333';
-
             const nomeCasa = document.getElementById('nomeTerreiroSidebar').textContent;
 
-            let html = `
-                <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #16a34a; padding-bottom: 10px;">
-                    <h2 style="margin: 0; color: #1e3a8a; font-size: 24px;">Relatório de Doações</h2>
-                    <h3 style="margin: 5px 0 0 0; color: #444; font-size: 16px;">${nomeCasa}</h3>
-                    <p style="margin: 5px 0 0 0; color: #666; font-size: 12px;">Emitido em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</p>
-                </div>
-                <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-                    <thead>
-                        <tr style="background-color: #f3f4f6;">
-                            <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Médium</th>
-                            <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Item</th>
-                            <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Qtd</th>
-                            <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
+            // Constrói uma string HTML crua para o conversor de PDF ler sem se perder
+            let htmlString = `
+                <div style="padding: 20px; font-family: Arial, sans-serif; color: #333; background: #fff;">
+                    <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #16a34a; padding-bottom: 10px;">
+                        <h2 style="margin: 0; color: #1e3a8a; font-size: 24px;">Relatório de Doações</h2>
+                        <h3 style="margin: 5px 0 0 0; color: #444; font-size: 16px;">${nomeCasa}</h3>
+                        <p style="margin: 5px 0 0 0; color: #666; font-size: 12px;">Emitido em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</p>
+                    </div>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                        <thead>
+                            <tr style="background-color: #f3f4f6;">
+                                <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Médium</th>
+                                <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Item</th>
+                                <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Qtd</th>
+                                <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
             `;
 
             dados.doacoes.forEach(d => {
@@ -720,7 +737,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const itemNome = itemObj ? itemObj.nome : 'Item Desconhecido';
                 const status = d.entregue ? '<span style="color: #16a34a; font-weight: bold;">Entregue</span>' : '<span style="color: #ca8a04;">Pendente</span>';
 
-                html += `
+                htmlString += `
                     <tr>
                         <td style="padding: 8px; border: 1px solid #ddd;">${medium}</td>
                         <td style="padding: 8px; border: 1px solid #ddd;">${itemNome}</td>
@@ -730,7 +747,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 `;
             });
 
-            html += `</tbody></table>`;
+            htmlString += `</tbody></table></div>`;
 
             const opt = {
                 margin:       10,
@@ -740,11 +757,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
 
-            html2pdf().set(opt).from(html).save().then(() => {
+            // Mandando gerar direto a partir da string
+            html2pdf().set(opt).from(htmlString).save().then(() => {
                 btn.innerHTML = textoOriginal;
                 btn.disabled = false;
             }).catch(err => {
-                console.error("Erro PDF:", err);
+                console.error("Erro no PDF:", err);
                 alert("Ocorreu um erro ao gerar o PDF.");
                 btn.innerHTML = textoOriginal;
                 btn.disabled = false;
