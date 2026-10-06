@@ -438,6 +438,46 @@
 
     </main>
 
+    <!-- MODAL DE PERMISSÕES -->
+    <div id="modalPermissoes" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 transition-opacity">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 transform transition-all">
+            <div class="flex justify-between items-center mb-4 border-b pb-2">
+                <h3 class="text-xl font-bold text-gray-800"><i class="fas fa-key text-blue-500 mr-2"></i> Permissões de Acesso</h3>
+                <button id="btnFecharPermissoes" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            <p class="text-sm text-gray-600 mb-4">Defina quais módulos o médium <strong id="nomeMediumPermissao" class="text-tema-primaria"></strong> pode acessar no Painel Admin:</p>
+            
+            <input type="hidden" id="idMediumPermissao">
+            
+            <div class="space-y-3 mb-6">
+                <label class="flex items-center space-x-3 cursor-pointer p-2 hover:bg-gray-50 rounded">
+                    <input type="checkbox" id="chkPermAgenda" class="w-5 h-5 text-tema-primaria rounded focus:ring-tema-primaria">
+                    <span class="text-gray-700 font-medium"><i class="fas fa-calendar-alt w-5 text-center text-gray-400 mr-1"></i> Agenda de Eventos</span>
+                </label>
+                <label class="flex items-center space-x-3 cursor-pointer p-2 hover:bg-gray-50 rounded">
+                    <input type="checkbox" id="chkPermGrau" class="w-5 h-5 text-tema-primaria rounded focus:ring-tema-primaria">
+                    <span class="text-gray-700 font-medium"><i class="fas fa-graduation-cap w-5 text-center text-gray-400 mr-1"></i> Alteração de Grau</span>
+                </label>
+                <label class="flex items-center space-x-3 cursor-pointer p-2 hover:bg-gray-50 rounded">
+                    <input type="checkbox" id="chkPermFinanceiro" class="w-5 h-5 text-tema-primaria rounded focus:ring-tema-primaria">
+                    <span class="text-gray-700 font-medium"><i class="fas fa-file-invoice-dollar w-5 text-center text-gray-400 mr-1"></i> Financeiro</span>
+                </label>
+                <label class="flex items-center space-x-3 cursor-pointer p-2 hover:bg-gray-50 rounded">
+                    <input type="checkbox" id="chkPermDoacoes" class="w-5 h-5 text-tema-primaria rounded focus:ring-tema-primaria">
+                    <span class="text-gray-700 font-medium"><i class="fas fa-hand-holding-heart w-5 text-center text-red-400 mr-1"></i> Doações / Campanhas</span>
+                </label>
+                <label class="flex items-center space-x-3 cursor-pointer p-2 hover:bg-gray-50 rounded">
+                    <input type="checkbox" id="chkPermAdmin" class="w-5 h-5 text-tema-primaria rounded focus:ring-tema-primaria">
+                    <span class="text-gray-700 font-medium"><i class="fas fa-cog w-5 text-center text-gray-400 mr-1"></i> Administração da Casa</span>
+                </label>
+            </div>
+            
+            <button id="btnSalvarPermissoes" class="w-full bg-tema-primaria hover:opacity-90 text-white font-bold py-3 px-4 rounded-xl shadow transition flex items-center justify-center">
+                Salvar Permissões
+            </button>
+        </div>
+    </div>
+
     <script src="js/supabase.js"></script>
     <script src="js/admin.js"></script>
 </body>
