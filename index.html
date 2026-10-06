@@ -48,5 +48,44 @@
 
     <script src="js/supabase.js"></script>
     <script src="js/login.js"></script>
+    <!-- Campo de WhatsApp -->
+<div>
+    <label class="block text-gray-700 text-sm font-bold mb-2" for="telefoneLogin">
+        Seu WhatsApp (Somente números)
+    </label>
+    <div class="relative">
+        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <i class="fab fa-whatsapp text-gray-400"></i>
+        </div>
+        <!-- AS PROPRIEDADES TYPE="TEL" E INPUTMODE FORÇAM O TECLADO NUMÉRICO -->
+        <input class="w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-green-600 focus:ring-1 focus:ring-green-600 transition" 
+               id="telefoneLogin" 
+               type="tel" 
+               inputmode="numeric" 
+               pattern="[0-9]*" 
+               placeholder="Ex: 21999999999" 
+               required>
+    </div>
+</div>
+
+<!-- Campo de Senha -->
+<div>
+    <label class="block text-gray-700 text-sm font-bold mb-2" for="senhaLogin">
+        Senha de Acesso (Números)
+    </label>
+    <div class="relative">
+        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <i class="fas fa-lock text-gray-400"></i>
+        </div>
+        <!-- AS PROPRIEDADES INPUTMODE E PATTERN AVISAM AO CELULAR QUE É NUMÉRICO -->
+        <input class="w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-green-600 focus:ring-1 focus:ring-green-600 transition" 
+               id="senhaLogin" 
+               type="password" 
+               inputmode="numeric" 
+               pattern="[0-9]*" 
+               placeholder="Sua senha de 6 dígitos" 
+               required>
+    </div>
+</div>
 </body>
 </html>
