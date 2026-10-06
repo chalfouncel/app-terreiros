@@ -71,18 +71,19 @@
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700">Data de nascimento *</label>
-                    <input type="date" id="dataNascimento" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500">
+                    <input type="tel" id="dataNascimento" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500" placeholder="DD/MM/AAAA" maxlength="10">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700">Telefone (WhatsApp) *</label>
-                    <input type="tel" id="telefone" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500" placeholder="(21) 99999-9999">
+                    <input type="tel" id="telefone" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500" placeholder="(21) 99999-9999" maxlength="15">
                 </div>
             </div>
 
             <div id="containerSenha" class="hidden pt-2 border-t border-gray-100 mt-4">
-                <label class="block text-sm font-medium text-gray-700">Crie sua Nova Senha *</label>
-                <input type="password" id="novaSenha" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500" placeholder="Mínimo de 6 caracteres">
-                <p class="text-xs text-gray-500 mt-1">Esta será sua senha para os próximos acessos.</p>
+                <label class="block text-sm font-medium text-gray-700">Crie sua Nova Senha (Apenas Números) *</label>
+                <!-- inputmode="numeric" força o teclado numérico. style com disc mascara a senha -->
+                <input type="text" inputmode="numeric" id="novaSenha" style="-webkit-text-security: disc; text-security: disc;" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500" placeholder="Mínimo de 6 números" pattern="[0-9]*">
+                <p class="text-xs text-gray-500 mt-1">Esta será sua senha para os próximos acessos. Use apenas números.</p>
             </div>
 
             <div id="msgErro" class="text-red-600 text-sm hidden"></div>
