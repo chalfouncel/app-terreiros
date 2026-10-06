@@ -122,16 +122,22 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (tituloTerreiro) tituloTerreiro.textContent = 'Sem Terreiro Vinculado';
         }
 
-        // VERIFICA GIRA DE HOJE
-        const hoje = new Date();
-        const inicioDia = new Date(hoje.setHours(0,0,0,0)).toISOString();
-        const fimDia = new Date(hoje.setHours(23,59,59,999)).toISOString();
+        // ====================================================================
+        // VERIFICA GIRA DE HOJE (CORRIGIDO PARA IGNORAR GIRAS QUE JÁ ACABARAM)
+        // ====================================================================
+        const agora = new Date();
+        const agoraIso = agora.toISOString(); // Hora exata de agora
+        
+        // Final do dia de hoje para limitar a busca (23:59:59)
+        const fimDia = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), 23, 59, 59, 999).toISOString();
 
         const { data: giras } = await supabaseClient.from('agenda').select('*')
             .eq('terreiro_id', idTerreiroGlobal)
             .eq('ata_encerrada', false)
-            .gte('data_hora_inicio', inicioDia).lte('data_hora_inicio', fimDia)
-            .order('data_hora_inicio', { ascending: true }).limit(1);
+            .gte('data_hora_fim', agoraIso)  // <-- MAGICA AQUI: O Fim da gira tem que ser no futuro
+            .lte('data_hora_inicio', fimDia) // <-- MAGICA AQUI: O Início tem que ser antes do fim de hoje
+            .order('data_hora_inicio', { ascending: true })
+            .limit(1);
 
         const divSemGira = document.getElementById('estadoSemGira');
         const divComGira = document.getElementById('estadoComGira');
@@ -143,7 +149,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Define variáveis globais de horário
             const hrInicioGira = new Date(gira.data_hora_inicio);
             hrFimGiraGlobal = new Date(gira.data_hora_fim);
-            hrInicioPermitidoGlobal = new Date(hrInicioGira.getTime() - (90 * 60000)); // Libera 30 min antes
+            hrInicioPermitidoGlobal = new Date(hrInicioGira.getTime() - (90 * 60000)); // Libera 90 min antes
 
             if (divSemGira) divSemGira.classList.add('hidden');
             if (divComGira) divComGira.classList.remove('hidden');
@@ -172,15 +178,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             } else {
                 // Não bateu ponto ainda - Controla o botão por horário
                 const btnPonto = document.getElementById('btnCheckin');
-                const agora = new Date();
+                const btnAgora = new Date();
                 
                 if (btnPonto) {
-                    if (agora < hrInicioPermitidoGlobal) {
+                    if (btnAgora < hrInicioPermitidoGlobal) {
                         btnPonto.disabled = true;
                         btnPonto.innerHTML = '<i class="fas fa-lock"></i> Libera 90 min antes';
                         btnPonto.classList.add('opacity-60', 'cursor-not-allowed', 'bg-gray-500');
                         btnPonto.classList.remove('bg-tema-secundaria', 'hover:opacity-90');
-                    } else if (agora > hrFimGiraGlobal) {
+                    } else if (btnAgora > hrFimGiraGlobal) {
                         btnPonto.disabled = true;
                         btnPonto.innerHTML = '<i class="fas fa-times-circle"></i> Gira Encerrada';
                         btnPonto.classList.add('opacity-60', 'cursor-not-allowed', 'bg-gray-500');
@@ -223,12 +229,12 @@ if (btnCheckin) {
         const msg = document.getElementById('msgCheckin');
         
         // Trava 1: Se o cara abriu o App cedão e não atualizou a página, previne dele clicar antes da hora
-        const agora = new Date();
-        if (hrInicioPermitidoGlobal && agora < hrInicioPermitidoGlobal) {
+        const agoraClick = new Date();
+        if (hrInicioPermitidoGlobal && agoraClick < hrInicioPermitidoGlobal) {
             if (msg) { msg.textContent = "A gira ainda não começou. Aguarde o horário."; msg.className = "mt-3 text-sm font-bold text-red-500 block"; }
             return;
         }
-        if (hrFimGiraGlobal && agora > hrFimGiraGlobal) {
+        if (hrFimGiraGlobal && agoraClick > hrFimGiraGlobal) {
             if (msg) { msg.textContent = "Esta gira já foi encerrada."; msg.className = "mt-3 text-sm font-bold text-red-500 block"; }
             return;
         }
