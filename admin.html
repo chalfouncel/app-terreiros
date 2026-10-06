@@ -37,11 +37,17 @@
         }
     </style>
 </head>
-<body class="min-h-screen flex transition-colors duration-300">
+<body class="min-h-screen flex transition-colors duration-300 overflow-hidden">
+
+    <!-- Overlay Mobile -->
+    <div id="overlayMobile" class="fixed inset-0 bg-black/50 z-40 hidden md:hidden transition-opacity"></div>
 
     <!-- Menu Lateral (Sidebar) -->
-    <aside class="w-64 bg-tema-primaria text-white flex flex-col shadow-xl transition-colors duration-300">
-        <div class="p-6 text-center border-b border-white/10 flex flex-col items-center">
+    <aside id="sidebar" class="fixed md:static inset-y-0 left-0 transform -translate-x-full md:translate-x-0 z-50 w-64 bg-tema-primaria text-white flex flex-col shadow-xl transition-transform duration-300">
+        <div class="p-6 text-center border-b border-white/10 flex flex-col items-center relative">
+            <button id="btnFecharMenu" class="md:hidden absolute top-4 right-4 text-white/70 hover:text-white">
+                <i class="fas fa-times text-xl"></i>
+            </button>
             <img id="logoSidebar" src="" class="hidden max-h-20 mb-3 rounded-lg bg-white/10 p-1 object-contain" alt="Ponto da Casa">
             <h1 class="text-xl font-bold text-white drop-shadow-md">Painel Gestão</h1>
             <p class="text-xs text-white/80 mt-1" id="nomeTerreiroSidebar">Carregando...</p>
@@ -80,17 +86,34 @@
     </aside>
 
     <!-- Conteúdo Principal -->
-    <main class="flex-1 p-8 overflow-y-auto">
-        <header class="flex justify-between items-center mb-8">
-            <div>
-                <h2 class="text-3xl font-bold text-tema-texto" id="tituloSecao">Visão Geral</h2>
-                <p class="text-gray-500" id="dataHoje"></p>
+    <div class="flex-1 flex flex-col h-screen overflow-hidden">
+        <!-- Header Mobile -->
+        <div class="md:hidden bg-white border-b border-gray-200 p-4 flex justify-between items-center shadow-sm flex-shrink-0">
+            <div class="flex items-center gap-3">
+                <button id="btnAbrirMenu" class="text-tema-primaria focus:outline-none">
+                    <i class="fas fa-bars text-2xl"></i>
+                </button>
+                <h1 class="font-bold text-gray-800" id="tituloMobile">Visão Geral</h1>
             </div>
-            <div class="bg-white px-4 py-2 rounded-full shadow-sm border border-gray-200 flex items-center">
-                <i class="fas fa-user-circle text-tema-secundaria text-xl mr-2"></i>
-                <span class="text-gray-700 font-medium" id="nomeAdmin">Olá, Admin</span>
+            <div class="bg-gray-100 p-2 rounded-full flex items-center justify-center text-tema-secundaria">
+                <i class="fas fa-user-circle text-xl"></i>
             </div>
-        </header>
+        </div>
+
+        <main class="flex-1 p-4 md:p-8 overflow-y-auto">
+            <header class="hidden md:flex justify-between items-center mb-8">
+                <div>
+                    <h2 class="text-3xl font-bold text-tema-texto" id="tituloSecao">Visão Geral</h2>
+                    <p class="text-gray-500" id="dataHoje"></p>
+                </div>
+                <div class="bg-white px-4 py-2 rounded-full shadow-sm border border-gray-200 flex items-center">
+                    <i class="fas fa-user-circle text-tema-secundaria text-xl mr-2"></i>
+                    <span class="text-gray-700 font-medium" id="nomeAdmin">Olá, Admin</span>
+                </div>
+            </header>
+            
+            <!-- Data Mobile -->
+            <p class="md:hidden text-gray-500 text-sm mb-4 font-medium" id="dataHojeMobile"></p>
 
         <!-- SECÃO 1: VISÃO GERAL -->
         <div id="secVisaoGeral" class="secao-painel">
@@ -436,7 +459,8 @@
             </div>
         </div>
 
-    </main>
+        </main>
+    </div>
 
     <!-- MODAL DE PERMISSÕES -->
     <div id="modalPermissoes" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 transition-opacity">
