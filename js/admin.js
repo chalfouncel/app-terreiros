@@ -148,14 +148,39 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function carregarQuadroMediuns() {
         const tbody = document.getElementById('tabelaTodosMediuns');
-        const { data } = await supabaseClient.from('mediuns').select('nome_completo, grau, funcao, telefone, cadastro_completo').order('nome_completo');
+        // Busca 'id' junto para poder excluir
+        const { data } = await supabaseClient.from('mediuns').select('id, nome_completo, grau, funcao, telefone, cadastro_completo').order('nome_completo');
         tbody.innerHTML = '';
         if(data) data.forEach(m => {
             const cargo = [m.grau, m.funcao].filter(Boolean).join(' / ') || '-';
             const status = m.cadastro_completo ? '<span class="text-green-600 font-bold">Ativo</span>' : '<span class="text-yellow-600 font-bold">Pendente</span>';
-            tbody.innerHTML += `<tr class="border-b border-gray-100 hover:bg-gray-50 py-1"><td class="py-2 px-3 text-gray-800">${m.nome_completo}</td><td class="py-2 px-3 text-gray-600">${cargo}</td><td class="py-2 px-3 text-gray-600">${m.telefone || '-'}</td><td class="py-2 px-3">${status}</td></tr>`;
+            tbody.innerHTML += `
+                <tr class="border-b border-gray-100 hover:bg-gray-50 py-1">
+                    <td class="py-2 px-3 text-gray-800">${m.nome_completo}</td>
+                    <td class="py-2 px-3 text-gray-600">${cargo}</td>
+                    <td class="py-2 px-3 text-gray-600">${m.telefone || '-'}</td>
+                    <td class="py-2 px-3">${status}</td>
+                    <td class="py-2 px-3 text-center">
+                        <button onclick="excluirMedium(${m.id}, '${m.nome_completo}')" class="text-red-500 hover:text-red-700 transition p-1" title="Excluir Médium">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </td>
+                </tr>`;
         });
     }
+
+    // Função de Exclusão global
+    window.excluirMedium = async (id, nome) => {
+        if(confirm(`ATENÇÃO: Deseja realmente excluir o(a) médium ${nome}?\n\nEle(a) perderá o acesso ao sistema e todo o seu histórico será apagado.`)) {
+            const { error } = await supabaseClient.from('mediuns').delete().eq('id', id);
+            if(error) {
+                alert('Erro ao excluir: ' + error.message);
+            } else {
+                carregarQuadroMediuns();
+                carregarPainelInicial(); // Atualiza contador principal
+            }
+        }
+    };
 
     async function carregarAgenda() {
         const tbody = document.getElementById('tabelaGirasCadastradas');
@@ -493,7 +518,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 tbody.innerHTML = '';
                 doacoes.forEach(d => {
                     const medium = mediuns?.find(m => m.auth_id === d.medium_auth_id)?.nome_completo || 'Médium';
-                    const itemObj = itens?.find(i => i.id === d.item_id);
+                    const itemObj = itens?.find(i => i.id == d.item_id); // Modificado para == (corrige bug de Texto x Número)
                     const itemNome = itemObj ? `${itemObj.nome} <br><span class="text-[10px] text-gray-400 font-normal">${itemObj.descricao || ''}</span>` : 'Item Desconhecido';
                     
                     const dataFormatada = new Date(d.data_registro).toLocaleDateString('pt-BR');
@@ -670,7 +695,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             dados.doacoes.forEach(d => {
                 const medium = dados.mediuns?.find(m => m.auth_id === d.medium_auth_id)?.nome_completo || 'Médium';
-                const itemObj = dados.itens?.find(i => i.id === d.item_id);
+                const itemObj = dados.itens?.find(i => i.id == d.item_id);
                 const itemNome = itemObj ? itemObj.nome : 'Item Desconhecido';
                 const status = d.entregue ? '<span style="color: #16a34a; font-weight: bold;">Entregue</span>' : '<span style="color: #ca8a04;">Pendente</span>';
 
@@ -685,7 +710,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
 
             html += `</tbody></table>`;
-            containerPDF.innerHTML = html;
 
             const opt = {
                 margin:       10,
@@ -695,7 +719,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
 
-            html2pdf().set(opt).from(containerPDF).save().then(() => {
+            // Passamos a string `html` direto (corrige o travamento da biblioteca)
+            html2pdf().set(opt).from(html).save().then(() => {
+                btn.innerHTML = textoOriginal;
+                btn.disabled = false;
+            }).catch(err => {
+                console.error("Erro PDF:", err);
+                alert("Ocorreu um erro ao gerar o PDF.");
                 btn.innerHTML = textoOriginal;
                 btn.disabled = false;
             });
