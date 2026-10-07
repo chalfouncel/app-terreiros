@@ -54,14 +54,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
         const { data: perfil, error: erroPerfil } = await supabaseClient
             .from('mediuns')
-            .select('nome_completo, is_admin, terreiro_id, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin, is_master, perm_visao_geral, perm_ata')
+            .select('nome_completo, nome_social, is_admin, terreiro_id, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin, is_master, perm_visao_geral, perm_ata')
             .eq('auth_id', session.user.id)
             .single();
 
         if (erroPerfil) throw erroPerfil;
         perfilAdminLogado = perfil;
 
-        // INCLUI A CHECAGEM DE IS_MASTER PARA NÃO BARRAR O ACESSO AO PAINEL NEUTRO
         const temAcessoPainel = perfil.is_admin || perfil.perm_visao_geral || perfil.perm_agenda || perfil.perm_grau || perfil.perm_financeiro || perfil.perm_doacoes || perfil.perm_admin || perfil.perm_ata || perfil.is_master;
 
         if (!temAcessoPainel) {
@@ -77,14 +76,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             const menuMaster = document.getElementById('menuMaster');
             if (menuMaster) menuMaster.classList.remove('hidden');
             
-            // Verifica se o master clicou para acessar um terreiro específico (Cliente)
             terreiroSaaSForcado = localStorage.getItem('terreiroAtivoSaaS');
             
             if (terreiroSaaSForcado) {
-                // MODO SUPORTE (Simulando o painel de um cliente)
                 idTerreiroGlobal = terreiroSaaSForcado;
                 
-                // Cria um aviso visual no topo da tela para você não esquecer que está no cliente
                 const avisoInfiltrado = document.createElement('div');
                 avisoInfiltrado.className = "bg-red-600 text-white text-center py-2 px-4 font-bold text-sm shadow-md z-50 flex flex-col md:flex-row justify-center items-center gap-2 md:space-x-4 flex-shrink-0";
                 avisoInfiltrado.innerHTML = `
@@ -92,11 +88,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <button onclick="voltarParaMeuPainel()" class="bg-white text-red-600 px-3 py-1 rounded text-xs font-bold hover:bg-gray-100 shadow transition border border-red-200">Sair do Modo Suporte</button>
                 `;
                 
-                // Insere o banner logo no começo da coluna de conteúdo principal
                 const containerPrincipal = document.querySelector('.flex-1.flex-col') || document.body;
                 containerPrincipal.insertBefore(avisoInfiltrado, containerPrincipal.firstChild);
 
-                // No Modo Suporte, forçamos todas as permissões para True para você conseguir resolver qualquer problema
                 perfil.is_admin = true;
                 perfil.perm_visao_geral = true;
                 perfil.perm_agenda = true;
@@ -106,29 +100,22 @@ document.addEventListener('DOMContentLoaded', async () => {
                 perfil.perm_doacoes = true;
                 perfil.perm_admin = true;
             } else {
-                // MODO MASTER PURO (Acessou para ver clientes, não um terreiro específico)
                 emModoMasterPuro = true;
                 idTerreiroGlobal = null;
             }
         } else {
-            // USUÁRIO COMUM (Dirigente ou Admin de Terreiro normal)
             idTerreiroGlobal = perfil.terreiro_id;
         }
         // --- FIM DA LÓGICA DE TROCA DE CONTEXTO ---
 
-        // Ocultar menus indesejados baseado no contexto ou permissões
         if (emModoMasterPuro) {
-            // Se está no Master Puro, não faz sentido mostrar Quadro de Médium, Agenda, etc. Ocultamos tudo.
             ['menuVisaoGeral', 'menuQuadroMediuns', 'menuAgendaGiras', 'menuLivroAta', 'menuGrau', 'menuFinanceiro', 'menuDoacoes', 'menuAdmin'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.classList.add('hidden');
             });
-            // Oculta os separadores (hr) do sidebar
             document.querySelectorAll('#sidebar hr').forEach(hr => hr.classList.add('hidden'));
-            
             document.getElementById('nomeTerreiroSidebar').textContent = "Gestão SaaS";
         } else {
-            // Lógica normal de ocultar menus para usuários de terreiro baseados em suas permissões
             if (!perfil.is_admin) {
                 if (!perfil.perm_visao_geral) document.getElementById('menuVisaoGeral').classList.add('hidden');
                 if (!perfil.perm_agenda) document.getElementById('menuAgendaGiras').classList.add('hidden');
@@ -143,9 +130,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
 
-        document.getElementById('nomeAdmin').textContent = 'Olá, ' + perfil.nome_completo.split(' ')[0];
+        const nomeExibicaoTop = perfil.nome_social ? perfil.nome_social : perfil.nome_completo.split(' ')[0];
+        document.getElementById('nomeAdmin').textContent = 'Olá, ' + nomeExibicaoTop;
         
-        // Só carrega detalhes (cores/logo) se existir um terreiro em foco
         if (idTerreiroGlobal) {
             const { data: terreiro } = await supabaseClient
                 .from('terreiros')
@@ -235,13 +222,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // DEFINIÇÃO DA TELA INICIAL
         if (emModoMasterPuro) {
-            // Se for o dono do sistema entrando, joga logo pra aba de Gestão
             const m = document.getElementById('menuMaster');
             if(m) m.click();
         } else if (perfil.is_admin || perfil.perm_visao_geral) {
             document.getElementById('menuVisaoGeral').click();
         } else {
-            // Fallback: Entra na primeira que achar permitida
             if (perfil.perm_agenda) document.getElementById('menuAgendaGiras').click();
             else if (perfil.perm_ata) document.getElementById('menuLivroAta').click();
             else if (perfil.perm_grau) document.getElementById('menuGrau').click();
@@ -259,8 +244,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     // VISÃO GERAL
     // ==========================================
     async function carregarPainelInicial() {
-        if(!idTerreiroGlobal) return; // Segurança caso acesse acidentalmente no master puro
-        const { count: totalMediuns } = await supabaseClient.from('mediuns').select('*', { count: 'exact', head: true }).eq('terreiro_id', idTerreiroGlobal);
+        if(!idTerreiroGlobal) return;
+        const { count: totalMediuns } = await supabaseClient.from('mediuns').select('*', { count: 'exact', head: true })
+            .eq('terreiro_id', idTerreiroGlobal)
+            .neq('nome_completo', 'Administrador Sistema');
+            
         document.getElementById('totalMediuns').textContent = totalMediuns || '0';
 
         const agora = new Date().toISOString();
@@ -278,7 +266,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const tabelaPresencas = document.getElementById('tabelaPresencas');
         if (giraAtualId) {
             const { data: presencas } = await supabaseClient.from('presencas').select('usuario_id, data_hora_checkin').eq('evento_id', giraAtualId).order('data_hora_checkin', { ascending: false });
-            const { data: todosMediuns } = await supabaseClient.from('mediuns').select('id, auth_id, nome_completo').eq('terreiro_id', idTerreiroGlobal);
+            const { data: todosMediuns } = await supabaseClient.from('mediuns').select('id, auth_id, nome_completo, nome_social').eq('terreiro_id', idTerreiroGlobal);
             
             document.getElementById('totalPresentes').textContent = presencas ? presencas.length : '0';
 
@@ -286,7 +274,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 tabelaPresencas.innerHTML = ''; 
                 presencas.forEach(p => {
                     const md = todosMediuns?.find(m => m.auth_id === p.usuario_id || String(m.id) === String(p.usuario_id));
-                    const nome = md ? md.nome_completo : 'Médium Excluído';
+                    const nome = md ? (md.nome_social || md.nome_completo) : 'Médium Excluído';
                     const hora = new Date(p.data_hora_checkin).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
                     tabelaPresencas.innerHTML += `<tr class="border-b border-gray-100 hover:bg-gray-50"><td class="p-3 text-gray-800 font-medium">${nome}</td><td class="p-3 text-gray-600">${hora}</td><td class="p-3"><span class="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-bold">PRESENTE</span></td></tr>`;
                 });
@@ -312,11 +300,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 .from('mediuns')
                 .select('id, nome_completo, nome_social, data_nascimento, grau, funcao, telefone, cadastro_completo, is_admin, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin, perm_visao_geral, perm_ata')
                 .eq('terreiro_id', idTerreiroGlobal)
+                .neq('nome_completo', 'Administrador Sistema')
                 .order('nome_completo');
 
             if (error) throw error;
 
             listaMediunsGlobal = data || [];
+            window.mediunsFiltrados = listaMediunsGlobal;
             renderizarTabelaMediuns(listaMediunsGlobal);
             renderizarAniversariantes(listaMediunsGlobal);
             
@@ -369,9 +359,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 linkWhats = `<a href="https://wa.me/${ddi}${numeroLimpo}" target="_blank" class="text-green-600 hover:text-green-700 hover:underline flex items-center gap-1 font-medium" title="Chamar no WhatsApp"><i class="fab fa-whatsapp text-lg"></i> ${m.telefone}</a>`;
             }
 
-            const nomeHtml = m.nome_social 
-                ? `${m.nome_completo}<br><span class="text-[10px] text-gray-500">Social: ${m.nome_social}</span>`
-                : m.nome_completo;
+            // Removendo o selo "Social:" e imprimindo apenas o nome social, se houver
+            const nomeHtml = m.nome_social ? m.nome_social : m.nome_completo;
 
             tbody.innerHTML += `
                 <tr class="hover:bg-gray-50 transition-colors group">
@@ -411,7 +400,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             return diaA - diaB;
         });
 
-        window.aniversariantesAtuais = aniversariantes; // Salva para a impressão de PDF
+        window.aniversariantesAtuais = aniversariantes;
 
         ul.innerHTML = '';
 
@@ -432,8 +421,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 dia = p[2]; mes = p[1];
             }
 
-            const nomeExibicao = m.nome_social ? m.nome_social : (m.nome_completo ? m.nome_completo.split(' ')[0] : 'Médium');
-            const badgeSocial = m.nome_social ? `<span class="bg-blue-100 text-blue-700 text-[9px] px-1.5 py-0.5 rounded ml-1 font-bold">SOCIAL</span>` : '';
+            // Removendo o badge 'SOCIAL'
+            const nomeExibicao = m.nome_social ? m.nome_social : m.nome_completo;
 
             ul.innerHTML += `
                 <li class="p-3 hover:bg-gray-50 flex items-center justify-between transition-colors border-l-4 border-transparent hover:border-blue-500">
@@ -442,7 +431,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             ${dia}
                         </div>
                         <div>
-                            <p class="text-sm font-bold text-gray-800 flex items-center">${nomeExibicao} ${badgeSocial}</p>
+                            <p class="text-sm font-bold text-gray-800 flex items-center">${nomeExibicao}</p>
                             <p class="text-[10px] text-gray-500 uppercase">${m.grau || 'Médium'}</p>
                         </div>
                     </div>
@@ -491,10 +480,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             return passaNome && passaGrau && passaStatus && passaMes;
         });
 
+        window.mediunsFiltrados = listaFiltrada;
         renderizarTabelaMediuns(listaFiltrada);
     }
 
-    // Função universal e otimizada para gerar relatórios em PDF (A4) com marca d'água
     window.gerarPDFRelatorio = (titulo, colunas, dados) => {
         const containerPDF = document.createElement('div');
         containerPDF.style.padding = '20px 30px';
@@ -502,7 +491,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         containerPDF.style.color = '#333';
         containerPDF.style.position = 'relative';
 
-        // Marca d'água centralizada (super discreta, atrás da tabela)
         let watermark = '';
         if (logoTerreiroGlobal) {
             watermark = `<div style="position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); opacity: 0.08; z-index: -1; pointer-events: none;">
@@ -555,14 +543,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         html2pdf().set(opt).from(containerPDF).save();
     };
 
-    // Configuração dos eventos de Filtro e PDF
     setTimeout(() => {
         document.getElementById('filtroNomeMedium')?.addEventListener('input', aplicarFiltrosMediuns);
         document.getElementById('filtroGrauMedium')?.addEventListener('change', aplicarFiltrosMediuns);
         document.getElementById('filtroStatusMedium')?.addEventListener('change', aplicarFiltrosMediuns);
         document.getElementById('filtroMesNascimento')?.addEventListener('change', aplicarFiltrosMediuns);
         
-        // Botão PDF: Quadro Geral
         document.getElementById('btnImprimirMediuns')?.addEventListener('click', () => {
             const btn = document.getElementById('btnImprimirMediuns');
             const originalHtml = btn.innerHTML;
@@ -578,25 +564,23 @@ document.addEventListener('DOMContentLoaded', async () => {
                         if(p.length === 3) dataNasc = `${p[2]}/${p[1]}/${p[0]}`;
                     } else dataNasc = m.data_nascimento;
                 }
-                const nomeStr = m.nome_social ? `${m.nome_completo} (${m.nome_social})` : m.nome_completo;
+                const nomeStr = m.nome_social ? m.nome_social : m.nome_completo;
                 const whats = m.telefone || '-';
                 
                 return [nomeStr, dataNasc, m.grau || '-', m.funcao || '-', whats];
             });
             
-            window.gerarPDFRelatorio('Quadro Oficial de Médiuns', ['Nome Completo', 'Nascimento', 'Grau', 'Função', 'WhatsApp'], dados);
+            window.gerarPDFRelatorio('Quadro Oficial de Médiuns', ['Nome', 'Nascimento', 'Grau', 'Função', 'WhatsApp'], dados);
             
             setTimeout(() => { btn.innerHTML = originalHtml; btn.disabled = false; }, 2000);
         });
 
-        // Botão PDF: Aniversariantes
         document.getElementById('btnImprimirAniversariantes')?.addEventListener('click', () => {
             const btn = document.getElementById('btnImprimirAniversariantes');
             const originalHtml = btn.innerHTML;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
             btn.disabled = true;
             
-            // FIX: Filtra e processa direto da base global para garantir dados perfeitos
             const dataAtual = new Date();
             const mesAtualNum = (dataAtual.getMonth() + 1).toString().padStart(2, '0');
             
@@ -615,7 +599,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return;
             }
             
-            // Ordenação dos Aniversariantes para o PDF
             lista.sort((a, b) => {
                 let diaA = 0, diaB = 0;
                 if(a.data_nascimento.includes('-')) diaA = parseInt(a.data_nascimento.split('-')[2]);
@@ -636,17 +619,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                         if(dataNasc.includes('/')) diaMes = dataNasc.substring(0, 5);
                     }
                 }
-                const nomeStr = m.nome_social ? `${m.nome_completo} (${m.nome_social})` : m.nome_completo;
+                const nomeStr = m.nome_social ? m.nome_social : m.nome_completo;
                 
-                // Retorna apenas DD/MM na coluna que antes era a data completa
                 return [diaMes, nomeStr, m.grau || '-', diaMes];
             });
             
             const mesAtualTexto = dataAtual.toLocaleString('pt-BR', { month: 'long' });
             const titulo = `Aniversariantes de ${mesAtualTexto.charAt(0).toUpperCase() + mesAtualTexto.slice(1)}`;
             
-            // Aqui substituímos o cabeçalho 'Nascimento' por 'Aniversário'
-            window.gerarPDFRelatorio(titulo, ['Dia', 'Nome Completo', 'Grau', 'Aniversário'], dados);
+            window.gerarPDFRelatorio(titulo, ['Dia', 'Nome', 'Grau', 'Aniversário'], dados);
             
             setTimeout(() => { btn.innerHTML = originalHtml; btn.disabled = false; }, 2000);
         });
@@ -752,7 +733,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // ==========================================
-    // AGENDA E EVENTOS (COM CORREÇÃO DE FUSO E ATA PADRÃO E UPLOAD)
+    // AGENDA E EVENTOS (COM GIRA ESPECIAL E PDF)
     // ==========================================
     async function carregarAgenda() {
         if(!idTerreiroGlobal) return;
@@ -767,7 +748,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     ? `<a href="${g.imagem_url}" target="_blank" class="text-blue-500 hover:bg-blue-50 p-1 rounded text-xs transition" title="Ver Cartaz"><i class="fas fa-image"></i> Cartaz</a>` 
                     : `<span class="text-gray-400 text-xs">-</span>`;
                 
-                // Botões de Editar e Excluir
+                const badgeEspecial = g.especial ? '<span class="ml-2 bg-red-100 text-red-700 text-[10px] px-1.5 py-0.5 rounded font-bold uppercase">Restrita</span>' : '';
+
                 const acoesBloco = `
                     <div class="flex items-center justify-center space-x-2">
                         ${imgHtml}
@@ -779,7 +761,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 tbody.innerHTML += `
                     <tr class="border-b border-gray-100 hover:bg-gray-50">
-                        <td class="p-3 text-gray-800 font-medium">${g.titulo}</td>
+                        <td class="p-3 text-gray-800 font-medium">${g.titulo} ${badgeEspecial}</td>
                         <td class="p-3 text-gray-600">${inicio}</td>
                         <td class="p-3 text-center">${acoesBloco}</td>
                     </tr>
@@ -790,7 +772,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // LOGICA GIRA ESPECIAL
+    // Controle dos checkboxes de Gira Especial
     document.addEventListener('change', (e) => {
         if(e.target.id === 'giraEspecial') {
             const box = document.getElementById('boxConvocados');
@@ -813,7 +795,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         container.innerHTML = '<span class="text-xs text-gray-500">Carregando médiuns...</span>';
         
         if (!listaMediunsGlobal || listaMediunsGlobal.length === 0) {
-            const { data } = await supabaseClient.from('mediuns').select('id, nome_completo').eq('terreiro_id', idTerreiroGlobal).order('nome_completo');
+            const { data } = await supabaseClient.from('mediuns')
+                .select('id, nome_completo, nome_social')
+                .eq('terreiro_id', idTerreiroGlobal)
+                .neq('nome_completo', 'Administrador Sistema')
+                .order('nome_completo');
             if (data) listaMediunsGlobal = data;
         }
         
@@ -821,10 +807,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         (listaMediunsGlobal || []).forEach(m => {
             const idStr = String(m.id);
             const isChecked = selecionados.includes(idStr) ? 'checked' : '';
+            const nomeExibicao = m.nome_social ? m.nome_social : m.nome_completo;
             html += `
                 <label class="flex items-center space-x-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-50 p-1 rounded">
                     <input type="checkbox" value="${m.id}" class="chk-convocado rounded text-red-500 focus:ring-red-500" ${isChecked}>
-                    <span class="truncate" title="${m.nome_completo}">${m.nome_completo.split(' ')[0]} ${m.nome_completo.split(' ')[1] || ''}</span>
+                    <span class="truncate" title="${nomeExibicao}">${nomeExibicao}</span>
                 </label>
             `;
         });
@@ -837,7 +824,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const diferencaHoras = (dataInicio - agora) / (1000 * 60 * 60);
 
         if (diferencaHoras < 2) {
-            alert("⚠️ AÇÃO BLOQUEADA: Não é permitido excluir um evento que já iniciou, já passou, ou que começa em menos de 2 horas. Isso evita perda de dados de check-ins.");
+            alert("⚠️ AÇÃO BLOQUEADA: Não é permitido excluir um evento que já iniciou, já passou, ou que começa em menos de 2 horas.");
             return;
         }
 
@@ -855,7 +842,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('editGiraId').value = data.id;
         document.getElementById('editGiraTitulo').value = data.titulo;
         
-        // CORREÇÃO: Formata forçando a hora que veio do banco de volta pro GMT-3 (São Paulo) no input
         const formataParaInput = (isoString) => {
             if (!isoString) return '';
             const dataBanco = new Date(isoString);
@@ -967,9 +953,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (fileInput && fileInput.files.length > 0) {
                     const file = fileInput.files[0];
                     const fileName = `${idTerreiroGlobal}/evento_${Date.now()}.${file.name.split('.').pop()}`;
-                    const { error: uploadError } = await supabaseClient.storage.from('public').upload(fileName, file);
+                    const { error: uploadError } = await supabaseClient.storage.from('giras').upload(fileName, file);
                     if (uploadError) throw uploadError;
-                    const { data: { publicUrl } } = supabaseClient.storage.from('public').getPublicUrl(fileName);
+                    const { data: { publicUrl } } = supabaseClient.storage.from('giras').getPublicUrl(fileName);
                     imagemFinal = publicUrl;
                 }
 
@@ -990,7 +976,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 document.getElementById('formNovaGira').reset();
                 if (document.getElementById('boxConvocados')) document.getElementById('boxConvocados').classList.add('hidden');
-                if(document.getElementById('giraGeraAta')) document.getElementById('giraGeraAta').checked = true; // Mantém marcado após resetar
+                if(document.getElementById('giraGeraAta')) document.getElementById('giraGeraAta').checked = true;
                 carregarAgenda();
                 
                 msg.textContent = "Evento salvo com sucesso!";
@@ -1124,7 +1110,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     window.baixarLivroAnual = async () => {
-        alert("Atenção: A consolidação do Livro Anual gera um arquivo muito pesado. Esta função está sendo adaptada para rodar em segundo plano e será liberada em breve. Por favor, baixe as atas de forma individual na tabela abaixo.");
+        alert("Atenção: A consolidação do Livro Anual gera arquivo muito pesado. Esta função está sendo adaptada para rodar em segundo plano e será liberada em breve. Por favor, baixe as atas de forma individual na tabela abaixo.");
     };
 
     window.arquivarAnoAnterior = async () => {
@@ -1161,9 +1147,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const numeroAta = eventosAnteriores ? eventosAnteriores.length : 1;
 
             const { data: presencas } = await supabaseClient.from('presencas').select('data_hora_checkin, usuario_id').eq('evento_id', eventoId).order('data_hora_checkin', { ascending: true });
-            
-            // Busca também a "funcao" para validar a regra do Dirigente
-            const { data: mediuns } = await supabaseClient.from('mediuns').select('id, auth_id, nome_completo, grau, funcao').eq('terreiro_id', idTerreiroGlobal);
+            const { data: mediuns } = await supabaseClient.from('mediuns').select('id, auth_id, nome_completo, nome_social, grau, funcao').eq('terreiro_id', idTerreiroGlobal);
                 
             const mapaMediuns = {};
             if(mediuns) {
@@ -1180,7 +1164,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             const ano = dataEv.getFullYear();
             const hora = dataEv.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
-            // Lógica de Ordenação Personalizada para a ATA
             if (presencas && presencas.length > 0) {
                 presencas.sort((a, b) => {
                     const mediumA = mapaMediuns[a.usuario_id] || {};
@@ -1189,11 +1172,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const isDirigenteA = mediumA.funcao === 'Dirigente';
                     const isDirigenteB = mediumB.funcao === 'Dirigente';
                     
-                    // 1. O Dirigente sempre sobe para o topo
                     if (isDirigenteA && !isDirigenteB) return -1;
                     if (!isDirigenteA && isDirigenteB) return 1;
                     
-                    // 2. Os demais são ordenados pelo horário de chegada (do mais cedo pro mais tarde)
                     const timeA = new Date(a.data_hora_checkin).getTime();
                     const timeB = new Date(b.data_hora_checkin).getTime();
                     
@@ -1205,10 +1186,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (presencas && presencas.length > 0) {
                 presencas.forEach(p => {
                     const medium = mapaMediuns[p.usuario_id] || { nome_completo: 'Médium não identificado', grau: '-' };
+                    const nomeFinal = medium.nome_social ? medium.nome_social : medium.nome_completo;
                     const horaCheckin = new Date(p.data_hora_checkin).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
                     trs += `
                         <tr>
-                            <td style="border-bottom: 1px solid #ddd; padding: 6px 4px;">${medium.nome_completo}</td>
+                            <td style="border-bottom: 1px solid #ddd; padding: 6px 4px;">${nomeFinal}</td>
                             <td style="border-bottom: 1px solid #ddd; padding: 6px 4px; text-align: center;">${medium.grau || '-'}</td>
                             <td style="border-bottom: 1px solid #ddd; padding: 6px 4px; text-align: right;">${horaCheckin}</td>
                         </tr>
@@ -1234,7 +1216,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             div.style.fontFamily = 'Arial, sans-serif';
             div.style.color = '#000';
             div.style.backgroundColor = '#fff';
-            div.style.position = 'relative'; // Para garantir a marca d'água no fundo
+            div.style.position = 'relative'; 
             
             let watermark = '';
             if (logoTerreiroGlobal) {
@@ -1316,7 +1298,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if(!idTerreiroGlobal) return;
         const tbody = document.getElementById('tabelaGraus');
         tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center">Buscando...</td></tr>';
-        const { data } = await supabaseClient.from('mediuns').select('id, nome_completo, grau, funcao').eq('terreiro_id', idTerreiroGlobal).order('nome_completo');
+        const { data } = await supabaseClient.from('mediuns').select('id, nome_completo, nome_social, grau, funcao').eq('terreiro_id', idTerreiroGlobal).neq('nome_completo', 'Administrador Sistema').order('nome_completo');
         if (data) { mediunsGrauCache = data; renderizarGraus(data); }
     }
 
@@ -1324,14 +1306,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         const tbody = document.getElementById('tabelaGraus');
         tbody.innerHTML = '';
         lista.forEach(m => {
-            tbody.innerHTML += `<tr class="border-b border-gray-100 hover:bg-gray-50 transition"><td class="py-2 px-3 text-gray-800 font-medium">${m.nome_completo}</td><td class="py-2 px-3"><select id="grau_${m.id}" class="border border-gray-300 rounded px-2 py-1 bg-white text-sm focus:ring-tema-primaria outline-none w-full max-w-[120px]">${renderizarOpcoes(opcoesGrau, m.grau || '-')}</select></td><td class="py-2 px-3"><select id="func_${m.id}" class="border border-gray-300 rounded px-2 py-1 bg-white text-sm focus:ring-tema-primaria outline-none w-full max-w-[120px]">${renderizarOpcoes(opcoesFuncao, m.funcao || '-')}</select></td><td class="py-2 px-3 text-center"><button onclick="salvarGrau(${m.id})" id="btnGrau_${m.id}" class="bg-tema-primaria hover:opacity-90 text-white px-3 py-1 rounded text-xs font-bold transition">Salvar</button></td></tr>`;
+            const nomeStr = m.nome_social ? m.nome_social : m.nome_completo;
+            tbody.innerHTML += `<tr class="border-b border-gray-100 hover:bg-gray-50 transition"><td class="py-2 px-3 text-gray-800 font-medium">${nomeStr}</td><td class="py-2 px-3"><select id="grau_${m.id}" class="border border-gray-300 rounded px-2 py-1 bg-white text-sm focus:ring-tema-primaria outline-none w-full max-w-[120px]">${renderizarOpcoes(opcoesGrau, m.grau || '-')}</select></td><td class="py-2 px-3"><select id="func_${m.id}" class="border border-gray-300 rounded px-2 py-1 bg-white text-sm focus:ring-tema-primaria outline-none w-full max-w-[120px]">${renderizarOpcoes(opcoesFuncao, m.funcao || '-')}</select></td><td class="py-2 px-3 text-center"><button onclick="salvarGrau(${m.id})" id="btnGrau_${m.id}" class="bg-tema-primaria hover:opacity-90 text-white px-3 py-1 rounded text-xs font-bold transition">Salvar</button></td></tr>`;
         });
     }
 
     if(document.getElementById('buscaMediumGrau')) {
         document.getElementById('buscaMediumGrau').addEventListener('input', (e) => {
             const termo = e.target.value.toLowerCase();
-            const filtrado = mediunsGrauCache.filter(m => m.nome_completo.toLowerCase().includes(termo));
+            const filtrado = mediunsGrauCache.filter(m => (m.nome_completo.toLowerCase().includes(termo) || (m.nome_social && m.nome_social.toLowerCase().includes(termo))));
             renderizarGraus(filtrado);
         });
     }
@@ -1361,7 +1344,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const tbody = document.getElementById('tabelaFinanceiro');
         tbody.innerHTML = '<tr><td colspan="14" class="p-6 text-center text-gray-500">Buscando histórico...</td></tr>';
         
-        const { data: mediuns } = await supabaseClient.from('mediuns').select('id, nome_completo').eq('terreiro_id', idTerreiroGlobal).order('nome_completo');
+        const { data: mediuns } = await supabaseClient.from('mediuns').select('id, nome_completo, nome_social').eq('terreiro_id', idTerreiroGlobal).neq('nome_completo', 'Administrador Sistema').order('nome_completo');
         const { data: pgtos } = await supabaseClient.from('financeiro').select('*').eq('ano', ano);
         
         if(!mediuns) return;
@@ -1380,7 +1363,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 htmlMeses += `<td class="py-1 px-1 border-b border-gray-100"><input type="checkbox" ${checkStr} class="w-4 h-4 cursor-pointer accent-tema-secundaria" onchange="salvarPagamento(${m.id}, ${i}, ${ano}, this.checked)"></td>`;
             }
             const statusHtml = emDia ? '<span class="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded">Em Dia</span>' : '<span class="bg-red-100 text-red-700 text-xs font-bold px-2 py-1 rounded">Pendente</span>';
-            tbody.innerHTML += `<tr class="hover:bg-gray-50"><td class="py-2 px-3 border-b border-gray-100 text-left font-medium text-gray-800 text-xs truncate max-w-[220px]">${m.nome_completo}</td>${htmlMeses}<td class="py-2 px-2 border-b border-gray-100 bg-gray-50">${statusHtml}</td></tr>`;
+            const nomeStr = m.nome_social ? m.nome_social : m.nome_completo;
+
+            tbody.innerHTML += `<tr class="hover:bg-gray-50"><td class="py-2 px-3 border-b border-gray-100 text-left font-medium text-gray-800 text-xs truncate max-w-[220px]">${nomeStr}</td>${htmlMeses}<td class="py-2 px-2 border-b border-gray-100 bg-gray-50">${statusHtml}</td></tr>`;
         });
     }
 
@@ -1420,6 +1405,32 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    function iniciarMapa(lat, lng, zoomLvl) {
+        const mapEl = document.getElementById('mapaLocalizacao');
+        const overlay = document.getElementById('mapaOverlay');
+        if(!mapaGlobal && mapEl && typeof L !== 'undefined') {
+            if(overlay) overlay.classList.add('hidden');
+            mapaGlobal = L.map('mapaLocalizacao').setView([lat, lng], zoomLvl);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(mapaGlobal);
+            
+            marcadorGlobal = L.marker([lat, lng]).addTo(mapaGlobal);
+            circuloGlobal = L.circle([lat, lng], { color: 'green', fillColor: '#22c55e', fillOpacity: 0.2, radius: 50 }).addTo(mapaGlobal);
+
+            mapaGlobal.on('click', function(e) {
+                document.getElementById('inputLat').value = e.latlng.lat;
+                document.getElementById('inputLng').value = e.latlng.lng;
+                marcadorGlobal.setLatLng([e.latlng.lat, e.latlng.lng]);
+                circuloGlobal.setLatLng([e.latlng.lat, e.latlng.lng]);
+            });
+        } else if(mapaGlobal) {
+            if(overlay) overlay.classList.add('hidden');
+            mapaGlobal.setView([lat, lng], zoomLvl);
+            marcadorGlobal.setLatLng([lat, lng]);
+            circuloGlobal.setLatLng([lat, lng]);
+        }
+        setTimeout(() => { if(mapaGlobal) mapaGlobal.invalidateSize(); }, 300);
+    }
+
     if (document.getElementById('btnGravarLocalizacao')) {
         document.getElementById('btnGravarLocalizacao').addEventListener('click', async () => {
             const btn = document.getElementById('btnGravarLocalizacao');
@@ -1449,7 +1460,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 document.getElementById('inputLat').value = lat;
                                 document.getElementById('inputLng').value = lon;
                             }
-                            if (typeof iniciarMapa === 'function') iniciarMapa(lat, lon, 18);
+                            iniciarMapa(lat, lon, 18);
                         }
                     }
                 },
@@ -1488,10 +1499,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if(msg) { msg.textContent = "ERRO: O Banco de Dados recusou a alteração. Regra RLS bloqueou a gravação."; msg.className = "mt-4 text-sm font-bold text-red-600 block"; msg.classList.remove('hidden'); }
             } else {
                 if(msg) { msg.textContent = "Localização salva com sucesso!"; msg.className = "mt-4 text-sm font-bold text-green-600 block"; msg.classList.remove('hidden'); setTimeout(() => msg.classList.add('hidden'), 3000); }
-                if (typeof iniciarMapa === 'function') iniciarMapa(lat, lng, 18);
+                iniciarMapa(lat, lng, 18);
             }
         });
     }
+
 
     if(document.getElementById('uploadLogo')) {
         document.getElementById('uploadLogo').addEventListener('change', function(e) {
@@ -1580,7 +1592,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             const { data: doacoes, error: errD } = await supabaseClient.from('doacoes_registradas').select('*').eq('terreiro_id', idTerreiroGlobal).order('entregue', { ascending: true }).order('data_registro', { ascending: false }); 
             if (errD) throw errD;
-            const { data: mediuns } = await supabaseClient.from('mediuns').select('auth_id, nome_completo').eq('terreiro_id', idTerreiroGlobal);
+            const { data: mediuns } = await supabaseClient.from('mediuns').select('auth_id, nome_completo, nome_social').eq('terreiro_id', idTerreiroGlobal).neq('nome_completo', 'Administrador Sistema');
             const { data: itens } = await supabaseClient.from('itens_doacao').select('id, nome, descricao').eq('terreiro_id', idTerreiroGlobal);
             window.dadosDoacoesParaPDF = { doacoes, mediuns, itens };
 
@@ -1591,14 +1603,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             if(tbody) {
                 tbody.innerHTML = '';
                 doacoes.forEach(d => {
-                    const medium = mediuns?.find(m => m.auth_id === d.medium_auth_id)?.nome_completo || 'Médium';
+                    const medium = mediuns?.find(m => m.auth_id === d.medium_auth_id);
+                    const nomeMedium = medium ? (medium.nome_social ? medium.nome_social : medium.nome_completo) : 'Médium Excluído';
+                    
                     const itemObj = itens?.find(i => i.id == d.item_id);
                     const itemNome = itemObj ? `${itemObj.nome}` : 'Item';
                     const data = new Date(d.data_registro).toLocaleDateString('pt-BR');
                     const statusHtml = d.entregue ? '<span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded font-bold">Entregue</span>' : '<span class="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded font-bold">Pendente</span>';
                     const acaoHtml = d.entregue ? `<button onclick="marcarDoacao('${d.id}', false)" class="text-xs text-gray-400 hover:text-gray-800 underline mt-1">Desfazer</button>` : `<button onclick="marcarDoacao('${d.id}', true)" class="bg-tema-secundaria hover:opacity-90 text-white text-xs font-bold py-1.5 px-3 rounded shadow-sm mt-1">Dar Baixa</button>`;
                     const estilo = d.entregue ? 'bg-gray-50 opacity-80' : 'bg-white';
-                    tbody.innerHTML += `<tr class="border-b border-gray-100 ${estilo}"><td class="p-3 text-sm">${medium}</td><td class="p-3 text-sm">${itemNome}</td><td class="p-3 text-center font-bold">${d.quantidade}</td><td class="p-3 text-xs text-gray-500">${data}</td><td class="p-3 text-center flex flex-col items-center">${statusHtml}${acaoHtml}</td></tr>`;
+                    
+                    tbody.innerHTML += `<tr class="border-b border-gray-100 ${estilo}"><td class="p-3 text-sm font-medium">${nomeMedium}</td><td class="p-3 text-sm">${itemNome}</td><td class="p-3 text-center font-bold">${d.quantidade}</td><td class="p-3 text-xs text-gray-500">${data}</td><td class="p-3 text-center flex flex-col items-center">${statusHtml}${acaoHtml}</td></tr>`;
                 });
             }
         } catch (error) {
