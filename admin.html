@@ -285,11 +285,28 @@
                         </div>
                     </div>
                     
-                    <div class="mt-4 flex items-center">
-                        <input type="checkbox" id="giraGeraAta" class="w-4 h-4 text-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500" checked>
-                        <label for="giraGeraAta" class="ml-2 block text-sm font-medium text-gray-700">
-                            Gerar Livro de Presença (ATA) para este evento
-                        </label>
+                    <!-- ÁREA DE CHECKBOXES ADICIONADA -->
+                    <div class="mt-4 flex flex-col md:flex-row md:items-center gap-4">
+                        <div class="flex items-center">
+                            <input type="checkbox" id="giraGeraAta" class="w-4 h-4 text-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500" checked>
+                            <label for="giraGeraAta" class="ml-2 block text-sm font-medium text-gray-700">
+                                Gerar Livro de Presença (ATA) para este evento
+                            </label>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="checkbox" id="giraEspecial" class="w-4 h-4 text-red-500 bg-gray-100 border-gray-300 rounded focus:ring-red-500">
+                            <label for="giraEspecial" class="ml-2 block text-sm font-bold text-red-600">
+                                <i class="fas fa-lock text-red-500 mr-1"></i> Gira Especial / Restrita
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- BOX DE CONVOCADOS ADICIONADA -->
+                    <div id="boxConvocados" class="hidden mt-4 p-4 border border-red-200 bg-red-50 rounded-lg">
+                        <p class="text-sm font-bold text-red-700 mb-2">Selecione os convocados para este evento:</p>
+                        <div id="listaCheckConvocados" class="grid grid-cols-2 md:grid-cols-4 gap-2 max-h-48 overflow-y-auto p-2 bg-white rounded border border-gray-200 shadow-inner">
+                            <!-- checkboxes via js -->
+                        </div>
                     </div>
 
                     <button type="submit" id="btnSalvarGira" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded shadow mt-4">
@@ -593,7 +610,7 @@
                     <div class="p-4 border border-gray-100 rounded-lg bg-gray-50 flex justify-between items-center hover:shadow-sm transition">
                         <div>
                             <h4 class="font-bold text-gray-800">Cor do Texto Principal</h4>
-                            <p class="text-xs text-gray-500">Textos em destaque, títulos e rótulos.</p>
+                            <p class="text-xs text-gray-500">Textos em destaque, titles e rótulos.</p>
                         </div>
                         <input type="color" id="corTexto" class="w-14 h-14 cursor-pointer border-0 rounded bg-transparent">
                     </div>
@@ -827,11 +844,28 @@
                     </div>
                 </div>
 
-                <div class="flex items-center mt-2">
-                    <input type="checkbox" id="editGiraGeraAta" class="w-4 h-4 text-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500">
-                    <label for="editGiraGeraAta" class="ml-2 block text-sm font-medium text-gray-700">
-                        Gerar Livro de Presença (ATA)
-                    </label>
+                <!-- ÁREA DE CHECKBOXES ADICIONADA -->
+                <div class="flex flex-col gap-3 mt-2">
+                    <div class="flex items-center">
+                        <input type="checkbox" id="editGiraGeraAta" class="w-4 h-4 text-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500">
+                        <label for="editGiraGeraAta" class="ml-2 block text-sm font-medium text-gray-700">
+                            Gerar Livro de Presença (ATA)
+                        </label>
+                    </div>
+                    <div class="flex items-center">
+                        <input type="checkbox" id="editGiraEspecial" class="w-4 h-4 text-red-500 bg-gray-100 border-gray-300 rounded focus:ring-red-500">
+                        <label for="editGiraEspecial" class="ml-2 block text-sm font-bold text-red-600">
+                            <i class="fas fa-lock text-red-500 mr-1"></i> Gira Especial / Restrita
+                        </label>
+                    </div>
+                </div>
+
+                <!-- BOX DE CONVOCADOS ADICIONADA -->
+                <div id="editBoxConvocados" class="hidden mt-4 p-3 border border-red-200 bg-red-50 rounded-lg">
+                    <p class="text-xs font-bold text-red-700 mb-2">Convocados:</p>
+                    <div id="editListaCheckConvocados" class="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-2 bg-white rounded border border-gray-200 shadow-inner">
+                        <!-- checkboxes via js -->
+                    </div>
                 </div>
                 
                 <p id="msgEditGira" class="hidden text-sm mt-2 text-center font-bold"></p>
