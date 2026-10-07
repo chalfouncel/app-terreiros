@@ -81,13 +81,39 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (!perfil.perm_admin) document.getElementById('menuAdmin').classList.add('hidden');
         }
 
+        document.getElementById('nomeAdmin').textContent = 'Olá, ' + perfil.nome_completo.split(' ')[0];
+        
+        // --- INÍCIO DA LÓGICA DE TROCA DE CONTEXTO SaaS ---
+        let terreiroSaaSForcado = null;
+        
         if (perfil.is_master) {
             const menuMaster = document.getElementById('menuMaster');
             if (menuMaster) menuMaster.classList.remove('hidden');
+            
+            // Verifica se o master clicou para acessar um terreiro específico
+            terreiroSaaSForcado = localStorage.getItem('terreiroAtivoSaaS');
+            
+            if (terreiroSaaSForcado) {
+                idTerreiroGlobal = terreiroSaaSForcado;
+                
+                // Cria um aviso visual no topo da tela para você não esquecer que está no cliente
+                const avisoInfiltrado = document.createElement('div');
+                avisoInfiltrado.className = "bg-red-600 text-white text-center py-2 px-4 font-bold text-sm shadow-md z-50 flex flex-col md:flex-row justify-center items-center gap-2 md:space-x-4 flex-shrink-0";
+                avisoInfiltrado.innerHTML = `
+                    <span><i class="fas fa-user-secret mr-2"></i> MODO SUPORTE: Você está acessando o painel de um cliente (ID: ${idTerreiroGlobal}).</span>
+                    <button onclick="voltarParaMeuPainel()" class="bg-white text-red-600 px-3 py-1 rounded text-xs font-bold hover:bg-gray-100 shadow transition border border-red-200">Sair do Modo Suporte</button>
+                `;
+                
+                // Insere logo no começo da coluna de conteúdo principal
+                const containerPrincipal = document.querySelector('.flex-1.flex-col') || document.body;
+                containerPrincipal.insertBefore(avisoInfiltrado, containerPrincipal.firstChild);
+            } else {
+                idTerreiroGlobal = perfil.terreiro_id;
+            }
+        } else {
+            idTerreiroGlobal = perfil.terreiro_id;
         }
-
-        document.getElementById('nomeAdmin').textContent = 'Olá, ' + perfil.nome_completo.split(' ')[0];
-        idTerreiroGlobal = perfil.terreiro_id;
+        // --- FIM DA LÓGICA DE TROCA DE CONTEXTO ---
 
         if (idTerreiroGlobal) {
             const { data: terreiro } = await supabaseClient
@@ -197,11 +223,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     // VISÃO GERAL
     // ==========================================
     async function carregarPainelInicial() {
-        const { count: totalMediuns } = await supabaseClient.from('mediuns').select('*', { count: 'exact', head: true });
+        const { count: totalMediuns } = await supabaseClient.from('mediuns').select('*', { count: 'exact', head: true }).eq('terreiro_id', idTerreiroGlobal);
         document.getElementById('totalMediuns').textContent = totalMediuns || '0';
 
         const agora = new Date().toISOString();
-        const { data: agendaData } = await supabaseClient.from('agenda').select('*').gte('data_hora_fim', agora).order('data_hora_inicio').limit(1);
+        const { data: agendaData } = await supabaseClient.from('agenda').select('*').eq('terreiro_id', idTerreiroGlobal).gte('data_hora_fim', agora).order('data_hora_inicio').limit(1);
 
         let giraAtualId = null;
         if (agendaData && agendaData.length > 0) {
@@ -215,7 +241,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const tabelaPresencas = document.getElementById('tabelaPresencas');
         if (giraAtualId) {
             const { data: presencas } = await supabaseClient.from('presencas').select('usuario_id, data_hora_checkin').eq('evento_id', giraAtualId).order('data_hora_checkin', { ascending: false });
-            const { data: todosMediuns } = await supabaseClient.from('mediuns').select('id, auth_id, nome_completo');
+            const { data: todosMediuns } = await supabaseClient.from('mediuns').select('id, auth_id, nome_completo').eq('terreiro_id', idTerreiroGlobal);
             
             document.getElementById('totalPresentes').textContent = presencas ? presencas.length : '0';
 
@@ -540,12 +566,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // ==========================================
-    // AGENDA E EVENTOS (COM CORREÇÃO DE FUSO E ATA PADRÃO)
+    // AGENDA E EVENTOS
     // ==========================================
     async function carregarAgenda() {
         const tbody = document.getElementById('tabelaGirasCadastradas');
         const agora = new Date().toISOString();
-        const { data } = await supabaseClient.from('agenda').select('*').gte('data_hora_fim', agora).order('data_hora_inicio').limit(15); 
+        const { data } = await supabaseClient.from('agenda').select('*').eq('terreiro_id', idTerreiroGlobal).gte('data_hora_fim', agora).order('data_hora_inicio').limit(15); 
         tbody.innerHTML = '';
         if(data && data.length > 0) {
             data.forEach(g => {
@@ -601,7 +627,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('editGiraId').value = data.id;
         document.getElementById('editGiraTitulo').value = data.titulo;
         
-        // CORREÇÃO: Formata forçando a hora que veio do banco de volta pro GMT-3 (São Paulo) no input
         const formataParaInput = (isoString) => {
             if (!isoString) return '';
             const dataBanco = new Date(isoString);
@@ -629,7 +654,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (document.getElementById('formEditarGira')) {
         document.getElementById('formEditarGira').addEventListener('submit', async (e) => {
             e.preventDefault();
-            // CORREÇÃO: Usando o ID exato que está no HTML (btnSalvarEditGira)
             const btn = document.getElementById('btnSalvarEditGira');
             if (btn) { btn.disabled = true; btn.innerHTML = 'Salvando...'; }
 
@@ -638,7 +662,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const inicioRaw = document.getElementById('editGiraInicio').value;
                 const fimRaw = document.getElementById('editGiraFim').value;
                 
-                // CORREÇÃO: Adiciona a assinatura de fuso horário "-03:00" explicitamente
                 const inicioBR = inicioRaw ? `${inicioRaw}:00-03:00` : null;
                 const fimBR = fimRaw ? `${fimRaw}:00-03:00` : null;
 
@@ -677,10 +700,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const linkA = document.getElementById('giraImagem').value;
                 const fileInput = document.getElementById('giraArquivo');
                 
-                // CORREÇÃO: Gera a ATA por padrão a menos que esteja explicitamente desmarcado
                 const chkGeraAta = document.getElementById('giraGeraAta') ? document.getElementById('giraGeraAta').checked : true;
                 
-                // CORREÇÃO: Adiciona a assinatura de fuso horário "-03:00" explicitamente
                 const inicioBR = inicioRaw ? `${inicioRaw}:00-03:00` : null;
                 const fimBR = fimRaw ? `${fimRaw}:00-03:00` : null;
                 
@@ -1016,7 +1037,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function carregarTabelaGraus() {
         const tbody = document.getElementById('tabelaGraus');
         tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center">Buscando...</td></tr>';
-        const { data } = await supabaseClient.from('mediuns').select('id, nome_completo, grau, funcao').order('nome_completo');
+        const { data } = await supabaseClient.from('mediuns').select('id, nome_completo, grau, funcao').eq('terreiro_id', idTerreiroGlobal).order('nome_completo');
         if (data) { mediunsGrauCache = data; renderizarGraus(data); }
     }
 
@@ -1060,7 +1081,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const tbody = document.getElementById('tabelaFinanceiro');
         tbody.innerHTML = '<tr><td colspan="14" class="p-6 text-center text-gray-500">Buscando histórico...</td></tr>';
         
-        const { data: mediuns } = await supabaseClient.from('mediuns').select('id, nome_completo').order('nome_completo');
+        const { data: mediuns } = await supabaseClient.from('mediuns').select('id, nome_completo').eq('terreiro_id', idTerreiroGlobal).order('nome_completo');
         const { data: pgtos } = await supabaseClient.from('financeiro').select('*').eq('ano', ano);
         
         if(!mediuns) return;
@@ -1119,7 +1140,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // CORREÇÃO: Lógica do Leaflet (Minimapa) e Salvamento Manual Embutidos Corretamente no JS
+    // Lógica do Leaflet (Minimapa) e Salvamento Manual
     function iniciarMapa(lat, lng, zoomLvl) {
         const mapEl = document.getElementById('mapaLocalizacao');
         const overlay = document.getElementById('mapaOverlay');
@@ -1295,8 +1316,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             const { data: doacoes, error: errD } = await supabaseClient.from('doacoes_registradas').select('*').eq('terreiro_id', idTerreiroGlobal).order('entregue', { ascending: true }).order('data_registro', { ascending: false }); 
             if (errD) throw errD;
-            const { data: mediuns } = await supabaseClient.from('mediuns').select('auth_id, nome_completo');
-            const { data: itens } = await supabaseClient.from('itens_doacao').select('id, nome, descricao');
+            const { data: mediuns } = await supabaseClient.from('mediuns').select('auth_id, nome_completo').eq('terreiro_id', idTerreiroGlobal);
+            const { data: itens } = await supabaseClient.from('itens_doacao').select('id, nome, descricao').eq('terreiro_id', idTerreiroGlobal);
             window.dadosDoacoesParaPDF = { doacoes, mediuns, itens };
 
             if (!doacoes || doacoes.length === 0) {
@@ -1348,7 +1369,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     // ==========================================
-    // SAAS / GESTÃO
+    // SAAS / GESTÃO E CONTEXT SWITCHER
     // ==========================================
     window.carregarGestaoPlataforma = async () => {
         const tbody = document.getElementById('tabelaMasterTerreiros');
@@ -1365,10 +1386,24 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             const btnImportar = `<button onclick="abrirModalImportacao(${t.id}, '${t.nome.replace(/'/g, "\\'")}')" class="text-xs bg-blue-600 hover:bg-blue-700 text-white py-1 px-3 rounded shadow ml-2"><i class="fas fa-file-csv"></i> CSV</button>`;
             
-            const acaoHtml = `<div class="flex justify-center items-center">${btnBloqueio}${btnImportar}</div>`;
+            // NOVO: BOTÃO ACESSAR
+            const btnAcessar = `<button onclick="acessarTerreiroSaaS(${t.id})" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white py-1 px-3 rounded shadow mr-2"><i class="fas fa-sign-in-alt"></i> Acessar</button>`;
+            
+            const acaoHtml = `<div class="flex justify-center items-center">${btnAcessar}${btnBloqueio}${btnImportar}</div>`;
             
             tbody.innerHTML += `<tr class="border-b border-gray-100 ${t.status_bloqueado ? 'bg-red-50' : ''}"><td class="p-3 text-sm font-mono">${t.id}</td><td class="p-3 font-bold">${t.nome}</td><td class="p-3 text-center">${statusHtml}</td><td class="p-3 text-center">${acaoHtml}</td></tr>`;
         });
+    };
+
+    // --- NOVAS FUNÇÕES PARA O CONTEXT SWITCHER ---
+    window.acessarTerreiroSaaS = (idTerreiro) => {
+        localStorage.setItem('terreiroAtivoSaaS', idTerreiro);
+        window.location.reload();
+    };
+
+    window.voltarParaMeuPainel = () => {
+        localStorage.removeItem('terreiroAtivoSaaS');
+        window.location.reload();
     };
 
     window.alternarBloqueioTerreiro = async (idTerreiro, vaiBloquear) => {
