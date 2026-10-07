@@ -24,12 +24,15 @@
                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <i class="fas fa-user text-gray-400"></i>
                     </div>
-                    <!-- type="text" permite e-mail, letras e números -->
-                    <input type="text" id="identificacao" required
+                    <!-- Voltando ao numérico com inputmode! -->
+                    <input type="tel" id="identificacao" required inputmode="numeric" pattern="[0-9]*"
                         class="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-gray-800 focus:border-transparent transition"
-                        placeholder="E-mail, ID ou WhatsApp">
+                        placeholder="ID (1º Acesso) ou WhatsApp">
                 </div>
-                <p class="text-xs text-gray-500 mt-1">Primeiro acesso? Digite o ID fornecido.</p>
+                <div class="flex justify-between items-center mt-1">
+                    <p class="text-xs text-gray-500">Primeiro acesso? Digite o ID.</p>
+                    <button type="button" id="btnModoMaster" class="text-xs text-blue-600 font-bold hover:underline transition outline-none">Acesso Admin</button>
+                </div>
             </div>
 
             <!-- Campo de Senha -->
@@ -39,10 +42,10 @@
                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <i class="fas fa-lock text-gray-400"></i>
                     </div>
-                    <!-- Removido o bloqueio numérico para aceitar senhas com letras -->
-                    <input type="password" id="senha" required
+                    <!-- Inputmode numeric travando teclado de números -->
+                    <input type="password" id="senha" required inputmode="numeric" pattern="[0-9]*"
                         class="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-gray-800 focus:border-transparent transition"
-                        placeholder="Sua senha">
+                        placeholder="Sua senha numérica">
                 </div>
             </div>
 
