@@ -10,9 +10,13 @@ document.querySelector('form').addEventListener('submit', async (e) => {
     const senha = document.getElementById('senha').value;
     
     const btnSubmit = document.querySelector('button[type="submit"]');
-    const msgErro = document.getElementById('msg-erro');
+    // CORREÇÃO: Usando o ID exato que está no HTML
+    const msgErro = document.getElementById('msgErro');
     
-    if(msgErro) msgErro.style.display = 'none';
+    if(msgErro) {
+        msgErro.style.display = 'none';
+        msgErro.classList.add('hidden');
+    }
     btnSubmit.innerHTML = 'Processando...';
     btnSubmit.disabled = true;
 
@@ -55,43 +59,50 @@ document.querySelector('form').addEventListener('submit', async (e) => {
             return; 
         }
 
-        // REGRA 2: ACESSO NORMAL (NOME OU TELEFONE + NOVA SENHA)
-        let telefoneParaLogin = "";
-        
-        // Verifica se tem letras (se digitou o Nome em vez do WhatsApp)
-        const contemLetras = /[a-zA-Z]/.test(identificacao);
+        let emailParaLogin = "";
 
-        if (contemLetras) {
-            // Busca o telefone desse médium pelo nome no banco
-            const { data: mediumData, error: errMedium } = await db
-                .from('mediuns')
-                .select('telefone')
-                .ilike('nome_completo', `%${identificacao}%`)
-                .limit(1)
-                .single();
-
-            if (errMedium || !mediumData || !mediumData.telefone) {
-                throw new Error('Médium não encontrado. Tente digitar o nome mais completo ou use o número do seu WhatsApp.');
-            }
-            telefoneParaLogin = mediumData.telefone.replace(/\D/g, '');
+        // REGRA ESPECIAL: É UM E-MAIL DIRETO? (Para o Admin)
+        if (identificacao.includes('@')) {
+            emailParaLogin = identificacao;
         } else {
-            // Se digitou o número direto, só tira os parênteses e traços
-            telefoneParaLogin = identificacao.replace(/\D/g, ''); 
-            if (telefoneParaLogin.length < 10) {
-                throw new Error('Digite seu ID (1º acesso) ou seu Telefone com DDD completo.');
+            // REGRA 2: ACESSO NORMAL (NOME OU TELEFONE + NOVA SENHA)
+            let telefoneParaLogin = "";
+            
+            // Verifica se tem letras (se digitou o Nome em vez do WhatsApp)
+            const contemLetras = /[a-zA-Z]/.test(identificacao);
+
+            if (contemLetras) {
+                // Busca o telefone desse médium pelo nome no banco
+                const { data: mediumData, error: errMedium } = await db
+                    .from('mediuns')
+                    .select('telefone')
+                    .ilike('nome_completo', `%${identificacao}%`)
+                    .limit(1)
+                    .single();
+
+                if (errMedium || !mediumData || !mediumData.telefone) {
+                    throw new Error('Médium não encontrado. Tente digitar o nome mais completo ou use o número do seu WhatsApp.');
+                }
+                telefoneParaLogin = mediumData.telefone.replace(/\D/g, '');
+            } else {
+                // Se digitou o número direto, só tira os parênteses e traços
+                telefoneParaLogin = identificacao.replace(/\D/g, ''); 
+                if (telefoneParaLogin.length < 10) {
+                    throw new Error('Digite seu ID (1º acesso) ou seu Telefone com DDD completo.');
+                }
             }
+            
+            // Monta o email fantasma debaixo dos panos para o Supabase validar
+            emailParaLogin = `${telefoneParaLogin}@terreiro.app`;
         }
 
         if (!senha) {
             throw new Error('A senha é obrigatória.');
         }
 
-        // Monta o email fantasma debaixo dos panos para o Supabase validar
-        const emailFantasma = `${telefoneParaLogin}@terreiro.app`;
-
         // Tenta logar usando o 'db'
         const { data, error } = await db.auth.signInWithPassword({
-            email: emailFantasma,
+            email: emailParaLogin,
             password: senha,
         });
 
@@ -103,9 +114,10 @@ document.querySelector('form').addEventListener('submit', async (e) => {
         window.location.href = 'presenca.html'; 
 
     } catch (erro) {
-        if(msgErro) {
+        if (msgErro) {
             msgErro.textContent = erro.message;
             msgErro.style.display = 'block';
+            msgErro.classList.remove('hidden');
         } else {
             alert(erro.message); 
         }
