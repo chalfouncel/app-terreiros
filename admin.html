@@ -48,8 +48,9 @@
 
     <div id="overlayMobile" class="fixed inset-0 bg-black/50 z-40 hidden md:hidden transition-opacity"></div>
 
-    <aside id="sidebar" class="fixed md:static inset-y-0 left-0 transform -translate-x-full md:translate-x-0 z-50 w-64 bg-tema-primaria text-white flex flex-col shadow-xl transition-transform duration-300">
-        <div class="p-6 text-center border-b border-white/10 flex flex-col items-center relative">
+    <!-- MENU LATERAL CORRIGIDO PARA NÃO CORTAR NO CELULAR -->
+    <aside id="sidebar" class="fixed md:static top-0 left-0 h-[100dvh] transform -translate-x-full md:translate-x-0 z-50 w-64 bg-tema-primaria text-white flex flex-col shadow-xl transition-transform duration-300">
+        <div class="p-6 text-center border-b border-white/10 flex flex-col items-center relative shrink-0">
             <button id="btnFecharMenu" class="md:hidden absolute top-4 right-4 text-white/70 hover:text-white">
                 <i class="fas fa-times text-xl"></i>
             </button>
@@ -57,7 +58,9 @@
             <h1 class="text-xl font-bold text-white drop-shadow-md">Painel Gestão</h1>
             <p class="text-xs text-white/80 mt-1" id="nomeTerreiroSidebar">Carregando...</p>
         </div>
-        <nav class="flex-1 p-4 space-y-2 mt-4">
+        
+        <!-- ÁREA DE LINKS COM ROLAGEM INDEPENDENTE -->
+        <nav class="flex-1 min-h-0 overflow-y-auto p-4 space-y-2 mt-4">
             <a href="#" id="menuVisaoGeral" class="menu-item block py-2.5 px-4 bg-white/20 rounded-lg hover:bg-white/10 transition flex items-center">
                 <i class="fas fa-home w-6 mr-2"></i> Visão Geral
             </a>
@@ -89,7 +92,9 @@
                 <i class="fas fa-globe w-6 mr-2 text-blue-400"></i> Gestão Plataforma
             </a>
         </nav>
-        <div class="p-4 border-t border-white/10">
+        
+        <!-- BOTÃO DE SAIR PROTEGIDO CONTRA CORTE -->
+        <div class="p-4 border-t border-white/10 shrink-0 pb-8 md:pb-4">
             <button id="btnSair" class="w-full py-2 px-4 bg-red-500/80 hover:bg-red-600 rounded-lg transition flex items-center justify-center font-bold shadow-lg">
                 <i class="fas fa-sign-out-alt mr-2"></i> Sair do Sistema
             </button>
@@ -285,7 +290,6 @@
                         </div>
                     </div>
                     
-                    <!-- ÁREA DE CHECKBOXES ADICIONADA -->
                     <div class="mt-4 flex flex-col md:flex-row md:items-center gap-4">
                         <div class="flex items-center">
                             <input type="checkbox" id="giraGeraAta" class="w-4 h-4 text-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500" checked>
@@ -301,11 +305,9 @@
                         </div>
                     </div>
 
-                    <!-- BOX DE CONVOCADOS ADICIONADA -->
                     <div id="boxConvocados" class="hidden mt-4 p-4 border border-red-200 bg-red-50 rounded-lg">
                         <p class="text-sm font-bold text-red-700 mb-2">Selecione os convocados para este evento:</p>
                         <div id="listaCheckConvocados" class="grid grid-cols-2 md:grid-cols-4 gap-2 max-h-48 overflow-y-auto p-2 bg-white rounded border border-gray-200 shadow-inner">
-                            <!-- checkboxes via js -->
                         </div>
                     </div>
 
@@ -428,6 +430,7 @@
         </div>
 
         <div id="secDoacoes" class="secao-painel hidden">
+            
             <div class="bg-white p-6 rounded-xl shadow-sm border-t-4 border-tema-secundaria mb-8">
                 <div class="flex justify-between items-center mb-2 flex-wrap gap-3">
                     <h3 class="text-xl font-bold text-tema-texto">
@@ -610,7 +613,7 @@
                     <div class="p-4 border border-gray-100 rounded-lg bg-gray-50 flex justify-between items-center hover:shadow-sm transition">
                         <div>
                             <h4 class="font-bold text-gray-800">Cor do Texto Principal</h4>
-                            <p class="text-xs text-gray-500">Textos em destaque, titles e rótulos.</p>
+                            <p class="text-xs text-gray-500">Textos em destaque, títulos e rótulos.</p>
                         </div>
                         <input type="color" id="corTexto" class="w-14 h-14 cursor-pointer border-0 rounded bg-transparent">
                     </div>
@@ -844,7 +847,6 @@
                     </div>
                 </div>
 
-                <!-- ÁREA DE CHECKBOXES ADICIONADA -->
                 <div class="flex flex-col gap-3 mt-2">
                     <div class="flex items-center">
                         <input type="checkbox" id="editGiraGeraAta" class="w-4 h-4 text-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500">
@@ -860,11 +862,9 @@
                     </div>
                 </div>
 
-                <!-- BOX DE CONVOCADOS ADICIONADA -->
                 <div id="editBoxConvocados" class="hidden mt-4 p-3 border border-red-200 bg-red-50 rounded-lg">
                     <p class="text-xs font-bold text-red-700 mb-2">Convocados:</p>
                     <div id="editListaCheckConvocados" class="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-2 bg-white rounded border border-gray-200 shadow-inner">
-                        <!-- checkboxes via js -->
                     </div>
                 </div>
                 
@@ -886,7 +886,6 @@
         let marcadorGlobal = null;
         let circuloGlobal = null;
 
-        // Inicia o mapa apenas quando a aba de Configurações da Casa for aberta
         const observerConfig = new MutationObserver((mutations) => {
             mutations.forEach((mutation) => {
                 if(mutation.target.classList.contains('hidden') === false) {
@@ -895,7 +894,6 @@
                             if(data) {
                                 document.getElementById('inputLat').value = data.latitude || '';
                                 document.getElementById('inputLng').value = data.longitude || '';
-                                // Valores padrão (Centro do Brasil) caso ainda não tenha GPS cadastrado
                                 let lat = data.latitude || -14.2350; 
                                 let lng = data.longitude || -51.9253;
                                 let zoom = data.latitude ? 18 : 4;
@@ -919,7 +917,6 @@
                 marcadorGlobal = L.marker([lat, lng]).addTo(mapaGlobal);
                 circuloGlobal = L.circle([lat, lng], { color: 'green', fillColor: '#22c55e', fillOpacity: 0.2, radius: 50 }).addTo(mapaGlobal);
 
-                // Ao clicar no mapa, atualiza as inputs e arrasta o marcador/raio
                 mapaGlobal.on('click', function(e) {
                     document.getElementById('inputLat').value = e.latlng.lat;
                     document.getElementById('inputLng').value = e.latlng.lng;
@@ -931,11 +928,9 @@
                 marcadorGlobal.setLatLng([lat, lng]);
                 circuloGlobal.setLatLng([lat, lng]);
             }
-            // Resolve o bug de renderização de mapas dentro de abas ocultas (hidden)
             setTimeout(() => mapaGlobal.invalidateSize(), 300);
         }
 
-        // Salvar as coordenadas digitadas/clicadas manualmente
         document.getElementById('btnSalvarLocalizacaoManual')?.addEventListener('click', async () => {
             const btn = document.getElementById('btnSalvarLocalizacaoManual');
             const msg = document.getElementById('msgLocalizacao');
