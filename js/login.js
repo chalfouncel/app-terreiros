@@ -2,6 +2,43 @@
 // Usamos as variáveis supabaseUrl e supabaseKey que já estão na memória do seu site!
 const db = window.supabase.createClient(supabaseUrl, supabaseKey);
 
+// 1.5. BOTÃO PARA ALTERNAR TECLADO (MODO ADMIN / ALFANUMÉRICO)
+const btnModoMaster = document.getElementById('btnModoMaster');
+const inputId = document.getElementById('identificacao');
+const inputSenha = document.getElementById('senha');
+let modoMasterAtivo = false;
+
+if (btnModoMaster) {
+    btnModoMaster.addEventListener('click', () => {
+        modoMasterAtivo = !modoMasterAtivo;
+        if (modoMasterAtivo) {
+            // Libera digitação de e-mail e letras
+            inputId.type = 'email';
+            inputId.removeAttribute('inputmode');
+            inputId.removeAttribute('pattern');
+            inputId.placeholder = 'E-mail do Administrador';
+            
+            inputSenha.removeAttribute('inputmode');
+            inputSenha.removeAttribute('pattern');
+            
+            btnModoMaster.textContent = 'Voltar para Acesso Médium';
+            btnModoMaster.classList.replace('text-blue-600', 'text-gray-500');
+        } else {
+            // Trava de volta no modo numérico para os médiuns
+            inputId.type = 'tel';
+            inputId.setAttribute('inputmode', 'numeric');
+            inputId.setAttribute('pattern', '[0-9]*');
+            inputId.placeholder = 'ID (1º Acesso) ou WhatsApp';
+            
+            inputSenha.setAttribute('inputmode', 'numeric');
+            inputSenha.setAttribute('pattern', '[0-9]*');
+            
+            btnModoMaster.textContent = 'Acesso Admin';
+            btnModoMaster.classList.replace('text-gray-500', 'text-blue-600');
+        }
+    });
+}
+
 // 2. O CÓDIGO DO FORMULÁRIO 
 document.querySelector('form').addEventListener('submit', async (e) => {
     e.preventDefault();
