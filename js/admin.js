@@ -411,6 +411,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             return diaA - diaB;
         });
 
+        window.aniversariantesAtuais = aniversariantes; // Salva para a impressão de PDF
+
         ul.innerHTML = '';
 
         if (aniversariantes.length === 0) {
@@ -492,6 +494,59 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderizarTabelaMediuns(listaFiltrada);
     }
 
+    // Função universal e otimizada para gerar relatórios em PDF (A4) com marca d'água
+    window.gerarPDFRelatorio = (titulo, colunas, dados) => {
+        const containerPDF = document.createElement('div');
+        containerPDF.style.padding = '20px 30px';
+        containerPDF.style.fontFamily = 'Arial, sans-serif';
+        containerPDF.style.color = '#333';
+        containerPDF.style.position = 'relative';
+
+        // Marca d'água centralizada com o Logo (super discreta)
+        let watermark = '';
+        if (logoTerreiroGlobal) {
+            watermark = `<div style="position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); opacity: 0.08; z-index: -1; pointer-events: none;">
+                            <img src="${logoTerreiroGlobal}" style="width: 400px; max-width: 80%;">
+                         </div>`;
+        }
+
+        let html = `
+            ${watermark}
+            <div style="text-align: center; margin-bottom: 15px; border-bottom: 2px solid #16a34a; padding-bottom: 10px;">
+                <h2 style="margin: 0; color: #1e3a8a; font-size: 20px; text-transform: uppercase;">${nomeTerreiroGlobal || 'Templo'}</h2>
+                <h3 style="margin: 4px 0 0 0; color: #444; font-size: 16px;">${titulo}</h3>
+                <p style="margin: 4px 0 0 0; color: #666; font-size: 11px;">Emitido em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</p>
+            </div>
+            <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+                <thead>
+                    <tr style="background-color: #f3f4f6;">
+                        ${colunas.map(c => `<th style="padding: 6px 4px; border: 1px solid #ddd; text-align: left; font-weight: bold; color: #555;">${c}</th>`).join('')}
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        
+        dados.forEach((linha, i) => {
+            const bg = i % 2 === 0 ? '#ffffff' : '#f9fafb';
+            html += `<tr style="background-color: ${bg};">
+                        ${linha.map(celula => `<td style="padding: 3px 4px; border: 1px solid #ddd; color: #222; border-bottom: 1px solid #eee;">${celula}</td>`).join('')}
+                     </tr>`;
+        });
+        
+        html += `</tbody></table>`;
+        containerPDF.innerHTML = html;
+
+        const opt = {
+            margin:       10,
+            filename:     `${titulo.replace(/\s+/g, '_')}.pdf`,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+
+        html2pdf().set(opt).from(containerPDF).save();
+    };
+
     // Configuração dos eventos de Filtro e PDF
     setTimeout(() => {
         document.getElementById('filtroNomeMedium')?.addEventListener('input', aplicarFiltrosMediuns);
@@ -499,8 +554,74 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('filtroStatusMedium')?.addEventListener('change', aplicarFiltrosMediuns);
         document.getElementById('filtroMesNascimento')?.addEventListener('change', aplicarFiltrosMediuns);
         
+        // Botão PDF: Quadro Geral
         document.getElementById('btnImprimirMediuns')?.addEventListener('click', () => {
-            window.print();
+            const btn = document.getElementById('btnImprimirMediuns');
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Gerando...';
+            btn.disabled = true;
+            
+            const lista = window.mediunsFiltrados || listaMediunsGlobal;
+            const dados = lista.map(m => {
+                let dataNasc = '-';
+                if (m.data_nascimento) {
+                    if (m.data_nascimento.includes('-')) {
+                        const p = m.data_nascimento.split('-');
+                        if(p.length === 3) dataNasc = `${p[2]}/${p[1]}/${p[0]}`;
+                    } else dataNasc = m.data_nascimento;
+                }
+                const nomeStr = m.nome_social ? `${m.nome_completo} (${m.nome_social})` : m.nome_completo;
+                const whats = m.telefone || '-';
+                
+                return [nomeStr, dataNasc, m.grau || '-', m.funcao || '-', whats];
+            });
+            
+            window.gerarPDFRelatorio('Quadro Oficial de Médiuns', ['Nome Completo', 'Nascimento', 'Grau', 'Função', 'WhatsApp'], dados);
+            
+            setTimeout(() => { btn.innerHTML = originalHtml; btn.disabled = false; }, 2000);
+        });
+
+        // Botão PDF: Aniversariantes
+        document.getElementById('btnImprimirAniversariantes')?.addEventListener('click', () => {
+            const btn = document.getElementById('btnImprimirAniversariantes');
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            btn.disabled = true;
+            
+            const lista = window.aniversariantesAtuais || [];
+            if(lista.length === 0) {
+                alert("Nenhum aniversariante neste mês para gerar relatório.");
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+                return;
+            }
+            
+            const dados = lista.map(m => {
+                let dataNasc = '-';
+                let diaMes = '-';
+                if (m.data_nascimento) {
+                    if (m.data_nascimento.includes('-')) {
+                        const p = m.data_nascimento.split('-');
+                        if(p.length === 3) {
+                            dataNasc = `${p[2]}/${p[1]}/${p[0]}`;
+                            diaMes = `${p[2]}/${p[1]}`;
+                        }
+                    } else {
+                        dataNasc = m.data_nascimento;
+                        if(dataNasc.includes('/')) diaMes = dataNasc.substring(0, 5);
+                    }
+                }
+                const nomeStr = m.nome_social ? `${m.nome_completo} (${m.nome_social})` : m.nome_completo;
+                
+                return [diaMes, nomeStr, m.grau || '-', dataNasc];
+            });
+            
+            const mesAtual = new Date().toLocaleString('pt-BR', { month: 'long' });
+            const titulo = `Aniversariantes de ${mesAtual.charAt(0).toUpperCase() + mesAtual.slice(1)}`;
+            
+            window.gerarPDFRelatorio(titulo, ['Dia', 'Nome Completo', 'Grau', 'Nascimento'], dados);
+            
+            setTimeout(() => { btn.innerHTML = originalHtml; btn.disabled = false; }, 2000);
         });
     }, 500);
 
