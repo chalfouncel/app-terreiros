@@ -906,7 +906,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const fileName = `${idTerreiroGlobal}/evento_${Date.now()}.${file.name.split('.').pop()}`;
                     const { error: uploadError } = await supabaseClient.storage.from('public').upload(fileName, file);
                     if (uploadError) throw uploadError;
-                    const { data: { publicUrl } } = supabaseClient.storage.from('public').getPublicUrl(fileName);
+                    const { data: { publicUrl } } = supabaseClient.storage.from('giras').getPublicUrl(fileName);
                     imagemFinal = publicUrl;
                 }
 
