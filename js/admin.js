@@ -317,7 +317,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (error) throw error;
 
             listaMediunsGlobal = data || [];
-            window.mediunsFiltrados = listaMediunsGlobal;
             renderizarTabelaMediuns(listaMediunsGlobal);
             renderizarAniversariantes(listaMediunsGlobal);
             
@@ -492,13 +491,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             return passaNome && passaGrau && passaStatus && passaMes;
         });
 
-        window.mediunsFiltrados = listaFiltrada;
         renderizarTabelaMediuns(listaFiltrada);
     }
 
-    // ==========================================
-    // Função Universal de Relatórios em PDF
-    // ==========================================
+    // Função universal e otimizada para gerar relatórios em PDF (A4) com marca d'água
     window.gerarPDFRelatorio = (titulo, colunas, dados) => {
         const containerPDF = document.createElement('div');
         containerPDF.style.padding = '20px 30px';
@@ -506,45 +502,46 @@ document.addEventListener('DOMContentLoaded', async () => {
         containerPDF.style.color = '#333';
         containerPDF.style.position = 'relative';
 
+        // Marca d'água centralizada (super discreta, atrás da tabela)
         let watermark = '';
-        let logoHeaderHtml = '';
-        
         if (logoTerreiroGlobal) {
-            // Marca d'água absoluta
-            watermark = `<div style="position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); opacity: 0.1; z-index: 0; pointer-events: none;">
+            watermark = `<div style="position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); opacity: 0.08; z-index: -1; pointer-events: none;">
                             <img src="${logoTerreiroGlobal}" style="width: 400px; max-width: 80%;">
                          </div>`;
-            // Logo no cabeçalho
-            logoHeaderHtml = `<img src="${logoTerreiroGlobal}" style="max-height: 60px; margin-bottom: 10px;">`;
         }
 
-        // Envolver o conteúdo em um z-index maior que a marca d'água e usar rgba nas tabelas
         let html = `
             ${watermark}
-            <div style="position: relative; z-index: 1;">
-                <div style="text-align: center; margin-bottom: 15px; border-bottom: 2px solid #16a34a; padding-bottom: 10px;">
-                    ${logoHeaderHtml}
-                    <h2 style="margin: 0; color: #1e3a8a; font-size: 20px; text-transform: uppercase;">${nomeTerreiroGlobal || 'Templo'}</h2>
-                    <h3 style="margin: 4px 0 0 0; color: #444; font-size: 16px;">${titulo}</h3>
-                    <p style="margin: 4px 0 0 0; color: #666; font-size: 11px;">Emitido em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</p>
-                </div>
-                <table style="width: 100%; border-collapse: collapse; font-size: 11px; background-color: rgba(255,255,255,0.7);">
-                    <thead>
-                        <tr style="background-color: rgba(243, 244, 246, 0.9);">
-                            ${colunas.map(c => `<th style="padding: 6px 4px; border: 1px solid #ddd; text-align: left; font-weight: bold; color: #555;">${c}</th>`).join('')}
-                        </tr>
-                    </thead>
-                    <tbody>
+            <table style="width: 100%; margin-bottom: 15px; border-bottom: 2px solid #16a34a; padding-bottom: 10px;">
+                <tr>
+                    <td style="width: 20%; text-align: left; vertical-align: middle;">
+                        ${logoTerreiroGlobal ? `<img src="${logoTerreiroGlobal}" style="max-height: 70px; max-width: 100px; object-fit: contain;">` : ''}
+                    </td>
+                    <td style="width: 60%; text-align: center; vertical-align: middle;">
+                        <h2 style="margin: 0; color: #1e3a8a; font-size: 20px; text-transform: uppercase;">${nomeTerreiroGlobal || 'Templo'}</h2>
+                        <h3 style="margin: 4px 0 0 0; color: #444; font-size: 16px;">${titulo}</h3>
+                        <p style="margin: 4px 0 0 0; color: #666; font-size: 11px;">Emitido em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</p>
+                    </td>
+                    <td style="width: 20%;"></td>
+                </tr>
+            </table>
+            <table style="width: 100%; border-collapse: collapse; font-size: 11px; position: relative; z-index: 1;">
+                <thead>
+                    <tr style="background-color: #f3f4f6;">
+                        ${colunas.map(c => `<th style="padding: 6px 4px; border: 1px solid #ddd; text-align: left; font-weight: bold; color: #555;">${c}</th>`).join('')}
+                    </tr>
+                </thead>
+                <tbody>
         `;
         
         dados.forEach((linha, i) => {
-            const bg = i % 2 === 0 ? 'rgba(255, 255, 255, 0.5)' : 'rgba(249, 250, 251, 0.8)';
+            const bg = i % 2 === 0 ? '#ffffff' : '#f9fafb';
             html += `<tr style="background-color: ${bg};">
                         ${linha.map(celula => `<td style="padding: 3px 4px; border: 1px solid #ddd; color: #222; border-bottom: 1px solid #eee;">${celula}</td>`).join('')}
                      </tr>`;
         });
         
-        html += `</tbody></table></div>`;
+        html += `</tbody></table>`;
         containerPDF.innerHTML = html;
 
         const opt = {
@@ -599,13 +596,32 @@ document.addEventListener('DOMContentLoaded', async () => {
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
             btn.disabled = true;
             
-            const lista = window.aniversariantesAtuais || [];
+            // FIX: Filtra e processa direto da base global para garantir dados perfeitos
+            const dataAtual = new Date();
+            const mesAtualNum = (dataAtual.getMonth() + 1).toString().padStart(2, '0');
+            
+            const lista = listaMediunsGlobal.filter(m => {
+                if (!m.data_nascimento) return false;
+                let mesNasc = '';
+                if (m.data_nascimento.includes('-')) mesNasc = m.data_nascimento.split('-')[1];
+                else if (m.data_nascimento.includes('/')) mesNasc = m.data_nascimento.split('/')[1];
+                return mesNasc === mesAtualNum;
+            });
+            
             if(lista.length === 0) {
                 alert("Nenhum aniversariante neste mês para gerar relatório.");
                 btn.innerHTML = originalHtml;
                 btn.disabled = false;
                 return;
             }
+            
+            // Ordenação dos Aniversariantes para o PDF
+            lista.sort((a, b) => {
+                let diaA = 0, diaB = 0;
+                if(a.data_nascimento.includes('-')) diaA = parseInt(a.data_nascimento.split('-')[2]);
+                if(b.data_nascimento.includes('-')) diaB = parseInt(b.data_nascimento.split('-')[2]);
+                return diaA - diaB;
+            });
             
             const dados = lista.map(m => {
                 let dataNasc = '-';
@@ -627,8 +643,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return [diaMes, nomeStr, m.grau || '-', dataNasc];
             });
             
-            const mesAtual = new Date().toLocaleString('pt-BR', { month: 'long' });
-            const titulo = `Aniversariantes de ${mesAtual.charAt(0).toUpperCase() + mesAtual.slice(1)}`;
+            const mesAtualTexto = dataAtual.toLocaleString('pt-BR', { month: 'long' });
+            const titulo = `Aniversariantes de ${mesAtualTexto.charAt(0).toUpperCase() + mesAtualTexto.slice(1)}`;
             
             window.gerarPDFRelatorio(titulo, ['Dia', 'Nome Completo', 'Grau', 'Nascimento'], dados);
             
@@ -736,7 +752,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // ==========================================
-    // AGENDA E EVENTOS
+    // AGENDA E EVENTOS (COM CORREÇÃO DE FUSO E ATA PADRÃO E UPLOAD)
     // ==========================================
     async function carregarAgenda() {
         if(!idTerreiroGlobal) return;
@@ -751,6 +767,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     ? `<a href="${g.imagem_url}" target="_blank" class="text-blue-500 hover:bg-blue-50 p-1 rounded text-xs transition" title="Ver Cartaz"><i class="fas fa-image"></i> Cartaz</a>` 
                     : `<span class="text-gray-400 text-xs">-</span>`;
                 
+                // Botões de Editar e Excluir
                 const acoesBloco = `
                     <div class="flex items-center justify-center space-x-2">
                         ${imgHtml}
@@ -797,6 +814,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('editGiraId').value = data.id;
         document.getElementById('editGiraTitulo').value = data.titulo;
         
+        // CORREÇÃO: Formata forçando a hora que veio do banco de volta pro GMT-3 (São Paulo) no input
         const formataParaInput = (isoString) => {
             if (!isoString) return '';
             const dataBanco = new Date(isoString);
@@ -1127,15 +1145,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 trs = `<tr><td colspan="3" style="text-align: center; padding: 20px; font-style: italic;">Nenhum check-in registrado na plataforma para esta data.</td></tr>`;
             }
 
-            const logoHtml = logoTerreiroGlobal ? `<img src="${logoTerreiroGlobal}" style="max-height: 80px; margin-bottom: 15px;">` : '';
             const nomeCasa = nomeTerreiroGlobal || 'Templo';
-            
-            let watermarkAta = '';
-            if (logoTerreiroGlobal) {
-                watermarkAta = `<div style="position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); opacity: 0.1; z-index: 0; pointer-events: none;">
-                                    <img src="${logoTerreiroGlobal}" style="width: 450px; max-width: 80%;">
-                                 </div>`;
-            }
 
             const corpoTextoAta = evento.texto_ata 
                 ? `<p style="text-align: justify; line-height: 1.8; font-size: 14px; margin-bottom: 30px; white-space: pre-wrap;">${evento.texto_ata}</p>`
@@ -1151,43 +1161,57 @@ document.addEventListener('DOMContentLoaded', async () => {
             div.style.fontFamily = 'Arial, sans-serif';
             div.style.color = '#000';
             div.style.backgroundColor = '#fff';
-            div.style.position = 'relative';
+            div.style.position = 'relative'; // Para garantir a marca d'água no fundo
             
+            let watermark = '';
+            if (logoTerreiroGlobal) {
+                watermark = `<div style="position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); opacity: 0.08; z-index: -1; pointer-events: none;">
+                                <img src="${logoTerreiroGlobal}" style="width: 400px; max-width: 80%;">
+                             </div>`;
+            }
+
             div.innerHTML = `
-                ${watermarkAta}
+                ${watermark}
+                <table style="width: 100%; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 25px; position: relative; z-index: 1;">
+                    <tr>
+                        <td style="width: 20%; text-align: left; vertical-align: middle;">
+                            ${logoTerreiroGlobal ? `<img src="${logoTerreiroGlobal}" style="max-height: 80px; max-width: 100px; object-fit: contain;">` : ''}
+                        </td>
+                        <td style="width: 60%; text-align: center; vertical-align: middle;">
+                            <h1 style="font-size: 20px; font-weight: bold; text-transform: uppercase; margin: 0 0 5px 0;">${nomeCasa}</h1>
+                            <h2 style="font-size: 16px; font-weight: normal; margin: 0; letter-spacing: 2px;">LIVRO DE ATAS E PRESENÇAS</h2>
+                        </td>
+                        <td style="width: 20%;"></td>
+                    </tr>
+                </table>
+                
+                <h3 style="text-align: center; font-size: 16px; margin-bottom: 25px; text-transform: uppercase; background-color: #f3f4f6; padding: 10px; border-radius: 4px; position: relative; z-index: 1;">
+                    ATA Nº ${numeroAta.toString().padStart(3, '0')}/${ano} - ${evento.titulo}
+                </h3>
+                
                 <div style="position: relative; z-index: 1;">
-                    <div style="text-align: center; margin-bottom: 30px;">
-                        ${logoHtml}
-                        <h1 style="font-size: 20px; font-weight: bold; text-transform: uppercase; margin: 0 0 5px 0;">${nomeCasa}</h1>
-                        <h2 style="font-size: 16px; font-weight: normal; margin: 0; letter-spacing: 2px;">LIVRO DE ATAS E PRESENÇAS</h2>
-                    </div>
-                    
-                    <h3 style="text-align: center; font-size: 16px; margin-bottom: 25px; text-transform: uppercase; background-color: rgba(243, 244, 246, 0.9); padding: 10px; border-radius: 4px;">
-                        ATA Nº ${numeroAta.toString().padStart(3, '0')}/${ano} - ${evento.titulo}
-                    </h3>
-                    
                     ${corpoTextoAta}
-                    
-                    <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 40px; background-color: rgba(255, 255, 255, 0.6);">
-                        <thead>
-                            <tr>
-                                <th style="border-bottom: 2px solid #000; padding: 8px 4px; text-align: left;">NOME DO MÉDIUM</th>
-                                <th style="border-bottom: 2px solid #000; padding: 8px 4px; text-align: center;">GRAU</th>
-                                <th style="border-bottom: 2px solid #000; padding: 8px 4px; text-align: right;">HORA DO CHECK-IN</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${trs}
-                        </tbody>
-                    </table>
-                    
-                    <div style="margin-top: 60px; text-align: center; page-break-inside: avoid;">
-                        <p style="margin: 0;">________________________________________________________</p>
-                        <p style="font-size: 14px; margin-top: 5px;"><strong>Direção / Presidência</strong></p>
-                        <p style="font-size: 10px; color: #777; margin-top: 25px;">
-                            ATA gerada eletronicamente pelo Sistema de Gestão em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}
-                        </p>
-                    </div>
+                </div>
+                
+                <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 40px; position: relative; z-index: 1;">
+                    <thead>
+                        <tr>
+                            <th style="border-bottom: 2px solid #000; padding: 8px 4px; text-align: left;">NOME DO MÉDIUM</th>
+                            <th style="border-bottom: 2px solid #000; padding: 8px 4px; text-align: center;">GRAU</th>
+                            <th style="border-bottom: 2px solid #000; padding: 8px 4px; text-align: right;">HORA DO CHECK-IN</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${trs}
+                    </tbody>
+                </table>
+                
+                <div style="margin-top: 60px; text-align: center; page-break-inside: avoid; position: relative; z-index: 1;">
+                    <p style="margin: 0;">________________________________________________________</p>
+                    <p style="font-size: 14px; margin-top: 5px;"><strong>Direção / Presidência</strong></p>
+                    <p style="font-size: 10px; color: #777; margin-top: 25px;">
+                        ATA gerada eletronicamente pelo Sistema de Gestão em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}
+                    </p>
                 </div>
             `;
 
