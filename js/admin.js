@@ -260,13 +260,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ==========================================
     async function carregarPainelInicial() {
         if(!idTerreiroGlobal) return; // Segurança caso acesse acidentalmente no master puro
-        
-        // Bloqueia a contagem do master
-        const { count: totalMediuns } = await supabaseClient.from('mediuns')
-            .select('*', { count: 'exact', head: true })
-            .eq('terreiro_id', idTerreiroGlobal)
-            .neq('nome_completo', 'Administrador Sistema');
-            
+        const { count: totalMediuns } = await supabaseClient.from('mediuns').select('*', { count: 'exact', head: true }).eq('terreiro_id', idTerreiroGlobal);
         document.getElementById('totalMediuns').textContent = totalMediuns || '0';
 
         const agora = new Date().toISOString();
@@ -316,16 +310,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             const { data, error } = await supabaseClient
                 .from('mediuns')
-                .select('id, nome_completo, nome_social, data_nascimento, grau, funcao, telefone, cadastro_completo, is_admin, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin, perm_visao_geral, perm_ata, is_master')
+                .select('id, nome_completo, nome_social, data_nascimento, grau, funcao, telefone, cadastro_completo, is_admin, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin, perm_visao_geral, perm_ata')
                 .eq('terreiro_id', idTerreiroGlobal)
                 .order('nome_completo');
 
             if (error) throw error;
 
-            // Filtra e omite permanentemente o Administrador do Sistema do quadro
-            listaMediunsGlobal = (data || []).filter(m => m.is_master !== true && m.nome_completo !== 'Administrador Sistema');
-            window.mediunsFiltrados = listaMediunsGlobal;
-            
+            listaMediunsGlobal = data || [];
             renderizarTabelaMediuns(listaMediunsGlobal);
             renderizarAniversariantes(listaMediunsGlobal);
             
@@ -442,6 +433,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             const nomeExibicao = m.nome_social ? m.nome_social : (m.nome_completo ? m.nome_completo.split(' ')[0] : 'Médium');
+            const badgeSocial = m.nome_social ? `<span class="bg-blue-100 text-blue-700 text-[9px] px-1.5 py-0.5 rounded ml-1 font-bold">SOCIAL</span>` : '';
 
             ul.innerHTML += `
                 <li class="p-3 hover:bg-gray-50 flex items-center justify-between transition-colors border-l-4 border-transparent hover:border-blue-500">
@@ -450,7 +442,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             ${dia}
                         </div>
                         <div>
-                            <p class="text-sm font-bold text-gray-800 flex items-center">${nomeExibicao}</p>
+                            <p class="text-sm font-bold text-gray-800 flex items-center">${nomeExibicao} ${badgeSocial}</p>
                             <p class="text-[10px] text-gray-500 uppercase">${m.grau || 'Médium'}</p>
                         </div>
                     </div>
@@ -499,7 +491,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             return passaNome && passaGrau && passaStatus && passaMes;
         });
 
-        window.mediunsFiltrados = listaFiltrada;
         renderizarTabelaMediuns(listaFiltrada);
     }
 
@@ -587,13 +578,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                         if(p.length === 3) dataNasc = `${p[2]}/${p[1]}/${p[0]}`;
                     } else dataNasc = m.data_nascimento;
                 }
-                const nomeStr = m.nome_social ? m.nome_social : m.nome_completo;
+                const nomeStr = m.nome_social ? `${m.nome_completo} (${m.nome_social})` : m.nome_completo;
                 const whats = m.telefone || '-';
                 
                 return [nomeStr, dataNasc, m.grau || '-', m.funcao || '-', whats];
             });
             
-            window.gerarPDFRelatorio('Quadro Oficial de Médiuns', ['Nome', 'Nascimento', 'Grau', 'Função', 'WhatsApp'], dados);
+            window.gerarPDFRelatorio('Quadro Oficial de Médiuns', ['Nome Completo', 'Nascimento', 'Grau', 'Função', 'WhatsApp'], dados);
             
             setTimeout(() => { btn.innerHTML = originalHtml; btn.disabled = false; }, 2000);
         });
@@ -605,7 +596,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
             btn.disabled = true;
             
-            // Filtra e processa direto da base global para garantir dados perfeitos
+            // FIX: Filtra e processa direto da base global para garantir dados perfeitos
             const dataAtual = new Date();
             const mesAtualNum = (dataAtual.getMonth() + 1).toString().padStart(2, '0');
             
@@ -645,15 +636,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                         if(dataNasc.includes('/')) diaMes = dataNasc.substring(0, 5);
                     }
                 }
-                const nomeStr = m.nome_social ? m.nome_social : (m.nome_completo ? m.nome_completo.split(' ')[0] : 'Médium');
+                const nomeStr = m.nome_social ? `${m.nome_completo} (${m.nome_social})` : m.nome_completo;
                 
-                return [diaMes, nomeStr, m.grau || '-'];
+                // Retorna apenas DD/MM na coluna que antes era a data completa
+                return [diaMes, nomeStr, m.grau || '-', diaMes];
             });
             
             const mesAtualTexto = dataAtual.toLocaleString('pt-BR', { month: 'long' });
             const titulo = `Aniversariantes de ${mesAtualTexto.charAt(0).toUpperCase() + mesAtualTexto.slice(1)}`;
             
-            window.gerarPDFRelatorio(titulo, ['Aniversário', 'Nome', 'Grau'], dados);
+            // Aqui substituímos o cabeçalho 'Nascimento' por 'Aniversário'
+            window.gerarPDFRelatorio(titulo, ['Dia', 'Nome Completo', 'Grau', 'Aniversário'], dados);
             
             setTimeout(() => { btn.innerHTML = originalHtml; btn.disabled = false; }, 2000);
         });
@@ -797,6 +790,47 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    // LOGICA GIRA ESPECIAL
+    document.addEventListener('change', (e) => {
+        if(e.target.id === 'giraEspecial') {
+            const box = document.getElementById('boxConvocados');
+            if(e.target.checked) {
+                box.classList.remove('hidden');
+                renderizarCheckboxesConvocados('listaCheckConvocados', []);
+            } else box.classList.add('hidden');
+        }
+        if(e.target.id === 'editGiraEspecial') {
+            const box = document.getElementById('editBoxConvocados');
+            if(e.target.checked) {
+                box.classList.remove('hidden');
+            } else box.classList.add('hidden');
+        }
+    });
+
+    const renderizarCheckboxesConvocados = async (containerId, selecionados = []) => {
+        const container = document.getElementById(containerId);
+        if(!container) return;
+        container.innerHTML = '<span class="text-xs text-gray-500">Carregando médiuns...</span>';
+        
+        if (!listaMediunsGlobal || listaMediunsGlobal.length === 0) {
+            const { data } = await supabaseClient.from('mediuns').select('id, nome_completo').eq('terreiro_id', idTerreiroGlobal).order('nome_completo');
+            if (data) listaMediunsGlobal = data;
+        }
+        
+        let html = '';
+        (listaMediunsGlobal || []).forEach(m => {
+            const idStr = String(m.id);
+            const isChecked = selecionados.includes(idStr) ? 'checked' : '';
+            html += `
+                <label class="flex items-center space-x-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-50 p-1 rounded">
+                    <input type="checkbox" value="${m.id}" class="chk-convocado rounded text-red-500 focus:ring-red-500" ${isChecked}>
+                    <span class="truncate" title="${m.nome_completo}">${m.nome_completo.split(' ')[0]} ${m.nome_completo.split(' ')[1] || ''}</span>
+                </label>
+            `;
+        });
+        container.innerHTML = html;
+    };
+
     window.excluirGira = async (id, dataInicioISO) => {
         const dataInicio = new Date(dataInicioISO);
         const agora = new Date();
@@ -841,6 +875,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('editGiraFim').value = formataParaInput(data.data_hora_fim);
         if (document.getElementById('editGiraGeraAta')) document.getElementById('editGiraGeraAta').checked = data.gera_ata || false;
 
+        const chkEspecial = document.getElementById('editGiraEspecial');
+        const boxEspecial = document.getElementById('editBoxConvocados');
+        if (chkEspecial && boxEspecial) {
+            chkEspecial.checked = data.especial || false;
+            if (data.especial) boxEspecial.classList.remove('hidden');
+            else boxEspecial.classList.add('hidden');
+            renderizarCheckboxesConvocados('editListaCheckConvocados', data.convocados || []);
+        }
+
         document.getElementById('modalEditarGira').classList.remove('hidden');
     };
 
@@ -860,12 +903,23 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const inicioBR = inicioRaw ? `${inicioRaw}:00-03:00` : null;
                 const fimBR = fimRaw ? `${fimRaw}:00-03:00` : null;
 
+                const chkEspecial = document.getElementById('editGiraEspecial');
+                const isEspecial = chkEspecial ? chkEspecial.checked : false;
+                
+                let convocadosArray = [];
+                if (isEspecial) {
+                    const checks = document.querySelectorAll('#editListaCheckConvocados .chk-convocado:checked');
+                    checks.forEach(c => convocadosArray.push(c.value));
+                }
+
                 const { error } = await supabaseClient.from('agenda')
                     .update({
                         titulo: document.getElementById('editGiraTitulo').value,
                         data_hora_inicio: inicioBR,
                         data_hora_fim: fimBR,
-                        gera_ata: document.getElementById('editGiraGeraAta').checked
+                        gera_ata: document.getElementById('editGiraGeraAta').checked,
+                        especial: isEspecial,
+                        convocados: convocadosArray
                     })
                     .eq('id', id);
 
@@ -899,14 +953,23 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const inicioBR = inicioRaw ? `${inicioRaw}:00-03:00` : null;
                 const fimBR = fimRaw ? `${fimRaw}:00-03:00` : null;
                 
+                const chkEspecial = document.getElementById('giraEspecial');
+                const isEspecial = chkEspecial ? chkEspecial.checked : false;
+                
+                let convocadosArray = [];
+                if (isEspecial) {
+                    const checks = document.querySelectorAll('#listaCheckConvocados .chk-convocado:checked');
+                    checks.forEach(c => convocadosArray.push(c.value));
+                }
+
                 let imagemFinal = linkA || '';
 
                 if (fileInput && fileInput.files.length > 0) {
                     const file = fileInput.files[0];
                     const fileName = `${idTerreiroGlobal}/evento_${Date.now()}.${file.name.split('.').pop()}`;
-                    const { error: uploadError } = await supabaseClient.storage.from('giras').upload(fileName, file);
+                    const { error: uploadError } = await supabaseClient.storage.from('public').upload(fileName, file);
                     if (uploadError) throw uploadError;
-                    const { data: { publicUrl } } = supabaseClient.storage.from('giras').getPublicUrl(fileName);
+                    const { data: { publicUrl } } = supabaseClient.storage.from('public').getPublicUrl(fileName);
                     imagemFinal = publicUrl;
                 }
 
@@ -918,12 +981,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                     data_hora_fim: fimBR,
                     imagem_url: imagemFinal,
                     raio_presenca_metros: 50,
-                    gera_ata: chkGeraAta
+                    gera_ata: chkGeraAta,
+                    especial: isEspecial,
+                    convocados: convocadosArray
                 }]);
 
                 if (error) throw error;
 
                 document.getElementById('formNovaGira').reset();
+                if (document.getElementById('boxConvocados')) document.getElementById('boxConvocados').classList.add('hidden');
                 if(document.getElementById('giraGeraAta')) document.getElementById('giraGeraAta').checked = true; // Mantém marcado após resetar
                 carregarAgenda();
                 
@@ -1250,16 +1316,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         if(!idTerreiroGlobal) return;
         const tbody = document.getElementById('tabelaGraus');
         tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center">Buscando...</td></tr>';
-        
-        const { data } = await supabaseClient.from('mediuns')
-            .select('id, nome_completo, grau, funcao, is_master')
-            .eq('terreiro_id', idTerreiroGlobal)
-            .order('nome_completo');
-            
-        if (data) { 
-            mediunsGrauCache = data.filter(m => m.is_master !== true && m.nome_completo !== 'Administrador Sistema'); 
-            renderizarGraus(mediunsGrauCache); 
-        }
+        const { data } = await supabaseClient.from('mediuns').select('id, nome_completo, grau, funcao').eq('terreiro_id', idTerreiroGlobal).order('nome_completo');
+        if (data) { mediunsGrauCache = data; renderizarGraus(data); }
     }
 
     function renderizarGraus(lista) {
@@ -1303,12 +1361,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const tbody = document.getElementById('tabelaFinanceiro');
         tbody.innerHTML = '<tr><td colspan="14" class="p-6 text-center text-gray-500">Buscando histórico...</td></tr>';
         
-        const { data: mediunsBrutos } = await supabaseClient.from('mediuns')
-            .select('id, nome_completo, is_master')
-            .eq('terreiro_id', idTerreiroGlobal)
-            .order('nome_completo');
-            
-        const mediuns = mediunsBrutos ? mediunsBrutos.filter(m => m.is_master !== true && m.nome_completo !== 'Administrador Sistema') : [];
+        const { data: mediuns } = await supabaseClient.from('mediuns').select('id, nome_completo').eq('terreiro_id', idTerreiroGlobal).order('nome_completo');
         const { data: pgtos } = await supabaseClient.from('financeiro').select('*').eq('ano', ano);
         
         if(!mediuns) return;
@@ -1367,32 +1420,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    function iniciarMapa(lat, lng, zoomLvl) {
-        const mapEl = document.getElementById('mapaLocalizacao');
-        const overlay = document.getElementById('mapaOverlay');
-        if(!mapaGlobal && mapEl && typeof L !== 'undefined') {
-            if(overlay) overlay.classList.add('hidden');
-            mapaGlobal = L.map('mapaLocalizacao').setView([lat, lng], zoomLvl);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(mapaGlobal);
-            
-            marcadorGlobal = L.marker([lat, lng]).addTo(mapaGlobal);
-            circuloGlobal = L.circle([lat, lng], { color: 'green', fillColor: '#22c55e', fillOpacity: 0.2, radius: 50 }).addTo(mapaGlobal);
-
-            mapaGlobal.on('click', function(e) {
-                document.getElementById('inputLat').value = e.latlng.lat;
-                document.getElementById('inputLng').value = e.latlng.lng;
-                marcadorGlobal.setLatLng([e.latlng.lat, e.latlng.lng]);
-                circuloGlobal.setLatLng([e.latlng.lat, e.latlng.lng]);
-            });
-        } else if(mapaGlobal) {
-            if(overlay) overlay.classList.add('hidden');
-            mapaGlobal.setView([lat, lng], zoomLvl);
-            marcadorGlobal.setLatLng([lat, lng]);
-            circuloGlobal.setLatLng([lat, lng]);
-        }
-        setTimeout(() => { if(mapaGlobal) mapaGlobal.invalidateSize(); }, 300);
-    }
-
     if (document.getElementById('btnGravarLocalizacao')) {
         document.getElementById('btnGravarLocalizacao').addEventListener('click', async () => {
             const btn = document.getElementById('btnGravarLocalizacao');
@@ -1422,7 +1449,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 document.getElementById('inputLat').value = lat;
                                 document.getElementById('inputLng').value = lon;
                             }
-                            iniciarMapa(lat, lon, 18);
+                            if (typeof iniciarMapa === 'function') iniciarMapa(lat, lon, 18);
                         }
                     }
                 },
@@ -1461,11 +1488,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if(msg) { msg.textContent = "ERRO: O Banco de Dados recusou a alteração. Regra RLS bloqueou a gravação."; msg.className = "mt-4 text-sm font-bold text-red-600 block"; msg.classList.remove('hidden'); }
             } else {
                 if(msg) { msg.textContent = "Localização salva com sucesso!"; msg.className = "mt-4 text-sm font-bold text-green-600 block"; msg.classList.remove('hidden'); setTimeout(() => msg.classList.add('hidden'), 3000); }
-                iniciarMapa(lat, lng, 18);
+                if (typeof iniciarMapa === 'function') iniciarMapa(lat, lng, 18);
             }
         });
     }
-
 
     if(document.getElementById('uploadLogo')) {
         document.getElementById('uploadLogo').addEventListener('change', function(e) {
@@ -1505,7 +1531,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 document.getElementById('logoSidebar').src = urlData.publicUrl;
                 document.getElementById('logoSidebar').classList.remove('hidden');
 
-                // ATUALIZA O FAVICON NA HORA DO UPLOAD TAMBÉM
                 let linkFavicon = document.querySelector("link[rel~='icon']");
                 if (!linkFavicon) {
                     linkFavicon = document.createElement('link');
