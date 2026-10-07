@@ -317,6 +317,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (error) throw error;
 
             listaMediunsGlobal = data || [];
+            window.mediunsFiltrados = listaMediunsGlobal;
             renderizarTabelaMediuns(listaMediunsGlobal);
             renderizarAniversariantes(listaMediunsGlobal);
             
@@ -433,7 +434,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             const nomeExibicao = m.nome_social ? m.nome_social : (m.nome_completo ? m.nome_completo.split(' ')[0] : 'Médium');
-            const badgeSocial = m.nome_social ? `<span class="bg-blue-100 text-blue-700 text-[9px] px-1.5 py-0.5 rounded ml-1 font-bold">SOCIAL</span>` : '';
 
             ul.innerHTML += `
                 <li class="p-3 hover:bg-gray-50 flex items-center justify-between transition-colors border-l-4 border-transparent hover:border-blue-500">
@@ -442,7 +442,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             ${dia}
                         </div>
                         <div>
-                            <p class="text-sm font-bold text-gray-800 flex items-center">${nomeExibicao} ${badgeSocial}</p>
+                            <p class="text-sm font-bold text-gray-800 flex items-center">${nomeExibicao}</p>
                             <p class="text-[10px] text-gray-500 uppercase">${m.grau || 'Médium'}</p>
                         </div>
                     </div>
@@ -491,6 +491,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             return passaNome && passaGrau && passaStatus && passaMes;
         });
 
+        window.mediunsFiltrados = listaFiltrada;
         renderizarTabelaMediuns(listaFiltrada);
     }
 
@@ -578,13 +579,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                         if(p.length === 3) dataNasc = `${p[2]}/${p[1]}/${p[0]}`;
                     } else dataNasc = m.data_nascimento;
                 }
-                const nomeStr = m.nome_social ? `${m.nome_completo} (${m.nome_social})` : m.nome_completo;
+                const nomeStr = m.nome_social ? m.nome_social : (m.nome_completo ? m.nome_completo.split(' ')[0] : 'Médium');
                 const whats = m.telefone || '-';
                 
                 return [nomeStr, dataNasc, m.grau || '-', m.funcao || '-', whats];
             });
             
-            window.gerarPDFRelatorio('Quadro Oficial de Médiuns', ['Nome Completo', 'Nascimento', 'Grau', 'Função', 'WhatsApp'], dados);
+            window.gerarPDFRelatorio('Quadro Oficial de Médiuns', ['Nome', 'Nascimento', 'Grau', 'Função', 'WhatsApp'], dados);
             
             setTimeout(() => { btn.innerHTML = originalHtml; btn.disabled = false; }, 2000);
         });
@@ -636,17 +637,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                         if(dataNasc.includes('/')) diaMes = dataNasc.substring(0, 5);
                     }
                 }
-                const nomeStr = m.nome_social ? `${m.nome_completo} (${m.nome_social})` : m.nome_completo;
+                const nomeStr = m.nome_social ? m.nome_social : (m.nome_completo ? m.nome_completo.split(' ')[0] : 'Médium');
                 
-                // Retorna apenas DD/MM na coluna que antes era a data completa
+                // Agora envia diaMes tanto no começo quanto no final
                 return [diaMes, nomeStr, m.grau || '-', diaMes];
             });
             
             const mesAtualTexto = dataAtual.toLocaleString('pt-BR', { month: 'long' });
             const titulo = `Aniversariantes de ${mesAtualTexto.charAt(0).toUpperCase() + mesAtualTexto.slice(1)}`;
             
-            // Aqui substituímos o cabeçalho 'Nascimento' por 'Aniversário'
-            window.gerarPDFRelatorio(titulo, ['Dia', 'Nome Completo', 'Grau', 'Aniversário'], dados);
+            // Alterado de 'Nascimento' para 'Aniversário' e 'Nome Completo' para 'Nome'
+            window.gerarPDFRelatorio(titulo, ['Dia', 'Nome', 'Grau', 'Aniversário'], dados);
             
             setTimeout(() => { btn.innerHTML = originalHtml; btn.disabled = false; }, 2000);
         });
@@ -1347,6 +1348,32 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    function iniciarMapa(lat, lng, zoomLvl) {
+        const mapEl = document.getElementById('mapaLocalizacao');
+        const overlay = document.getElementById('mapaOverlay');
+        if(!mapaGlobal && mapEl && typeof L !== 'undefined') {
+            if(overlay) overlay.classList.add('hidden');
+            mapaGlobal = L.map('mapaLocalizacao').setView([lat, lng], zoomLvl);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(mapaGlobal);
+            
+            marcadorGlobal = L.marker([lat, lng]).addTo(mapaGlobal);
+            circuloGlobal = L.circle([lat, lng], { color: 'green', fillColor: '#22c55e', fillOpacity: 0.2, radius: 50 }).addTo(mapaGlobal);
+
+            mapaGlobal.on('click', function(e) {
+                document.getElementById('inputLat').value = e.latlng.lat;
+                document.getElementById('inputLng').value = e.latlng.lng;
+                marcadorGlobal.setLatLng([e.latlng.lat, e.latlng.lng]);
+                circuloGlobal.setLatLng([e.latlng.lat, e.latlng.lng]);
+            });
+        } else if(mapaGlobal) {
+            if(overlay) overlay.classList.add('hidden');
+            mapaGlobal.setView([lat, lng], zoomLvl);
+            marcadorGlobal.setLatLng([lat, lng]);
+            circuloGlobal.setLatLng([lat, lng]);
+        }
+        setTimeout(() => { if(mapaGlobal) mapaGlobal.invalidateSize(); }, 300);
+    }
+
     if (document.getElementById('btnGravarLocalizacao')) {
         document.getElementById('btnGravarLocalizacao').addEventListener('click', async () => {
             const btn = document.getElementById('btnGravarLocalizacao');
@@ -1376,7 +1403,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 document.getElementById('inputLat').value = lat;
                                 document.getElementById('inputLng').value = lon;
                             }
-                            if (typeof iniciarMapa === 'function') iniciarMapa(lat, lon, 18);
+                            iniciarMapa(lat, lon, 18);
                         }
                     }
                 },
@@ -1415,10 +1442,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if(msg) { msg.textContent = "ERRO: O Banco de Dados recusou a alteração. Regra RLS bloqueou a gravação."; msg.className = "mt-4 text-sm font-bold text-red-600 block"; msg.classList.remove('hidden'); }
             } else {
                 if(msg) { msg.textContent = "Localização salva com sucesso!"; msg.className = "mt-4 text-sm font-bold text-green-600 block"; msg.classList.remove('hidden'); setTimeout(() => msg.classList.add('hidden'), 3000); }
-                if (typeof iniciarMapa === 'function') iniciarMapa(lat, lng, 18);
+                iniciarMapa(lat, lng, 18);
             }
         });
     }
+
 
     if(document.getElementById('uploadLogo')) {
         document.getElementById('uploadLogo').addEventListener('change', function(e) {
@@ -1458,6 +1486,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 document.getElementById('logoSidebar').src = urlData.publicUrl;
                 document.getElementById('logoSidebar').classList.remove('hidden');
 
+                // ATUALIZA O FAVICON NA HORA DO UPLOAD TAMBÉM
                 let linkFavicon = document.querySelector("link[rel~='icon']");
                 if (!linkFavicon) {
                     linkFavicon = document.createElement('link');
