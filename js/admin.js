@@ -61,60 +61,91 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (erroPerfil) throw erroPerfil;
         perfilAdminLogado = perfil;
 
-        const temAcessoPainel = perfil.is_admin || perfil.perm_visao_geral || perfil.perm_agenda || perfil.perm_grau || perfil.perm_financeiro || perfil.perm_doacoes || perfil.perm_admin || perfil.perm_ata;
+        // INCLUI A CHECAGEM DE IS_MASTER PARA NÃO BARRAR O ACESSO AO PAINEL NEUTRO
+        const temAcessoPainel = perfil.is_admin || perfil.perm_visao_geral || perfil.perm_agenda || perfil.perm_grau || perfil.perm_financeiro || perfil.perm_doacoes || perfil.perm_admin || perfil.perm_ata || perfil.is_master;
 
         if (!temAcessoPainel) {
             alert('Acesso negado. Você não tem permissão para acessar o Painel de Gestão.');
             return window.location.href = 'presenca.html';
         }
-
-        if (!perfil.is_admin) {
-            if (!perfil.perm_visao_geral) document.getElementById('menuVisaoGeral').classList.add('hidden');
-            if (!perfil.perm_agenda) document.getElementById('menuAgendaGiras').classList.add('hidden');
-            if (!perfil.perm_ata) { 
-                const menuAta = document.getElementById('menuLivroAta');
-                if(menuAta) menuAta.classList.add('hidden');
-            }
-            if (!perfil.perm_grau) document.getElementById('menuGrau').classList.add('hidden');
-            if (!perfil.perm_financeiro) document.getElementById('menuFinanceiro').classList.add('hidden');
-            if (!perfil.perm_doacoes) document.getElementById('menuDoacoes').classList.add('hidden');
-            if (!perfil.perm_admin) document.getElementById('menuAdmin').classList.add('hidden');
-        }
-
-        document.getElementById('nomeAdmin').textContent = 'Olá, ' + perfil.nome_completo.split(' ')[0];
         
         // --- INÍCIO DA LÓGICA DE TROCA DE CONTEXTO SaaS ---
         let terreiroSaaSForcado = null;
+        let emModoMasterPuro = false;
         
         if (perfil.is_master) {
             const menuMaster = document.getElementById('menuMaster');
             if (menuMaster) menuMaster.classList.remove('hidden');
             
-            // Verifica se o master clicou para acessar um terreiro específico
+            // Verifica se o master clicou para acessar um terreiro específico (Cliente)
             terreiroSaaSForcado = localStorage.getItem('terreiroAtivoSaaS');
             
             if (terreiroSaaSForcado) {
+                // MODO SUPORTE (Simulando o painel de um cliente)
                 idTerreiroGlobal = terreiroSaaSForcado;
                 
                 // Cria um aviso visual no topo da tela para você não esquecer que está no cliente
                 const avisoInfiltrado = document.createElement('div');
                 avisoInfiltrado.className = "bg-red-600 text-white text-center py-2 px-4 font-bold text-sm shadow-md z-50 flex flex-col md:flex-row justify-center items-center gap-2 md:space-x-4 flex-shrink-0";
                 avisoInfiltrado.innerHTML = `
-                    <span><i class="fas fa-user-secret mr-2"></i> MODO SUPORTE: Você está acessando o painel de um cliente (ID: ${idTerreiroGlobal}).</span>
+                    <span><i class="fas fa-user-secret mr-2"></i> MODO SUPORTE: Você está logado no painel do cliente.</span>
                     <button onclick="voltarParaMeuPainel()" class="bg-white text-red-600 px-3 py-1 rounded text-xs font-bold hover:bg-gray-100 shadow transition border border-red-200">Sair do Modo Suporte</button>
                 `;
                 
-                // Insere logo no começo da coluna de conteúdo principal
+                // Insere o banner logo no começo da coluna de conteúdo principal
                 const containerPrincipal = document.querySelector('.flex-1.flex-col') || document.body;
                 containerPrincipal.insertBefore(avisoInfiltrado, containerPrincipal.firstChild);
+
+                // No Modo Suporte, forçamos todas as permissões para True para você conseguir resolver qualquer problema
+                perfil.is_admin = true;
+                perfil.perm_visao_geral = true;
+                perfil.perm_agenda = true;
+                perfil.perm_ata = true;
+                perfil.perm_grau = true;
+                perfil.perm_financeiro = true;
+                perfil.perm_doacoes = true;
+                perfil.perm_admin = true;
             } else {
-                idTerreiroGlobal = perfil.terreiro_id;
+                // MODO MASTER PURO (Acessou para ver clientes, não um terreiro específico)
+                emModoMasterPuro = true;
+                idTerreiroGlobal = null;
             }
         } else {
+            // USUÁRIO COMUM (Dirigente ou Admin de Terreiro normal)
             idTerreiroGlobal = perfil.terreiro_id;
         }
         // --- FIM DA LÓGICA DE TROCA DE CONTEXTO ---
 
+        // Ocultar menus indesejados baseado no contexto ou permissões
+        if (emModoMasterPuro) {
+            // Se está no Master Puro, não faz sentido mostrar Quadro de Médium, Agenda, etc. Ocultamos tudo.
+            ['menuVisaoGeral', 'menuQuadroMediuns', 'menuAgendaGiras', 'menuLivroAta', 'menuGrau', 'menuFinanceiro', 'menuDoacoes', 'menuAdmin'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.add('hidden');
+            });
+            // Oculta os separadores (hr) do sidebar
+            document.querySelectorAll('#sidebar hr').forEach(hr => hr.classList.add('hidden'));
+            
+            document.getElementById('nomeTerreiroSidebar').textContent = "Gestão SaaS";
+        } else {
+            // Lógica normal de ocultar menus para usuários de terreiro baseados em suas permissões
+            if (!perfil.is_admin) {
+                if (!perfil.perm_visao_geral) document.getElementById('menuVisaoGeral').classList.add('hidden');
+                if (!perfil.perm_agenda) document.getElementById('menuAgendaGiras').classList.add('hidden');
+                if (!perfil.perm_ata) { 
+                    const menuAta = document.getElementById('menuLivroAta');
+                    if(menuAta) menuAta.classList.add('hidden');
+                }
+                if (!perfil.perm_grau) document.getElementById('menuGrau').classList.add('hidden');
+                if (!perfil.perm_financeiro) document.getElementById('menuFinanceiro').classList.add('hidden');
+                if (!perfil.perm_doacoes) document.getElementById('menuDoacoes').classList.add('hidden');
+                if (!perfil.perm_admin) document.getElementById('menuAdmin').classList.add('hidden');
+            }
+        }
+
+        document.getElementById('nomeAdmin').textContent = 'Olá, ' + perfil.nome_completo.split(' ')[0];
+        
+        // Só carrega detalhes (cores/logo) se existir um terreiro em foco
         if (idTerreiroGlobal) {
             const { data: terreiro } = await supabaseClient
                 .from('terreiros')
@@ -138,7 +169,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     img.src = terreiro.logo_url;
                     img.classList.remove('hidden');
 
-                    // ATUALIZA O FAVICON (ÍCONE DA ABA) DINAMICAMENTE
                     let linkFavicon = document.querySelector("link[rel~='icon']");
                     if (!linkFavicon) {
                         linkFavicon = document.createElement('link');
@@ -203,9 +233,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         });
 
-        if (perfil.is_admin || perfil.perm_visao_geral) {
+        // DEFINIÇÃO DA TELA INICIAL
+        if (emModoMasterPuro) {
+            // Se for o dono do sistema entrando, joga logo pra aba de Gestão
+            const m = document.getElementById('menuMaster');
+            if(m) m.click();
+        } else if (perfil.is_admin || perfil.perm_visao_geral) {
             document.getElementById('menuVisaoGeral').click();
         } else {
+            // Fallback: Entra na primeira que achar permitida
             if (perfil.perm_agenda) document.getElementById('menuAgendaGiras').click();
             else if (perfil.perm_ata) document.getElementById('menuLivroAta').click();
             else if (perfil.perm_grau) document.getElementById('menuGrau').click();
@@ -223,6 +259,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // VISÃO GERAL
     // ==========================================
     async function carregarPainelInicial() {
+        if(!idTerreiroGlobal) return; // Segurança caso acesse acidentalmente no master puro
         const { count: totalMediuns } = await supabaseClient.from('mediuns').select('*', { count: 'exact', head: true }).eq('terreiro_id', idTerreiroGlobal);
         document.getElementById('totalMediuns').textContent = totalMediuns || '0';
 
@@ -265,6 +302,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let listaMediunsGlobal = []; 
 
     async function carregarQuadroMediuns() {
+        if(!idTerreiroGlobal) return;
         const tbody = document.getElementById('tabelaTodosMediuns');
         if (!tbody) return;
         tbody.innerHTML = '<tr><td colspan="6" class="text-center p-8 text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>Buscando corrente...</td></tr>';
@@ -315,7 +353,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             let acoesHtml = '<span class="text-gray-400 text-xs">Sem acesso</span>';
             
             if (perfilAdminLogado && perfilAdminLogado.is_admin) {
-                const perms = `${m.perm_agenda || false},${m.perm_grau || false},${m.perm_financeiro || false},${m.perm_doacoes || false},${m.perm_admin || false},${m.perm_visao_geral || false}`;
+                const perms = `${m.perm_agenda || false},${m.perm_grau || false},${m.perm_financeiro || false},${m.perm_doacoes || false},${m.perm_admin || false},${m.perm_visao_geral || false},${m.perm_ata || false}`;
                 acoesHtml = `
                     <div class="flex items-center justify-center space-x-4">
                         <button onclick="abrirModalPermissoes(${m.id}, '${m.nome_completo.replace(/'/g, "\\'")}', '${perms}')" class="text-blue-500 hover:text-blue-700 transition" title="Permissões de Acesso"><i class="fas fa-key"></i></button>
@@ -518,7 +556,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.abrirModalPermissoes = (id, nome, permsString) => {
         document.getElementById('idMediumPermissao').value = id;
         document.getElementById('nomeMediumPermissao').textContent = nome;
-        const [pAgenda, pGrau, pFin, pDoa, pAdmin, pVisao] = permsString.split(',');
+        const [pAgenda, pGrau, pFin, pDoa, pAdmin, pVisao, pAta] = permsString.split(',');
         
         document.getElementById('chkPermAgenda').checked = pAgenda === 'true';
         document.getElementById('chkPermGrau').checked = pGrau === 'true';
@@ -526,7 +564,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('chkPermDoacoes').checked = pDoa === 'true';
         document.getElementById('chkPermAdmin').checked = pAdmin === 'true';
         if (document.getElementById('chkPermVisao')) document.getElementById('chkPermVisao').checked = pVisao === 'true';
-        if (document.getElementById('chkPermAta')) document.getElementById('chkPermAta').checked = false; 
+        if (document.getElementById('chkPermAta')) document.getElementById('chkPermAta').checked = pAta === 'true';
         
         document.getElementById('modalPermissoes').classList.remove('hidden');
     };
@@ -566,9 +604,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // ==========================================
-    // AGENDA E EVENTOS
+    // AGENDA E EVENTOS (COM CORREÇÃO DE FUSO E ATA PADRÃO E UPLOAD)
     // ==========================================
     async function carregarAgenda() {
+        if(!idTerreiroGlobal) return;
         const tbody = document.getElementById('tabelaGirasCadastradas');
         const agora = new Date().toISOString();
         const { data } = await supabaseClient.from('agenda').select('*').eq('terreiro_id', idTerreiroGlobal).gte('data_hora_fim', agora).order('data_hora_inicio').limit(15); 
@@ -627,6 +666,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('editGiraId').value = data.id;
         document.getElementById('editGiraTitulo').value = data.titulo;
         
+        // CORREÇÃO: Formata forçando a hora que veio do banco de volta pro GMT-3 (São Paulo) no input
         const formataParaInput = (isoString) => {
             if (!isoString) return '';
             const dataBanco = new Date(isoString);
@@ -701,7 +741,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const fileInput = document.getElementById('giraArquivo');
                 
                 const chkGeraAta = document.getElementById('giraGeraAta') ? document.getElementById('giraGeraAta').checked : true;
-                
                 const inicioBR = inicioRaw ? `${inicioRaw}:00-03:00` : null;
                 const fimBR = fimRaw ? `${fimRaw}:00-03:00` : null;
                 
@@ -752,6 +791,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // LIVRO DE PRESENÇA (ATA)
     // ==========================================
     window.carregarLivroAta = async () => {
+        if(!idTerreiroGlobal) return;
         const tbody = document.getElementById('tabelaLivroAta');
         if(!tbody) return;
         tbody.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-gray-500">Buscando histórico de ATAs...</td></tr>';
@@ -1035,6 +1075,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     function renderizarOpcoes(lista, valorAtual) { return lista.map(op => `<option value="${op === '-' ? '' : op}" ${op === valorAtual ? 'selected' : ''}>${op}</option>`).join(''); }
 
     async function carregarTabelaGraus() {
+        if(!idTerreiroGlobal) return;
         const tbody = document.getElementById('tabelaGraus');
         tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center">Buscando...</td></tr>';
         const { data } = await supabaseClient.from('mediuns').select('id, nome_completo, grau, funcao').eq('terreiro_id', idTerreiroGlobal).order('nome_completo');
@@ -1077,6 +1118,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // FINANCEIRO
     // ==========================================
     async function carregarFinanceiro() {
+        if(!idTerreiroGlobal) return;
         const ano = parseInt(document.getElementById('selectAnoFinanceiro').value);
         const tbody = document.getElementById('tabelaFinanceiro');
         tbody.innerHTML = '<tr><td colspan="14" class="p-6 text-center text-gray-500">Buscando histórico...</td></tr>';
@@ -1140,33 +1182,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // Lógica do Leaflet (Minimapa) e Salvamento Manual
-    function iniciarMapa(lat, lng, zoomLvl) {
-        const mapEl = document.getElementById('mapaLocalizacao');
-        const overlay = document.getElementById('mapaOverlay');
-        if(!mapaGlobal && mapEl && typeof L !== 'undefined') {
-            if(overlay) overlay.classList.add('hidden');
-            mapaGlobal = L.map('mapaLocalizacao').setView([lat, lng], zoomLvl);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(mapaGlobal);
-            
-            marcadorGlobal = L.marker([lat, lng]).addTo(mapaGlobal);
-            circuloGlobal = L.circle([lat, lng], { color: 'green', fillColor: '#22c55e', fillOpacity: 0.2, radius: 50 }).addTo(mapaGlobal);
-
-            mapaGlobal.on('click', function(e) {
-                document.getElementById('inputLat').value = e.latlng.lat;
-                document.getElementById('inputLng').value = e.latlng.lng;
-                marcadorGlobal.setLatLng([e.latlng.lat, e.latlng.lng]);
-                circuloGlobal.setLatLng([e.latlng.lat, e.latlng.lng]);
-            });
-        } else if(mapaGlobal) {
-            if(overlay) overlay.classList.add('hidden');
-            mapaGlobal.setView([lat, lng], zoomLvl);
-            marcadorGlobal.setLatLng([lat, lng]);
-            circuloGlobal.setLatLng([lat, lng]);
-        }
-        setTimeout(() => { if(mapaGlobal) mapaGlobal.invalidateSize(); }, 300);
-    }
-
     if (document.getElementById('btnGravarLocalizacao')) {
         document.getElementById('btnGravarLocalizacao').addEventListener('click', async () => {
             const btn = document.getElementById('btnGravarLocalizacao');
@@ -1181,16 +1196,22 @@ document.addEventListener('DOMContentLoaded', async () => {
                 async (pos) => {
                     const lat = pos.coords.latitude, lon = pos.coords.longitude;
                     if(idTerreiroGlobal) {
-                        const { error } = await supabaseClient.from('terreiros').update({ latitude: lat, longitude: lon }).eq('id', idTerreiroGlobal);
+                        const { data, error } = await supabaseClient.from('terreiros')
+                            .update({ latitude: lat, longitude: lon })
+                            .eq('id', idTerreiroGlobal)
+                            .select(); 
+
                         if(error) {
                             if(msg) { msg.className = 'mt-4 text-sm font-bold text-red-600 block'; msg.textContent = 'Erro ao salvar no banco: ' + error.message; }
+                        } else if (!data || data.length === 0) {
+                            if(msg) { msg.className = 'mt-4 text-sm font-bold text-red-600 block'; msg.textContent = 'ERRO: O Banco de Dados recusou a alteração. Nenhuma linha foi salva.'; }
                         } else {
                             if(msg) { msg.className = 'mt-4 text-sm font-bold text-green-600 block'; msg.innerHTML = '<i class="fas fa-check-circle mr-2"></i> Ponto Registrado!'; setTimeout(() => msg.classList.add('hidden'), 3000); }
                             if(document.getElementById('inputLat')) {
                                 document.getElementById('inputLat').value = lat;
                                 document.getElementById('inputLng').value = lon;
                             }
-                            iniciarMapa(lat, lon, 18);
+                            if (typeof iniciarMapa === 'function') iniciarMapa(lat, lon, 18);
                         }
                     }
                 },
@@ -1215,18 +1236,24 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Salvando...';
-            const { error } = await supabaseClient.from('terreiros').update({ latitude: lat, longitude: lng }).eq('id', idTerreiroGlobal);
+            
+            const { data, error } = await supabaseClient.from('terreiros')
+                .update({ latitude: lat, longitude: lng })
+                .eq('id', idTerreiroGlobal)
+                .select(); 
+                
             btn.disabled = false; btn.innerHTML = '<i class="fas fa-save mr-2"></i> Salvar Manualmente';
             
             if(error) {
                 if(msg) { msg.textContent = "Erro: " + error.message; msg.className = "mt-4 text-sm font-bold text-red-600 block"; msg.classList.remove('hidden'); }
+            } else if (!data || data.length === 0) {
+                if(msg) { msg.textContent = "ERRO: O Banco de Dados recusou a alteração. Regra RLS bloqueou a gravação."; msg.className = "mt-4 text-sm font-bold text-red-600 block"; msg.classList.remove('hidden'); }
             } else {
                 if(msg) { msg.textContent = "Localização salva com sucesso!"; msg.className = "mt-4 text-sm font-bold text-green-600 block"; msg.classList.remove('hidden'); setTimeout(() => msg.classList.add('hidden'), 3000); }
-                iniciarMapa(lat, lng, 18);
+                if (typeof iniciarMapa === 'function') iniciarMapa(lat, lng, 18);
             }
         });
     }
-
 
     if(document.getElementById('uploadLogo')) {
         document.getElementById('uploadLogo').addEventListener('change', function(e) {
@@ -1266,7 +1293,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 document.getElementById('logoSidebar').src = urlData.publicUrl;
                 document.getElementById('logoSidebar').classList.remove('hidden');
 
-                // ATUALIZA O FAVICON NA HORA DO UPLOAD TAMBÉM
                 let linkFavicon = document.querySelector("link[rel~='icon']");
                 if (!linkFavicon) {
                     linkFavicon = document.createElement('link');
@@ -1383,14 +1409,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         data.forEach(t => {
             const statusHtml = t.status_bloqueado ? '<span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded font-bold">Bloqueado</span>' : '<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded font-bold">Ativo</span>';
             
-            // CORRIGIDO: Inserção de aspas simples ('${t.id}') nos parâmetros que recebem UUID
             const btnBloqueio = t.status_bloqueado 
                 ? `<button onclick="alternarBloqueioTerreiro('${t.id}', false)" class="text-xs bg-gray-800 text-white py-1 px-3 rounded shadow">Desbloquear</button>` 
                 : `<button onclick="alternarBloqueioTerreiro('${t.id}', true)" class="text-xs bg-red-600 text-white py-1 px-3 rounded shadow">Bloquear</button>`;
             
             const btnImportar = `<button onclick="abrirModalImportacao('${t.id}', '${t.nome.replace(/'/g, "\\'")}')" class="text-xs bg-blue-600 hover:bg-blue-700 text-white py-1 px-3 rounded shadow ml-2"><i class="fas fa-file-csv"></i> CSV</button>`;
             
-            // NOVO E CORRIGIDO: BOTÃO ACESSAR COM ASPAS SIMPLES
             const btnAcessar = `<button onclick="acessarTerreiroSaaS('${t.id}')" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white py-1 px-3 rounded shadow mr-2"><i class="fas fa-sign-in-alt"></i> Acessar</button>`;
             
             const acaoHtml = `<div class="flex justify-center items-center">${btnAcessar}${btnBloqueio}${btnImportar}</div>`;
@@ -1399,7 +1423,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     };
 
-    // --- NOVAS FUNÇÕES PARA O CONTEXT SWITCHER ---
     window.acessarTerreiroSaaS = (idTerreiro) => {
         localStorage.setItem('terreiroAtivoSaaS', idTerreiro);
         window.location.reload();
