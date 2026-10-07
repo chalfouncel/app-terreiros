@@ -624,29 +624,29 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
             
             const dados = lista.map(m => {
-                let dataNasc = '-';
                 let diaMes = '-';
                 if (m.data_nascimento) {
                     if (m.data_nascimento.includes('-')) {
                         const p = m.data_nascimento.split('-');
                         if(p.length === 3) {
-                            dataNasc = `${p[2]}/${p[1]}/${p[0]}`;
                             diaMes = `${p[2]}/${p[1]}`;
                         }
                     } else {
-                        dataNasc = m.data_nascimento;
+                        const dataNasc = m.data_nascimento;
                         if(dataNasc.includes('/')) diaMes = dataNasc.substring(0, 5);
                     }
                 }
                 const nomeStr = m.nome_social ? `${m.nome_completo} (${m.nome_social})` : m.nome_completo;
                 
-                return [diaMes, nomeStr, m.grau || '-', dataNasc];
+                // Retorna apenas DD/MM na coluna que antes era a data completa
+                return [diaMes, nomeStr, m.grau || '-', diaMes];
             });
             
             const mesAtualTexto = dataAtual.toLocaleString('pt-BR', { month: 'long' });
             const titulo = `Aniversariantes de ${mesAtualTexto.charAt(0).toUpperCase() + mesAtualTexto.slice(1)}`;
             
-            window.gerarPDFRelatorio(titulo, ['Dia', 'Nome Completo', 'Grau', 'Nascimento'], dados);
+            // Aqui substituímos o cabeçalho 'Nascimento' por 'Aniversário'
+            window.gerarPDFRelatorio(titulo, ['Dia', 'Nome Completo', 'Grau', 'Aniversário'], dados);
             
             setTimeout(() => { btn.innerHTML = originalHtml; btn.disabled = false; }, 2000);
         });
