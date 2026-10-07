@@ -260,7 +260,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ==========================================
     async function carregarPainelInicial() {
         if(!idTerreiroGlobal) return; // Segurança caso acesse acidentalmente no master puro
-        const { count: totalMediuns } = await supabaseClient.from('mediuns').select('*', { count: 'exact', head: true }).eq('terreiro_id', idTerreiroGlobal);
+        
+        // Bloqueia a contagem do master
+        const { count: totalMediuns } = await supabaseClient.from('mediuns')
+            .select('*', { count: 'exact', head: true })
+            .eq('terreiro_id', idTerreiroGlobal)
+            .neq('nome_completo', 'Administrador Sistema');
+            
         document.getElementById('totalMediuns').textContent = totalMediuns || '0';
 
         const agora = new Date().toISOString();
@@ -310,14 +316,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             const { data, error } = await supabaseClient
                 .from('mediuns')
-                .select('id, nome_completo, nome_social, data_nascimento, grau, funcao, telefone, cadastro_completo, is_admin, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin, perm_visao_geral, perm_ata')
+                .select('id, nome_completo, nome_social, data_nascimento, grau, funcao, telefone, cadastro_completo, is_admin, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin, perm_visao_geral, perm_ata, is_master')
                 .eq('terreiro_id', idTerreiroGlobal)
                 .order('nome_completo');
 
             if (error) throw error;
 
-            listaMediunsGlobal = data || [];
+            // Filtra e omite permanentemente o Administrador do Sistema do quadro
+            listaMediunsGlobal = (data || []).filter(m => m.is_master !== true && m.nome_completo !== 'Administrador Sistema');
             window.mediunsFiltrados = listaMediunsGlobal;
+            
             renderizarTabelaMediuns(listaMediunsGlobal);
             renderizarAniversariantes(listaMediunsGlobal);
             
@@ -579,7 +587,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         if(p.length === 3) dataNasc = `${p[2]}/${p[1]}/${p[0]}`;
                     } else dataNasc = m.data_nascimento;
                 }
-                const nomeStr = m.nome_social ? m.nome_social : (m.nome_completo ? m.nome_completo.split(' ')[0] : 'Médium');
+                const nomeStr = m.nome_social ? m.nome_social : m.nome_completo;
                 const whats = m.telefone || '-';
                 
                 return [nomeStr, dataNasc, m.grau || '-', m.funcao || '-', whats];
@@ -597,7 +605,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
             btn.disabled = true;
             
-            // FIX: Filtra e processa direto da base global para garantir dados perfeitos
+            // Filtra e processa direto da base global para garantir dados perfeitos
             const dataAtual = new Date();
             const mesAtualNum = (dataAtual.getMonth() + 1).toString().padStart(2, '0');
             
@@ -639,15 +647,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
                 const nomeStr = m.nome_social ? m.nome_social : (m.nome_completo ? m.nome_completo.split(' ')[0] : 'Médium');
                 
-                // Agora envia diaMes tanto no começo quanto no final
-                return [diaMes, nomeStr, m.grau || '-', diaMes];
+                return [diaMes, nomeStr, m.grau || '-'];
             });
             
             const mesAtualTexto = dataAtual.toLocaleString('pt-BR', { month: 'long' });
             const titulo = `Aniversariantes de ${mesAtualTexto.charAt(0).toUpperCase() + mesAtualTexto.slice(1)}`;
             
-            // Alterado de 'Nascimento' para 'Aniversário' e 'Nome Completo' para 'Nome'
-            window.gerarPDFRelatorio(titulo, ['Dia', 'Nome', 'Grau', 'Aniversário'], dados);
+            window.gerarPDFRelatorio(titulo, ['Aniversário', 'Nome', 'Grau'], dados);
             
             setTimeout(() => { btn.innerHTML = originalHtml; btn.disabled = false; }, 2000);
         });
@@ -1244,8 +1250,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         if(!idTerreiroGlobal) return;
         const tbody = document.getElementById('tabelaGraus');
         tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center">Buscando...</td></tr>';
-        const { data } = await supabaseClient.from('mediuns').select('id, nome_completo, grau, funcao').eq('terreiro_id', idTerreiroGlobal).order('nome_completo');
-        if (data) { mediunsGrauCache = data; renderizarGraus(data); }
+        
+        const { data } = await supabaseClient.from('mediuns')
+            .select('id, nome_completo, grau, funcao, is_master')
+            .eq('terreiro_id', idTerreiroGlobal)
+            .order('nome_completo');
+            
+        if (data) { 
+            mediunsGrauCache = data.filter(m => m.is_master !== true && m.nome_completo !== 'Administrador Sistema'); 
+            renderizarGraus(mediunsGrauCache); 
+        }
     }
 
     function renderizarGraus(lista) {
@@ -1289,7 +1303,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         const tbody = document.getElementById('tabelaFinanceiro');
         tbody.innerHTML = '<tr><td colspan="14" class="p-6 text-center text-gray-500">Buscando histórico...</td></tr>';
         
-        const { data: mediuns } = await supabaseClient.from('mediuns').select('id, nome_completo').eq('terreiro_id', idTerreiroGlobal).order('nome_completo');
+        const { data: mediunsBrutos } = await supabaseClient.from('mediuns')
+            .select('id, nome_completo, is_master')
+            .eq('terreiro_id', idTerreiroGlobal)
+            .order('nome_completo');
+            
+        const mediuns = mediunsBrutos ? mediunsBrutos.filter(m => m.is_master !== true && m.nome_completo !== 'Administrador Sistema') : [];
         const { data: pgtos } = await supabaseClient.from('financeiro').select('*').eq('ano', ano);
         
         if(!mediuns) return;
