@@ -7,6 +7,11 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Configurações PWA (Instalação do App) -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1e3a8a">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3269/3269828.png">
 </head>
 <body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
 
@@ -66,5 +71,16 @@
 
     <script src="js/supabase.js"></script>
     <script src="js/login.js"></script>
+    
+    <!-- Script Ativador do Service Worker (PWA) -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('sw.js')
+            .then(reg => console.log('PWA Instalador Registrado!'))
+            .catch(err => console.log('Erro no PWA:', err));
+        });
+      }
+    </script>
 </body>
 </html>
