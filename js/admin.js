@@ -111,6 +111,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const img = document.getElementById('logoSidebar');
                     img.src = terreiro.logo_url;
                     img.classList.remove('hidden');
+
+                    // ATUALIZA O FAVICON (ÍCONE DA ABA) DINAMICAMENTE
+                    let linkFavicon = document.querySelector("link[rel~='icon']");
+                    if (!linkFavicon) {
+                        linkFavicon = document.createElement('link');
+                        linkFavicon.rel = 'icon';
+                        document.head.appendChild(linkFavicon);
+                    }
+                    linkFavicon.href = terreiro.logo_url;
                 }
             }
         }
@@ -237,7 +246,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             const { data, error } = await supabaseClient
                 .from('mediuns')
-                .select('id, nome_completo, nome_social, data_nascimento, grau, funcao, telefone, cadastro_completo, is_admin, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin, perm_visao_geral')
+                .select('id, nome_completo, nome_social, data_nascimento, grau, funcao, telefone, cadastro_completo, is_admin, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin, perm_visao_geral, perm_ata')
+                .eq('terreiro_id', idTerreiroGlobal)
                 .order('nome_completo');
 
             if (error) throw error;
@@ -300,13 +310,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 : m.nome_completo;
 
             tbody.innerHTML += `
-                <tr class="border-b border-gray-100 hover:bg-gray-50 py-1 transition-colors group">
-                    <td class="py-2 px-3 text-gray-800 whitespace-nowrap">${nomeHtml}</td>
-                    <td class="py-2 px-3 text-gray-600 text-center whitespace-nowrap">${dataNascFormatada}</td>
-                    <td class="py-2 px-3 text-gray-600 whitespace-nowrap">${cargo}</td>
-                    <td class="py-2 px-3 text-gray-600">${linkWhats}</td>
-                    <td class="py-2 px-3">${status}</td>
-                    <td class="py-2 px-3 text-center no-print">${acoesHtml}</td>
+                <tr class="hover:bg-gray-50 transition-colors group">
+                    <td class="p-4 text-gray-800 font-medium whitespace-nowrap">${nomeHtml}</td>
+                    <td class="p-4 text-gray-600 text-center whitespace-nowrap">${dataNascFormatada}</td>
+                    <td class="p-4 text-gray-600 whitespace-nowrap">${cargo}</td>
+                    <td class="p-4 text-gray-600">${linkWhats}</td>
+                    <td class="p-4 text-center">${status}</td>
+                    <td class="p-4 text-center no-print">${acoesHtml}</td>
                 </tr>`;
         });
     }
@@ -354,9 +364,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (m.data_nascimento.includes('-')) {
                 const p = m.data_nascimento.split('-');
                 dia = p[2]; mes = p[1];
-            } else if (m.data_nascimento.includes('/')) {
-                const p = m.data_nascimento.split('/');
-                dia = p[0]; mes = p[1];
             }
 
             const nomeExibicao = m.nome_social ? m.nome_social : (m.nome_completo ? m.nome_completo.split(' ')[0] : 'Médium');
@@ -397,8 +404,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             let passaStatus = true;
+            const statusAtual = medium.cadastro_completo ? 'Ativo' : 'Pendente';
             if (termoStatus !== '') {
-                const statusAtual = medium.cadastro_completo ? 'Ativo' : 'Pendente';
                 passaStatus = (statusAtual === termoStatus);
             }
 
@@ -421,12 +428,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderizarTabelaMediuns(listaFiltrada);
     }
 
-    // Configurando os eventos dos filtros e botão de PDF
-    document.getElementById('filtroNomeMedium')?.addEventListener('input', aplicarFiltrosMediuns);
-    document.getElementById('filtroGrauMedium')?.addEventListener('change', aplicarFiltrosMediuns);
-    document.getElementById('filtroStatusMedium')?.addEventListener('change', aplicarFiltrosMediuns);
-    document.getElementById('filtroMesNascimento')?.addEventListener('change', aplicarFiltrosMediuns);
-    document.getElementById('btnImprimirMediuns')?.addEventListener('click', () => { window.print(); });
+    // Configuração dos eventos de Filtro e PDF
+    setTimeout(() => {
+        document.getElementById('filtroNomeMedium')?.addEventListener('input', aplicarFiltrosMediuns);
+        document.getElementById('filtroGrauMedium')?.addEventListener('change', aplicarFiltrosMediuns);
+        document.getElementById('filtroStatusMedium')?.addEventListener('change', aplicarFiltrosMediuns);
+        document.getElementById('filtroMesNascimento')?.addEventListener('change', aplicarFiltrosMediuns);
+        
+        document.getElementById('btnImprimirMediuns')?.addEventListener('click', () => {
+            window.print();
+        });
+    }, 500);
 
     window.abrirModalNovoMedium = () => {
         document.getElementById('msgNovoMedium').classList.add('hidden');
@@ -868,7 +880,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             const { data: presencas } = await supabaseClient.from('presencas').select('data_hora_checkin, usuario_id').eq('evento_id', eventoId).order('data_hora_checkin', { ascending: true });
             
-            // BUSCA A "FUNCAO" DO MÉDIUM NO BANCO PARA APLICAR A REGRA 1
+            // Busca também a "funcao" para validar a regra do Dirigente
             const { data: mediuns } = await supabaseClient.from('mediuns').select('id, auth_id, nome_completo, grau, funcao').eq('terreiro_id', idTerreiroGlobal);
                 
             const mapaMediuns = {};
@@ -886,7 +898,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const ano = dataEv.getFullYear();
             const hora = dataEv.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
-            // REGRA 1 E REGRA 2: ORDENAÇÃO PERSONALIZADA
+            // Lógica de Ordenação Personalizada para a ATA
             if (presencas && presencas.length > 0) {
                 presencas.sort((a, b) => {
                     const mediumA = mapaMediuns[a.usuario_id] || {};
@@ -1232,6 +1244,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                 
                 document.getElementById('logoSidebar').src = urlData.publicUrl;
                 document.getElementById('logoSidebar').classList.remove('hidden');
+
+                // ATUALIZA O FAVICON NA HORA DO UPLOAD TAMBÉM
+                let linkFavicon = document.querySelector("link[rel~='icon']");
+                if (!linkFavicon) {
+                    linkFavicon = document.createElement('link');
+                    linkFavicon.rel = 'icon';
+                    document.head.appendChild(linkFavicon);
+                }
+                linkFavicon.href = urlData.publicUrl;
+
                 msg.textContent = '✅ Logo salva!'; msg.className = 'text-xs font-bold mt-2 text-tema-secundaria';
             } catch (error) {
                 msg.textContent = '❌ Erro: ' + error.message; msg.className = 'text-xs font-bold mt-2 text-red-600';
