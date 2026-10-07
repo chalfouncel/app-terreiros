@@ -152,7 +152,21 @@ document.addEventListener('DOMContentLoaded', async () => {
                     hrFim = new Date(hrInicio.getTime() + (4 * 60 * 60 * 1000));
                 }
                 
-                return hrFim > horaNavegador;
+                const aindaRolando = hrFim > horaNavegador;
+
+                // Nova Regra: Se a gira é especial, o médium precisa estar na lista de convocados
+                let acessoPermitido = true;
+                if (g.especial === true) {
+                    const convocados = g.convocados || [];
+                    const meuId = String(perfil.id);
+                    
+                    // Se o médium não estiver na lista E não for Admin da casa
+                    if (!convocados.includes(meuId) && !perfil.is_admin) {
+                        acessoPermitido = false;
+                    }
+                }
+                
+                return aindaRolando && acessoPermitido;
             });
         }
 
