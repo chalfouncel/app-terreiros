@@ -61,91 +61,34 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (erroPerfil) throw erroPerfil;
         perfilAdminLogado = perfil;
 
-        // INCLUI A CHECAGEM DE IS_MASTER PARA NÃO BARRAR O ACESSO AO PAINEL NEUTRO
-        const temAcessoPainel = perfil.is_admin || perfil.perm_visao_geral || perfil.perm_agenda || perfil.perm_grau || perfil.perm_financeiro || perfil.perm_doacoes || perfil.perm_admin || perfil.perm_ata || perfil.is_master;
+        const temAcessoPainel = perfil.is_admin || perfil.perm_visao_geral || perfil.perm_agenda || perfil.perm_grau || perfil.perm_financeiro || perfil.perm_doacoes || perfil.perm_admin || perfil.perm_ata;
 
         if (!temAcessoPainel) {
             alert('Acesso negado. Você não tem permissão para acessar o Painel de Gestão.');
             return window.location.href = 'presenca.html';
         }
-        
-        // --- INÍCIO DA LÓGICA DE TROCA DE CONTEXTO SaaS ---
-        let terreiroSaaSForcado = null;
-        let emModoMasterPuro = false;
-        
+
+        if (!perfil.is_admin) {
+            if (!perfil.perm_visao_geral) document.getElementById('menuVisaoGeral').classList.add('hidden');
+            if (!perfil.perm_agenda) document.getElementById('menuAgendaGiras').classList.add('hidden');
+            if (!perfil.perm_ata) { 
+                const menuAta = document.getElementById('menuLivroAta');
+                if(menuAta) menuAta.classList.add('hidden');
+            }
+            if (!perfil.perm_grau) document.getElementById('menuGrau').classList.add('hidden');
+            if (!perfil.perm_financeiro) document.getElementById('menuFinanceiro').classList.add('hidden');
+            if (!perfil.perm_doacoes) document.getElementById('menuDoacoes').classList.add('hidden');
+            if (!perfil.perm_admin) document.getElementById('menuAdmin').classList.add('hidden');
+        }
+
         if (perfil.is_master) {
             const menuMaster = document.getElementById('menuMaster');
             if (menuMaster) menuMaster.classList.remove('hidden');
-            
-            // Verifica se o master clicou para acessar um terreiro específico (Cliente)
-            terreiroSaaSForcado = localStorage.getItem('terreiroAtivoSaaS');
-            
-            if (terreiroSaaSForcado) {
-                // MODO SUPORTE (Simulando o painel de um cliente)
-                idTerreiroGlobal = terreiroSaaSForcado;
-                
-                // Cria um aviso visual no topo da tela para você não esquecer que está no cliente
-                const avisoInfiltrado = document.createElement('div');
-                avisoInfiltrado.className = "bg-red-600 text-white text-center py-2 px-4 font-bold text-sm shadow-md z-50 flex flex-col md:flex-row justify-center items-center gap-2 md:space-x-4 flex-shrink-0";
-                avisoInfiltrado.innerHTML = `
-                    <span><i class="fas fa-user-secret mr-2"></i> MODO SUPORTE: Você está logado no painel do cliente.</span>
-                    <button onclick="voltarParaMeuPainel()" class="bg-white text-red-600 px-3 py-1 rounded text-xs font-bold hover:bg-gray-100 shadow transition border border-red-200">Sair do Modo Suporte</button>
-                `;
-                
-                // Insere o banner logo no começo da coluna de conteúdo principal
-                const containerPrincipal = document.querySelector('.flex-1.flex-col') || document.body;
-                containerPrincipal.insertBefore(avisoInfiltrado, containerPrincipal.firstChild);
-
-                // No Modo Suporte, forçamos todas as permissões para True para você conseguir resolver qualquer problema
-                perfil.is_admin = true;
-                perfil.perm_visao_geral = true;
-                perfil.perm_agenda = true;
-                perfil.perm_ata = true;
-                perfil.perm_grau = true;
-                perfil.perm_financeiro = true;
-                perfil.perm_doacoes = true;
-                perfil.perm_admin = true;
-            } else {
-                // MODO MASTER PURO (Acessou para ver clientes, não um terreiro específico)
-                emModoMasterPuro = true;
-                idTerreiroGlobal = null;
-            }
-        } else {
-            // USUÁRIO COMUM (Dirigente ou Admin de Terreiro normal)
-            idTerreiroGlobal = perfil.terreiro_id;
-        }
-        // --- FIM DA LÓGICA DE TROCA DE CONTEXTO ---
-
-        // Ocultar menus indesejados baseado no contexto ou permissões
-        if (emModoMasterPuro) {
-            // Se está no Master Puro, não faz sentido mostrar Quadro de Médium, Agenda, etc. Ocultamos tudo.
-            ['menuVisaoGeral', 'menuQuadroMediuns', 'menuAgendaGiras', 'menuLivroAta', 'menuGrau', 'menuFinanceiro', 'menuDoacoes', 'menuAdmin'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.classList.add('hidden');
-            });
-            // Oculta os separadores (hr) do sidebar
-            document.querySelectorAll('#sidebar hr').forEach(hr => hr.classList.add('hidden'));
-            
-            document.getElementById('nomeTerreiroSidebar').textContent = "Gestão SaaS";
-        } else {
-            // Lógica normal de ocultar menus para usuários de terreiro baseados em suas permissões
-            if (!perfil.is_admin) {
-                if (!perfil.perm_visao_geral) document.getElementById('menuVisaoGeral').classList.add('hidden');
-                if (!perfil.perm_agenda) document.getElementById('menuAgendaGiras').classList.add('hidden');
-                if (!perfil.perm_ata) { 
-                    const menuAta = document.getElementById('menuLivroAta');
-                    if(menuAta) menuAta.classList.add('hidden');
-                }
-                if (!perfil.perm_grau) document.getElementById('menuGrau').classList.add('hidden');
-                if (!perfil.perm_financeiro) document.getElementById('menuFinanceiro').classList.add('hidden');
-                if (!perfil.perm_doacoes) document.getElementById('menuDoacoes').classList.add('hidden');
-                if (!perfil.perm_admin) document.getElementById('menuAdmin').classList.add('hidden');
-            }
         }
 
         document.getElementById('nomeAdmin').textContent = 'Olá, ' + perfil.nome_completo.split(' ')[0];
-        
-        // Só carrega detalhes (cores/logo) se existir um terreiro em foco
+        idTerreiroGlobal = perfil.terreiro_id;
+
         if (idTerreiroGlobal) {
             const { data: terreiro } = await supabaseClient
                 .from('terreiros')
@@ -169,6 +112,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     img.src = terreiro.logo_url;
                     img.classList.remove('hidden');
 
+                    // ATUALIZA O FAVICON (ÍCONE DA ABA) DINAMICAMENTE
                     let linkFavicon = document.querySelector("link[rel~='icon']");
                     if (!linkFavicon) {
                         linkFavicon = document.createElement('link');
@@ -233,15 +177,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         });
 
-        // DEFINIÇÃO DA TELA INICIAL
-        if (emModoMasterPuro) {
-            // Se for o dono do sistema entrando, joga logo pra aba de Gestão
-            const m = document.getElementById('menuMaster');
-            if(m) m.click();
-        } else if (perfil.is_admin || perfil.perm_visao_geral) {
+        if (perfil.is_admin || perfil.perm_visao_geral) {
             document.getElementById('menuVisaoGeral').click();
         } else {
-            // Fallback: Entra na primeira que achar permitida
             if (perfil.perm_agenda) document.getElementById('menuAgendaGiras').click();
             else if (perfil.perm_ata) document.getElementById('menuLivroAta').click();
             else if (perfil.perm_grau) document.getElementById('menuGrau').click();
@@ -259,12 +197,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     // VISÃO GERAL
     // ==========================================
     async function carregarPainelInicial() {
-        if(!idTerreiroGlobal) return; // Segurança caso acesse acidentalmente no master puro
-        const { count: totalMediuns } = await supabaseClient.from('mediuns').select('*', { count: 'exact', head: true }).eq('terreiro_id', idTerreiroGlobal);
+        const { count: totalMediuns } = await supabaseClient.from('mediuns').select('*', { count: 'exact', head: true });
         document.getElementById('totalMediuns').textContent = totalMediuns || '0';
 
         const agora = new Date().toISOString();
-        const { data: agendaData } = await supabaseClient.from('agenda').select('*').eq('terreiro_id', idTerreiroGlobal).gte('data_hora_fim', agora).order('data_hora_inicio').limit(1);
+        const { data: agendaData } = await supabaseClient.from('agenda').select('*').gte('data_hora_fim', agora).order('data_hora_inicio').limit(1);
 
         let giraAtualId = null;
         if (agendaData && agendaData.length > 0) {
@@ -278,7 +215,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const tabelaPresencas = document.getElementById('tabelaPresencas');
         if (giraAtualId) {
             const { data: presencas } = await supabaseClient.from('presencas').select('usuario_id, data_hora_checkin').eq('evento_id', giraAtualId).order('data_hora_checkin', { ascending: false });
-            const { data: todosMediuns } = await supabaseClient.from('mediuns').select('id, auth_id, nome_completo').eq('terreiro_id', idTerreiroGlobal);
+            const { data: todosMediuns } = await supabaseClient.from('mediuns').select('id, auth_id, nome_completo');
             
             document.getElementById('totalPresentes').textContent = presencas ? presencas.length : '0';
 
@@ -302,7 +239,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     let listaMediunsGlobal = []; 
 
     async function carregarQuadroMediuns() {
-        if(!idTerreiroGlobal) return;
         const tbody = document.getElementById('tabelaTodosMediuns');
         if (!tbody) return;
         tbody.innerHTML = '<tr><td colspan="6" class="text-center p-8 text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>Buscando corrente...</td></tr>';
@@ -317,6 +253,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (error) throw error;
 
             listaMediunsGlobal = data || [];
+            window.mediunsFiltrados = listaMediunsGlobal;
             renderizarTabelaMediuns(listaMediunsGlobal);
             renderizarAniversariantes(listaMediunsGlobal);
             
@@ -353,7 +290,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             let acoesHtml = '<span class="text-gray-400 text-xs">Sem acesso</span>';
             
             if (perfilAdminLogado && perfilAdminLogado.is_admin) {
-                const perms = `${m.perm_agenda || false},${m.perm_grau || false},${m.perm_financeiro || false},${m.perm_doacoes || false},${m.perm_admin || false},${m.perm_visao_geral || false},${m.perm_ata || false}`;
+                const perms = `${m.perm_agenda || false},${m.perm_grau || false},${m.perm_financeiro || false},${m.perm_doacoes || false},${m.perm_admin || false},${m.perm_visao_geral || false}`;
                 acoesHtml = `
                     <div class="flex items-center justify-center space-x-4">
                         <button onclick="abrirModalPermissoes(${m.id}, '${m.nome_completo.replace(/'/g, "\\'")}', '${perms}')" class="text-blue-500 hover:text-blue-700 transition" title="Permissões de Acesso"><i class="fas fa-key"></i></button>
@@ -410,8 +347,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             if(b.data_nascimento.includes('-')) diaB = parseInt(b.data_nascimento.split('-')[2]);
             return diaA - diaB;
         });
-
-        window.aniversariantesAtuais = aniversariantes; // Salva para a impressão de PDF
 
         ul.innerHTML = '';
 
@@ -491,61 +426,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             return passaNome && passaGrau && passaStatus && passaMes;
         });
 
+        window.mediunsFiltrados = listaFiltrada;
         renderizarTabelaMediuns(listaFiltrada);
     }
-
-    // Função universal e otimizada para gerar relatórios em PDF (A4) com marca d'água
-    window.gerarPDFRelatorio = (titulo, colunas, dados) => {
-        const containerPDF = document.createElement('div');
-        containerPDF.style.padding = '20px 30px';
-        containerPDF.style.fontFamily = 'Arial, sans-serif';
-        containerPDF.style.color = '#333';
-        containerPDF.style.position = 'relative';
-
-        // Marca d'água centralizada com o Logo (super discreta)
-        let watermark = '';
-        if (logoTerreiroGlobal) {
-            watermark = `<div style="position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); opacity: 0.08; z-index: -1; pointer-events: none;">
-                            <img src="${logoTerreiroGlobal}" style="width: 400px; max-width: 80%;">
-                         </div>`;
-        }
-
-        let html = `
-            ${watermark}
-            <div style="text-align: center; margin-bottom: 15px; border-bottom: 2px solid #16a34a; padding-bottom: 10px;">
-                <h2 style="margin: 0; color: #1e3a8a; font-size: 20px; text-transform: uppercase;">${nomeTerreiroGlobal || 'Templo'}</h2>
-                <h3 style="margin: 4px 0 0 0; color: #444; font-size: 16px;">${titulo}</h3>
-                <p style="margin: 4px 0 0 0; color: #666; font-size: 11px;">Emitido em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</p>
-            </div>
-            <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
-                <thead>
-                    <tr style="background-color: #f3f4f6;">
-                        ${colunas.map(c => `<th style="padding: 6px 4px; border: 1px solid #ddd; text-align: left; font-weight: bold; color: #555;">${c}</th>`).join('')}
-                    </tr>
-                </thead>
-                <tbody>
-        `;
-        
-        dados.forEach((linha, i) => {
-            const bg = i % 2 === 0 ? '#ffffff' : '#f9fafb';
-            html += `<tr style="background-color: ${bg};">
-                        ${linha.map(celula => `<td style="padding: 3px 4px; border: 1px solid #ddd; color: #222; border-bottom: 1px solid #eee;">${celula}</td>`).join('')}
-                     </tr>`;
-        });
-        
-        html += `</tbody></table>`;
-        containerPDF.innerHTML = html;
-
-        const opt = {
-            margin:       10,
-            filename:     `${titulo.replace(/\s+/g, '_')}.pdf`,
-            image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true },
-            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
-
-        html2pdf().set(opt).from(containerPDF).save();
-    };
 
     // Configuração dos eventos de Filtro e PDF
     setTimeout(() => {
@@ -554,74 +437,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('filtroStatusMedium')?.addEventListener('change', aplicarFiltrosMediuns);
         document.getElementById('filtroMesNascimento')?.addEventListener('change', aplicarFiltrosMediuns);
         
-        // Botão PDF: Quadro Geral
         document.getElementById('btnImprimirMediuns')?.addEventListener('click', () => {
-            const btn = document.getElementById('btnImprimirMediuns');
-            const originalHtml = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Gerando...';
-            btn.disabled = true;
-            
-            const lista = window.mediunsFiltrados || listaMediunsGlobal;
-            const dados = lista.map(m => {
-                let dataNasc = '-';
-                if (m.data_nascimento) {
-                    if (m.data_nascimento.includes('-')) {
-                        const p = m.data_nascimento.split('-');
-                        if(p.length === 3) dataNasc = `${p[2]}/${p[1]}/${p[0]}`;
-                    } else dataNasc = m.data_nascimento;
-                }
-                const nomeStr = m.nome_social ? `${m.nome_completo} (${m.nome_social})` : m.nome_completo;
-                const whats = m.telefone || '-';
-                
-                return [nomeStr, dataNasc, m.grau || '-', m.funcao || '-', whats];
-            });
-            
-            window.gerarPDFRelatorio('Quadro Oficial de Médiuns', ['Nome Completo', 'Nascimento', 'Grau', 'Função', 'WhatsApp'], dados);
-            
-            setTimeout(() => { btn.innerHTML = originalHtml; btn.disabled = false; }, 2000);
-        });
-
-        // Botão PDF: Aniversariantes
-        document.getElementById('btnImprimirAniversariantes')?.addEventListener('click', () => {
-            const btn = document.getElementById('btnImprimirAniversariantes');
-            const originalHtml = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-            btn.disabled = true;
-            
-            const lista = window.aniversariantesAtuais || [];
-            if(lista.length === 0) {
-                alert("Nenhum aniversariante neste mês para gerar relatório.");
-                btn.innerHTML = originalHtml;
-                btn.disabled = false;
-                return;
-            }
-            
-            const dados = lista.map(m => {
-                let dataNasc = '-';
-                let diaMes = '-';
-                if (m.data_nascimento) {
-                    if (m.data_nascimento.includes('-')) {
-                        const p = m.data_nascimento.split('-');
-                        if(p.length === 3) {
-                            dataNasc = `${p[2]}/${p[1]}/${p[0]}`;
-                            diaMes = `${p[2]}/${p[1]}`;
-                        }
-                    } else {
-                        dataNasc = m.data_nascimento;
-                        if(dataNasc.includes('/')) diaMes = dataNasc.substring(0, 5);
-                    }
-                }
-                const nomeStr = m.nome_social ? `${m.nome_completo} (${m.nome_social})` : m.nome_completo;
-                
-                return [diaMes, nomeStr, m.grau || '-', dataNasc];
-            });
-            
-            const mesAtual = new Date().toLocaleString('pt-BR', { month: 'long' });
-            const titulo = `Aniversariantes de ${mesAtual.charAt(0).toUpperCase() + mesAtual.slice(1)}`;
-            
-            window.gerarPDFRelatorio(titulo, ['Dia', 'Nome Completo', 'Grau', 'Nascimento'], dados);
-            
-            setTimeout(() => { btn.innerHTML = originalHtml; btn.disabled = false; }, 2000);
+            window.print();
         });
     }, 500);
 
@@ -677,7 +494,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.abrirModalPermissoes = (id, nome, permsString) => {
         document.getElementById('idMediumPermissao').value = id;
         document.getElementById('nomeMediumPermissao').textContent = nome;
-        const [pAgenda, pGrau, pFin, pDoa, pAdmin, pVisao, pAta] = permsString.split(',');
+        const [pAgenda, pGrau, pFin, pDoa, pAdmin, pVisao] = permsString.split(',');
         
         document.getElementById('chkPermAgenda').checked = pAgenda === 'true';
         document.getElementById('chkPermGrau').checked = pGrau === 'true';
@@ -685,7 +502,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('chkPermDoacoes').checked = pDoa === 'true';
         document.getElementById('chkPermAdmin').checked = pAdmin === 'true';
         if (document.getElementById('chkPermVisao')) document.getElementById('chkPermVisao').checked = pVisao === 'true';
-        if (document.getElementById('chkPermAta')) document.getElementById('chkPermAta').checked = pAta === 'true';
+        if (document.getElementById('chkPermAta')) document.getElementById('chkPermAta').checked = false; 
         
         document.getElementById('modalPermissoes').classList.remove('hidden');
     };
@@ -725,13 +542,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // ==========================================
-    // AGENDA E EVENTOS (COM CORREÇÃO DE FUSO E ATA PADRÃO E UPLOAD)
+    // AGENDA E EVENTOS (COM CORREÇÃO DE FUSO E ATA PADRÃO)
     // ==========================================
     async function carregarAgenda() {
-        if(!idTerreiroGlobal) return;
         const tbody = document.getElementById('tabelaGirasCadastradas');
         const agora = new Date().toISOString();
-        const { data } = await supabaseClient.from('agenda').select('*').eq('terreiro_id', idTerreiroGlobal).gte('data_hora_fim', agora).order('data_hora_inicio').limit(15); 
+        const { data } = await supabaseClient.from('agenda').select('*').gte('data_hora_fim', agora).order('data_hora_inicio').limit(15); 
         tbody.innerHTML = '';
         if(data && data.length > 0) {
             data.forEach(g => {
@@ -815,6 +631,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (document.getElementById('formEditarGira')) {
         document.getElementById('formEditarGira').addEventListener('submit', async (e) => {
             e.preventDefault();
+            // CORREÇÃO: Usando o ID exato que está no HTML (btnSalvarEditGira)
             const btn = document.getElementById('btnSalvarEditGira');
             if (btn) { btn.disabled = true; btn.innerHTML = 'Salvando...'; }
 
@@ -823,6 +640,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const inicioRaw = document.getElementById('editGiraInicio').value;
                 const fimRaw = document.getElementById('editGiraFim').value;
                 
+                // CORREÇÃO: Adiciona a assinatura de fuso horário "-03:00" explicitamente
                 const inicioBR = inicioRaw ? `${inicioRaw}:00-03:00` : null;
                 const fimBR = fimRaw ? `${fimRaw}:00-03:00` : null;
 
@@ -861,7 +679,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const linkA = document.getElementById('giraImagem').value;
                 const fileInput = document.getElementById('giraArquivo');
                 
+                // CORREÇÃO: Gera a ATA por padrão a menos que esteja explicitamente desmarcado
                 const chkGeraAta = document.getElementById('giraGeraAta') ? document.getElementById('giraGeraAta').checked : true;
+                
+                // CORREÇÃO: Adiciona a assinatura de fuso horário "-03:00" explicitamente
                 const inicioBR = inicioRaw ? `${inicioRaw}:00-03:00` : null;
                 const fimBR = fimRaw ? `${fimRaw}:00-03:00` : null;
                 
@@ -912,7 +733,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     // LIVRO DE PRESENÇA (ATA)
     // ==========================================
     window.carregarLivroAta = async () => {
-        if(!idTerreiroGlobal) return;
         const tbody = document.getElementById('tabelaLivroAta');
         if(!tbody) return;
         tbody.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-gray-500">Buscando histórico de ATAs...</td></tr>';
@@ -1196,10 +1016,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     function renderizarOpcoes(lista, valorAtual) { return lista.map(op => `<option value="${op === '-' ? '' : op}" ${op === valorAtual ? 'selected' : ''}>${op}</option>`).join(''); }
 
     async function carregarTabelaGraus() {
-        if(!idTerreiroGlobal) return;
         const tbody = document.getElementById('tabelaGraus');
         tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center">Buscando...</td></tr>';
-        const { data } = await supabaseClient.from('mediuns').select('id, nome_completo, grau, funcao').eq('terreiro_id', idTerreiroGlobal).order('nome_completo');
+        const { data } = await supabaseClient.from('mediuns').select('id, nome_completo, grau, funcao').order('nome_completo');
         if (data) { mediunsGrauCache = data; renderizarGraus(data); }
     }
 
@@ -1239,12 +1058,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     // FINANCEIRO
     // ==========================================
     async function carregarFinanceiro() {
-        if(!idTerreiroGlobal) return;
         const ano = parseInt(document.getElementById('selectAnoFinanceiro').value);
         const tbody = document.getElementById('tabelaFinanceiro');
         tbody.innerHTML = '<tr><td colspan="14" class="p-6 text-center text-gray-500">Buscando histórico...</td></tr>';
         
-        const { data: mediuns } = await supabaseClient.from('mediuns').select('id, nome_completo').eq('terreiro_id', idTerreiroGlobal).order('nome_completo');
+        const { data: mediuns } = await supabaseClient.from('mediuns').select('id, nome_completo').order('nome_completo');
         const { data: pgtos } = await supabaseClient.from('financeiro').select('*').eq('ano', ano);
         
         if(!mediuns) return;
@@ -1303,6 +1121,33 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    // CORREÇÃO: Lógica do Leaflet (Minimapa) e Salvamento Manual Embutidos Corretamente no JS
+    function iniciarMapa(lat, lng, zoomLvl) {
+        const mapEl = document.getElementById('mapaLocalizacao');
+        const overlay = document.getElementById('mapaOverlay');
+        if(!mapaGlobal && mapEl && typeof L !== 'undefined') {
+            if(overlay) overlay.classList.add('hidden');
+            mapaGlobal = L.map('mapaLocalizacao').setView([lat, lng], zoomLvl);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(mapaGlobal);
+            
+            marcadorGlobal = L.marker([lat, lng]).addTo(mapaGlobal);
+            circuloGlobal = L.circle([lat, lng], { color: 'green', fillColor: '#22c55e', fillOpacity: 0.2, radius: 50 }).addTo(mapaGlobal);
+
+            mapaGlobal.on('click', function(e) {
+                document.getElementById('inputLat').value = e.latlng.lat;
+                document.getElementById('inputLng').value = e.latlng.lng;
+                marcadorGlobal.setLatLng([e.latlng.lat, e.latlng.lng]);
+                circuloGlobal.setLatLng([e.latlng.lat, e.latlng.lng]);
+            });
+        } else if(mapaGlobal) {
+            if(overlay) overlay.classList.add('hidden');
+            mapaGlobal.setView([lat, lng], zoomLvl);
+            marcadorGlobal.setLatLng([lat, lng]);
+            circuloGlobal.setLatLng([lat, lng]);
+        }
+        setTimeout(() => { if(mapaGlobal) mapaGlobal.invalidateSize(); }, 300);
+    }
+
     if (document.getElementById('btnGravarLocalizacao')) {
         document.getElementById('btnGravarLocalizacao').addEventListener('click', async () => {
             const btn = document.getElementById('btnGravarLocalizacao');
@@ -1317,22 +1162,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                 async (pos) => {
                     const lat = pos.coords.latitude, lon = pos.coords.longitude;
                     if(idTerreiroGlobal) {
-                        const { data, error } = await supabaseClient.from('terreiros')
-                            .update({ latitude: lat, longitude: lon })
-                            .eq('id', idTerreiroGlobal)
-                            .select(); 
-
+                        const { error } = await supabaseClient.from('terreiros').update({ latitude: lat, longitude: lon }).eq('id', idTerreiroGlobal);
                         if(error) {
                             if(msg) { msg.className = 'mt-4 text-sm font-bold text-red-600 block'; msg.textContent = 'Erro ao salvar no banco: ' + error.message; }
-                        } else if (!data || data.length === 0) {
-                            if(msg) { msg.className = 'mt-4 text-sm font-bold text-red-600 block'; msg.textContent = 'ERRO: O Banco de Dados recusou a alteração. Nenhuma linha foi salva.'; }
                         } else {
                             if(msg) { msg.className = 'mt-4 text-sm font-bold text-green-600 block'; msg.innerHTML = '<i class="fas fa-check-circle mr-2"></i> Ponto Registrado!'; setTimeout(() => msg.classList.add('hidden'), 3000); }
                             if(document.getElementById('inputLat')) {
                                 document.getElementById('inputLat').value = lat;
                                 document.getElementById('inputLng').value = lon;
                             }
-                            if (typeof iniciarMapa === 'function') iniciarMapa(lat, lon, 18);
+                            iniciarMapa(lat, lon, 18);
                         }
                     }
                 },
@@ -1357,24 +1196,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Salvando...';
-            
-            const { data, error } = await supabaseClient.from('terreiros')
-                .update({ latitude: lat, longitude: lng })
-                .eq('id', idTerreiroGlobal)
-                .select(); 
-                
+            const { error } = await supabaseClient.from('terreiros').update({ latitude: lat, longitude: lng }).eq('id', idTerreiroGlobal);
             btn.disabled = false; btn.innerHTML = '<i class="fas fa-save mr-2"></i> Salvar Manualmente';
             
             if(error) {
                 if(msg) { msg.textContent = "Erro: " + error.message; msg.className = "mt-4 text-sm font-bold text-red-600 block"; msg.classList.remove('hidden'); }
-            } else if (!data || data.length === 0) {
-                if(msg) { msg.textContent = "ERRO: O Banco de Dados recusou a alteração. Regra RLS bloqueou a gravação."; msg.className = "mt-4 text-sm font-bold text-red-600 block"; msg.classList.remove('hidden'); }
             } else {
                 if(msg) { msg.textContent = "Localização salva com sucesso!"; msg.className = "mt-4 text-sm font-bold text-green-600 block"; msg.classList.remove('hidden'); setTimeout(() => msg.classList.add('hidden'), 3000); }
-                if (typeof iniciarMapa === 'function') iniciarMapa(lat, lng, 18);
+                iniciarMapa(lat, lng, 18);
             }
         });
     }
+
 
     if(document.getElementById('uploadLogo')) {
         document.getElementById('uploadLogo').addEventListener('change', function(e) {
@@ -1414,6 +1247,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 document.getElementById('logoSidebar').src = urlData.publicUrl;
                 document.getElementById('logoSidebar').classList.remove('hidden');
 
+                // ATUALIZA O FAVICON NA HORA DO UPLOAD TAMBÉM
                 let linkFavicon = document.querySelector("link[rel~='icon']");
                 if (!linkFavicon) {
                     linkFavicon = document.createElement('link');
@@ -1463,8 +1297,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             const { data: doacoes, error: errD } = await supabaseClient.from('doacoes_registradas').select('*').eq('terreiro_id', idTerreiroGlobal).order('entregue', { ascending: true }).order('data_registro', { ascending: false }); 
             if (errD) throw errD;
-            const { data: mediuns } = await supabaseClient.from('mediuns').select('auth_id, nome_completo').eq('terreiro_id', idTerreiroGlobal);
-            const { data: itens } = await supabaseClient.from('itens_doacao').select('id, nome, descricao').eq('terreiro_id', idTerreiroGlobal);
+            const { data: mediuns } = await supabaseClient.from('mediuns').select('auth_id, nome_completo');
+            const { data: itens } = await supabaseClient.from('itens_doacao').select('id, nome, descricao');
             window.dadosDoacoesParaPDF = { doacoes, mediuns, itens };
 
             if (!doacoes || doacoes.length === 0) {
@@ -1516,7 +1350,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     // ==========================================
-    // SAAS / GESTÃO E CONTEXT SWITCHER
+    // SAAS / GESTÃO
     // ==========================================
     window.carregarGestaoPlataforma = async () => {
         const tbody = document.getElementById('tabelaMasterTerreiros');
@@ -1529,29 +1363,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         tbody.innerHTML = '';
         data.forEach(t => {
             const statusHtml = t.status_bloqueado ? '<span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded font-bold">Bloqueado</span>' : '<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded font-bold">Ativo</span>';
+            const btnBloqueio = t.status_bloqueado ? `<button onclick="alternarBloqueioTerreiro(${t.id}, false)" class="text-xs bg-gray-800 text-white py-1 px-3 rounded shadow">Desbloquear</button>` : `<button onclick="alternarBloqueioTerreiro(${t.id}, true)" class="text-xs bg-red-600 text-white py-1 px-3 rounded shadow">Bloquear</button>`;
             
-            const btnBloqueio = t.status_bloqueado 
-                ? `<button onclick="alternarBloqueioTerreiro('${t.id}', false)" class="text-xs bg-gray-800 text-white py-1 px-3 rounded shadow">Desbloquear</button>` 
-                : `<button onclick="alternarBloqueioTerreiro('${t.id}', true)" class="text-xs bg-red-600 text-white py-1 px-3 rounded shadow">Bloquear</button>`;
+            const btnImportar = `<button onclick="abrirModalImportacao(${t.id}, '${t.nome.replace(/'/g, "\\'")}')" class="text-xs bg-blue-600 hover:bg-blue-700 text-white py-1 px-3 rounded shadow ml-2"><i class="fas fa-file-csv"></i> CSV</button>`;
             
-            const btnImportar = `<button onclick="abrirModalImportacao('${t.id}', '${t.nome.replace(/'/g, "\\'")}')" class="text-xs bg-blue-600 hover:bg-blue-700 text-white py-1 px-3 rounded shadow ml-2"><i class="fas fa-file-csv"></i> CSV</button>`;
-            
-            const btnAcessar = `<button onclick="acessarTerreiroSaaS('${t.id}')" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white py-1 px-3 rounded shadow mr-2"><i class="fas fa-sign-in-alt"></i> Acessar</button>`;
-            
-            const acaoHtml = `<div class="flex justify-center items-center">${btnAcessar}${btnBloqueio}${btnImportar}</div>`;
+            const acaoHtml = `<div class="flex justify-center items-center">${btnBloqueio}${btnImportar}</div>`;
             
             tbody.innerHTML += `<tr class="border-b border-gray-100 ${t.status_bloqueado ? 'bg-red-50' : ''}"><td class="p-3 text-sm font-mono">${t.id}</td><td class="p-3 font-bold">${t.nome}</td><td class="p-3 text-center">${statusHtml}</td><td class="p-3 text-center">${acaoHtml}</td></tr>`;
         });
-    };
-
-    window.acessarTerreiroSaaS = (idTerreiro) => {
-        localStorage.setItem('terreiroAtivoSaaS', idTerreiro);
-        window.location.reload();
-    };
-
-    window.voltarParaMeuPainel = () => {
-        localStorage.removeItem('terreiroAtivoSaaS');
-        window.location.reload();
     };
 
     window.alternarBloqueioTerreiro = async (idTerreiro, vaiBloquear) => {
