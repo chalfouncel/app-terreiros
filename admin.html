@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Painel Admin - Templo</title>
+    
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#1e3a8a">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3269/3269828.png">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -613,7 +619,7 @@
                     <div class="p-4 border border-gray-100 rounded-lg bg-gray-50 flex justify-between items-center hover:shadow-sm transition">
                         <div>
                             <h4 class="font-bold text-gray-800">Cor do Texto Principal</h4>
-                            <p class="text-xs text-gray-500">Textos em destaque, títulos e rótulos.</p>
+                            <p class="text-xs text-gray-500">Textos em destaque, titles e rótulos.</p>
                         </div>
                         <input type="color" id="corTexto" class="w-14 h-14 cursor-pointer border-0 rounded bg-transparent">
                     </div>
@@ -960,6 +966,16 @@
                 setTimeout(() => msg.classList.add('hidden'), 3000);
             }
         });
+    </script>
+
+    <!-- PWA Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .catch(error => console.error('Erro ao registrar o Service Worker:', error));
+            });
+        }
     </script>
 </body>
 </html>
