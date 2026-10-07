@@ -110,8 +110,14 @@ document.querySelector('form').addEventListener('submit', async (e) => {
             throw new Error('Identificação ou senha incorretos.');
         }
 
-        // LOGIN NORMAL FEITO COM SUCESSO! Joga pra tela principal
-        window.location.href = 'presenca.html'; 
+        // LOGIN FEITO COM SUCESSO! Decide pra onde mandar:
+        if (identificacao.includes('@')) {
+            // Se logou com e-mail, é Administrador/Master
+            window.location.href = 'admin.html';
+        } else {
+            // Se logou com ID, Nome ou Telefone, é Médium
+            window.location.href = 'presenca.html'; 
+        }
 
     } catch (erro) {
         if (msgErro) {
