@@ -13,7 +13,7 @@ let circuloGlobal = null;
 // ==============================================================================
 function comprimirImagem(file, maxWidth = 1200, maxHeight = 1200, quality = 0.82) {
     return new Promise((resolve, reject) => {
-        if (!file.type.match(/image.*/)) {
+        if (!file || !file.type || !file.type.match(/image.*/)) {
             return resolve(file);
         }
 
@@ -44,9 +44,7 @@ function comprimirImagem(file, maxWidth = 1200, maxHeight = 1200, quality = 0.82
                 ctx.drawImage(image, 0, 0, width, height);
 
                 canvas.toBlob((blob) => {
-                    if (!blob) {
-                        return resolve(file);
-                    }
+                    if (!blob) return resolve(file);
                     const ext = file.name.split('.').pop() || 'jpg';
                     const novoArquivo = new File([blob], file.name.replace(/\.[^/.]+$/, `.${ext}`), {
                         type: file.type.includes('png') ? 'image/png' : 'image/jpeg',
@@ -55,58 +53,61 @@ function comprimirImagem(file, maxWidth = 1200, maxHeight = 1200, quality = 0.82
                     resolve(novoArquivo);
                 }, file.type.includes('png') ? 'image/png' : 'image/jpeg', quality);
             };
-            image.onerror = (err) => reject(err);
+            image.onerror = (err) => resolve(file);
             image.src = readerEvent.target.result;
         };
-        reader.onerror = (err) => reject(err);
+        reader.onerror = (err) => resolve(file);
         reader.readAsDataURL(file);
     });
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // Data Cabeçalho
-    const dataOpcoes = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-    const dataStr = new Date().toLocaleDateString('pt-BR', dataOpcoes);
-    document.getElementById('dataHoje').textContent = dataStr;
-    if(document.getElementById('dataHojeMobile')) document.getElementById('dataHojeMobile').textContent = dataStr;
-
-    // Controle do Menu Mobile
-    const sidebar = document.getElementById('sidebar');
-    const overlayMobile = document.getElementById('overlayMobile');
-    const btnAbrirMenu = document.getElementById('btnAbrirMenu');
-    const btnFecharMenu = document.getElementById('btnFecharMenu');
-
-    function toggleMenu() {
-        const isOpen = !sidebar.classList.contains('-translate-x-full');
-        if (isOpen) {
-            sidebar.classList.add('-translate-x-full');
-            overlayMobile.classList.add('hidden');
-        } else {
-            sidebar.classList.remove('-translate-x-full');
-            overlayMobile.classList.remove('hidden');
-        }
-    }
-
-    if(btnAbrirMenu) btnAbrirMenu.addEventListener('click', toggleMenu);
-    if(btnFecharMenu) btnFecharMenu.addEventListener('click', toggleMenu);
-    if(overlayMobile) overlayMobile.addEventListener('click', toggleMenu);
-
-    // Verifica Sessão
-    const { data: { session } } = await supabaseClient.auth.getSession();
-    if (!session) return window.location.href = 'index.html';
-
-    // Botão Sair
-    const btnSair = document.getElementById('btnSair');
-    if (btnSair) {
-        btnSair.addEventListener('click', async () => {
-            btnSair.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Saindo...';
-            await supabaseClient.auth.signOut(); 
-            localStorage.clear(); 
-            window.location.href = 'index.html'; 
-        });
-    }
-
     try {
+        // Data Cabeçalho (com proteção para não quebrar caso o elemento não exista)
+        const dataOpcoes = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        const dataStr = new Date().toLocaleDateString('pt-BR', dataOpcoes);
+        const elDataHoje = document.getElementById('dataHoje');
+        if (elDataHoje) elDataHoje.textContent = dataStr;
+        const elDataMobile = document.getElementById('dataHojeMobile');
+        if (elDataMobile) elDataMobile.textContent = dataStr;
+
+        // Controle do Menu Mobile
+        const sidebar = document.getElementById('sidebar');
+        const overlayMobile = document.getElementById('overlayMobile');
+        const btnAbrirMenu = document.getElementById('btnAbrirMenu');
+        const btnFecharMenu = document.getElementById('btnFecharMenu');
+
+        function toggleMenu() {
+            if (!sidebar || !overlayMobile) return;
+            const isOpen = !sidebar.classList.contains('-translate-x-full');
+            if (isOpen) {
+                sidebar.classList.add('-translate-x-full');
+                overlayMobile.classList.add('hidden');
+            } else {
+                sidebar.classList.remove('-translate-x-full');
+                overlayMobile.classList.remove('hidden');
+            }
+        }
+
+        if(btnAbrirMenu) btnAbrirMenu.addEventListener('click', toggleMenu);
+        if(btnFecharMenu) btnFecharMenu.addEventListener('click', toggleMenu);
+        if(overlayMobile) overlayMobile.addEventListener('click', toggleMenu);
+
+        // Verifica Sessão
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (!session) return window.location.href = 'index.html';
+
+        // Botão Sair
+        const btnSair = document.getElementById('btnSair');
+        if (btnSair) {
+            btnSair.addEventListener('click', async () => {
+                btnSair.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Saindo...';
+                await supabaseClient.auth.signOut(); 
+                localStorage.clear(); 
+                window.location.href = 'index.html'; 
+            });
+        }
+
         const { data: perfil, error: erroPerfil } = await supabaseClient
             .from('mediuns')
             .select('nome_completo, is_admin, terreiro_id, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin, is_master, perm_visao_geral, perm_ata')
@@ -169,24 +170,23 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (el) el.classList.add('hidden');
             });
             document.querySelectorAll('#sidebar hr').forEach(hr => hr.classList.add('hidden'));
-            document.getElementById('nomeTerreiroSidebar').textContent = "Gestão SaaS";
+            const elSide = document.getElementById('nomeTerreiroSidebar');
+            if (elSide) elSide.textContent = "Gestão SaaS";
         } else {
             if (!perfil.is_admin) {
-                if (!perfil.perm_visao_geral) document.getElementById('menuVisaoGeral').classList.add('hidden');
-                if (!perfil.perm_agenda) document.getElementById('menuAgendaGiras').classList.add('hidden');
-                if (!perfil.perm_ata) { 
-                    const menuAta = document.getElementById('menuLivroAta');
-                    if(menuAta) menuAta.classList.add('hidden');
-                }
-                if (!perfil.perm_grau) document.getElementById('menuGrau').classList.add('hidden');
-                if (!perfil.perm_financeiro) document.getElementById('menuFinanceiro').classList.add('hidden');
-                if (!perfil.perm_doacoes) document.getElementById('menuDoacoes').classList.add('hidden');
-                if (!perfil.perm_admin) document.getElementById('menuAdmin').classList.add('hidden');
+                if (!perfil.perm_visao_geral && document.getElementById('menuVisaoGeral')) document.getElementById('menuVisaoGeral').classList.add('hidden');
+                if (!perfil.perm_agenda && document.getElementById('menuAgendaGiras')) document.getElementById('menuAgendaGiras').classList.add('hidden');
+                if (!perfil.perm_ata && document.getElementById('menuLivroAta')) document.getElementById('menuLivroAta').classList.add('hidden');
+                if (!perfil.perm_grau && document.getElementById('menuGrau')) document.getElementById('menuGrau').classList.add('hidden');
+                if (!perfil.perm_financeiro && document.getElementById('menuFinanceiro')) document.getElementById('menuFinanceiro').classList.add('hidden');
+                if (!perfil.perm_doacoes && document.getElementById('menuDoacoes')) document.getElementById('menuDoacoes').classList.add('hidden');
+                if (!perfil.perm_admin && document.getElementById('menuAdmin')) document.getElementById('menuAdmin').classList.add('hidden');
             }
         }
 
-        const primeiroNome = perfil.nome_completo.split(' ')[0];
-        document.getElementById('nomeAdmin').textContent = 'Olá, ' + primeiroNome;
+        const primeiroNome = perfil.nome_completo ? perfil.nome_completo.split(' ')[0] : 'Admin';
+        const elNomeAdmin = document.getElementById('nomeAdmin');
+        if (elNomeAdmin) elNomeAdmin.textContent = 'Olá, ' + primeiroNome;
         const nomeMobileEl = document.getElementById('nomeAdminMobile');
         if (nomeMobileEl) nomeMobileEl.textContent = primeiroNome;
         
@@ -200,7 +200,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (terreiro) {
                 nomeTerreiroGlobal = terreiro.nome;
                 logoTerreiroGlobal = terreiro.logo_url;
-                document.getElementById('nomeTerreiroSidebar').textContent = terreiro.nome;
+                const elSide = document.getElementById('nomeTerreiroSidebar');
+                if (elSide) elSide.textContent = terreiro.nome;
                 
                 const root = document.documentElement;
                 if(terreiro.cor_primaria) root.style.setProperty('--cor-primaria', terreiro.cor_primaria);
@@ -210,16 +211,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 if(terreiro.logo_url) {
                     const img = document.getElementById('logoSidebar');
-                    img.src = terreiro.logo_url;
-                    img.classList.remove('hidden');
-
-                    let linkFavicon = document.querySelector("link[rel~='icon']");
-                    if (!linkFavicon) {
-                        linkFavicon = document.createElement('link');
-                        linkFavicon.rel = 'icon';
-                        document.head.appendChild(linkFavicon);
+                    if (img) {
+                        img.src = terreiro.logo_url;
+                        img.classList.remove('hidden');
                     }
-                    linkFavicon.href = terreiro.logo_url;
                 }
             }
         }
@@ -243,64 +238,64 @@ document.addEventListener('DOMContentLoaded', async () => {
                 };
 
                 if (menu.id === 'menuVisaoGeral') {
-                    document.getElementById('secVisaoGeral').classList.remove('hidden');
+                    document.getElementById('secVisaoGeral')?.classList.remove('hidden');
                     aplicarTitulos('Visão Geral');
                     carregarPainelInicial();
                 } else if (menu.id === 'menuQuadroMediuns') {
-                    document.getElementById('secQuadroMediuns').classList.remove('hidden');
+                    document.getElementById('secQuadroMediuns')?.classList.remove('hidden');
                     aplicarTitulos('Quadro de Médiuns');
                     carregarQuadroMediuns();
                 } else if (menu.id === 'menuAgendaGiras') {
-                    document.getElementById('secAgendaGiras').classList.remove('hidden');
+                    document.getElementById('secAgendaGiras')?.classList.remove('hidden');
                     aplicarTitulos('Agenda de Eventos');
                     carregarAgenda();
                 } else if (menu.id === 'menuLivroAta') {
-                    document.getElementById('secLivroAta').classList.remove('hidden');
+                    document.getElementById('secLivroAta')?.classList.remove('hidden');
                     aplicarTitulos('Livro de Presença (ATA)');
                     carregarLivroAta();
                 } else if (menu.id === 'menuGrau') {
-                    document.getElementById('secGrau').classList.remove('hidden');
+                    document.getElementById('secGrau')?.classList.remove('hidden');
                     aplicarTitulos('Alteração de Grau');
                     carregarTabelaGraus();
                 } else if (menu.id === 'menuFinanceiro') {
-                    document.getElementById('secFinanceiro').classList.remove('hidden');
+                    document.getElementById('secFinanceiro')?.classList.remove('hidden');
                     aplicarTitulos('Controle Financeiro');
                     carregarFinanceiro();
                 } else if (menu.id === 'menuDoacoes') {
-                    document.getElementById('secDoacoes').classList.remove('hidden');
+                    document.getElementById('secDoacoes')?.classList.remove('hidden');
                     aplicarTitulos('Doações e Campanhas');
                     carregarDoacoesPrometidas();
                     carregarDoacoesCatalogo();
                 } else if (menu.id === 'menuAdmin') {
-                    document.getElementById('secAdministracao').classList.remove('hidden');
+                    document.getElementById('secAdministracao')?.classList.remove('hidden');
                     aplicarTitulos('Configurações da Casa');
                     carregarConfiguracoesCasa();
                 } else if (menu.id === 'menuMaster') {
-                    document.getElementById('secMaster').classList.remove('hidden');
+                    document.getElementById('secMaster')?.classList.remove('hidden');
                     aplicarTitulos('Gestão da Plataforma (SaaS)');
                     carregarGestaoPlataforma();
                 }
 
-                if (window.innerWidth < 768) {
+                if (window.innerWidth < 768 && sidebar && overlayMobile) {
                     sidebar.classList.add('-translate-x-full');
                     overlayMobile.classList.add('hidden');
                 }
             });
         });
 
+        // DEFINIÇÃO DA TELA INICIAL
         if (emModoMasterPuro) {
-            const m = document.getElementById('menuMaster');
-            if(m) m.click();
+            document.getElementById('menuMaster')?.click();
         } else if (perfil.is_admin || perfil.perm_visao_geral) {
-            document.getElementById('menuVisaoGeral').click();
+            document.getElementById('menuVisaoGeral')?.click();
         } else {
-            if (perfil.perm_agenda) document.getElementById('menuAgendaGiras').click();
-            else if (perfil.perm_ata) document.getElementById('menuLivroAta').click();
-            else if (perfil.perm_grau) document.getElementById('menuGrau').click();
-            else if (perfil.perm_financeiro) document.getElementById('menuFinanceiro').click();
-            else if (perfil.perm_doacoes) document.getElementById('menuDoacoes').click();
-            else if (perfil.perm_admin) document.getElementById('menuAdmin').click();
-            else document.getElementById('menuQuadroMediuns').click(); 
+            if (perfil.perm_agenda) document.getElementById('menuAgendaGiras')?.click();
+            else if (perfil.perm_ata) document.getElementById('menuLivroAta')?.click();
+            else if (perfil.perm_grau) document.getElementById('menuGrau')?.click();
+            else if (perfil.perm_financeiro) document.getElementById('menuFinanceiro')?.click();
+            else if (perfil.perm_doacoes) document.getElementById('menuDoacoes')?.click();
+            else if (perfil.perm_admin) document.getElementById('menuAdmin')?.click();
+            else document.getElementById('menuQuadroMediuns')?.click(); 
         }
 
     } catch (error) {
@@ -313,148 +308,154 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function carregarPainelInicial() {
         if(!idTerreiroGlobal) return; 
         
-        const { count: totalMediuns } = await supabaseClient.from('mediuns')
-            .select('*', { count: 'exact', head: true })
-            .eq('terreiro_id', idTerreiroGlobal)
-            .neq('nome_completo', 'Administrador Sistema');
-            
-        document.getElementById('totalMediuns').textContent = totalMediuns || '0';
-
-        const agora = new Date().toISOString();
-        const { data: agendaData } = await supabaseClient.from('agenda').select('*').eq('terreiro_id', idTerreiroGlobal).gte('data_hora_fim', agora).order('data_hora_inicio').limit(1);
-
-        let giraAtualId = null;
-
-        if (agendaData && agendaData.length > 0) {
-            giraAtualId = agendaData[0].id;
-            const dataGira = new Date(agendaData[0].data_hora_inicio).toLocaleString('pt-BR');
-            
-            const badgeRestrita = agendaData[0].especial ? '<span class="ml-2 bg-red-100 text-red-700 text-xs px-2 py-0.5 rounded font-bold uppercase">Restrita</span>' : '';
-            
-            document.getElementById('proximaGira').innerHTML = `${agendaData[0].titulo} ${badgeRestrita} <br><span class="text-sm font-normal text-gray-500">${dataGira}</span>`;
-        } else {
-            document.getElementById('proximaGira').textContent = 'Nenhum evento agendado';
-        }
-
-        const tabelaPresencas = document.getElementById('tabelaPresencas');
-        const { data: todosMediuns } = await supabaseClient.from('mediuns').select('id, auth_id, nome_completo, nome_social, grau, funcao, status_ativo').eq('terreiro_id', idTerreiroGlobal);
-
-        if (giraAtualId) {
-            const { data: presencas } = await supabaseClient.from('presencas').select('usuario_id, data_hora_checkin').eq('evento_id', giraAtualId).order('data_hora_checkin', { ascending: false });
-            
-            document.getElementById('totalPresentes').textContent = presencas ? presencas.length : '0';
-
-            if (presencas && presencas.length > 0) {
-                tabelaPresencas.innerHTML = ''; 
-                presencas.forEach(p => {
-                    const md = todosMediuns?.find(m => m.auth_id === p.usuario_id || String(m.id) === String(p.usuario_id));
-                    if (md && md.status_ativo === false) return;
-
-                    const nome = md ? (md.nome_social || md.nome_completo) : 'Médium Excluído';
-                    const hora = new Date(p.data_hora_checkin).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                    
-                    tabelaPresencas.innerHTML += `
-                        <tr class="border-b border-gray-100 hover:bg-gray-50">
-                            <td class="p-3 text-gray-800 font-medium">${nome}</td>
-                            <td class="p-3 text-gray-600 text-center">${hora}</td>
-                        </tr>
-                    `;
-                });
-            } else {
-                tabelaPresencas.innerHTML = `<tr><td colspan="2" class="p-6 text-center text-gray-500">Nenhum check-in ainda.</td></tr>`;
-            }
-        } else {
-            document.getElementById('totalPresentes').textContent = '0';
-            if(tabelaPresencas) tabelaPresencas.innerHTML = `<tr><td colspan="2" class="p-6 text-center text-gray-500">Nenhum evento agendado para o momento.</td></tr>`;
-        }
-
-        // ========================================================
-        // RELATÓRIO DO EVENTO: ORDENADO DO MAIS NOVO PARA O MAIS ANTIGO
-        // ========================================================
-        const selectRelatorio = document.getElementById('selectEventoRelatorio');
-        const btnGerarHistorico = document.getElementById('btnBaixarPdfEvento');
-
-        if (selectRelatorio) {
-            const { data: historicoEventos } = await supabaseClient
-                .from('agenda')
-                .select('id, titulo, data_hora_inicio, especial')
+        try {
+            const { count: totalMediuns } = await supabaseClient.from('mediuns')
+                .select('*', { count: 'exact', head: true })
                 .eq('terreiro_id', idTerreiroGlobal)
-                .order('data_hora_inicio', { ascending: false }); // Garante a ordenação decrescente (mais recente no topo)[cite: 6]
+                .neq('nome_completo', 'Administrador Sistema');
+                
+            const elTotalMed = document.getElementById('totalMediuns');
+            if (elTotalMed) elTotalMed.textContent = totalMediuns || '0';
 
-            selectRelatorio.innerHTML = '<option value="">Selecione um evento...</option>';
-            
-            if (historicoEventos && historicoEventos.length > 0) {
-                historicoEventos.forEach(ev => {
-                    const dataFormatada = new Date(ev.data_hora_inicio).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-                    const tipoEvento = ev.especial ? ' [Restrita]' : ' [Aberta]';
-                    selectRelatorio.innerHTML += `<option value="${ev.id}">${dataFormatada} - ${ev.titulo}${tipoEvento}</option>`;
-                });
+            const agora = new Date().toISOString();
+            const { data: agendaData } = await supabaseClient.from('agenda').select('*').eq('terreiro_id', idTerreiroGlobal).gte('data_hora_fim', agora).order('data_hora_inicio').limit(1);
+
+            let giraAtualId = null;
+            const elProxGira = document.getElementById('proximaGira');
+
+            if (agendaData && agendaData.length > 0) {
+                giraAtualId = agendaData[0].id;
+                const dataGira = new Date(agendaData[0].data_hora_inicio).toLocaleString('pt-BR');
+                const badgeRestrita = agendaData[0].especial ? '<span class="ml-2 bg-red-100 text-red-700 text-xs px-2 py-0.5 rounded font-bold uppercase">Restrita</span>' : '';
+                if (elProxGira) elProxGira.innerHTML = `${agendaData[0].titulo} ${badgeRestrita} <br><span class="text-sm font-normal text-gray-500">${dataGira}</span>`;
             } else {
-                selectRelatorio.innerHTML = '<option value="">Nenhum evento encontrado no histórico.</option>';
+                if (elProxGira) elProxGira.textContent = 'Nenhum evento agendado';
             }
-        }
 
-        if (btnGerarHistorico && selectRelatorio) {
-            const novoBtn = btnGerarHistorico.cloneNode(true);
-            btnGerarHistorico.parentNode.replaceChild(novoBtn, btnGerarHistorico);
+            const tabelaPresencas = document.getElementById('tabelaPresencas');
+            const { data: todosMediuns } = await supabaseClient.from('mediuns').select('id, auth_id, nome_completo, nome_social, grau, funcao, status_ativo').eq('terreiro_id', idTerreiroGlobal);
 
-            novoBtn.addEventListener('click', async () => {
-                const eventoIdSelecionado = selectRelatorio.value;
-                if (!eventoIdSelecionado) {
-                    alert('Por favor, selecione um evento na lista antes de clicar em Baixar.');
-                    return;
+            if (giraAtualId) {
+                const { data: presencas } = await supabaseClient.from('presencas').select('usuario_id, data_hora_checkin').eq('evento_id', giraAtualId).order('data_hora_checkin', { ascending: false });
+                
+                const elTotPres = document.getElementById('totalPresentes');
+                if (elTotPres) elTotPres.textContent = presencas ? presencas.length : '0';
+
+                if (tabelaPresencas) {
+                    if (presencas && presencas.length > 0) {
+                        tabelaPresencas.innerHTML = ''; 
+                        presencas.forEach(p => {
+                            const md = todosMediuns?.find(m => m.auth_id === p.usuario_id || String(m.id) === String(p.usuario_id));
+                            if (md && md.status_ativo === false) return;
+
+                            const nome = md ? (md.nome_social || md.nome_completo) : 'Médium Excluído';
+                            const hora = new Date(p.data_hora_checkin).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                            
+                            tabelaPresencas.innerHTML += `
+                                <tr class="border-b border-gray-100 hover:bg-gray-50">
+                                    <td class="p-3 text-gray-800 font-medium">${nome}</td>
+                                    <td class="p-3 text-gray-600 text-center">${hora}</td>
+                                </tr>
+                            `;
+                        });
+                    } else {
+                        tabelaPresencas.innerHTML = `<tr><td colspan="2" class="p-6 text-center text-gray-500">Nenhum check-in ainda.</td></tr>`;
+                    }
                 }
+            } else {
+                const elTotPres = document.getElementById('totalPresentes');
+                if (elTotPres) elTotPres.textContent = '0';
+                if(tabelaPresencas) tabelaPresencas.innerHTML = `<tr><td colspan="2" class="p-6 text-center text-gray-500">Nenhum evento agendado para o momento.</td></tr>`;
+            }
 
-                const originalHtml = novoBtn.innerHTML;
-                novoBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Gerando Documento...';
-                novoBtn.disabled = true;
+            // RELATÓRIO DO EVENTO: ORDENADO DO MAIS NOVO PARA O MAIS ANTIGO
+            const selectRelatorio = document.getElementById('selectEventoRelatorio');
+            const btnGerarHistorico = document.getElementById('btnBaixarPdfEvento');
 
-                try {
-                    const textoOption = selectRelatorio.options[selectRelatorio.selectedIndex].text;
-                    const tituloEvStr = textoOption.split(' - ')[1] || 'Evento';
+            if (selectRelatorio) {
+                const { data: historicoEventos } = await supabaseClient
+                    .from('agenda')
+                    .select('id, titulo, data_hora_inicio, especial')
+                    .eq('terreiro_id', idTerreiroGlobal)
+                    .order('data_hora_inicio', { ascending: false });
 
-                    const { data: presencasHist } = await supabaseClient
-                        .from('presencas')
-                        .select('usuario_id, data_hora_checkin')
-                        .eq('evento_id', eventoIdSelecionado)
-                        .order('data_hora_checkin', { ascending: true });
+                selectRelatorio.innerHTML = '<option value="">Selecione um evento...</option>';
+                
+                if (historicoEventos && historicoEventos.length > 0) {
+                    historicoEventos.forEach(ev => {
+                        const dataFormatada = new Date(ev.data_hora_inicio).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                        const tipoEvento = ev.especial ? ' [Restrita]' : ' [Aberta]';
+                        selectRelatorio.innerHTML += `<option value="${ev.id}">${dataFormatada} - ${ev.titulo}${tipoEvento}</option>`;
+                    });
+                } else {
+                    selectRelatorio.innerHTML = '<option value="">Nenhum evento encontrado no histórico.</option>';
+                }
+            }
 
-                    if (!presencasHist || presencasHist.length === 0) {
-                        alert('Nenhum check-in foi registrado para este evento.');
+            if (btnGerarHistorico && selectRelatorio) {
+                const novoBtn = btnGerarHistorico.cloneNode(true);
+                btnGerarHistorico.parentNode.replaceChild(novoBtn, btnGerarHistorico);
+
+                novoBtn.addEventListener('click', async () => {
+                    const eventoIdSelecionado = selectRelatorio.value;
+                    if (!eventoIdSelecionado) {
+                        alert('Por favor, selecione um evento na lista antes de clicar em Baixar.');
                         return;
                     }
 
-                    const dadosParaPDF = [];
-                    presencasHist.forEach(p => {
-                        const md = todosMediuns?.find(m => m.auth_id === p.usuario_id || String(m.id) === String(p.usuario_id));
-                        const nome = md ? (md.nome_social || md.nome_completo) : 'Médium Excluído';
-                        const hora = new Date(p.data_hora_checkin).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                        
-                        let cargoExibicao = '-';
-                        if (md) {
-                            const g = md.grau && md.grau !== '-' ? md.grau : '';
-                            const f = md.funcao && md.funcao !== '-' ? md.funcao : '';
-                            if (g && f) cargoExibicao = `${g}/${f}`;
-                            else cargoExibicao = g || f || '-';
+                    const originalHtml = novoBtn.innerHTML;
+                    novoBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Gerando Documento...';
+                    novoBtn.disabled = true;
+
+                    try {
+                        const textoOption = selectRelatorio.options[selectRelatorio.selectedIndex].text;
+                        const tituloEvStr = textoOption.split(' - ')[1] || 'Evento';
+
+                        const { data: presencasHist } = await supabaseClient
+                            .from('presencas')
+                            .select('usuario_id, data_hora_checkin')
+                            .eq('evento_id', eventoIdSelecionado)
+                            .order('data_hora_checkin', { ascending: true });
+
+                        if (!presencasHist || presencasHist.length === 0) {
+                            alert('Nenhum check-in foi registrado para este evento.');
+                            return;
                         }
-                        
-                        dadosParaPDF.push([nome, cargoExibicao, hora]);
-                    });
 
-                    window.gerarPDFRelatorio(
-                        `Relação de Presentes - ${tituloEvStr}`, 
-                        ['Nome', 'Grau / Função', 'Hora Check-in'], 
-                        dadosParaPDF
-                    );
+                        const dadosParaPDF = [];
+                        presencasHist.forEach(p => {
+                            const md = todosMediuns?.find(m => m.auth_id === p.usuario_id || String(m.id) === String(p.usuario_id));
+                            const nome = md ? (md.nome_social || md.nome_completo) : 'Médium Excluído';
+                            const hora = new Date(p.data_hora_checkin).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                            
+                            let cargoExibicao = '-';
+                            if (md) {
+                                const g = md.grau && md.grau !== '-' ? md.grau : '';
+                                const f = md.funcao && md.funcao !== '-' ? md.funcao : '';
+                                if (g && f) cargoExibicao = `${g}/${f}`;
+                                else cargoExibicao = g || f || '-';
+                            }
+                            
+                            dadosParaPDF.push([nome, cargoExibicao, hora]);
+                        });
 
-                } catch (error) {
-                    console.error('Erro na geração da relação de presença:', error);
-                    alert('Erro inesperado ao gerar o relatório.');
-                } finally {
-                    novoBtn.innerHTML = originalHtml;
-                    novoBtn.disabled = false;
-                }
-            });
+                        window.gerarPDFRelatorio(
+                            `Relação de Presentes - ${tituloEvStr}`, 
+                            ['Nome', 'Grau / Função', 'Hora Check-in'], 
+                            dadosParaPDF
+                        );
+
+                    } catch (error) {
+                        console.error('Erro na geração da relação de presença:', error);
+                        alert('Erro inesperado ao gerar o relatório.');
+                    } finally {
+                        novoBtn.innerHTML = originalHtml;
+                        novoBtn.disabled = false;
+                    }
+                });
+            }
+        } catch (err) {
+            console.error('Erro ao carregar painel inicial:', err);
         }
     }
 
@@ -825,17 +826,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     }, 500);
 
     window.abrirModalNovoMedium = () => {
-        document.getElementById('msgNovoMedium').classList.add('hidden');
-        document.getElementById('resultadoNovoMedium').classList.add('hidden');
-        if (document.getElementById('formNovoMedium')) {
-            document.getElementById('formNovoMedium').reset();
-            document.getElementById('formNovoMedium').classList.remove('hidden');
+        document.getElementById('msgNovoMedium')?.classList.add('hidden');
+        document.getElementById('resultadoNovoMedium')?.classList.add('hidden');
+        const f = document.getElementById('formNovoMedium');
+        if (f) {
+            f.reset();
+            f.classList.remove('hidden');
         }
-        if (document.getElementById('modalNovoMedium')) document.getElementById('modalNovoMedium').classList.remove('hidden');
+        document.getElementById('modalNovoMedium')?.classList.remove('hidden');
     };
 
     window.fecharModalNovoMedium = () => {
-        if (document.getElementById('modalNovoMedium')) document.getElementById('modalNovoMedium').classList.add('hidden');
+        document.getElementById('modalNovoMedium')?.classList.add('hidden');
         carregarQuadroMediuns();
     };
 
@@ -860,12 +862,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('editMediumGrau').value = medium.grau || '-';
         document.getElementById('editMediumFuncao').value = medium.funcao || '-';
 
-        document.getElementById('msgEditMedium').classList.add('hidden');
-        document.getElementById('modalEditarMedium').classList.remove('hidden');
+        document.getElementById('msgEditMedium')?.classList.add('hidden');
+        document.getElementById('modalEditarMedium')?.classList.remove('hidden');
     };
 
     window.fecharModalEditarMedium = () => {
-        document.getElementById('modalEditarMedium').classList.add('hidden');
+        document.getElementById('modalEditarMedium')?.classList.add('hidden');
     };
 
     if (document.getElementById('formEditarMedium')) {
@@ -1022,15 +1024,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         if(e.target.id === 'giraEspecial') {
             const box = document.getElementById('boxConvocados');
             if(e.target.checked) {
-                box.classList.remove('hidden');
+                box?.classList.remove('hidden');
                 renderizarCheckboxesConvocados('listaCheckConvocados', []);
-            } else box.classList.add('hidden');
+            } else box?.classList.add('hidden');
         }
         if(e.target.id === 'editGiraEspecial') {
             const box = document.getElementById('editBoxConvocados');
             if(e.target.checked) {
-                box.classList.remove('hidden');
-            } else box.classList.add('hidden');
+                box?.classList.remove('hidden');
+            } else box?.classList.add('hidden');
         }
     });
 
@@ -1108,6 +1110,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function carregarAgenda() {
         if(!idTerreiroGlobal) return;
         const tbody = document.getElementById('tabelaGirasCadastradas');
+        if (!tbody) return;
         const agora = new Date().toISOString();
         const { data } = await supabaseClient.from('agenda').select('*').eq('terreiro_id', idTerreiroGlobal).gte('data_hora_fim', agora).order('data_hora_inicio').limit(15); 
         tbody.innerHTML = '';
@@ -1272,7 +1275,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 let imagemFinal = '';
 
-                // Apenas upload direto de arquivo com compressão no navegador[cite: 7, 8]
                 if (fileInput && fileInput.files.length > 0) {
                     btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Otimizando imagem...';
                     const arquivoComprimido = await comprimirImagem(fileInput.files[0], 1200, 1200, 0.82);
@@ -1662,6 +1664,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function carregarTabelaGraus() {
         if(!idTerreiroGlobal) return;
         const tbody = document.getElementById('tabelaGraus');
+        if (!tbody) return;
         tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center">Buscando...</td></tr>';
         const { data } = await supabaseClient.from('mediuns').select('id, nome_completo, nome_social, grau, funcao').eq('terreiro_id', idTerreiroGlobal).neq('nome_completo', 'Administrador Sistema').order('nome_completo');
         if (data) { mediunsGrauCache = data; renderizarGraus(data); }
@@ -1669,6 +1672,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function renderizarGraus(lista) {
         const tbody = document.getElementById('tabelaGraus');
+        if (!tbody) return;
         tbody.innerHTML = '';
         lista.forEach(m => {
             const nomeStr = m.nome_social ? m.nome_social : m.nome_completo;
@@ -1707,6 +1711,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if(!idTerreiroGlobal) return;
         const ano = parseInt(document.getElementById('selectAnoFinanceiro').value);
         const tbody = document.getElementById('tabelaFinanceiro');
+        if (!tbody) return;
         tbody.innerHTML = '<tr><td colspan="14" class="p-6 text-center text-gray-500">Buscando histórico...</td></tr>';
         
         const { data: mediuns } = await supabaseClient.from('mediuns')
@@ -1769,14 +1774,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         const { data } = await supabaseClient.from('terreiros').select('logo_url, cor_primaria, cor_secundaria, cor_fundo, cor_texto, latitude, longitude').eq('id', idTerreiroGlobal).single();
         if (data) {
             if(data.logo_url) {
-                document.getElementById('previewLogo').src = data.logo_url;
-                document.getElementById('previewLogo').classList.remove('hidden');
-                document.getElementById('placeholderLogo').classList.add('hidden');
+                const prev = document.getElementById('previewLogo');
+                if (prev) {
+                    prev.src = data.logo_url;
+                    prev.classList.remove('hidden');
+                }
+                document.getElementById('placeholderLogo')?.classList.add('hidden');
             }
-            document.getElementById('corPrimaria').value = data.cor_primaria || '#1e3a8a';
-            document.getElementById('corSecundaria').value = data.cor_secundaria || '#16a34a';
-            document.getElementById('corFundo').value = data.cor_fundo || '#f3f4f6';
-            document.getElementById('corTexto').value = data.cor_texto || '#1f2937';
+            if(document.getElementById('corPrimaria')) document.getElementById('corPrimaria').value = data.cor_primaria || '#1e3a8a';
+            if(document.getElementById('corSecundaria')) document.getElementById('corSecundaria').value = data.cor_secundaria || '#16a34a';
+            if(document.getElementById('corFundo')) document.getElementById('corFundo').value = data.cor_fundo || '#f3f4f6';
+            if(document.getElementById('corTexto')) document.getElementById('corTexto').value = data.cor_texto || '#1f2937';
 
             if(document.getElementById('inputLat')) {
                 document.getElementById('inputLat').value = data.latitude || '';
@@ -1802,8 +1810,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             circuloGlobal = L.circle([lat, lng], { color: 'green', fillColor: '#22c55e', fillOpacity: 0.2, radius: 30 }).addTo(mapaGlobal);
 
             mapaGlobal.on('click', function(e) {
-                document.getElementById('inputLat').value = e.latlng.lat;
-                document.getElementById('inputLng').value = e.latlng.lng;
+                if (document.getElementById('inputLat')) document.getElementById('inputLat').value = e.latlng.lat;
+                if (document.getElementById('inputLng')) document.getElementById('inputLng').value = e.latlng.lng;
                 marcadorGlobal.setLatLng([e.latlng.lat, e.latlng.lng]);
                 circuloGlobal.setLatLng([e.latlng.lat, e.latlng.lng]);
             });
@@ -1895,9 +1903,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (file) {
                 const reader = new FileReader();
                 reader.onload = function(evt) {
-                    document.getElementById('previewLogo').src = evt.target.result;
-                    document.getElementById('previewLogo').classList.remove('hidden');
-                    document.getElementById('placeholderLogo').classList.add('hidden');
+                    const prev = document.getElementById('previewLogo');
+                    if (prev) {
+                        prev.src = evt.target.result;
+                        prev.classList.remove('hidden');
+                    }
+                    document.getElementById('placeholderLogo')?.classList.add('hidden');
                 }
                 reader.readAsDataURL(file);
             }
@@ -1910,8 +1921,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             const input = document.getElementById('uploadLogo');
             const msg = document.getElementById('msgLogo');
             if(!input.files || input.files.length === 0) { alert('Selecione uma imagem.'); return; }
-            btnLogo.disabled = true; btnLogo.textContent = 'Otimizando e enviando...'; msg.classList.remove('hidden');
-            msg.textContent = 'Processando ficheiro...'; msg.className = 'text-xs font-bold mt-2 text-tema-primaria';
+            btnLogo.disabled = true; btnLogo.textContent = 'Otimizando e enviando...'; msg?.classList.remove('hidden');
+            if (msg) { msg.textContent = 'Processando ficheiro...'; msg.className = 'text-xs font-bold mt-2 text-tema-primaria'; }
             
             try {
                 const arquivoOriginal = input.files[0];
@@ -1926,8 +1937,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 
                 logoTerreiroGlobal = urlData.publicUrl;
                 
-                document.getElementById('logoSidebar').src = urlData.publicUrl;
-                document.getElementById('logoSidebar').classList.remove('hidden');
+                const sideLogo = document.getElementById('logoSidebar');
+                if (sideLogo) {
+                    sideLogo.src = urlData.publicUrl;
+                    sideLogo.classList.remove('hidden');
+                }
 
                 let linkFavicon = document.querySelector("link[rel~='icon']");
                 if (!linkFavicon) {
@@ -1935,4 +1949,260 @@ document.addEventListener('DOMContentLoaded', async () => {
                     linkFavicon.rel = 'icon';
                     document.head.appendChild(linkFavicon);
                 }
-                link
+                linkFavicon.href = urlData.publicUrl;
+
+                if (msg) { msg.textContent = '✅ Logo salva com sucesso!'; msg.className = 'text-xs font-bold mt-2 text-tema-secundaria'; }
+            } catch (error) {
+                if (msg) { msg.textContent = '❌ Erro: ' + error.message; msg.className = 'text-xs font-bold mt-2 text-red-600'; }
+            } finally { btnLogo.disabled = false; btnLogo.textContent = 'Salvar Imagem'; }
+        });
+    }
+
+    if(document.getElementById('btnSalvarCores')) {
+        document.getElementById('btnSalvarCores').addEventListener('click', async () => {
+            const btn = document.getElementById('btnSalvarCores');
+            const msg = document.getElementById('msgCores');
+            const cor1 = document.getElementById('corPrimaria').value;
+            const cor2 = document.getElementById('corSecundaria').value;
+            const corF = document.getElementById('corFundo').value;
+            const corT = document.getElementById('corTexto').value;
+            btn.disabled = true; btn.textContent = 'Salvando...';
+            
+            try {
+                const { error } = await supabaseClient.from('terreiros').update({ cor_primaria: cor1, cor_secundaria: cor2, cor_fundo: corF, cor_texto: corT }).eq('id', idTerreiroGlobal);
+                if (error) throw error;
+                const root = document.documentElement;
+                root.style.setProperty('--cor-primaria', cor1); root.style.setProperty('--cor-secundaria', cor2);
+                root.style.setProperty('--cor-fundo', corF); root.style.setProperty('--cor-texto', corT);
+                if (msg) { msg.textContent = '✅ Tema atualizado!'; msg.className = 'text-sm font-bold mt-3 text-tema-secundaria block'; setTimeout(() => msg.classList.add('hidden'), 5000); }
+            } catch (error) {
+                if (msg) { msg.textContent = '❌ Erro: ' + error.message; msg.className = 'text-sm font-bold mt-3 text-red-600 block'; }
+            } finally { btn.disabled = false; btn.textContent = 'Salvar e Aplicar Cores'; }
+        });
+    }
+
+    // ==========================================
+    // DOAÇÕES
+    // ==========================================
+    window.carregarDoacoesPrometidas = async () => {
+        if (!idTerreiroGlobal) return;
+        const tbody = document.getElementById('tabelaDoacoesPrometidas');
+        if(tbody) tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-gray-500">Buscando...</td></tr>';
+        try {
+            const { data: doacoes, error: errD } = await supabaseClient.from('doacoes_registradas').select('*').eq('terreiro_id', idTerreiroGlobal).order('entregue', { ascending: true }).order('data_registro', { ascending: false }); 
+            if (errD) throw errD;
+            const { data: mediuns } = await supabaseClient.from('mediuns').select('auth_id, nome_completo').eq('terreiro_id', idTerreiroGlobal);
+            const { data: itens } = await supabaseClient.from('itens_doacao').select('id, nome, descricao').eq('terreiro_id', idTerreiroGlobal);
+            window.dadosDoacoesParaPDF = { doacoes, mediuns, itens };
+
+            if (!doacoes || doacoes.length === 0) {
+                if(tbody) tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-gray-500">Nenhum registro.</td></tr>';
+                return;
+            }
+            if(tbody) {
+                tbody.innerHTML = '';
+                doacoes.forEach(d => {
+                    const medium = mediuns?.find(m => m.auth_id === d.medium_auth_id)?.nome_completo || 'Médium';
+                    const itemObj = itens?.find(i => i.id == d.item_id);
+                    const itemNome = itemObj ? `${itemObj.nome}` : 'Item';
+                    const data = new Date(d.data_registro).toLocaleDateString('pt-BR');
+                    const statusHtml = d.entregue ? '<span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded font-bold">Entregue</span>' : '<span class="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded font-bold">Pendente</span>';
+                    const acaoHtml = d.entregue ? `<button onclick="marcarDoacao('${d.id}', false)" class="text-xs text-gray-400 hover:text-gray-800 underline mt-1">Desfazer</button>` : `<button onclick="marcarDoacao('${d.id}', true)" class="bg-tema-secundaria hover:opacity-90 text-white text-xs font-bold py-1.5 px-3 rounded shadow-sm mt-1">Dar Baixa</button>`;
+                    const estilo = d.entregue ? 'bg-gray-50 opacity-80' : 'bg-white';
+                    tbody.innerHTML += `<tr class="border-b border-gray-100 ${estilo}"><td class="p-3 text-sm">${medium}</td><td class="p-3 text-sm">${itemNome}</td><td class="p-3 text-center font-bold">${d.quantidade}</td><td class="p-3 text-xs text-gray-500">${data}</td><td class="p-3 text-center flex flex-col items-center">${statusHtml}${acaoHtml}</td></tr>`;
+                });
+            }
+        } catch (error) {
+            if(tbody) tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-red-500">Erro ao carregar.</td></tr>`;
+        }
+    };
+
+    window.marcarDoacao = async (id, status) => {
+        const payload = { entregue: status, data_entrega: status ? new Date().toISOString() : null };
+        const { error } = await supabaseClient.from('doacoes_registradas').update(payload).eq('id', id).eq('terreiro_id', idTerreiroGlobal);
+        if (!error) carregarDoacoesPrometidas(); else alert('Erro: ' + error.message);
+    };
+
+    window.carregarDoacoesCatalogo = async () => {
+        if (!idTerreiroGlobal) return;
+        const tbody = document.getElementById('tabelaItensDoacao');
+        if(!tbody) return;
+        const { data, error } = await supabaseClient.from('itens_doacao').select('*').eq('terreiro_id', idTerreiroGlobal).order('nome');
+        if (error) return;
+        tbody.innerHTML = '';
+        if (data && data.length > 0) {
+            data.forEach(item => {
+                const btn = item.ativo ? `<button onclick="alternarStatusCatalogo('${item.id}', false)" class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded font-bold">Ocultar</button>` : `<button onclick="alternarStatusCatalogo('${item.id}', true)" class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-bold">Ativar</button>`;
+                tbody.innerHTML += `<tr class="border-b border-gray-100 ${item.ativo ? '' : 'opacity-40'}"><td class="p-3 text-sm">${item.nome}</td><td class="p-3 text-xs text-gray-500">${item.descricao || '-'}</td><td class="p-3 text-center">${btn}</td></tr>`;
+            });
+        }
+    };
+
+    window.alternarStatusCatalogo = async (id, status) => {
+        const { error } = await supabaseClient.from('itens_doacao').update({ ativo: status }).eq('id', id).eq('terreiro_id', idTerreiroGlobal);
+        if (!error) carregarDoacoesCatalogo();
+    };
+
+    // ==========================================
+    // SAAS / GESTÃO E CONTEXT SWITCHER
+    // ==========================================
+    window.carregarGestaoPlataforma = async () => {
+        const tbody = document.getElementById('tabelaMasterTerreiros');
+        if(!tbody) return;
+        tbody.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-gray-500">Carregando terreiros...</td></tr>';
+        
+        const { data, error } = await supabaseClient.from('terreiros').select('*').order('id', { ascending: true });
+        if (error) { tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-red-500">Erro: ${error.message}</td></tr>`; return; }
+
+        tbody.innerHTML = '';
+        data.forEach(t => {
+            const statusHtml = t.status_bloqueado ? '<span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded font-bold">Bloqueado</span>' : '<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded font-bold">Ativo</span>';
+            
+            const btnBloqueio = t.status_bloqueado 
+                ? `<button onclick="alternarBloqueioTerreiro('${t.id}', false)" class="text-xs bg-gray-800 text-white py-1 px-3 rounded shadow">Desbloquear</button>` 
+                : `<button onclick="alternarBloqueioTerreiro('${t.id}', true)" class="text-xs bg-red-600 text-white py-1 px-3 rounded shadow">Bloquear</button>`;
+            
+            const btnImportar = `<button onclick="abrirModalImportacao('${t.id}', '${t.nome.replace(/'/g, "\\'")}')" class="text-xs bg-blue-600 hover:bg-blue-700 text-white py-1 px-3 rounded shadow ml-2"><i class="fas fa-file-csv"></i> CSV</button>`;
+            
+            const btnAcessar = `<button onclick="acessarTerreiroSaaS('${t.id}')" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white py-1 px-3 rounded shadow mr-2"><i class="fas fa-sign-in-alt"></i> Acessar</button>`;
+            
+            const acaoHtml = `<div class="flex justify-center items-center">${btnAcessar}${btnBloqueio}${btnImportar}</div>`;
+            
+            tbody.innerHTML += `<tr class="border-b border-gray-100 ${t.status_bloqueado ? 'bg-red-50' : ''}"><td class="p-3 text-sm font-mono">${t.id}</td><td class="p-3 font-bold">${t.nome}</td><td class="p-3 text-center">${statusHtml}</td><td class="p-3 text-center">${acaoHtml}</td></tr>`;
+        });
+    };
+
+    window.acessarTerreiroSaaS = (idTerreiro) => {
+        localStorage.setItem('terreiroAtivoSaaS', idTerreiro);
+        window.location.reload();
+    };
+
+    window.voltarParaMeuPainel = () => {
+        localStorage.removeItem('terreiroAtivoSaaS');
+        window.location.reload();
+    };
+
+    window.alternarBloqueioTerreiro = async (idTerreiro, vaiBloquear) => {
+        const acaoStr = vaiBloquear ? "BLOQUEAR" : "DESBLOQUEAR";
+        if(!confirm(`Deseja ${acaoStr} o terreiro ID ${idTerreiro}?`)) return;
+        const { error } = await supabaseClient.from('terreiros').update({ status_bloqueado: vaiBloquear }).eq('id', idTerreiro);
+        if(error) alert("Erro: " + error.message); else carregarGestaoPlataforma();
+    };
+
+    if (document.getElementById('formNovoTerreiro')) {
+        document.getElementById('formNovoTerreiro').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btnSalvarTerreiro');
+            const msg = document.getElementById('msgNovoTerreiro');
+            btn.disabled = true; btn.innerHTML = 'Cadastrando...'; msg?.classList.add('hidden');
+
+            const { error } = await supabaseClient.from('terreiros').insert([{ 
+                nome: document.getElementById('novoTerreiroNome').value, 
+                cor_primaria: '#1e3a8a', cor_secundaria: '#16a34a', cor_fundo: '#f3f4f6', cor_texto: '#1f2937' 
+            }]);
+
+            btn.disabled = false; btn.innerHTML = 'Cadastrar Sistema';
+            if (error) { if (msg) { msg.textContent = 'Erro: ' + error.message; msg.className = 'text-sm mt-2 text-red-500 block'; } } 
+            else {
+                if (msg) { msg.textContent = '✅ Terreiro cadastrado com sucesso!'; msg.className = 'text-sm mt-2 text-green-400 block font-bold'; }
+                document.getElementById('formNovoTerreiro').reset(); carregarGestaoPlataforma();
+                setTimeout(() => msg?.classList.add('hidden'), 3000);
+            }
+        });
+    }
+
+    window.abrirModalImportacao = (idTerreiro, nomeTerreiro) => {
+        document.getElementById('idTerreiroImport').value = idTerreiro;
+        document.getElementById('nomeTerreiroImport').textContent = nomeTerreiro;
+        document.getElementById('msgImportacao')?.classList.add('hidden');
+        if (document.getElementById('formImportarCSV')) document.getElementById('formImportarCSV').reset();
+        document.getElementById('modalImportarCSV')?.classList.remove('hidden');
+    };
+
+    window.fecharModalImportacao = () => {
+        document.getElementById('modalImportarCSV')?.classList.add('hidden');
+    };
+
+    if (document.getElementById('formImportarCSV')) {
+        document.getElementById('formImportarCSV').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btnProcessarCSV');
+            const msg = document.getElementById('msgImportacao');
+            const idTerreiro = document.getElementById('idTerreiroImport').value;
+            const fileInput = document.getElementById('arquivoCSV');
+
+            if (!fileInput.files.length) return;
+            const file = fileInput.files[0];
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Processando...';
+            if (msg) {
+                msg.classList.remove('hidden');
+                msg.className = 'text-sm mt-3 text-blue-600 block font-bold text-center';
+                msg.textContent = 'Lendo arquivo local...';
+            }
+
+            const reader = new FileReader();
+            reader.onload = async function(event) {
+                try {
+                    const text = event.target.result;
+                    const linhas = text.split(/\r?\n/).filter(l => l.trim() !== '');
+                    if (linhas.length <= 1) throw new Error("O arquivo parece vazio ou só tem cabeçalho.");
+
+                    const mediunsParaInserir = [];
+                    for (let i = 1; i < linhas.length; i++) {
+                        const colunas = linhas[i].split(/[,;]/);
+                        const nome = colunas[0] ? colunas[0].trim() : '';
+                        const telefone = colunas[1] ? colunas[1].trim() : '';
+                        const grau = colunas[2] ? colunas[2].trim() : '-';
+                        const funcao = colunas[3] ? colunas[3].trim() : '-';
+
+                        if (nome) {
+                            mediunsParaInserir.push({
+                                terreiro_id: idTerreiro,
+                                nome_completo: nome,
+                                telefone: telefone,
+                                grau: grau,
+                                funcao: funcao,
+                                cadastro_completo: false
+                            });
+                        }
+                    }
+
+                    if (mediunsParaInserir.length === 0) throw new Error("Nenhum nome válido encontrado na planilha.");
+
+                    if (msg) msg.textContent = `Enviando ${mediunsParaInserir.length} cadastros para o banco...`;
+
+                    const { error } = await supabaseClient.from('mediuns').insert(mediunsParaInserir);
+                    if (error) throw error;
+
+                    if (msg) {
+                        msg.textContent = `✅ ${mediunsParaInserir.length} cadastros importados com sucesso!`;
+                        msg.className = 'text-sm mt-3 text-green-600 block font-bold text-center';
+                    }
+                    
+                    setTimeout(() => { fecharModalImportacao(); }, 3000);
+
+                } catch (error) {
+                    if (msg) {
+                        msg.textContent = '❌ Erro: ' + error.message;
+                        msg.className = 'text-sm mt-3 text-red-600 block font-bold text-center';
+                    }
+                } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = 'Processar e Importar';
+                }
+            };
+            reader.onerror = () => {
+                if (msg) {
+                    msg.textContent = '❌ Erro ao ler o arquivo.';
+                    msg.className = 'text-sm mt-3 text-red-600 block font-bold text-center';
+                }
+                btn.disabled = false;
+                btn.innerHTML = 'Processar e Importar';
+            };
+
+            reader.readAsText(file);
+        });
+    }
+});
