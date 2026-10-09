@@ -282,7 +282,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 .select('*')
                 .eq('terreiro_id', idTerreiroGlobal)
                 .eq('ativo', true)
-                .order('nome', { ascending: true });
+                .order('nome', { ascending: true }); // Baseado nas colunas corretas do seu banco
 
             if (error) throw error;
 
@@ -451,7 +451,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // ====================================================================
-// GPS DO CHECK-IN COM VERIFICAÇÃO DE PERMISSÃO (NOVO)
+// GPS DO CHECK-IN COM VERIFICAÇÃO DE PERMISSÃO
 // ====================================================================
 
 const btnCheckin = document.getElementById('btnCheckin');
@@ -461,7 +461,6 @@ const gpsEstadoNegado = document.getElementById('gpsEstadoNegado');
 const btnEntendiGps = document.getElementById('btnEntendiGps');
 const btnFecharModalGps = document.getElementById('btnFecharModalGps');
 
-// Função que gerencia a exibição do modal de GPS
 function mostrarModalGPS(estado) {
     if (modalPermissaoGPS) {
         modalPermissaoGPS.classList.remove('hidden');
@@ -478,15 +477,12 @@ function mostrarModalGPS(estado) {
     }
 }
 
-// A função original que faz a requisição da localização e grava no banco
 function executarCheckinGPS() {
     const msg = document.getElementById('msgCheckin');
     btnCheckin.disabled = true;
     btnCheckin.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Validando GPS...';
     
     if (msg) msg.classList.add('hidden');
-    
-    // Fecha o modal se estiver aberto
     if (modalPermissaoGPS) modalPermissaoGPS.classList.add('hidden');
 
     navigator.geolocation.getCurrentPosition(async (posicao) => {
@@ -521,18 +517,15 @@ function executarCheckinGPS() {
             if (horaFeito) horaFeito.textContent = new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
         }
     }, (err) => {
-        // Se der erro aqui, é porque a pessoa bloqueou o popup nativo ou o celular tá sem sinal de GPS.
         if (msg) { msg.textContent = "Erro ao acessar localização. Verifique o acesso ao GPS do celular."; msg.className = "mt-3 text-sm font-bold text-red-500 block"; msg.classList.remove('hidden'); }
         restaurarBotao(btnCheckin);
     }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
 }
 
-// Intercepta o clique principal
 if (btnCheckin) {
     btnCheckin.addEventListener('click', async () => {
         const msg = document.getElementById('msgCheckin');
         
-        // 1. Validações de Tempo (Original)
         const agoraClick = new Date();
         if (hrInicioPermitidoGlobal && agoraClick < hrInicioPermitidoGlobal) {
             if (msg) { msg.textContent = "A gira ainda não começou. Aguarde o horário."; msg.className = "mt-3 text-sm font-bold text-red-500 block"; msg.classList.remove('hidden'); }
@@ -543,7 +536,6 @@ if (btnCheckin) {
             return;
         }
 
-        // 2. Validações de Sistema
         if (!coordsTerreiro || !coordsTerreiro.lat) {
             if (msg) { msg.textContent = "O administrador ainda não configurou o GPS do terreiro."; msg.className = "mt-3 text-sm font-bold text-red-500 block"; msg.classList.remove('hidden'); }
             return;
@@ -554,36 +546,29 @@ if (btnCheckin) {
             return;
         }
 
-        // 3. Verificação de Permissão Nativa (A Mágica acontece aqui)
         if (navigator.permissions && navigator.permissions.query) {
             try {
                 const permissao = await navigator.permissions.query({ name: 'geolocation' });
                 
                 if (permissao.state === 'granted') {
-                    // Já tem permissão, roda direto
                     executarCheckinGPS();
                 } else if (permissao.state === 'prompt') {
-                    // Vai perguntar, prepara o usuário
                     mostrarModalGPS('prompt');
                 } else if (permissao.state === 'denied') {
-                    // Já está bloqueado, ensina como desbloquear
                     mostrarModalGPS('denied');
                 }
             } catch (e) {
-                // Se a API falhar (comum em iPhones muito antigos), segue o fluxo normal
                 executarCheckinGPS();
             }
         } else {
-            // Navegadores que não suportam a API Permissions (Safari Antigo)
             executarCheckinGPS();
         }
     });
 }
 
-// Botões do Modal de GPS
 if (btnEntendiGps) {
     btnEntendiGps.addEventListener('click', () => {
-        executarCheckinGPS(); // Isso vai forçar o popup nativo a aparecer agora
+        executarCheckinGPS();
     });
 }
 
