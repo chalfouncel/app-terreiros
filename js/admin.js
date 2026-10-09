@@ -398,13 +398,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                         const grauPdf = md ? (md.grau || '-') : '-';
                         const funcPdf = md ? (md.funcao || '-') : '-';
                         
-                        dadosParaPDF.push([nome, grauPdf, funcPdf, hora]);
+                        const grauFuncPdf = [grauPdf, funcPdf].filter(v => v && v !== '-').join(' / ') || '-';
+                        
+                        dadosParaPDF.push([nome, grauFuncPdf, hora]);
                     });
 
                     // Invoca a nossa função universal já estilizada
                     window.gerarPDFRelatorio(
                         `Relatório Oficial de Presenças - ${tituloEvStr}`, 
-                        ['Nome do Médium', 'Grau', 'Função', 'Hora Check-in'], 
+                        ['Nome do Médium', 'Grau / Função', 'Hora Check-in'], 
                         dadosParaPDF
                     );
 
@@ -603,7 +605,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             let passaStatus = true;
-            const statusAtual = medium.cadastro_completo ? 'Ativo' : 'Pendente';
+            let statusAtual = 'Pendente';
+            if (medium.status_ativo === false) {
+                statusAtual = 'Inativo';
+            } else if (medium.cadastro_completo) {
+                statusAtual = 'Ativo';
+            }
             if (termoStatus !== '') {
                 passaStatus = (statusAtual === termoStatus);
             }
@@ -713,12 +720,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                         if(p.length === 3) dataNasc = `${p[2]}/${p[1]}/${p[0]}`;
                     } else dataNasc = m.data_nascimento;
                 }
-                const nomeStr = m.nome_social ? `${m.nome_completo} (${m.nome_social})` : m.nome_completo;
+                const nomeStr = m.nome_social ? m.nome_social : m.nome_completo;
                 const whats = m.telefone || '-';
-                return [nomeStr, dataNasc, m.grau || '-', m.funcao || '-', whats];
+                const grauFunc = [m.grau, m.funcao].filter(v => v && v !== '-').join(' / ') || '-';
+                return [nomeStr, dataNasc, grauFunc, whats];
             });
             
-            window.gerarPDFRelatorio('Quadro Oficial de Médiuns', ['Nome Completo', 'Nascimento', 'Grau', 'Função', 'WhatsApp'], dados);
+            window.gerarPDFRelatorio('Quadro Oficial de Médiuns', ['Nome', 'Nascimento', 'Grau / Função', 'WhatsApp'], dados);
             setTimeout(() => { btn.innerHTML = originalHtml; btn.disabled = false; }, 2000);
         });
 
@@ -753,24 +761,24 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
             
             const dados = lista.map(m => {
-                let dataNasc = '-'; let diaMes = '-';
+                let diaMes = '-';
                 if (m.data_nascimento) {
                     if (m.data_nascimento.includes('-')) {
                         const p = m.data_nascimento.split('-');
-                        if(p.length === 3) { dataNasc = `${p[2]}/${p[1]}/${p[0]}`; diaMes = `${p[2]}/${p[1]}`; }
+                        if(p.length === 3) { diaMes = `${p[2]}/${p[1]}`; }
                     } else {
-                        dataNasc = m.data_nascimento;
-                        if(dataNasc.includes('/')) diaMes = dataNasc.substring(0, 5);
+                        if(m.data_nascimento.includes('/')) diaMes = m.data_nascimento.substring(0, 5);
                     }
                 }
-                const nomeStr = m.nome_social ? `${m.nome_completo} (${m.nome_social})` : m.nome_completo;
-                return [diaMes, nomeStr, m.grau || '-', dataNasc];
+                const nomeStr = m.nome_social ? m.nome_social : m.nome_completo;
+                const grauFunc = [m.grau, m.funcao].filter(v => v && v !== '-').join(' / ') || '-';
+                return [diaMes, nomeStr, grauFunc];
             });
             
             const mesAtual = new Date().toLocaleString('pt-BR', { month: 'long' });
             const titulo = `Aniversariantes de ${mesAtual.charAt(0).toUpperCase() + mesAtual.slice(1)}`;
             
-            window.gerarPDFRelatorio(titulo, ['Dia', 'Nome Completo', 'Grau', 'Nascimento'], dados);
+            window.gerarPDFRelatorio(titulo, ['Data', 'Nome', 'Grau / Função'], dados);
             setTimeout(() => { btn.innerHTML = originalHtml; btn.disabled = false; }, 2000);
         });
     }, 500);
@@ -1483,7 +1491,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <thead>
                             <tr>
                                 <th style="border-bottom: 2px solid #000; padding: 8px 4px; text-align: left;">NOME DO MÉDIUM</th>
-                                <th style="border-bottom: 2px solid #000; padding: 8px 4px; text-align: center;">GRAU</th>
+                                <th style="border-bottom: 2px solid #000; padding: 8px 4px; text-align: center;">GRAU / FUNÇÃO</th>
                                 <th style="border-bottom: 2px solid #000; padding: 8px 4px; text-align: right;">HORA DO CHECK-IN</th>
                             </tr>
                         </thead>
