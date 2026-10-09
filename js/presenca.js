@@ -71,6 +71,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
+        // BLOQUEIO DE USUÁRIO INATIVADO
+        if (perfil.status_ativo === false) {
+            alert("Seu acesso ao sistema está inativo. Por favor, entre em contato com a Administração da Casa.");
+            await supabaseClient.auth.signOut();
+            window.location.href = 'index.html';
+            return;
+        }
+
         // ====================================================================
         // LOGIN BEM SUCEDIDO! CARREGANDO A TELA
         // ====================================================================
