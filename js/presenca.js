@@ -489,8 +489,8 @@ function executarCheckinGPS() {
         const latUsuario = posicao.coords.latitude, lonUsuario = posicao.coords.longitude;
         const distanciaMetros = calcularDistancia(latUsuario, lonUsuario, coordsTerreiro.lat, coordsTerreiro.lng);
         
-        if (distanciaMetros > 50) {
-            if (msg) { msg.innerHTML = `Você está muito longe do terreiro.<br>Distância atual: ${Math.round(distanciaMetros)} metros. (Máximo: 50m)`; msg.className = "mt-3 text-sm font-bold text-red-500 block"; msg.classList.remove('hidden'); }
+        if (distanciaMetros > 30) {
+            if (msg) { msg.innerHTML = `Você está muito longe do terreiro.<br>Distância atual: ${Math.round(distanciaMetros)} metros. (Máximo: 30m)`; msg.className = "mt-3 text-sm font-bold text-red-500 block"; msg.classList.remove('hidden'); }
             restaurarBotao(btnCheckin); return;
         }
 
