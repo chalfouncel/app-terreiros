@@ -1,232 +1,150 @@
 document.addEventListener('DOMContentLoaded', async () => {
-    const { data: { session } } = await supabaseClient.auth.getSession();
-    const idPrimeiroAcesso = localStorage.getItem('novo_acesso_id');
-    
-    if (!session && !idPrimeiroAcesso) {
-        window.location.href = 'index.html'; 
+    const form = document.getElementById('formCompletarCadastro');
+    const msg = document.getElementById('msgCadastro');
+    const btnSalvar = document.getElementById('btnSalvarCadastro');
+
+    // 1. Verifica sessão autenticada
+    const { data: { session }, error: erroSessao } = await supabaseClient.auth.getSession();
+
+    if (erroSessao || !session) {
+        localStorage.clear();
+        window.location.href = 'index.html';
         return;
     }
 
-    const userId = session ? session.user.id : idPrimeiroAcesso;
+    let mediumId = null;
+    let terreiroId = null;
 
-    // 1. FUNÇÕES DE FORMATAÇÃO
-    const formatarTitleCase = (texto) => {
-        if (!texto) return '';
-        const preposicoes = ['de', 'da', 'do', 'das', 'dos', 'e'];
-        return texto.toLowerCase().split(' ').map((palavra, index) => {
-            if (preposicoes.includes(palavra) && index !== 0) {
-                return palavra;
-            }
-            return palavra.charAt(0).toUpperCase() + palavra.slice(1);
-        }).join(' ');
-    };
-
-    // 2. APLICA A FORMATAÇÃO EM TEMPO REAL (Enquanto digita)
-    const configFormatacaoTempoReal = () => {
-        const camposTitleCase = ['nomeSocial', 'nomeCompleto'];
-        camposTitleCase.forEach(id => {
-            const campo = document.getElementById(id);
-            if (campo) campo.addEventListener('input', (e) => {
-                const start = e.target.selectionStart; 
-                e.target.value = formatarTitleCase(e.target.value);
-                e.target.setSelectionRange(start, start); 
-            });
-        });
-
-        const camposUpperCase = ['palavra']; 
-        camposUpperCase.forEach(id => {
-            const campo = document.getElementById(id);
-            if (campo) campo.addEventListener('input', (e) => {
-                const start = e.target.selectionStart;
-                e.target.value = e.target.value.toUpperCase();
-                e.target.setSelectionRange(start, start);
-            });
-        });
-
-        const campoData = document.getElementById('dataNascimento');
-        if (campoData) {
-            campoData.addEventListener('input', (e) => {
-                let v = e.target.value.replace(/\D/g, ''); 
-                if (v.length > 8) v = v.substring(0, 8); 
-                
-                if (v.length > 4) {
-                    v = v.substring(0, 2) + '/' + v.substring(2, 4) + '/' + v.substring(4, 8);
-                } else if (v.length > 2) {
-                    v = v.substring(0, 2) + '/' + v.substring(2, 4);
-                }
-                
-                e.target.value = v;
-            });
-        }
+    try {
+        const authId = session.user.id;
         
-        const campoSenha = document.getElementById('novaSenha');
-        if (campoSenha) {
-            campoSenha.addEventListener('input', (e) => {
-                e.target.value = e.target.value.replace(/\D/g, '');
-            });
-        }
-    };
-    
-    configFormatacaoTempoReal();
+        // Busca a ficha do médium associado
+        const { data: mediuns, error: erroMedium } = await supabaseClient
+            .from('mediuns')
+            .select('*')
+            .eq('auth_id', authId)
+            .limit(1);
 
-    // Mostra o campo de senha apenas no Primeiro Acesso
-    if (!session && idPrimeiroAcesso) {
-        const divSenha = document.getElementById('containerSenha');
-        if (divSenha) divSenha.classList.remove('hidden');
+        if (erroMedium) throw erroMedium;
+
+        if (!mediuns || mediuns.length === 0) {
+            alert('Ficha de médium não encontrada para este utilizador.');
+            await supabaseClient.auth.signOut();
+            localStorage.clear();
+            window.location.href = 'index.html';
+            return;
+        }
+
+        const medium = mediuns[0];
+        mediumId = medium.id;
+        terreiroId = medium.terreiro_id;
+
+        // Pré-preenche os dados já conhecidos
+        if (document.getElementById('cadNomeCompleto')) {
+            document.getElementById('cadNomeCompleto').value = medium.nome_completo || '';
+        }
+
+        if (document.getElementById('cadNomeSocial') && medium.nome_social) {
+            document.getElementById('cadNomeSocial').value = medium.nome_social;
+        }
+
+        if (document.getElementById('cadTelefone') && medium.telefone) {
+            // Garante exibição apenas numérica limpa
+            let telLimpo = medium.telefone.replace(/\D/g, '');
+            if (telLimpo.startsWith('55') && telLimpo.length > 11) {
+                telLimpo = telLimpo.substring(2);
+            }
+            document.getElementById('cadTelefone').value = telLimpo;
+        }
+
+        if (document.getElementById('cadNascimento') && medium.data_nascimento) {
+            document.getElementById('cadNascimento').value = medium.data_nascimento;
+        }
+
+    } catch (err) {
+        console.error('Erro ao resgatar perfil:', err);
+        alert('Erro ao carregar os dados cadastrais.');
     }
 
-    // 3. PUXAR OS DADOS DO BANCO PARA PREENCHER A TELA
-    if (session || idPrimeiroAcesso) {
-        try {
-            let perfil = null;
-            
-            if (session) {
-                const { data, error } = await supabaseClient.from('mediuns').select('*').eq('auth_id', session.user.id).single();
-                if (error) throw error;
-                perfil = data;
-            } else {
-                const { data, error } = await supabaseClient.rpc('obter_dados_primeiro_acesso', { p_id: parseInt(idPrimeiroAcesso) });
-                if (error) throw error;
-                perfil = data;
-            }
-            
-            if (perfil) {
-                if (!session && perfil.auth_id) {
-                    alert("Acesso Negado: Esta conta já foi ativada e protegida por senha! Por favor, faça login.");
-                    localStorage.removeItem('novo_acesso_id');
-                    window.location.href = 'index.html';
-                    return;
-                }
+    // 2. Submissão do Formulário
+    if (form) {
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
 
-                const preencher = (id, valor) => {
-                    const campo = document.getElementById(id);
-                    if (campo && valor) campo.value = valor;
-                };
-                
-                preencher('nomeCompleto', formatarTitleCase(perfil.nome_completo));
-                preencher('nomeSocial', formatarTitleCase(perfil.nome_social));
-                preencher('grau', perfil.grau || '');
-                preencher('funcao', perfil.funcao || '');
-                preencher('palavra', perfil.palavra ? perfil.palavra.toUpperCase() : '');
-                
-                if (perfil.data_nascimento) {
-                    const partes = perfil.data_nascimento.split('-');
-                    if (partes.length === 3) preencher('dataNascimento', `${partes[2]}/${partes[1]}/${partes[0]}`);
-                    else preencher('dataNascimento', perfil.data_nascimento);
-                }
-                
-                preencher('telefone', perfil.telefone);
-            }
-        } catch (err) {
-            console.error("Erro ao buscar dados do perfil:", err);
-        }
-    }
+            const nomeSocial = document.getElementById('cadNomeSocial')?.value.trim() || null;
+            const telefoneRaw = document.getElementById('cadTelefone')?.value || '';
+            const dataNascimento = document.getElementById('cadNascimento')?.value || null;
+            const novaSenha = document.getElementById('cadNovaSenha')?.value || '';
+            const confirmaSenha = document.getElementById('cadConfirmaSenha')?.value || '';
 
-    const formCadastro = document.getElementById('formCadastro');
-    const msgErro = document.getElementById('msgErro');
-    const btnSalvar = document.getElementById('btnSalvar');
+            // Higienização completa do telefone: remove tudo o que não for dígito
+            let telefoneLimpo = telefoneRaw.replace(/\D/g, '');
 
-    // 4. AÇÃO DE SALVAR
-    formCadastro.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        
-        btnSalvar.disabled = true;
-        btnSalvar.textContent = 'Salvando...';
-        msgErro.classList.add('hidden');
-
-        const nomeCompleto = formatarTitleCase(document.getElementById('nomeCompleto').value);
-        const nomeSocial = formatarTitleCase(document.getElementById('nomeSocial').value);
-        const grau = document.getElementById('grau').value; 
-        const funcao = document.getElementById('funcao').value; 
-        const palavra = document.getElementById('palavra').value.toUpperCase(); 
-        
-        const dataBruta = document.getElementById('dataNascimento').value;
-        let dataNascimento = dataBruta;
-        if (dataBruta.includes('/')) {
-            const partes = dataBruta.split('/');
-            if (partes.length === 3) dataNascimento = `${partes[2]}-${partes[1]}-${partes[0]}`;
-        }
-        
-        const telefone = document.getElementById('telefone').value;
-        const campoSenha = document.getElementById('novaSenha');
-        const novaSenha = campoSenha ? campoSenha.value : null;
-
-        try {
-            if (!session && (!novaSenha || novaSenha.length < 6)) {
-                throw new Error("Por favor, crie uma Nova Senha com pelo menos 6 caracteres.");
+            // Se o utilizador digitou com o DDI 55 (ex: 5521999999999), remove o 55 para ficar no padrão 21999999999
+            if (telefoneLimpo.startsWith('55') && telefoneLimpo.length >= 12) {
+                telefoneLimpo = telefoneLimpo.substring(2);
             }
 
-            let novoAuthId = null;
+            if (!telefoneLimpo || telefoneLimpo.length < 10 || telefoneLimpo.length > 11) {
+                msg.textContent = 'Por favor, introduza um telefone válido com DDD (ex: 21999999999).';
+                msg.className = 'text-xs md:text-sm font-bold text-center text-red-600 block mt-2';
+                msg.classList.remove('hidden');
+                return;
+            }
 
-            // PASSO 1: CRIAR O ACESSO NO COFRE PRIMEIRO (Se for primeiro acesso)
-            if (!session && novaSenha) {
-                const telefoneFormatado = telefone.replace(/\D/g, '');
-                const emailFantasma = `${telefoneFormatado}@terreiro.app`;
-                
-                const { data: authData, error: errorAuth } = await supabaseClient.auth.signUp({
-                    email: emailFantasma,
-                    password: novaSenha,
+            if (novaSenha !== confirmaSenha) {
+                msg.textContent = 'As palavras-passe não coincidem.';
+                msg.className = 'text-xs md:text-sm font-bold text-center text-red-600 block mt-2';
+                msg.classList.remove('hidden');
+                return;
+            }
+
+            btnSalvar.disabled = true;
+            btnSalvar.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> A salvar cadastro...';
+            msg.classList.add('hidden');
+
+            try {
+                // Atualiza a palavra-passe no Supabase Auth
+                const { error: erroAuth } = await supabaseClient.auth.updateUser({
+                    password: novaSenha
                 });
-                
-                if (errorAuth) throw new Error("Erro ao registrar acesso: " + errorAuth.message);
-                
-                // Pega o ID que o cofre acabou de gerar!
-                if (authData && authData.user) {
-                    novoAuthId = authData.user.id;
 
-                    // >>> SOLUÇÃO AQUI: VINCULAR A CONTA ANTES DE SALVAR OS DADOS <<<
-                    const { error: errVincular } = await supabaseClient.rpc('vincular_conta_medium', {
-                        p_id: parseInt(idPrimeiroAcesso),
-                        p_auth_id: novoAuthId
-                    });
+                if (erroAuth) throw erroAuth;
 
-                    if (errVincular) throw new Error("Erro de conexão no banco: " + errVincular.message);
+                // Atualiza a ficha com o telefone estritamente no padrão 21999999999
+                const { error: erroUpdate } = await supabaseClient
+                    .from('mediuns')
+                    .update({
+                        nome_social: nomeSocial,
+                        telefone: telefoneLimpo,
+                        data_nascimento: dataNascimento,
+                        cadastro_completo: true
+                    })
+                    .eq('id', mediumId);
+
+                if (erroUpdate) {
+                    if (erroUpdate.message.includes('unique constraint')) {
+                        throw new Error("Este número de WhatsApp já se encontra registado noutra conta.");
+                    }
+                    throw erroUpdate;
                 }
+
+                msg.textContent = '✅ Cadastro concluído com sucesso!';
+                msg.className = 'text-xs md:text-sm font-bold text-center text-green-600 block mt-2';
+                msg.classList.remove('hidden');
+
+                setTimeout(() => {
+                    window.location.href = 'presenca.html';
+                }, 1500);
+
+            } catch (error) {
+                console.error('Erro ao concluir cadastro:', error);
+                msg.textContent = 'Erro: ' + error.message;
+                msg.className = 'text-xs md:text-sm font-bold text-center text-red-600 block mt-2';
+                msg.classList.remove('hidden');
+                btnSalvar.disabled = false;
+                btnSalvar.innerHTML = 'Concluir Cadastro e Entrar';
             }
-
-            // PASSO 2: MONTAR A FICHA DE DADOS
-            const dadosParaSalvar = { 
-                nome_completo: nomeCompleto,
-                nome_social: nomeSocial,
-                grau: grau,
-                funcao: funcao,
-                palavra: palavra,
-                data_nascimento: dataNascimento,
-                telefone: telefone,
-                cadastro_completo: true
-            };
-
-            if (novoAuthId) {
-                dadosParaSalvar.auth_id = novoAuthId;
-            }
-
-            // PASSO 4: SALVAR TUDO NA TABELA (Agora vai funcionar porque o RLS reconhece o dono!)
-            let updateQuery = supabaseClient.from('mediuns').update(dadosParaSalvar);
-                
-            if (session) {
-                updateQuery = updateQuery.eq('auth_id', session.user.id);
-            } else {
-                updateQuery = updateQuery.eq('id', idPrimeiroAcesso);
-            }
-            
-            const { error: errorUpdate } = await updateQuery;
-
-            if (errorUpdate) throw new Error(errorUpdate.message);
-
-            // Tudo certo! Limpa o acesso temporário e redireciona
-            localStorage.removeItem('novo_acesso_id');
-            window.location.href = 'presenca.html';
-
-        } catch (error) {
-            console.error(error);
-            if (error.message.includes('unique constraint "mediuns_telefone_key"')) {
-                msgErro.textContent = "Este número de WhatsApp já está cadastrado em outra ficha.";
-            } else {
-                msgErro.textContent = error.message;
-            }
-            msgErro.classList.remove('hidden');
-            btnSalvar.disabled = false;
-            btnSalvar.textContent = 'Salvar e Continuar';
-        }
-    });
+        });
+    }
 });
