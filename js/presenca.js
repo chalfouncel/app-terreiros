@@ -80,13 +80,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         const txtNome = document.getElementById('nomeMedium');
         if (txtNome) txtNome.textContent = 'Olá, ' + nomeCurto;
 
-        // LIBERAÇÃO DO PAINEL ADMIN
+        // LIBERAÇÃO DO PAINEL ADMIN (CORRIGIDO PARA ACEITAR A ATA)
         const temAcessoAoPainel = perfil.is_admin === true || 
+                                  perfil.perm_visao_geral === true ||
                                   perfil.perm_agenda === true || 
+                                  perfil.perm_ata === true ||
                                   perfil.perm_grau === true || 
                                   perfil.perm_financeiro === true || 
                                   perfil.perm_doacoes === true || 
-                                  perfil.perm_admin === true;
+                                  perfil.perm_admin === true ||
+                                  perfil.is_master === true;
 
         if (temAcessoAoPainel) {
             const areaAdmin = document.getElementById('areaAdmin');
@@ -282,7 +285,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 .select('*')
                 .eq('terreiro_id', idTerreiroGlobal)
                 .eq('ativo', true)
-                .order('nome', { ascending: true }); // Baseado nas colunas corretas do seu banco
+                .order('nome', { ascending: true }); 
 
             if (error) throw error;
 
@@ -451,7 +454,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // ====================================================================
-// GPS DO CHECK-IN COM VERIFICAÇÃO DE PERMISSÃO
+// GPS DO CHECK-IN COM VERIFICAÇÃO DE PERMISSÃO E TRAVA DE 30 METROS
 // ====================================================================
 
 const btnCheckin = document.getElementById('btnCheckin');
