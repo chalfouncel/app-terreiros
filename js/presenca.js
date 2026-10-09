@@ -6,7 +6,7 @@ let hrInicioPermitidoGlobal = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
     
-    // Variáveis do Modal de Doação
+    // Elementos do Modal de Doação
     const modalDoacao = document.getElementById('modalDoacao');
     const btnAbrirDoacao = document.getElementById('btnAbrirDoacao');
     const btnAbrirDoacaoSucesso = document.getElementById('btnAbrirDoacaoSucesso');
@@ -34,13 +34,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         let perfil = null;
         const authId = session.user.id;
 
-        // TENTATIVA 1: Busca o médium pelo vínculo correto (auth_id)
+        // Busca o médium pelo auth_id
         const { data: p1 } = await supabaseClient.from('mediuns').select('*').eq('auth_id', authId).limit(1);
         
         if (p1 && p1.length > 0) {
             perfil = p1[0];
         } else {
-            // AUTO-CONSERTO DO BANCO DE DADOS
+            // Vínculo automático de contingência
             if (session.user.email) {
                 const possivelId = session.user.email.split('@')[0];
                 if (!isNaN(possivelId)) {
@@ -66,14 +66,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         if (!perfil) {
-            alert("Aviso: Sua senha está certa, mas sua ficha de médium foi deletada ou está sem nenhum vínculo. Fale com a Administração.");
+            alert("Aviso: Sua ficha de médium não foi encontrada. Fale com a Administração.");
             await supabaseClient.auth.signOut();
             localStorage.clear();
             window.location.href = 'index.html';
             return;
         }
 
-        // BLOQUEIO DE USUÁRIO INATIVADO (Tratamento estrito)
+        // Bloqueio se o médium estiver inativo
         if (perfil.status_ativo === false || perfil.status_ativo === 'false') {
             alert("Seu acesso ao sistema está inativo. Por favor, entre em contato com a Administração da Casa.");
             await supabaseClient.auth.signOut();
@@ -83,23 +83,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         // ====================================================================
-        // LOGIN BEM SUCEDIDO! DESTRAVA A TELA E MOSTRA O CONTEÚDO
+        // CARREGAMENTO DA TELA DO MÉDIUM
         // ====================================================================
         idTerreiroGlobal = perfil.terreiro_id;
-        
-        // Remove tela de carregamento se houver elemento dedicado
-        const telaLoading = document.getElementById('loadingContainer') || document.getElementById('telaCarregando');
-        if (telaLoading) telaLoading.classList.add('hidden');
-
-        // Garante que o corpo/container principal não fique oculto
-        const appContainer = document.getElementById('appContainer') || document.getElementById('conteudoPrincipal');
-        if (appContainer) appContainer.classList.remove('hidden');
 
         const nomeCurto = perfil.nome_social || (perfil.nome_completo ? perfil.nome_completo.split(' ')[0] : 'Médium');
         const txtNome = document.getElementById('nomeMedium');
         if (txtNome) txtNome.textContent = 'Olá, ' + nomeCurto;
 
-        // LIBERAÇÃO DO PAINEL ADMIN
+        // Permissão de acesso ao botão do Painel Admin
         const temAcessoAoPainel = perfil.is_admin === true || 
                                   perfil.perm_visao_geral === true ||
                                   perfil.perm_agenda === true || 
@@ -120,7 +112,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             btnPainel.addEventListener('click', () => window.location.href = 'admin.html');
         }
 
-        // BUSCA DADOS DO TERREIRO
+        // Carrega dados e tema do terreiro
         if (idTerreiroGlobal) {
             const { data: terreiros } = await supabaseClient.from('terreiros').select('*').eq('id', idTerreiroGlobal).limit(1);
             
@@ -148,7 +140,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         // ====================================================================
-        // VERIFICA O PRÓXIMO EVENTO AGENDADO
+        // VERIFICAÇÃO DE EVENTO / GIRA AGENDADA
         // ====================================================================
         const horaNavegador = new Date();
 
@@ -291,9 +283,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // ====================================================================
-    // FUNÇÕES DO MODAL E DO CARRINHO DE DOAÇÕES
+    // DOAÇÕES
     // ====================================================================
-
     async function carregarItensDoacao() {
         try {
             const { data: itens, error } = await supabaseClient
@@ -471,7 +462,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // ====================================================================
-// GPS DO CHECK-IN COM VERIFICAÇÃO DE PERMISSÃO E TRAVA DE 30 METROS
+// GPS DO CHECK-IN
 // ====================================================================
 
 const btnCheckin = document.getElementById('btnCheckin');
@@ -510,8 +501,13 @@ function executarCheckinGPS() {
         const distanciaMetros = calcularDistancia(latUsuario, lonUsuario, coordsTerreiro.lat, coordsTerreiro.lng);
         
         if (distanciaMetros > 30) {
-            if (msg) { msg.innerHTML = `Você está muito longe do terreiro.<br>Distância atual: ${Math.round(distanciaMetros)} metros. (Máximo: 30m)`; msg.className = "mt-3 text-sm font-bold text-red-500 block"; msg.classList.remove('hidden'); }
-            restaurarBotao(btnCheckin); return;
+            if (msg) { 
+                msg.innerHTML = `Você está muito longe do terreiro.<br>Distância atual: ${Math.round(distanciaMetros)} metros. (Máximo: 30m)`; 
+                msg.className = "mt-3 text-sm font-bold text-red-500 block"; 
+                msg.classList.remove('hidden'); 
+            }
+            restaurarBotao(btnCheckin); 
+            return;
         }
 
         const { data: { session } } = await supabaseClient.auth.getSession();
@@ -526,7 +522,11 @@ function executarCheckinGPS() {
         }]);
 
         if (error) {
-            if (msg) { msg.textContent = "Erro ao registrar: " + error.message; msg.className = "mt-3 text-sm font-bold text-red-500 block"; msg.classList.remove('hidden'); }
+            if (msg) { 
+                msg.textContent = "Erro ao registrar: " + error.message; 
+                msg.className = "mt-3 text-sm font-bold text-red-500 block"; 
+                msg.classList.remove('hidden'); 
+            }
             restaurarBotao(btnCheckin);
         } else {
             const areaPonto = document.getElementById('areaBaterPonto');
@@ -537,7 +537,11 @@ function executarCheckinGPS() {
             if (horaFeito) horaFeito.textContent = new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
         }
     }, (err) => {
-        if (msg) { msg.textContent = "Erro ao acessar localização. Verifique o acesso ao GPS do celular."; msg.className = "mt-3 text-sm font-bold text-red-500 block"; msg.classList.remove('hidden'); }
+        if (msg) { 
+            msg.textContent = "Erro ao acessar localização. Verifique o acesso ao GPS do celular."; 
+            msg.className = "mt-3 text-sm font-bold text-red-500 block"; 
+            msg.classList.remove('hidden'); 
+        }
         restaurarBotao(btnCheckin);
     }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
 }
