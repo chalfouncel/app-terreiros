@@ -240,7 +240,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         } else if (perfil.is_admin || perfil.perm_visao_geral) {
             document.getElementById('menuVisaoGeral').click();
         } else {
-            // Fallback: Entra na primeira que achar permitida
             if (perfil.perm_agenda) document.getElementById('menuAgendaGiras').click();
             else if (perfil.perm_ata) document.getElementById('menuLivroAta').click();
             else if (perfil.perm_grau) document.getElementById('menuGrau').click();
@@ -259,6 +258,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ==========================================
     async function carregarPainelInicial() {
         if(!idTerreiroGlobal) return; 
+        
+        // 1. DADOS DOS CARDS SUPERIORES
         const { count: totalMediuns } = await supabaseClient.from('mediuns')
             .select('*', { count: 'exact', head: true })
             .eq('terreiro_id', idTerreiroGlobal)
@@ -282,10 +283,25 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.getElementById('proximaGira').textContent = 'Nenhum evento agendado';
         }
 
+        // 2. LÓGICA DA TABELA DE HOJE
         const tabelaPresencas = document.getElementById('tabelaPresencas');
+        
+        // Remove dinamicamente a 3ª coluna ("Status") do cabeçalho
+        if (tabelaPresencas) {
+            const tableEl = tabelaPresencas.closest('table');
+            if (tableEl) {
+                const theadRow = tableEl.querySelector('thead tr');
+                if (theadRow && theadRow.children.length >= 3) {
+                    theadRow.children[2].remove(); 
+                }
+            }
+        }
+
+        // Busca dados de todos os médiuns (necessário para nomes e relatório)
+        const { data: todosMediuns } = await supabaseClient.from('mediuns').select('id, auth_id, nome_completo, nome_social, grau, funcao').eq('terreiro_id', idTerreiroGlobal);
+
         if (giraAtualId) {
             const { data: presencas } = await supabaseClient.from('presencas').select('usuario_id, data_hora_checkin').eq('evento_id', giraAtualId).order('data_hora_checkin', { ascending: false });
-            const { data: todosMediuns } = await supabaseClient.from('mediuns').select('id, auth_id, nome_completo, nome_social').eq('terreiro_id', idTerreiroGlobal);
             
             document.getElementById('totalPresentes').textContent = presencas ? presencas.length : '0';
 
@@ -293,16 +309,113 @@ document.addEventListener('DOMContentLoaded', async () => {
                 tabelaPresencas.innerHTML = ''; 
                 presencas.forEach(p => {
                     const md = todosMediuns?.find(m => m.auth_id === p.usuario_id || String(m.id) === String(p.usuario_id));
-                    const nome = md ? (md.nome_social ? md.nome_social : md.nome_completo) : 'Médium Excluído';
+                    const nome = md ? (md.nome_social || md.nome_completo) : 'Médium Excluído';
                     const hora = new Date(p.data_hora_checkin).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                    tabelaPresencas.innerHTML += `<tr class="border-b border-gray-100 hover:bg-gray-50"><td class="p-3 text-gray-800 font-medium">${nome}</td><td class="p-3 text-gray-600">${hora}</td><td class="p-3"><span class="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-bold">PRESENTE</span></td></tr>`;
+                    
+                    tabelaPresencas.innerHTML += `
+                        <tr class="border-b border-gray-100 hover:bg-gray-50">
+                            <td class="p-3 text-gray-800 font-medium">${nome}</td>
+                            <td class="p-3 text-gray-600 text-center">${hora}</td>
+                        </tr>
+                    `;
                 });
             } else {
-                tabelaPresencas.innerHTML = `<tr><td colspan="3" class="p-6 text-center text-gray-500">Nenhum check-in ainda.</td></tr>`;
+                tabelaPresencas.innerHTML = `<tr><td colspan="2" class="p-6 text-center text-gray-500">Nenhum check-in ainda.</td></tr>`;
             }
         } else {
             document.getElementById('totalPresentes').textContent = '0';
-            if(tabelaPresencas) tabelaPresencas.innerHTML = `<tr><td colspan="3" class="p-6 text-center text-gray-500">Nenhum evento agendado para o momento.</td></tr>`;
+            if(tabelaPresencas) tabelaPresencas.innerHTML = `<tr><td colspan="2" class="p-6 text-center text-gray-500">Nenhum evento agendado para o momento.</td></tr>`;
+        }
+
+        // 3. LÓGICA DO CARD "RELATÓRIO DE PRESENÇAS" (HISTÓRICO EM PDF)
+        // Varre a área de visão geral para encontrar o <select> e o botão <button>
+        const selectRelatorio = document.querySelector('#secVisaoGeral select');
+        const botoesVisaoGeral = document.querySelectorAll('#secVisaoGeral button');
+        let btnGerarHistorico = null;
+        botoesVisaoGeral.forEach(b => {
+            if (b.textContent.includes('Baixar Relatório')) btnGerarHistorico = b;
+        });
+
+        if (selectRelatorio) {
+            // Busca o histórico de todos os eventos já cadastrados e finalizados
+            const { data: historicoEventos } = await supabaseClient
+                .from('agenda')
+                .select('id, titulo, data_hora_inicio')
+                .eq('terreiro_id', idTerreiroGlobal)
+                .order('data_hora_inicio', { ascending: false });
+
+            selectRelatorio.innerHTML = '<option value="">Selecione um evento...</option>';
+            
+            if (historicoEventos && historicoEventos.length > 0) {
+                historicoEventos.forEach(ev => {
+                    const dataFormatada = new Date(ev.data_hora_inicio).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                    selectRelatorio.innerHTML += `<option value="${ev.id}">${dataFormatada} - ${ev.titulo}</option>`;
+                });
+            } else {
+                selectRelatorio.innerHTML = '<option value="">Nenhum evento encontrado no histórico.</option>';
+            }
+        }
+
+        if (btnGerarHistorico && selectRelatorio) {
+            // Removemos event listeners antigos clonando o botão (evita múltiplos downloads ao navegar pelas abas)
+            const novoBtn = btnGerarHistorico.cloneNode(true);
+            btnGerarHistorico.parentNode.replaceChild(novoBtn, btnGerarHistorico);
+
+            novoBtn.addEventListener('click', async () => {
+                const eventoIdSelecionado = selectRelatorio.value;
+                if (!eventoIdSelecionado) {
+                    alert('Por favor, selecione um evento na lista antes de clicar em Baixar.');
+                    return;
+                }
+
+                const originalHtml = novoBtn.innerHTML;
+                novoBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Gerando Documento...';
+                novoBtn.disabled = true;
+
+                try {
+                    // Descobre o título do evento pelo texto da option selecionada
+                    const textoOption = selectRelatorio.options[selectRelatorio.selectedIndex].text;
+                    const tituloEvStr = textoOption.split(' - ')[1] || 'Relatório';
+
+                    // Busca quem marcou presença neste evento específico
+                    const { data: presencasHist } = await supabaseClient
+                        .from('presencas')
+                        .select('usuario_id, data_hora_checkin')
+                        .eq('evento_id', eventoIdSelecionado)
+                        .order('data_hora_checkin', { ascending: true }); // Ordena por hora de chegada no PDF
+
+                    if (!presencasHist || presencasHist.length === 0) {
+                        alert('Nenhum check-in foi registrado para este evento escolhido.');
+                        return;
+                    }
+
+                    // Monta o array para injeção no PDF
+                    const dadosParaPDF = [];
+                    presencasHist.forEach(p => {
+                        const md = todosMediuns?.find(m => m.auth_id === p.usuario_id || String(m.id) === String(p.usuario_id));
+                        const nome = md ? (md.nome_social || md.nome_completo) : 'Médium Excluído';
+                        const hora = new Date(p.data_hora_checkin).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                        const grauPdf = md ? (md.grau || '-') : '-';
+                        const funcPdf = md ? (md.funcao || '-') : '-';
+                        
+                        dadosParaPDF.push([nome, grauPdf, funcPdf, hora]);
+                    });
+
+                    // Invoca a nossa função universal já estilizada
+                    window.gerarPDFRelatorio(
+                        `Relatório Oficial de Presenças - ${tituloEvStr}`, 
+                        ['Nome do Médium', 'Grau', 'Função', 'Hora Check-in'], 
+                        dadosParaPDF
+                    );
+
+                } catch (error) {
+                    console.error('Erro na geração do relatório histórico:', error);
+                    alert('Erro inesperado ao gerar o relatório.');
+                } finally {
+                    novoBtn.innerHTML = originalHtml;
+                    novoBtn.disabled = false;
+                }
+            });
         }
     }
 
@@ -393,9 +506,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 linkWhats = `<a href="https://wa.me/${ddi}${numeroLimpo}" target="_blank" class="text-green-600 hover:text-green-700 hover:underline flex items-center gap-1 font-medium" title="Chamar no WhatsApp"><i class="fab fa-whatsapp text-lg"></i> ${m.telefone}</a>`;
             }
 
-            const nomeHtml = m.nome_social 
-                ? `${m.nome_completo}<br><span class="text-[10px] text-gray-500">Social: ${m.nome_social}</span>`
-                : m.nome_completo;
+            const nomeHtml = m.nome_social ? m.nome_social : m.nome_completo;
 
             tbody.innerHTML += `
                 <tr class="hover:bg-gray-50 transition-colors group">
@@ -435,7 +546,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             return diaA - diaB;
         });
 
-        window.aniversariantesAtuais = aniversariantes; // Salva para a impressão de PDF
+        window.aniversariantesAtuais = aniversariantes; 
 
         ul.innerHTML = '';
 
@@ -457,7 +568,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             const nomeExibicao = m.nome_social ? m.nome_social : (m.nome_completo ? m.nome_completo.split(' ')[0] : 'Médium');
-            const badgeSocial = m.nome_social ? `<span class="bg-blue-100 text-blue-700 text-[9px] px-1.5 py-0.5 rounded ml-1 font-bold">SOCIAL</span>` : '';
 
             ul.innerHTML += `
                 <li class="p-3 hover:bg-gray-50 flex items-center justify-between transition-colors border-l-4 border-transparent hover:border-blue-500">
@@ -466,7 +576,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             ${dia}
                         </div>
                         <div>
-                            <p class="text-sm font-bold text-gray-800 flex items-center">${nomeExibicao} ${badgeSocial}</p>
+                            <p class="text-sm font-bold text-gray-800 flex items-center">${nomeExibicao}</p>
                             <p class="text-[10px] text-gray-500 uppercase">${m.grau || 'Médium'}</p>
                         </div>
                     </div>
@@ -519,7 +629,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderizarTabelaMediuns(listaFiltrada);
     }
 
-    // Função universal e otimizada para gerar relatórios em PDF (A4) com marca d'água
     window.gerarPDFRelatorio = (titulo, colunas, dados) => {
         const containerPDF = document.createElement('div');
         containerPDF.style.padding = '20px 30px';
@@ -527,7 +636,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         containerPDF.style.color = '#333';
         containerPDF.style.position = 'relative';
 
-        // Marca d'água centralizada (super discreta, atrás da tabela)
         let watermark = '';
         if (logoTerreiroGlobal) {
             watermark = `<div style="position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); opacity: 0.08; z-index: -1; pointer-events: none;">
@@ -580,20 +688,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         html2pdf().set(opt).from(containerPDF).save();
     };
 
-    // Configuração dos eventos de Filtro e PDF
     setTimeout(() => {
         document.getElementById('filtroNomeMedium')?.addEventListener('input', aplicarFiltrosMediuns);
         document.getElementById('filtroGrauMedium')?.addEventListener('change', aplicarFiltrosMediuns);
         document.getElementById('filtroStatusMedium')?.addEventListener('change', aplicarFiltrosMediuns);
         document.getElementById('filtroMesNascimento')?.addEventListener('change', aplicarFiltrosMediuns);
         
-        // Filtros de Convocados (Gira Especial)
         document.getElementById('filtroConvocadosNome')?.addEventListener('input', () => window.filtrarConvocados('listaCheckConvocados', 'filtroConvocadosNome', 'filtroConvocadosGrau'));
         document.getElementById('filtroConvocadosGrau')?.addEventListener('change', () => window.filtrarConvocados('listaCheckConvocados', 'filtroConvocadosNome', 'filtroConvocadosGrau'));
         document.getElementById('editFiltroConvocadosNome')?.addEventListener('input', () => window.filtrarConvocados('editListaCheckConvocados', 'editFiltroConvocadosNome', 'editFiltroConvocadosGrau'));
         document.getElementById('editFiltroConvocadosGrau')?.addEventListener('change', () => window.filtrarConvocados('editListaCheckConvocados', 'editFiltroConvocadosNome', 'editFiltroConvocadosGrau'));
 
-        // Botão PDF: Quadro Geral
         document.getElementById('btnImprimirMediuns')?.addEventListener('click', () => {
             const btn = document.getElementById('btnImprimirMediuns');
             const originalHtml = btn.innerHTML;
@@ -611,23 +716,19 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
                 const nomeStr = m.nome_social ? `${m.nome_completo} (${m.nome_social})` : m.nome_completo;
                 const whats = m.telefone || '-';
-                
                 return [nomeStr, dataNasc, m.grau || '-', m.funcao || '-', whats];
             });
             
             window.gerarPDFRelatorio('Quadro Oficial de Médiuns', ['Nome Completo', 'Nascimento', 'Grau', 'Função', 'WhatsApp'], dados);
-            
             setTimeout(() => { btn.innerHTML = originalHtml; btn.disabled = false; }, 2000);
         });
 
-        // Botão PDF: Aniversariantes
         document.getElementById('btnImprimirAniversariantes')?.addEventListener('click', () => {
             const btn = document.getElementById('btnImprimirAniversariantes');
             const originalHtml = btn.innerHTML;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
             btn.disabled = true;
             
-            // FIX: Filtra e processa direto da base global para garantir dados perfeitos
             const dataAtual = new Date();
             const mesAtualNum = (dataAtual.getMonth() + 1).toString().padStart(2, '0');
             
@@ -641,12 +742,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             if(lista.length === 0) {
                 alert("Nenhum aniversariante neste mês para gerar relatório.");
-                btn.innerHTML = originalHtml;
-                btn.disabled = false;
+                btn.innerHTML = originalHtml; btn.disabled = false;
                 return;
             }
             
-            // Ordenação dos Aniversariantes para o PDF
             lista.sort((a, b) => {
                 let diaA = 0, diaB = 0;
                 if(a.data_nascimento.includes('-')) diaA = parseInt(a.data_nascimento.split('-')[2]);
@@ -655,32 +754,24 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
             
             const dados = lista.map(m => {
-                let dataNasc = '-';
-                let diaMes = '-';
+                let dataNasc = '-'; let diaMes = '-';
                 if (m.data_nascimento) {
                     if (m.data_nascimento.includes('-')) {
                         const p = m.data_nascimento.split('-');
-                        if(p.length === 3) {
-                            dataNasc = `${p[2]}/${p[1]}/${p[0]}`;
-                            diaMes = `${p[2]}/${p[1]}`;
-                        }
+                        if(p.length === 3) { dataNasc = `${p[2]}/${p[1]}/${p[0]}`; diaMes = `${p[2]}/${p[1]}`; }
                     } else {
                         dataNasc = m.data_nascimento;
                         if(dataNasc.includes('/')) diaMes = dataNasc.substring(0, 5);
                     }
                 }
                 const nomeStr = m.nome_social ? `${m.nome_completo} (${m.nome_social})` : m.nome_completo;
-                
-                // Agora envia diaMes tanto no começo quanto no final
-                return [diaMes, nomeStr, m.grau || '-', diaMes];
+                return [diaMes, nomeStr, m.grau || '-', dataNasc];
             });
             
-            const mesAtualTexto = dataAtual.toLocaleString('pt-BR', { month: 'long' });
-            const titulo = `Aniversariantes de ${mesAtualTexto.charAt(0).toUpperCase() + mesAtualTexto.slice(1)}`;
+            const mesAtual = new Date().toLocaleString('pt-BR', { month: 'long' });
+            const titulo = `Aniversariantes de ${mesAtual.charAt(0).toUpperCase() + mesAtual.slice(1)}`;
             
-            // Alterado de 'Nascimento' para 'Aniversário' e 'Nome Completo' para 'Nome'
-            window.gerarPDFRelatorio(titulo, ['Dia', 'Nome Completo', 'Grau', 'Aniversário'], dados);
-            
+            window.gerarPDFRelatorio(titulo, ['Dia', 'Nome Completo', 'Grau', 'Nascimento'], dados);
             setTimeout(() => { btn.innerHTML = originalHtml; btn.disabled = false; }, 2000);
         });
     }, 500);
@@ -880,7 +971,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     // AGENDA E EVENTOS
     // ==========================================
     
-    // Controle dos checkboxes de Gira Especial
     document.addEventListener('change', (e) => {
         if(e.target.id === 'giraEspecial') {
             const box = document.getElementById('boxConvocados');
@@ -897,7 +987,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    // Mantém o estado da seleção mesmo se o usuário filtrar (apagar da tela)
     window.atualizarSelecao = (containerId, checkbox) => {
         let arr = window['selecionados_' + containerId] || [];
         if(checkbox.checked) {
@@ -1030,7 +1119,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('editGiraId').value = data.id;
         document.getElementById('editGiraTitulo').value = data.titulo;
         
-        // CORREÇÃO: Formata forçando a hora que veio do banco de volta pro GMT-3 (São Paulo) no input
         const formataParaInput = (isoString) => {
             if (!isoString) return '';
             const dataBanco = new Date(isoString);
@@ -1153,7 +1241,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     data_hora_inicio: inicioBR,
                     data_hora_fim: fimBR,
                     imagem_url: imagemFinal,
-                    raio_presenca_metros: 50,
+                    raio_presenca_metros: 30,
                     gera_ata: chkGeraAta,
                     especial: isEspecial,
                     convocados: convocadosArray
@@ -1208,41 +1296,25 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             const agora = new Date();
 
-            // 1. OBTÉM E ESTABILIZA O STATUS REAL (Verificando a trava de horário)
             data.forEach(g => {
                 g.status_encerrada = g.ata_encerrada;
-                
-                // FECHAMENTO AUTOMÁTICO SE PASSOU DO HORÁRIO DE FIM
                 if (!g.status_encerrada && g.data_hora_fim) {
                     const fim = new Date(g.data_hora_fim);
                     if (agora > fim) {
                         g.status_encerrada = true;
-                        // Atualiza no banco silenciosamente sem travar a interface
                         supabaseClient.from('agenda').update({ ata_encerrada: true }).eq('id', g.id).then();
                     }
                 }
             });
 
-            // 2. ORDENAÇÃO EXATA VIA JAVASCRIPT CONFORME A REGRA
             data.sort((a, b) => {
-                // REGRA 1: "Em Aberto" ficam primeiro que "Finalizada"
-                if (a.status_encerrada !== b.status_encerrada) {
-                    return a.status_encerrada ? 1 : -1; 
-                }
-                
+                if (a.status_encerrada !== b.status_encerrada) return a.status_encerrada ? 1 : -1; 
                 const dataA = new Date(a.data_hora_inicio).getTime();
                 const dataB = new Date(b.data_hora_inicio).getTime();
-                
-                if (!a.status_encerrada) {
-                    // REGRA 2: Se ambos estão Em Aberto, a mais próxima fica em cima (crescente)
-                    return dataA - dataB;
-                } else {
-                    // REGRA 3: Se ambos estão Finalizados, as recém-encerradas ficam acima (decrescente)
-                    return dataB - dataA;
-                }
+                if (!a.status_encerrada) return dataA - dataB;
+                else return dataB - dataA;
             });
 
-            // 3. RENDERIZAÇÃO
             data.forEach(g => {
                 const inicio = new Date(g.data_hora_inicio).toLocaleString('pt-BR');
                 const encerrada = g.status_encerrada;
@@ -1318,7 +1390,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 msg.textContent = 'Texto salvo com sucesso!';
                 msg.className = 'text-green-600 text-sm font-bold mt-2 block';
                 msg.classList.remove('hidden');
-                carregarLivroAta(); // Atualiza a lista para refletir se mudou de "Redigir" para "Editar"
+                carregarLivroAta(); 
                 setTimeout(() => fecharModalEscreverAta(), 1500);
             }
         });
@@ -1376,7 +1448,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             const { data: presencas } = await supabaseClient.from('presencas').select('data_hora_checkin, usuario_id').eq('evento_id', eventoId).order('data_hora_checkin', { ascending: true });
             
-            // Busca também a "funcao" para validar a regra do Dirigente
             const { data: mediuns } = await supabaseClient.from('mediuns').select('id, auth_id, nome_completo, nome_social, grau, funcao').eq('terreiro_id', idTerreiroGlobal);
                 
             const mapaMediuns = {};
@@ -1394,7 +1465,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             const ano = dataEv.getFullYear();
             const hora = dataEv.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
-            // Lógica de Ordenação Personalizada para a ATA
             if (presencas && presencas.length > 0) {
                 presencas.sort((a, b) => {
                     const mediumA = mapaMediuns[a.usuario_id] || {};
@@ -1403,11 +1473,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const isDirigenteA = mediumA.funcao === 'Dirigente' || mediumA.grau === 'Dirigente';
                     const isDirigenteB = mediumB.funcao === 'Dirigente' || mediumB.grau === 'Dirigente';
                     
-                    // 1. O Dirigente sempre sobe para o topo
                     if (isDirigenteA && !isDirigenteB) return -1;
                     if (!isDirigenteA && isDirigenteB) return 1;
                     
-                    // 2. Os demais são ordenados pelo horário de chegada (do mais cedo pro mais tarde)
                     const timeA = new Date(a.data_hora_checkin).getTime();
                     const timeB = new Date(b.data_hora_checkin).getTime();
                     
@@ -1422,7 +1490,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const nomeFinal = medium.nome_social ? medium.nome_social : medium.nome_completo;
                     const horaCheckin = new Date(p.data_hora_checkin).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
                     
-                    // Grau e Função combinados
                     let grauExibicao = '-';
                     const gStr = medium.grau && medium.grau !== '-' ? medium.grau : '';
                     const fStr = medium.funcao && medium.funcao !== '-' ? medium.funcao : '';
@@ -1439,7 +1506,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         const nextMedium = mapaMediuns[nextP.usuario_id] || {};
                         const isNextDirigente = nextMedium.funcao === 'Dirigente' || nextMedium.grau === 'Dirigente';
                         if (!isNextDirigente) {
-                            borderStyle = '2px solid #000'; // Separação visual forte após o dirigente
+                            borderStyle = '2px solid #000'; 
                         }
                     }
 
