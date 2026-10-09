@@ -1,2 +1,0 @@
-ALTER TABLE public.perfis ADD COLUMN IF NOT EXISTS telefone text;
-NOTIFY pgrst, 'reload schema';
