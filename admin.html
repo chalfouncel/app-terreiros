@@ -344,7 +344,7 @@
                             <tr class="bg-gray-50 border-b border-gray-200">
                                 <th class="p-3 text-sm font-semibold text-gray-600">EVENTO</th>
                                 <th class="p-3 text-sm font-semibold text-gray-600">DATA / HORA</th>
-                                <th class="p-3 text-sm font-semibold text-gray-600 text-center">OPÇÕES</th>
+                                <th class="p-3 text-sm font-semibold text-gray-600 text-center">OPÇÕES / DOCUMENTOS</th>
                             </tr>
                         </thead>
                         <tbody id="tabelaGirasCadastradas"></tbody>
@@ -455,7 +455,7 @@
                     <h3 class="text-xl font-bold text-tema-texto">
                         <i class="fas fa-box-open mr-2 text-tema-secundaria"></i> Doações Registradas
                     </h3>
-                    <button id="btnGerarPDF_doacoes" class="bg-gray-800 text-white text-sm font-bold px-4 py-2 rounded-lg shadow hover:bg-gray-700 transition flex items-center active:scale-95">
+                    <button id="btnGerarPDF" class="bg-gray-800 text-white text-sm font-bold px-4 py-2 rounded-lg shadow hover:bg-gray-700 transition flex items-center active:scale-95">
                         <i class="fas fa-file-pdf mr-2 text-red-400"></i> Exportar para PDF
                     </button>
                 </div>
@@ -530,6 +530,8 @@
         </div>
 
         <div id="secAdministracao" class="secao-painel hidden">
+            
+            <!-- CONFIG DE GPS CORRIGIDA PARA 30 METROS -->
             <div class="bg-white p-6 rounded-xl shadow-sm border-t-4 border-green-500 mb-8">
                 <div class="flex items-center mb-4">
                     <div class="bg-green-100 p-3 rounded-full mr-4 text-green-600">
@@ -744,17 +746,22 @@
             <input type="hidden" id="idMediumPermissao">
             
             <div class="space-y-3 mb-6">
-                <!-- NOVA PERMISSÃO AQUI -->
                 <label class="flex items-center space-x-3 cursor-pointer p-2 hover:bg-gray-50 rounded">
                     <input type="checkbox" id="chkPermVisao" class="w-5 h-5 text-tema-primaria rounded focus:ring-tema-primaria">
                     <span class="text-gray-700 font-medium"><i class="fas fa-home w-5 text-center text-gray-400 mr-1"></i> Visão Geral</span>
                 </label>
-                <!-- FIM DA NOVA PERMISSÃO -->
                 
                 <label class="flex items-center space-x-3 cursor-pointer p-2 hover:bg-gray-50 rounded">
                     <input type="checkbox" id="chkPermAgenda" class="w-5 h-5 text-tema-primaria rounded focus:ring-tema-primaria">
                     <span class="text-gray-700 font-medium"><i class="fas fa-calendar-alt w-5 text-center text-gray-400 mr-1"></i> Agenda de Eventos</span>
                 </label>
+                
+                <!-- CHECKBOX DO LIVRO DE PRESENÇA (ATA) RESTAURADO -->
+                <label class="flex items-center space-x-3 cursor-pointer p-2 hover:bg-gray-50 rounded">
+                    <input type="checkbox" id="chkPermAta" class="w-5 h-5 text-tema-primaria rounded focus:ring-tema-primaria">
+                    <span class="text-gray-700 font-medium"><i class="fas fa-book-open w-5 text-center text-gray-400 mr-1"></i> Livro de Presença (ATA)</span>
+                </label>
+                
                 <label class="flex items-center space-x-3 cursor-pointer p-2 hover:bg-gray-50 rounded">
                     <input type="checkbox" id="chkPermGrau" class="w-5 h-5 text-tema-primaria rounded focus:ring-tema-primaria">
                     <span class="text-gray-700 font-medium"><i class="fas fa-graduation-cap w-5 text-center text-gray-400 mr-1"></i> Alteração de Grau</span>
@@ -779,7 +786,7 @@
         </div>
     </div>
 
-    <!-- MODAL ESCREVER ATA -->
+    <!-- MODAL ESCREVER ATA RESTAURADO -->
     <div id="modalEscreverAta" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 transition-opacity">
         <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl p-6 transform transition-all">
             <div class="flex justify-between items-center mb-4 border-b pb-2">
@@ -831,7 +838,7 @@
         </div>
     </div>
 
-    <!-- MODAL EDITAR GIRA/EVENTO -->
+    <!-- MODAL EDITAR GIRA/EVENTO RESTAURADO -->
     <div id="modalEditarGira" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 transition-opacity">
         <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 transform transition-all">
             <div class="flex justify-between items-center mb-4 border-b pb-2">
@@ -904,7 +911,7 @@
     <script src="js/supabase.js"></script>
     <script src="js/admin.js"></script>
 
-    <!-- LÓGICA DO MAPA DE GPS (LEAFLET) -->
+    <!-- LÓGICA DO MAPA DE GPS (LEAFLET) - RAIO ATUALIZADO PARA 30 METROS -->
     <script>
         let mapaGlobal = null;
         let marcadorGlobal = null;
@@ -939,6 +946,7 @@
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(mapaGlobal);
                 
                 marcadorGlobal = L.marker([lat, lng]).addTo(mapaGlobal);
+                // RAIO CORRIGIDO AQUI PARA 30 METROS
                 circuloGlobal = L.circle([lat, lng], { color: 'green', fillColor: '#22c55e', fillOpacity: 0.2, radius: 30 }).addTo(mapaGlobal);
 
                 mapaGlobal.on('click', function(e) {
