@@ -66,7 +66,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         if (!perfil) {
-            alert("Aviso: Sua ficha de médium não foi encontrada. Fale com a Administração.");
+            alert("Aviso: A sua ficha de médium não foi encontrada. Fale com a Administração.");
             await supabaseClient.auth.signOut();
             localStorage.clear();
             window.location.href = 'index.html';
@@ -75,7 +75,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Bloqueio se o médium estiver inativo
         if (perfil.status_ativo === false || perfil.status_ativo === 'false') {
-            alert("Seu acesso ao sistema está inativo. Por favor, entre em contato com a Administração da Casa.");
+            alert("O seu acesso ao sistema está inativo. Por favor, entre em contacto com a Administração da Casa.");
             await supabaseClient.auth.signOut();
             localStorage.clear();
             window.location.href = 'index.html';
@@ -462,7 +462,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // ====================================================================
-// GPS DO CHECK-IN
+// GPS DO CHECK-IN (COM TOLERÂNCIA DE PRECISÃO E FEEDBACK VISUAL)
 // ====================================================================
 
 const btnCheckin = document.getElementById('btnCheckin');
@@ -491,19 +491,28 @@ function mostrarModalGPS(estado) {
 function executarCheckinGPS() {
     const msg = document.getElementById('msgCheckin');
     btnCheckin.disabled = true;
-    btnCheckin.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Validando GPS...';
+    btnCheckin.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> A ler sinal de GPS...';
     
     if (msg) msg.classList.add('hidden');
     if (modalPermissaoGPS) modalPermissaoGPS.classList.add('hidden');
 
     navigator.geolocation.getCurrentPosition(async (posicao) => {
-        const latUsuario = posicao.coords.latitude, lonUsuario = posicao.coords.longitude;
-        const distanciaMetros = calcularDistancia(latUsuario, lonUsuario, coordsTerreiro.lat, coordsTerreiro.lng);
+        const latUsuario = posicao.coords.latitude;
+        const lonUsuario = posicao.coords.longitude;
+        const precisaoAparelho = posicao.coords.accuracy || 0; // Raio de incerteza do GPS em metros
+
+        const distanciaBruta = calcularDistancia(latUsuario, lonUsuario, coordsTerreiro.lat, coordsTerreiro.lng);
         
-        if (distanciaMetros > 30) {
+        // Aplica tolerância baseada na precisão reportada (atenua desvios sob telhados e paredes)
+        const margemTolerancia = Math.min(precisaoAparelho / 2, 15);
+        const distanciaEfetiva = Math.max(0, distanciaBruta - margemTolerancia);
+
+        if (distanciaEfetiva > 30) {
+            const distanciaExibida = Math.round(distanciaBruta);
+            const metrosRestantes = Math.round(distanciaBruta - 30);
             if (msg) { 
-                msg.innerHTML = `Você está muito longe do terreiro.<br>Distância atual: ${Math.round(distanciaMetros)} metros. (Máximo: 30m)`; 
-                msg.className = "mt-3 text-sm font-bold text-red-500 block"; 
+                msg.innerHTML = `Está a <strong>${distanciaExibida} metros</strong> do terreiro.<br>Aproxime-se mais cerca de <strong>${metrosRestantes}m</strong> para confirmar. (Limite: 30m)`; 
+                msg.className = "mt-3 text-xs md:text-sm font-semibold text-red-500 block text-center leading-relaxed"; 
                 msg.classList.remove('hidden'); 
             }
             restaurarBotao(btnCheckin); 
@@ -511,20 +520,20 @@ function executarCheckinGPS() {
         }
 
         const { data: { session } } = await supabaseClient.auth.getSession();
-        btnCheckin.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Registrando...';
+        btnCheckin.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> A registar presença...';
 
         const { error } = await supabaseClient.from('presencas').insert([{ 
             evento_id: idGiraGlobal, 
             usuario_id: session.user.id, 
             data_hora_checkin: new Date().toISOString(),
             localizacao_valida: true,
-            distancia_metros: Math.round(distanciaMetros)
+            distancia_metros: Math.round(distanciaBruta)
         }]);
 
         if (error) {
             if (msg) { 
-                msg.textContent = "Erro ao registrar: " + error.message; 
-                msg.className = "mt-3 text-sm font-bold text-red-500 block"; 
+                msg.textContent = "Erro ao registar: " + error.message; 
+                msg.className = "mt-3 text-xs md:text-sm font-bold text-red-500 block text-center"; 
                 msg.classList.remove('hidden'); 
             }
             restaurarBotao(btnCheckin);
@@ -538,12 +547,12 @@ function executarCheckinGPS() {
         }
     }, (err) => {
         if (msg) { 
-            msg.textContent = "Erro ao acessar localização. Verifique o acesso ao GPS do celular."; 
-            msg.className = "mt-3 text-sm font-bold text-red-500 block"; 
+            msg.textContent = "Não foi possível obter a sua localização. Ative a localização de alta precisão do dispositivo."; 
+            msg.className = "mt-3 text-xs md:text-sm font-bold text-red-500 block text-center"; 
             msg.classList.remove('hidden'); 
         }
         restaurarBotao(btnCheckin);
-    }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+    }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
 }
 
 if (btnCheckin) {
@@ -552,21 +561,21 @@ if (btnCheckin) {
         
         const agoraClick = new Date();
         if (hrInicioPermitidoGlobal && agoraClick < hrInicioPermitidoGlobal) {
-            if (msg) { msg.textContent = "A gira ainda não começou. Aguarde o horário."; msg.className = "mt-3 text-sm font-bold text-red-500 block"; msg.classList.remove('hidden'); }
+            if (msg) { msg.textContent = "O evento ainda não iniciou. Aguarde o horário permitido."; msg.className = "mt-3 text-xs md:text-sm font-bold text-red-500 block text-center"; msg.classList.remove('hidden'); }
             return;
         }
         if (hrFimGiraGlobal && agoraClick > hrFimGiraGlobal) {
-            if (msg) { msg.textContent = "Esta gira já foi encerrada."; msg.className = "mt-3 text-sm font-bold text-red-500 block"; msg.classList.remove('hidden'); }
+            if (msg) { msg.textContent = "Este evento já se encontra encerrado."; msg.className = "mt-3 text-xs md:text-sm font-bold text-red-500 block text-center"; msg.classList.remove('hidden'); }
             return;
         }
 
         if (!coordsTerreiro || !coordsTerreiro.lat) {
-            if (msg) { msg.textContent = "O administrador ainda não configurou o GPS do terreiro."; msg.className = "mt-3 text-sm font-bold text-red-500 block"; msg.classList.remove('hidden'); }
+            if (msg) { msg.textContent = "A localização do terreiro ainda não foi configurada pela direção."; msg.className = "mt-3 text-xs md:text-sm font-bold text-red-500 block text-center"; msg.classList.remove('hidden'); }
             return;
         }
 
         if (!navigator.geolocation) {
-            if (msg) { msg.textContent = "Seu navegador não suporta GPS."; msg.className = "mt-3 text-sm font-bold text-red-500 block"; msg.classList.remove('hidden'); }
+            if (msg) { msg.textContent = "O seu navegador não possui suporte a GPS."; msg.className = "mt-3 text-xs md:text-sm font-bold text-red-500 block text-center"; msg.classList.remove('hidden'); }
             return;
         }
 
@@ -606,12 +615,16 @@ if (btnFecharModalGps) {
 function restaurarBotao(btn) { 
     if (btn) { 
         btn.disabled = false; 
-        btn.innerHTML = '<i class="fas fa-map-marker-alt"></i> Confirmar Presença'; 
+        btn.innerHTML = '<i class="fas fa-map-marker-alt mr-2"></i> Confirmar Presença'; 
     } 
 }
 
 function calcularDistancia(lat1, lon1, lat2, lon2) {
-    const R = 6371e3, p1 = lat1 * Math.PI/180, p2 = lat2 * Math.PI/180, dp = (lat2-lat1) * Math.PI/180, dl = (lon2-lon1) * Math.PI/180;
+    const R = 6371e3;
+    const p1 = lat1 * Math.PI/180;
+    const p2 = lat2 * Math.PI/180;
+    const dp = (lat2-lat1) * Math.PI/180;
+    const dl = (lon2-lon1) * Math.PI/180;
     const a = Math.sin(dp/2) * Math.sin(dp/2) + Math.cos(p1) * Math.cos(p2) * Math.sin(dl/2) * Math.sin(dl/2);
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
 }
