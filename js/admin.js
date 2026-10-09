@@ -14,7 +14,7 @@ let circuloGlobal = null;
 function comprimirImagem(file, maxWidth = 1200, maxHeight = 1200, quality = 0.82) {
     return new Promise((resolve, reject) => {
         if (!file.type.match(/image.*/)) {
-            return resolve(file); // Se não for imagem direta, devolve o original
+            return resolve(file);
         }
 
         const reader = new FileReader();
@@ -116,7 +116,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (erroPerfil) throw erroPerfil;
         perfilAdminLogado = perfil;
 
-        // INCLUI A CHECAGEM DE IS_MASTER PARA NÃO BARRAR O ACESSO AO PAINEL NEUTRO
         const temAcessoPainel = perfil.is_admin || perfil.perm_visao_geral || perfil.perm_agenda || perfil.perm_grau || perfil.perm_financeiro || perfil.perm_doacoes || perfil.perm_admin || perfil.perm_ata || perfil.is_master;
 
         if (!temAcessoPainel) {
@@ -132,14 +131,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             const menuMaster = document.getElementById('menuMaster');
             if (menuMaster) menuMaster.classList.remove('hidden');
             
-            // Verifica se o master clicou para acessar um terreiro específico (Cliente)
             terreiroSaaSForcado = localStorage.getItem('terreiroAtivoSaaS');
             
             if (terreiroSaaSForcado) {
-                // MODO SUPORTE (Simulando o painel de um cliente)
                 idTerreiroGlobal = terreiroSaaSForcado;
                 
-                // Cria um aviso visual no topo da tela para você não esquecer que está no cliente
                 const avisoInfiltrado = document.createElement('div');
                 avisoInfiltrado.className = "bg-red-600 text-white text-center py-2 px-4 font-bold text-sm shadow-md z-50 flex flex-col md:flex-row justify-center items-center gap-2 md:space-x-4 flex-shrink-0";
                 avisoInfiltrado.innerHTML = `
@@ -147,11 +143,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <button onclick="voltarParaMeuPainel()" class="bg-white text-red-600 px-3 py-1 rounded text-xs font-bold hover:bg-gray-100 shadow transition border border-red-200">Sair do Modo Suporte</button>
                 `;
                 
-                // Insere o banner logo no começo da coluna de conteúdo principal
                 const containerPrincipal = document.querySelector('.flex-1.flex-col') || document.body;
                 containerPrincipal.insertBefore(avisoInfiltrado, containerPrincipal.firstChild);
 
-                // No Modo Suporte, forçamos todas as permissões para True para você conseguir resolver qualquer problema
                 perfil.is_admin = true;
                 perfil.perm_visao_geral = true;
                 perfil.perm_agenda = true;
@@ -161,17 +155,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 perfil.perm_doacoes = true;
                 perfil.perm_admin = true;
             } else {
-                // MODO MASTER PURO (Acessou para ver clientes, não um terreiro específico)
                 emModoMasterPuro = true;
                 idTerreiroGlobal = null;
             }
         } else {
-            // USUÁRIO COMUM (Dirigente ou Admin de Terreiro normal)
             idTerreiroGlobal = perfil.terreiro_id;
         }
         // --- FIM DA LÓGICA DE TROCA DE CONTEXTO ---
 
-        // Ocultar menus indesejados baseado no contexto ou permissões
         if (emModoMasterPuro) {
             ['menuVisaoGeral', 'menuQuadroMediuns', 'menuAgendaGiras', 'menuLivroAta', 'menuGrau', 'menuFinanceiro', 'menuDoacoes', 'menuAdmin'].forEach(id => {
                 const el = document.getElementById(id);
@@ -199,7 +190,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         const nomeMobileEl = document.getElementById('nomeAdminMobile');
         if (nomeMobileEl) nomeMobileEl.textContent = primeiroNome;
         
-        // Só carrega detalhes (cores/logo) se existir um terreiro em foco
         if (idTerreiroGlobal) {
             const { data: terreiro } = await supabaseClient
                 .from('terreiros')
@@ -291,7 +281,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     carregarGestaoPlataforma();
                 }
 
-                // Fecha a gaveta no celular após clique
                 if (window.innerWidth < 768) {
                     sidebar.classList.add('-translate-x-full');
                     overlayMobile.classList.add('hidden');
@@ -299,7 +288,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         });
 
-        // DEFINIÇÃO DA TELA INICIAL
         if (emModoMasterPuro) {
             const m = document.getElementById('menuMaster');
             if(m) m.click();
@@ -325,7 +313,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function carregarPainelInicial() {
         if(!idTerreiroGlobal) return; 
         
-        // 1. DADOS DOS CARDS SUPERIORES
         const { count: totalMediuns } = await supabaseClient.from('mediuns')
             .select('*', { count: 'exact', head: true })
             .eq('terreiro_id', idTerreiroGlobal)
@@ -349,7 +336,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.getElementById('proximaGira').textContent = 'Nenhum evento agendado';
         }
 
-        // 2. LÓGICA DA TABELA DE HOJE (SOMENTE ATIVOS)
         const tabelaPresencas = document.getElementById('tabelaPresencas');
         const { data: todosMediuns } = await supabaseClient.from('mediuns').select('id, auth_id, nome_completo, nome_social, grau, funcao, status_ativo').eq('terreiro_id', idTerreiroGlobal);
 
@@ -382,7 +368,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             if(tabelaPresencas) tabelaPresencas.innerHTML = `<tr><td colspan="2" class="p-6 text-center text-gray-500">Nenhum evento agendado para o momento.</td></tr>`;
         }
 
-        // 3. JANELA LATERAL: RELATÓRIO DE MÉDIUNS PRESENTES POR EVENTO (PDF)
+        // ========================================================
+        // RELATÓRIO DO EVENTO: ORDENADO DO MAIS NOVO PARA O MAIS ANTIGO
+        // ========================================================
         const selectRelatorio = document.getElementById('selectEventoRelatorio');
         const btnGerarHistorico = document.getElementById('btnBaixarPdfEvento');
 
@@ -391,7 +379,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 .from('agenda')
                 .select('id, titulo, data_hora_inicio, especial')
                 .eq('terreiro_id', idTerreiroGlobal)
-                .order('data_hora_inicio', { ascending: false });
+                .order('data_hora_inicio', { ascending: false }); // Garante a ordenação decrescente (mais recente no topo)[cite: 6]
 
             selectRelatorio.innerHTML = '<option value="">Selecione um evento...</option>';
             
@@ -1268,7 +1256,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const titulo = document.getElementById('giraTitulo').value;
                 const inicioRaw = document.getElementById('giraInicio').value;
                 const fimRaw = document.getElementById('giraFim').value;
-                const linkA = document.getElementById('giraImagem').value;
                 const fileInput = document.getElementById('giraArquivo');
                 
                 const chkGeraAta = document.getElementById('giraGeraAta') ? document.getElementById('giraGeraAta').checked : true;
@@ -1283,11 +1270,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                     convocadosArray = window['selecionados_listaCheckConvocados'] || [];
                 }
 
-                let imagemFinal = linkA || '';
+                let imagemFinal = '';
 
+                // Apenas upload direto de arquivo com compressão no navegador[cite: 7, 8]
                 if (fileInput && fileInput.files.length > 0) {
                     btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Otimizando imagem...';
-                    // Compressão e redimensionamento no cliente
                     const arquivoComprimido = await comprimirImagem(fileInput.files[0], 1200, 1200, 0.82);
                     
                     const fileName = `${idTerreiroGlobal}/evento_${Date.now()}.${arquivoComprimido.name.split('.').pop()}`;
@@ -1927,7 +1914,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             msg.textContent = 'Processando ficheiro...'; msg.className = 'text-xs font-bold mt-2 text-tema-primaria';
             
             try {
-                // Compressão prévia do Logotipo (PNG/JPEG)
                 const arquivoOriginal = input.files[0];
                 const arquivoComprimido = await comprimirImagem(arquivoOriginal, 600, 600, 0.90);
 
@@ -1949,253 +1935,4 @@ document.addEventListener('DOMContentLoaded', async () => {
                     linkFavicon.rel = 'icon';
                     document.head.appendChild(linkFavicon);
                 }
-                linkFavicon.href = urlData.publicUrl;
-
-                msg.textContent = '✅ Logo salva com sucesso!'; msg.className = 'text-xs font-bold mt-2 text-tema-secundaria';
-            } catch (error) {
-                msg.textContent = '❌ Erro: ' + error.message; msg.className = 'text-xs font-bold mt-2 text-red-600';
-            } finally { btnLogo.disabled = false; btnLogo.textContent = 'Salvar Imagem'; }
-        });
-    }
-
-    if(document.getElementById('btnSalvarCores')) {
-        document.getElementById('btnSalvarCores').addEventListener('click', async () => {
-            const btn = document.getElementById('btnSalvarCores');
-            const msg = document.getElementById('msgCores');
-            const cor1 = document.getElementById('corPrimaria').value;
-            const cor2 = document.getElementById('corSecundaria').value;
-            const corF = document.getElementById('corFundo').value;
-            const corT = document.getElementById('corTexto').value;
-            btn.disabled = true; btn.textContent = 'Salvando...';
-            
-            try {
-                const { error } = await supabaseClient.from('terreiros').update({ cor_primaria: cor1, cor_secundaria: cor2, cor_fundo: corF, cor_texto: corT }).eq('id', idTerreiroGlobal);
-                if (error) throw error;
-                const root = document.documentElement;
-                root.style.setProperty('--cor-primaria', cor1); root.style.setProperty('--cor-secundaria', cor2);
-                root.style.setProperty('--cor-fundo', corF); root.style.setProperty('--cor-texto', corT);
-                msg.textContent = '✅ Tema atualizado!'; msg.className = 'text-sm font-bold mt-3 text-tema-secundaria block';
-                setTimeout(() => msg.classList.add('hidden'), 5000);
-            } catch (error) {
-                msg.textContent = '❌ Erro: ' + error.message; msg.className = 'text-sm font-bold mt-3 text-red-600 block';
-            } finally { btn.disabled = false; btn.textContent = 'Salvar e Aplicar Cores'; }
-        });
-    }
-
-    // ==========================================
-    // DOAÇÕES
-    // ==========================================
-    window.carregarDoacoesPrometidas = async () => {
-        if (!idTerreiroGlobal) return;
-        const tbody = document.getElementById('tabelaDoacoesPrometidas');
-        if(tbody) tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-gray-500">Buscando...</td></tr>';
-        try {
-            const { data: doacoes, error: errD } = await supabaseClient.from('doacoes_registradas').select('*').eq('terreiro_id', idTerreiroGlobal).order('entregue', { ascending: true }).order('data_registro', { ascending: false }); 
-            if (errD) throw errD;
-            const { data: mediuns } = await supabaseClient.from('mediuns').select('auth_id, nome_completo').eq('terreiro_id', idTerreiroGlobal);
-            const { data: itens } = await supabaseClient.from('itens_doacao').select('id, nome, descricao').eq('terreiro_id', idTerreiroGlobal);
-            window.dadosDoacoesParaPDF = { doacoes, mediuns, itens };
-
-            if (!doacoes || doacoes.length === 0) {
-                if(tbody) tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-gray-500">Nenhum registro.</td></tr>';
-                return;
-            }
-            if(tbody) {
-                tbody.innerHTML = '';
-                doacoes.forEach(d => {
-                    const medium = mediuns?.find(m => m.auth_id === d.medium_auth_id)?.nome_completo || 'Médium';
-                    const itemObj = itens?.find(i => i.id == d.item_id);
-                    const itemNome = itemObj ? `${itemObj.nome}` : 'Item';
-                    const data = new Date(d.data_registro).toLocaleDateString('pt-BR');
-                    const statusHtml = d.entregue ? '<span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded font-bold">Entregue</span>' : '<span class="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded font-bold">Pendente</span>';
-                    const acaoHtml = d.entregue ? `<button onclick="marcarDoacao('${d.id}', false)" class="text-xs text-gray-400 hover:text-gray-800 underline mt-1">Desfazer</button>` : `<button onclick="marcarDoacao('${d.id}', true)" class="bg-tema-secundaria hover:opacity-90 text-white text-xs font-bold py-1.5 px-3 rounded shadow-sm mt-1">Dar Baixa</button>`;
-                    const estilo = d.entregue ? 'bg-gray-50 opacity-80' : 'bg-white';
-                    tbody.innerHTML += `<tr class="border-b border-gray-100 ${estilo}"><td class="p-3 text-sm">${medium}</td><td class="p-3 text-sm">${itemNome}</td><td class="p-3 text-center font-bold">${d.quantidade}</td><td class="p-3 text-xs text-gray-500">${data}</td><td class="p-3 text-center flex flex-col items-center">${statusHtml}${acaoHtml}</td></tr>`;
-                });
-            }
-        } catch (error) {
-            if(tbody) tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-red-500">Erro ao carregar.</td></tr>`;
-        }
-    };
-
-    window.marcarDoacao = async (id, status) => {
-        const payload = { entregue: status, data_entrega: status ? new Date().toISOString() : null };
-        const { error } = await supabaseClient.from('doacoes_registradas').update(payload).eq('id', id).eq('terreiro_id', idTerreiroGlobal);
-        if (!error) carregarDoacoesPrometidas(); else alert('Erro: ' + error.message);
-    };
-
-    window.carregarDoacoesCatalogo = async () => {
-        if (!idTerreiroGlobal) return;
-        const tbody = document.getElementById('tabelaItensDoacao');
-        if(!tbody) return;
-        const { data, error } = await supabaseClient.from('itens_doacao').select('*').eq('terreiro_id', idTerreiroGlobal).order('nome');
-        if (error) return;
-        tbody.innerHTML = '';
-        if (data && data.length > 0) {
-            data.forEach(item => {
-                const btn = item.ativo ? `<button onclick="alternarStatusCatalogo('${item.id}', false)" class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded font-bold">Ocultar</button>` : `<button onclick="alternarStatusCatalogo('${item.id}', true)" class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-bold">Ativar</button>`;
-                tbody.innerHTML += `<tr class="border-b border-gray-100 ${item.ativo ? '' : 'opacity-40'}"><td class="p-3 text-sm">${item.nome}</td><td class="p-3 text-xs text-gray-500">${item.descricao || '-'}</td><td class="p-3 text-center">${btn}</td></tr>`;
-            });
-        }
-    };
-
-    window.alternarStatusCatalogo = async (id, status) => {
-        const { error } = await supabaseClient.from('itens_doacao').update({ ativo: status }).eq('id', id).eq('terreiro_id', idTerreiroGlobal);
-        if (!error) carregarDoacoesCatalogo();
-    };
-
-    // ==========================================
-    // SAAS / GESTÃO E CONTEXT SWITCHER
-    // ==========================================
-    window.carregarGestaoPlataforma = async () => {
-        const tbody = document.getElementById('tabelaMasterTerreiros');
-        if(!tbody) return;
-        tbody.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-gray-500">Carregando terreiros...</td></tr>';
-        
-        const { data, error } = await supabaseClient.from('terreiros').select('*').order('id', { ascending: true });
-        if (error) { tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-red-500">Erro: ${error.message}</td></tr>`; return; }
-
-        tbody.innerHTML = '';
-        data.forEach(t => {
-            const statusHtml = t.status_bloqueado ? '<span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded font-bold">Bloqueado</span>' : '<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded font-bold">Ativo</span>';
-            
-            const btnBloqueio = t.status_bloqueado 
-                ? `<button onclick="alternarBloqueioTerreiro('${t.id}', false)" class="text-xs bg-gray-800 text-white py-1 px-3 rounded shadow">Desbloquear</button>` 
-                : `<button onclick="alternarBloqueioTerreiro('${t.id}', true)" class="text-xs bg-red-600 text-white py-1 px-3 rounded shadow">Bloquear</button>`;
-            
-            const btnImportar = `<button onclick="abrirModalImportacao('${t.id}', '${t.nome.replace(/'/g, "\\'")}')" class="text-xs bg-blue-600 hover:bg-blue-700 text-white py-1 px-3 rounded shadow ml-2"><i class="fas fa-file-csv"></i> CSV</button>`;
-            
-            const btnAcessar = `<button onclick="acessarTerreiroSaaS('${t.id}')" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white py-1 px-3 rounded shadow mr-2"><i class="fas fa-sign-in-alt"></i> Acessar</button>`;
-            
-            const acaoHtml = `<div class="flex justify-center items-center">${btnAcessar}${btnBloqueio}${btnImportar}</div>`;
-            
-            tbody.innerHTML += `<tr class="border-b border-gray-100 ${t.status_bloqueado ? 'bg-red-50' : ''}"><td class="p-3 text-sm font-mono">${t.id}</td><td class="p-3 font-bold">${t.nome}</td><td class="p-3 text-center">${statusHtml}</td><td class="p-3 text-center">${acaoHtml}</td></tr>`;
-        });
-    };
-
-    window.acessarTerreiroSaaS = (idTerreiro) => {
-        localStorage.setItem('terreiroAtivoSaaS', idTerreiro);
-        window.location.reload();
-    };
-
-    window.voltarParaMeuPainel = () => {
-        localStorage.removeItem('terreiroAtivoSaaS');
-        window.location.reload();
-    };
-
-    window.alternarBloqueioTerreiro = async (idTerreiro, vaiBloquear) => {
-        const acaoStr = vaiBloquear ? "BLOQUEAR" : "DESBLOQUEAR";
-        if(!confirm(`Deseja ${acaoStr} o terreiro ID ${idTerreiro}?`)) return;
-        const { error } = await supabaseClient.from('terreiros').update({ status_bloqueado: vaiBloquear }).eq('id', idTerreiro);
-        if(error) alert("Erro: " + error.message); else carregarGestaoPlataforma();
-    };
-
-    if (document.getElementById('formNovoTerreiro')) {
-        document.getElementById('formNovoTerreiro').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const btn = document.getElementById('btnSalvarTerreiro');
-            const msg = document.getElementById('msgNovoTerreiro');
-            btn.disabled = true; btn.innerHTML = 'Cadastrando...'; msg.classList.add('hidden');
-
-            const { error } = await supabaseClient.from('terreiros').insert([{ 
-                nome: document.getElementById('novoTerreiroNome').value, 
-                cor_primaria: '#1e3a8a', cor_secundaria: '#16a34a', cor_fundo: '#f3f4f6', cor_texto: '#1f2937' 
-            }]);
-
-            btn.disabled = false; btn.innerHTML = 'Cadastrar Sistema';
-            if (error) { msg.textContent = 'Erro: ' + error.message; msg.className = 'text-sm mt-2 text-red-500 block'; } 
-            else {
-                msg.textContent = '✅ Terreiro cadastrado com sucesso!'; msg.className = 'text-sm mt-2 text-green-400 block font-bold';
-                document.getElementById('formNovoTerreiro').reset(); carregarGestaoPlataforma();
-                setTimeout(() => msg.classList.add('hidden'), 3000);
-            }
-        });
-    }
-
-    window.abrirModalImportacao = (idTerreiro, nomeTerreiro) => {
-        document.getElementById('idTerreiroImport').value = idTerreiro;
-        document.getElementById('nomeTerreiroImport').textContent = nomeTerreiro;
-        document.getElementById('msgImportacao').classList.add('hidden');
-        if (document.getElementById('formImportarCSV')) document.getElementById('formImportarCSV').reset();
-        document.getElementById('modalImportarCSV').classList.remove('hidden');
-    };
-
-    window.fecharModalImportacao = () => {
-        document.getElementById('modalImportarCSV').classList.add('hidden');
-    };
-
-    if (document.getElementById('formImportarCSV')) {
-        document.getElementById('formImportarCSV').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const btn = document.getElementById('btnProcessarCSV');
-            const msg = document.getElementById('msgImportacao');
-            const idTerreiro = document.getElementById('idTerreiroImport').value;
-            const fileInput = document.getElementById('arquivoCSV');
-
-            if (!fileInput.files.length) return;
-            const file = fileInput.files[0];
-
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Processando...';
-            msg.classList.remove('hidden');
-            msg.className = 'text-sm mt-3 text-blue-600 block font-bold text-center';
-            msg.textContent = 'Lendo arquivo local...';
-
-            const reader = new FileReader();
-            reader.onload = async function(event) {
-                try {
-                    const text = event.target.result;
-                    const linhas = text.split(/\r?\n/).filter(l => l.trim() !== '');
-                    if (linhas.length <= 1) throw new Error("O arquivo parece vazio ou só tem cabeçalho.");
-
-                    const mediunsParaInserir = [];
-                    for (let i = 1; i < linhas.length; i++) {
-                        const colunas = linhas[i].split(/[,;]/);
-                        const nome = colunas[0] ? colunas[0].trim() : '';
-                        const telefone = colunas[1] ? colunas[1].trim() : '';
-                        const grau = colunas[2] ? colunas[2].trim() : '-';
-                        const funcao = colunas[3] ? colunas[3].trim() : '-';
-
-                        if (nome) {
-                            mediunsParaInserir.push({
-                                terreiro_id: idTerreiro,
-                                nome_completo: nome,
-                                telefone: telefone,
-                                grau: grau,
-                                funcao: funcao,
-                                cadastro_completo: false
-                            });
-                        }
-                    }
-
-                    if (mediunsParaInserir.length === 0) throw new Error("Nenhum nome válido encontrado na planilha.");
-
-                    msg.textContent = `Enviando ${mediunsParaInserir.length} cadastros para o banco...`;
-
-                    const { error } = await supabaseClient.from('mediuns').insert(mediunsParaInserir);
-                    if (error) throw error;
-
-                    msg.textContent = `✅ ${mediunsParaInserir.length} cadastros importados com sucesso!`;
-                    msg.className = 'text-sm mt-3 text-green-600 block font-bold text-center';
-                    
-                    setTimeout(() => { fecharModalImportacao(); }, 3000);
-
-                } catch (error) {
-                    msg.textContent = '❌ Erro: ' + error.message;
-                    msg.className = 'text-sm mt-3 text-red-600 block font-bold text-center';
-                } finally {
-                    btn.disabled = false;
-                    btn.innerHTML = 'Processar e Importar';
-                }
-            };
-            reader.onerror = () => {
-                msg.textContent = '❌ Erro ao ler o arquivo.';
-                msg.className = 'text-sm mt-3 text-red-600 block font-bold text-center';
-                btn.disabled = false;
-                btn.innerHTML = 'Processar e Importar';
-            };
-
-            reader.readAsText(file);
-        });
-    }
-});
+                link
