@@ -259,8 +259,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     // VISÃO GERAL
     // ==========================================
     async function carregarPainelInicial() {
-        if(!idTerreiroGlobal) return; // Segurança caso acesse acidentalmente no master puro
-        const { count: totalMediuns } = await supabaseClient.from('mediuns').select('*', { count: 'exact', head: true }).eq('terreiro_id', idTerreiroGlobal);
+        if(!idTerreiroGlobal) return; 
+        const { count: totalMediuns } = await supabaseClient.from('mediuns')
+            .select('*', { count: 'exact', head: true })
+            .eq('terreiro_id', idTerreiroGlobal)
+            .neq('nome_completo', 'Administrador Sistema'); // <-- CORRIGIDO AQUI PARA O TOTAL DO DASHBOARD
+            
         document.getElementById('totalMediuns').textContent = totalMediuns || '0';
 
         const agora = new Date().toISOString();
@@ -312,6 +316,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 .from('mediuns')
                 .select('id, nome_completo, nome_social, data_nascimento, grau, funcao, telefone, cadastro_completo, is_admin, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin, perm_visao_geral, perm_ata')
                 .eq('terreiro_id', idTerreiroGlobal)
+                .neq('nome_completo', 'Administrador Sistema') // <-- CORRIGIDO AQUI PARA A LISTA
                 .order('nome_completo');
 
             if (error) throw error;
