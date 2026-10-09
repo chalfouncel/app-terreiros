@@ -263,7 +263,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const { count: totalMediuns } = await supabaseClient.from('mediuns')
             .select('*', { count: 'exact', head: true })
             .eq('terreiro_id', idTerreiroGlobal)
-            .neq('nome_completo', 'Administrador Sistema'); // <-- CORRIGIDO AQUI PARA O TOTAL DO DASHBOARD
+            .neq('nome_completo', 'Administrador Sistema');
             
         document.getElementById('totalMediuns').textContent = totalMediuns || '0';
 
@@ -271,10 +271,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         const { data: agendaData } = await supabaseClient.from('agenda').select('*').eq('terreiro_id', idTerreiroGlobal).gte('data_hora_fim', agora).order('data_hora_inicio').limit(1);
 
         let giraAtualId = null;
+        let tituloGiraStr = '';
+        let dataGiraStr = '';
+
         if (agendaData && agendaData.length > 0) {
             giraAtualId = agendaData[0].id;
+            tituloGiraStr = agendaData[0].titulo;
             const dataGira = new Date(agendaData[0].data_hora_inicio).toLocaleString('pt-BR');
-            document.getElementById('proximaGira').innerHTML = `${agendaData[0].titulo} <br><span class="text-sm font-normal text-gray-500">${dataGira}</span>`;
+            dataGiraStr = dataGira;
+            
+            const badgeRestrita = agendaData[0].especial ? '<span class="ml-2 bg-red-100 text-red-700 text-xs px-2 py-0.5 rounded font-bold uppercase">Restrita</span>' : '';
+            
+            document.getElementById('proximaGira').innerHTML = `${agendaData[0].titulo} ${badgeRestrita} <br><span class="text-sm font-normal text-gray-500">${dataGira}</span>`;
         } else {
             document.getElementById('proximaGira').textContent = 'Nenhum evento agendado';
         }
@@ -282,21 +290,112 @@ document.addEventListener('DOMContentLoaded', async () => {
         const tabelaPresencas = document.getElementById('tabelaPresencas');
         if (giraAtualId) {
             const { data: presencas } = await supabaseClient.from('presencas').select('usuario_id, data_hora_checkin').eq('evento_id', giraAtualId).order('data_hora_checkin', { ascending: false });
-            const { data: todosMediuns } = await supabaseClient.from('mediuns').select('id, auth_id, nome_completo').eq('terreiro_id', idTerreiroGlobal);
+            
+            // Trazendo dados extras para compor o relatório em PDF
+            const { data: todosMediuns } = await supabaseClient.from('mediuns').select('id, auth_id, nome_completo, nome_social, grau, funcao').eq('terreiro_id', idTerreiroGlobal);
             
             document.getElementById('totalPresentes').textContent = presencas ? presencas.length : '0';
+
+            // --- DIVISÃO DA TELA E REMOÇÃO DA COLUNA STATUS (MANIPULAÇÃO DO DOM) ---
+            const tableEl = tabelaPresencas.closest('table');
+            if (tableEl) {
+                // Remove a 3ª coluna do cabeçalho (Status) dinamicamente
+                const theadRow = tableEl.querySelector('thead tr');
+                if (theadRow && theadRow.children.length >= 3) {
+                    theadRow.children[2].remove();
+                }
+
+                // Cria o layout de 2 colunas se ainda não existir
+                const containerPai = tableEl.closest('.bg-white.rounded-xl.p-6');
+                if (containerPai && !document.getElementById('painelRelatorioCheckin')) {
+                    const gridContainer = document.createElement('div');
+                    gridContainer.className = 'grid grid-cols-1 md:grid-cols-2 gap-8 items-start';
+                    
+                    const colTabela = document.createElement('div');
+                    colTabela.className = 'w-full overflow-hidden';
+                    
+                    // Move os itens (título e tabela) originais para a coluna 1
+                    while(containerPai.firstChild) {
+                        colTabela.appendChild(containerPai.firstChild);
+                    }
+                    
+                    // Cria a Coluna 2 (Painel do PDF)
+                    const colPainel = document.createElement('div');
+                    colPainel.id = 'painelRelatorioCheckin';
+                    colPainel.className = 'bg-gray-50 border border-gray-200 rounded-xl p-6 flex flex-col justify-center items-center text-center shadow-inner h-full min-h-[250px] mt-4 md:mt-0';
+                    
+                    gridContainer.appendChild(colTabela);
+                    gridContainer.appendChild(colPainel);
+                    containerPai.appendChild(gridContainer);
+                }
+            }
+
+            const painelPdf = document.getElementById('painelRelatorioCheckin');
+            const dadosParaPDF = [];
 
             if (presencas && presencas.length > 0) {
                 tabelaPresencas.innerHTML = ''; 
                 presencas.forEach(p => {
                     const md = todosMediuns?.find(m => m.auth_id === p.usuario_id || String(m.id) === String(p.usuario_id));
-                    const nome = md ? md.nome_completo : 'Médium Excluído';
+                    const nome = md ? (md.nome_social || md.nome_completo) : 'Médium Excluído';
                     const hora = new Date(p.data_hora_checkin).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                    tabelaPresencas.innerHTML += `<tr class="border-b border-gray-100 hover:bg-gray-50"><td class="p-3 text-gray-800 font-medium">${nome}</td><td class="p-3 text-gray-600">${hora}</td><td class="p-3"><span class="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-bold">PRESENTE</span></td></tr>`;
+                    const grauPdf = md ? (md.grau || '-') : '-';
+                    const funcPdf = md ? (md.funcao || '-') : '-';
+                    
+                    // Renderiza apenas as 2 colunas: NOME e HORA
+                    tabelaPresencas.innerHTML += `
+                        <tr class="border-b border-gray-100 hover:bg-gray-50">
+                            <td class="p-3 text-gray-800 font-medium">${nome}</td>
+                            <td class="p-3 text-gray-600">${hora}</td>
+                        </tr>
+                    `;
+
+                    dadosParaPDF.push([nome, grauPdf, funcPdf, hora]);
                 });
+
+                if(painelPdf) {
+                    painelPdf.innerHTML = `
+                        <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-3xl mb-4 shadow-sm border border-blue-200">
+                            <i class="fas fa-file-pdf"></i>
+                        </div>
+                        <h4 class="font-bold text-gray-800 text-lg mb-1">Relação de Presenças</h4>
+                        <p class="text-sm font-semibold text-tema-primaria mb-1">${tituloGiraStr}</p>
+                        <p class="text-xs text-gray-500 mb-6">${dataGiraStr}</p>
+                        <button id="btnGerarPdfPresencas" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl shadow transition active:scale-95 flex items-center justify-center">
+                            <i class="fas fa-download mr-2"></i> Baixar Relatório
+                        </button>
+                    `;
+
+                    // Função anônima para gerar relatório na hora
+                    document.getElementById('btnGerarPdfPresencas').addEventListener('click', () => {
+                        const btnPdf = document.getElementById('btnGerarPdfPresencas');
+                        const originalHtml = btnPdf.innerHTML;
+                        btnPdf.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Gerando...';
+                        btnPdf.disabled = true;
+
+                        window.gerarPDFRelatorio(
+                            `Lista de Presença: ${tituloGiraStr}`, 
+                            ['Nome do Médium', 'Grau', 'Função', 'Check-in'], 
+                            dadosParaPDF
+                        );
+
+                        setTimeout(() => {
+                            btnPdf.innerHTML = originalHtml;
+                            btnPdf.disabled = false;
+                        }, 2000);
+                    });
+                }
             } else {
-                tabelaPresencas.innerHTML = `<tr><td colspan="3" class="p-6 text-center text-gray-500">Nenhum check-in ainda.</td></tr>`;
+                tabelaPresencas.innerHTML = `<tr><td colspan="2" class="p-6 text-center text-gray-500">Nenhum check-in ainda.</td></tr>`;
+                if(painelPdf) {
+                    painelPdf.innerHTML = `
+                        <div class="text-gray-300 mb-3"><i class="fas fa-clock text-5xl"></i></div>
+                        <p class="text-sm text-gray-500 font-medium">Aguardando check-ins para gerar relatório.</p>
+                    `;
+                }
             }
+        } else {
+            tabelaPresencas.innerHTML = `<tr><td colspan="3" class="p-6 text-center text-gray-500">Nenhum evento agendado para o momento.</td></tr>`;
         }
     }
 
@@ -316,7 +415,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 .from('mediuns')
                 .select('id, nome_completo, nome_social, data_nascimento, grau, funcao, telefone, cadastro_completo, is_admin, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin, perm_visao_geral, perm_ata')
                 .eq('terreiro_id', idTerreiroGlobal)
-                .neq('nome_completo', 'Administrador Sistema') // <-- CORRIGIDO AQUI PARA A LISTA
+                .neq('nome_completo', 'Administrador Sistema')
                 .order('nome_completo');
 
             if (error) throw error;
@@ -591,13 +690,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                         if(p.length === 3) dataNasc = `${p[2]}/${p[1]}/${p[0]}`;
                     } else dataNasc = m.data_nascimento;
                 }
-                const nomeStr = m.nome_social ? m.nome_social : (m.nome_completo ? m.nome_completo.split(' ')[0] : 'Médium');
+                const nomeStr = m.nome_social ? `${m.nome_completo} (${m.nome_social})` : m.nome_completo;
                 const whats = m.telefone || '-';
                 
                 return [nomeStr, dataNasc, m.grau || '-', m.funcao || '-', whats];
             });
             
-            window.gerarPDFRelatorio('Quadro Oficial de Médiuns', ['Nome', 'Nascimento', 'Grau', 'Função', 'WhatsApp'], dados);
+            window.gerarPDFRelatorio('Quadro Oficial de Médiuns', ['Nome Completo', 'Nascimento', 'Grau', 'Função', 'WhatsApp'], dados);
             
             setTimeout(() => { btn.innerHTML = originalHtml; btn.disabled = false; }, 2000);
         });
@@ -637,29 +736,29 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
             
             const dados = lista.map(m => {
+                let dataNasc = '-';
                 let diaMes = '-';
                 if (m.data_nascimento) {
                     if (m.data_nascimento.includes('-')) {
                         const p = m.data_nascimento.split('-');
                         if(p.length === 3) {
+                            dataNasc = `${p[2]}/${p[1]}/${p[0]}`;
                             diaMes = `${p[2]}/${p[1]}`;
                         }
                     } else {
-                        const dataNasc = m.data_nascimento;
+                        dataNasc = m.data_nascimento;
                         if(dataNasc.includes('/')) diaMes = dataNasc.substring(0, 5);
                     }
                 }
-                const nomeStr = m.nome_social ? m.nome_social : (m.nome_completo ? m.nome_completo.split(' ')[0] : 'Médium');
+                const nomeStr = m.nome_social ? `${m.nome_completo} (${m.nome_social})` : m.nome_completo;
                 
-                // Agora envia diaMes tanto no começo quanto no final
-                return [diaMes, nomeStr, m.grau || '-', diaMes];
+                return [diaMes, nomeStr, m.grau || '-', dataNasc];
             });
             
-            const mesAtualTexto = dataAtual.toLocaleString('pt-BR', { month: 'long' });
-            const titulo = `Aniversariantes de ${mesAtualTexto.charAt(0).toUpperCase() + mesAtualTexto.slice(1)}`;
+            const mesAtual = new Date().toLocaleString('pt-BR', { month: 'long' });
+            const titulo = `Aniversariantes de ${mesAtual.charAt(0).toUpperCase() + mesAtual.slice(1)}`;
             
-            // Alterado de 'Nascimento' para 'Aniversário' e 'Nome Completo' para 'Nome'
-            window.gerarPDFRelatorio(titulo, ['Dia', 'Nome', 'Grau', 'Aniversário'], dados);
+            window.gerarPDFRelatorio(titulo, ['Dia', 'Nome Completo', 'Grau', 'Nascimento'], dados);
             
             setTimeout(() => { btn.innerHTML = originalHtml; btn.disabled = false; }, 2000);
         });
@@ -1028,9 +1127,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (fileInput && fileInput.files.length > 0) {
                     const file = fileInput.files[0];
                     const fileName = `${idTerreiroGlobal}/evento_${Date.now()}.${file.name.split('.').pop()}`;
-                    const { error: uploadError } = await supabaseClient.storage.from('giras').upload(fileName, file);
+                    const { error: uploadError } = await supabaseClient.storage.from('public').upload(fileName, file);
                     if (uploadError) throw uploadError;
-                    const { data: { publicUrl } } = supabaseClient.storage.from('giras').getPublicUrl(fileName);
+                    const { data: { publicUrl } } = supabaseClient.storage.from('public').getPublicUrl(fileName);
                     imagemFinal = publicUrl;
                 }
 
@@ -1084,7 +1183,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 .eq('terreiro_id', idTerreiroGlobal)
                 .eq('gera_ata', true)
                 .order('data_hora_inicio', { ascending: false }) // Trazemos do mais recente (futuro e hoje) pro mais antigo
-                .limit(50); // Aumentado um pouco o limite para garantir um bom espelho
+                .limit(50); 
 
             if (error) throw error;
 
