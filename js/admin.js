@@ -259,8 +259,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     // VISÃO GERAL
     // ==========================================
     async function carregarPainelInicial() {
-        if(!idTerreiroGlobal) return; // Segurança caso acesse acidentalmente no master puro
-        const { count: totalMediuns } = await supabaseClient.from('mediuns').select('*', { count: 'exact', head: true }).eq('terreiro_id', idTerreiroGlobal);
+        if(!idTerreiroGlobal) return; 
+        const { count: totalMediuns } = await supabaseClient.from('mediuns')
+            .select('*', { count: 'exact', head: true })
+            .eq('terreiro_id', idTerreiroGlobal)
+            .neq('nome_completo', 'Administrador Sistema'); // <-- CORRIGIDO AQUI PARA O TOTAL DO DASHBOARD
+            
         document.getElementById('totalMediuns').textContent = totalMediuns || '0';
 
         const agora = new Date().toISOString();
@@ -312,6 +316,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 .from('mediuns')
                 .select('id, nome_completo, nome_social, data_nascimento, grau, funcao, telefone, cadastro_completo, is_admin, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin, perm_visao_geral, perm_ata')
                 .eq('terreiro_id', idTerreiroGlobal)
+                .neq('nome_completo', 'Administrador Sistema') // <-- CORRIGIDO AQUI PARA A LISTA
                 .order('nome_completo');
 
             if (error) throw error;
@@ -564,6 +569,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('filtroStatusMedium')?.addEventListener('change', aplicarFiltrosMediuns);
         document.getElementById('filtroMesNascimento')?.addEventListener('change', aplicarFiltrosMediuns);
         
+        // Filtros de Convocados (Gira Especial)
+        document.getElementById('filtroConvocadosNome')?.addEventListener('input', () => window.filtrarConvocados('listaCheckConvocados', 'filtroConvocadosNome', 'filtroConvocadosGrau'));
+        document.getElementById('filtroConvocadosGrau')?.addEventListener('change', () => window.filtrarConvocados('listaCheckConvocados', 'filtroConvocadosNome', 'filtroConvocadosGrau'));
+        document.getElementById('editFiltroConvocadosNome')?.addEventListener('input', () => window.filtrarConvocados('editListaCheckConvocados', 'editFiltroConvocadosNome', 'editFiltroConvocadosGrau'));
+        document.getElementById('editFiltroConvocadosGrau')?.addEventListener('change', () => window.filtrarConvocados('editListaCheckConvocados', 'editFiltroConvocadosNome', 'editFiltroConvocadosGrau'));
+
         // Botão PDF: Quadro Geral
         document.getElementById('btnImprimirMediuns')?.addEventListener('click', () => {
             const btn = document.getElementById('btnImprimirMediuns');
@@ -580,13 +591,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                         if(p.length === 3) dataNasc = `${p[2]}/${p[1]}/${p[0]}`;
                     } else dataNasc = m.data_nascimento;
                 }
-                const nomeStr = m.nome_social ? `${m.nome_completo} (${m.nome_social})` : m.nome_completo;
+                const nomeStr = m.nome_social ? m.nome_social : (m.nome_completo ? m.nome_completo.split(' ')[0] : 'Médium');
                 const whats = m.telefone || '-';
                 
                 return [nomeStr, dataNasc, m.grau || '-', m.funcao || '-', whats];
             });
             
-            window.gerarPDFRelatorio('Quadro Oficial de Médiuns', ['Nome Completo', 'Nascimento', 'Grau', 'Função', 'WhatsApp'], dados);
+            window.gerarPDFRelatorio('Quadro Oficial de Médiuns', ['Nome', 'Nascimento', 'Grau', 'Função', 'WhatsApp'], dados);
             
             setTimeout(() => { btn.innerHTML = originalHtml; btn.disabled = false; }, 2000);
         });
@@ -626,29 +637,29 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
             
             const dados = lista.map(m => {
-                let dataNasc = '-';
                 let diaMes = '-';
                 if (m.data_nascimento) {
                     if (m.data_nascimento.includes('-')) {
                         const p = m.data_nascimento.split('-');
                         if(p.length === 3) {
-                            dataNasc = `${p[2]}/${p[1]}/${p[0]}`;
                             diaMes = `${p[2]}/${p[1]}`;
                         }
                     } else {
-                        dataNasc = m.data_nascimento;
+                        const dataNasc = m.data_nascimento;
                         if(dataNasc.includes('/')) diaMes = dataNasc.substring(0, 5);
                     }
                 }
-                const nomeStr = m.nome_social ? `${m.nome_completo} (${m.nome_social})` : m.nome_completo;
+                const nomeStr = m.nome_social ? m.nome_social : (m.nome_completo ? m.nome_completo.split(' ')[0] : 'Médium');
                 
-                return [diaMes, nomeStr, m.grau || '-', dataNasc];
+                // Agora envia diaMes tanto no começo quanto no final
+                return [diaMes, nomeStr, m.grau || '-', diaMes];
             });
             
-            const mesAtual = new Date().toLocaleString('pt-BR', { month: 'long' });
-            const titulo = `Aniversariantes de ${mesAtual.charAt(0).toUpperCase() + mesAtual.slice(1)}`;
+            const mesAtualTexto = dataAtual.toLocaleString('pt-BR', { month: 'long' });
+            const titulo = `Aniversariantes de ${mesAtualTexto.charAt(0).toUpperCase() + mesAtualTexto.slice(1)}`;
             
-            window.gerarPDFRelatorio(titulo, ['Dia', 'Nome Completo', 'Grau', 'Nascimento'], dados);
+            // Alterado de 'Nascimento' para 'Aniversário' e 'Nome Completo' para 'Nome'
+            window.gerarPDFRelatorio(titulo, ['Dia', 'Nome', 'Grau', 'Aniversário'], dados);
             
             setTimeout(() => { btn.innerHTML = originalHtml; btn.disabled = false; }, 2000);
         });
@@ -756,6 +767,96 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ==========================================
     // AGENDA E EVENTOS
     // ==========================================
+    
+    // Controle dos checkboxes de Gira Especial
+    document.addEventListener('change', (e) => {
+        if(e.target.id === 'giraEspecial') {
+            const box = document.getElementById('boxConvocados');
+            if(e.target.checked) {
+                box.classList.remove('hidden');
+                renderizarCheckboxesConvocados('listaCheckConvocados', []);
+            } else box.classList.add('hidden');
+        }
+        if(e.target.id === 'editGiraEspecial') {
+            const box = document.getElementById('editBoxConvocados');
+            if(e.target.checked) {
+                box.classList.remove('hidden');
+            } else box.classList.add('hidden');
+        }
+    });
+
+    // Mantém o estado da seleção mesmo se o usuário filtrar (apagar da tela)
+    window.atualizarSelecao = (containerId, checkbox) => {
+        let arr = window['selecionados_' + containerId] || [];
+        if(checkbox.checked) {
+            if(!arr.includes(checkbox.value)) arr.push(checkbox.value);
+        } else {
+            arr = arr.filter(v => v !== checkbox.value);
+        }
+        window['selecionados_' + containerId] = arr;
+    };
+
+    function gerarHtmlCheckboxes(containerId, lista, selecionados) {
+        const container = document.getElementById(containerId);
+        if(!container) return;
+        
+        let html = '';
+        if(lista.length === 0) {
+            html = '<span class="text-xs text-gray-500 col-span-2 md:col-span-4">Nenhum médium encontrado.</span>';
+        } else {
+            lista.forEach(m => {
+                const idStr = String(m.id);
+                const isChecked = selecionados.includes(idStr) ? 'checked' : '';
+                const nomeExibicao = m.nome_social ? m.nome_social : m.nome_completo;
+                html += `
+                    <label class="flex items-center space-x-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-50 p-1 rounded" title="Grau: ${m.grau || '-'} / Função: ${m.funcao || '-'}">
+                        <input type="checkbox" value="${m.id}" class="chk-convocado rounded text-red-500 focus:ring-red-500" ${isChecked} onchange="atualizarSelecao('${containerId}', this)">
+                        <span class="truncate">${nomeExibicao}</span>
+                    </label>
+                `;
+            });
+        }
+        container.innerHTML = html;
+    }
+
+    const renderizarCheckboxesConvocados = async (containerId, selecionados = []) => {
+        const container = document.getElementById(containerId);
+        if(!container) return;
+        container.innerHTML = '<span class="text-xs text-gray-500">Carregando médiuns...</span>';
+        
+        if (!listaMediunsGlobal || listaMediunsGlobal.length === 0) {
+            const { data } = await supabaseClient.from('mediuns')
+                .select('id, nome_completo, nome_social, grau, funcao')
+                .eq('terreiro_id', idTerreiroGlobal)
+                .neq('nome_completo', 'Administrador Sistema')
+                .order('nome_completo');
+            if (data) listaMediunsGlobal = data;
+        }
+        
+        window['selecionados_' + containerId] = selecionados;
+        gerarHtmlCheckboxes(containerId, listaMediunsGlobal, selecionados);
+    };
+
+    window.filtrarConvocados = (containerId, inputNomeId, selectGrauId) => {
+        const termoNome = (document.getElementById(inputNomeId)?.value || '').toLowerCase();
+        const termoGrau = (document.getElementById(selectGrauId)?.value || '').toLowerCase();
+        
+        const filtrados = (listaMediunsGlobal || []).filter(m => {
+            const nomeStr = (m.nome_social ? m.nome_social : m.nome_completo).toLowerCase();
+            const passaNome = nomeStr.includes(termoNome);
+            
+            let passaGrau = true;
+            if (termoGrau !== '') {
+                const grauCompleto = `${m.grau || ''} ${m.funcao || ''}`.toLowerCase();
+                passaGrau = grauCompleto.includes(termoGrau);
+            }
+            
+            return passaNome && passaGrau;
+        });
+
+        gerarHtmlCheckboxes(containerId, filtrados, window['selecionados_' + containerId] || []);
+    };
+
     async function carregarAgenda() {
         if(!idTerreiroGlobal) return;
         const tbody = document.getElementById('tabelaGirasCadastradas');
@@ -769,7 +870,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     ? `<a href="${g.imagem_url}" target="_blank" class="text-blue-500 hover:bg-blue-50 p-1 rounded text-xs transition" title="Ver Cartaz"><i class="fas fa-image"></i> Cartaz</a>` 
                     : `<span class="text-gray-400 text-xs">-</span>`;
                 
-                // Botões de Editar e Excluir
+                const badgeEspecial = g.especial ? '<span class="ml-2 bg-red-100 text-red-700 text-[10px] px-1.5 py-0.5 rounded font-bold uppercase">Restrita</span>' : '';
+
                 const acoesBloco = `
                     <div class="flex items-center justify-center space-x-2">
                         ${imgHtml}
@@ -781,7 +883,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 tbody.innerHTML += `
                     <tr class="border-b border-gray-100 hover:bg-gray-50">
-                        <td class="p-3 text-gray-800 font-medium">${g.titulo}</td>
+                        <td class="p-3 text-gray-800 font-medium">${g.titulo} ${badgeEspecial}</td>
                         <td class="p-3 text-gray-600">${inicio}</td>
                         <td class="p-3 text-center">${acoesBloco}</td>
                     </tr>
@@ -836,6 +938,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('editGiraFim').value = formataParaInput(data.data_hora_fim);
         if (document.getElementById('editGiraGeraAta')) document.getElementById('editGiraGeraAta').checked = data.gera_ata || false;
 
+        const chkEspecial = document.getElementById('editGiraEspecial');
+        const boxEspecial = document.getElementById('editBoxConvocados');
+        if (chkEspecial && boxEspecial) {
+            chkEspecial.checked = data.especial || false;
+            if (data.especial) boxEspecial.classList.remove('hidden');
+            else boxEspecial.classList.add('hidden');
+            renderizarCheckboxesConvocados('editListaCheckConvocados', data.convocados || []);
+        }
+
         document.getElementById('modalEditarGira').classList.remove('hidden');
     };
 
@@ -855,12 +966,22 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const inicioBR = inicioRaw ? `${inicioRaw}:00-03:00` : null;
                 const fimBR = fimRaw ? `${fimRaw}:00-03:00` : null;
 
+                const chkEspecial = document.getElementById('editGiraEspecial');
+                const isEspecial = chkEspecial ? chkEspecial.checked : false;
+                
+                let convocadosArray = [];
+                if (isEspecial) {
+                    convocadosArray = window['selecionados_editListaCheckConvocados'] || [];
+                }
+
                 const { error } = await supabaseClient.from('agenda')
                     .update({
                         titulo: document.getElementById('editGiraTitulo').value,
                         data_hora_inicio: inicioBR,
                         data_hora_fim: fimBR,
-                        gera_ata: document.getElementById('editGiraGeraAta').checked
+                        gera_ata: document.getElementById('editGiraGeraAta').checked,
+                        especial: isEspecial,
+                        convocados: convocadosArray
                     })
                     .eq('id', id);
 
@@ -894,6 +1015,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const inicioBR = inicioRaw ? `${inicioRaw}:00-03:00` : null;
                 const fimBR = fimRaw ? `${fimRaw}:00-03:00` : null;
                 
+                const chkEspecial = document.getElementById('giraEspecial');
+                const isEspecial = chkEspecial ? chkEspecial.checked : false;
+                
+                let convocadosArray = [];
+                if (isEspecial) {
+                    convocadosArray = window['selecionados_listaCheckConvocados'] || [];
+                }
+
                 let imagemFinal = linkA || '';
 
                 if (fileInput && fileInput.files.length > 0) {
@@ -913,12 +1042,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                     data_hora_fim: fimBR,
                     imagem_url: imagemFinal,
                     raio_presenca_metros: 50,
-                    gera_ata: chkGeraAta
+                    gera_ata: chkGeraAta,
+                    especial: isEspecial,
+                    convocados: convocadosArray
                 }]);
 
                 if (error) throw error;
 
                 document.getElementById('formNovaGira').reset();
+                if (document.getElementById('boxConvocados')) document.getElementById('boxConvocados').classList.add('hidden');
                 if(document.getElementById('giraGeraAta')) document.getElementById('giraGeraAta').checked = true; // Mantém marcado após resetar
                 carregarAgenda();
                 
@@ -938,7 +1070,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // ==========================================
-    // LIVRO DE PRESENÇA (ATA) - CORREÇÃO DE ORDENAÇÃO APLICADA AQUI
+    // LIVRO DE PRESENÇA (ATA)
     // ==========================================
     window.carregarLivroAta = async () => {
         if(!idTerreiroGlobal) return;
@@ -948,11 +1080,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         try {
             const { data, error } = await supabaseClient.from('agenda')
-                .select('id, titulo, data_hora_inicio, ata_encerrada')
+                .select('id, titulo, data_hora_inicio, data_hora_fim, ata_encerrada, texto_ata')
                 .eq('terreiro_id', idTerreiroGlobal)
                 .eq('gera_ata', true)
-                .order('data_hora_inicio', { ascending: true }) // ALTERAÇÃO SOLICITADA APLICADA AQUI
-                .limit(30);
+                .order('data_hora_inicio', { ascending: false }) // Trazemos do mais recente (futuro e hoje) pro mais antigo
+                .limit(50); // Aumentado um pouco o limite para garantir um bom espelho
 
             if (error) throw error;
 
@@ -962,18 +1094,46 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return;
             }
 
-            // APLICANDO A ORDENAÇÃO POR STATUS (Em Aberto no topo) E DATA COMO DESEMPATE (Já feita na query acima)
-            data.sort((a, b) => {
-                if (a.ata_encerrada !== b.ata_encerrada) {
-                    return a.ata_encerrada ? 1 : -1; // false (Aberto) vem antes de true (Finalizada)
+            const agora = new Date();
+
+            // 1. OBTÉM E ESTABILIZA O STATUS REAL (Verificando a trava de horário)
+            data.forEach(g => {
+                g.status_encerrada = g.ata_encerrada;
+                
+                // FECHAMENTO AUTOMÁTICO SE PASSOU DO HORÁRIO DE FIM
+                if (!g.status_encerrada && g.data_hora_fim) {
+                    const fim = new Date(g.data_hora_fim);
+                    if (agora > fim) {
+                        g.status_encerrada = true;
+                        // Atualiza no banco silenciosamente sem travar a interface
+                        supabaseClient.from('agenda').update({ ata_encerrada: true }).eq('id', g.id).then();
+                    }
                 }
-                // Se o status for o mesmo, a ordenação da query original (ascending: true) se mantém para esses blocos
-                return 0; 
             });
 
+            // 2. ORDENAÇÃO EXATA VIA JAVASCRIPT CONFORME A REGRA
+            data.sort((a, b) => {
+                // REGRA 1: "Em Aberto" ficam primeiro que "Finalizada"
+                if (a.status_encerrada !== b.status_encerrada) {
+                    return a.status_encerrada ? 1 : -1; 
+                }
+                
+                const dataA = new Date(a.data_hora_inicio).getTime();
+                const dataB = new Date(b.data_hora_inicio).getTime();
+                
+                if (!a.status_encerrada) {
+                    // REGRA 2: Se ambos estão Em Aberto, a mais próxima fica em cima (crescente)
+                    return dataA - dataB;
+                } else {
+                    // REGRA 3: Se ambos estão Finalizados, as recém-encerradas ficam acima (decrescente)
+                    return dataB - dataA;
+                }
+            });
+
+            // 3. RENDERIZAÇÃO
             data.forEach(g => {
                 const inicio = new Date(g.data_hora_inicio).toLocaleString('pt-BR');
-                const encerrada = g.ata_encerrada;
+                const encerrada = g.status_encerrada;
                 
                 const statusHtml = encerrada 
                     ? '<span class="bg-gray-200 text-gray-800 text-xs px-2 py-1 rounded font-bold"><i class="fas fa-lock mr-1"></i> Finalizada</span>'
@@ -983,9 +1143,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (encerrada) {
                     acoesHtml = `<button onclick="gerarPDF_ATA('${g.id}')" class="text-xs bg-gray-800 hover:bg-gray-900 text-white font-bold py-1.5 px-3 rounded shadow transition"><i class="fas fa-file-pdf mr-1 text-red-400"></i> Baixar Documento</button>`;
                 } else {
+                    const temTexto = g.texto_ata && g.texto_ata.trim() !== '';
+                    const labelRedigir = temTexto ? '<i class="fas fa-edit"></i> Editar' : '<i class="fas fa-pen"></i> Redigir';
+                    
                     acoesHtml = `
                         <div class="flex items-center justify-center space-x-2">
-                            <button onclick="abrirModalEscreverAta('${g.id}')" class="text-xs bg-indigo-100 text-indigo-700 hover:bg-indigo-200 font-bold py-1 px-3 rounded shadow transition" title="Redigir ATA"><i class="fas fa-pen"></i> Redigir</button>
+                            <button onclick="abrirModalEscreverAta('${g.id}')" class="text-xs bg-indigo-100 text-indigo-700 hover:bg-indigo-200 font-bold py-1 px-3 rounded shadow transition" title="Redigir ATA">${labelRedigir}</button>
                             <button onclick="encerrarAta('${g.id}')" class="text-xs bg-red-500 hover:bg-red-600 text-white font-bold py-1 px-3 rounded shadow transition" title="Travar Check-ins e Gerar PDF"><i class="fas fa-check-double"></i> Encerrar e Gerar</button>
                         </div>
                     `;
@@ -1043,6 +1206,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 msg.textContent = 'Texto salvo com sucesso!';
                 msg.className = 'text-green-600 text-sm font-bold mt-2 block';
                 msg.classList.remove('hidden');
+                carregarLivroAta(); // Atualiza a lista para refletir se mudou de "Redigir" para "Editar"
                 setTimeout(() => fecharModalEscreverAta(), 1500);
             }
         });
@@ -1101,7 +1265,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const { data: presencas } = await supabaseClient.from('presencas').select('data_hora_checkin, usuario_id').eq('evento_id', eventoId).order('data_hora_checkin', { ascending: true });
             
             // Busca também a "funcao" para validar a regra do Dirigente
-            const { data: mediuns } = await supabaseClient.from('mediuns').select('id, auth_id, nome_completo, grau, funcao').eq('terreiro_id', idTerreiroGlobal);
+            const { data: mediuns } = await supabaseClient.from('mediuns').select('id, auth_id, nome_completo, nome_social, grau, funcao').eq('terreiro_id', idTerreiroGlobal);
                 
             const mapaMediuns = {};
             if(mediuns) {
@@ -1124,8 +1288,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const mediumA = mapaMediuns[a.usuario_id] || {};
                     const mediumB = mapaMediuns[b.usuario_id] || {};
                     
-                    const isDirigenteA = mediumA.funcao === 'Dirigente';
-                    const isDirigenteB = mediumB.funcao === 'Dirigente';
+                    const isDirigenteA = mediumA.funcao === 'Dirigente' || mediumA.grau === 'Dirigente';
+                    const isDirigenteB = mediumB.funcao === 'Dirigente' || mediumB.grau === 'Dirigente';
                     
                     // 1. O Dirigente sempre sobe para o topo
                     if (isDirigenteA && !isDirigenteB) return -1;
@@ -1141,14 +1305,37 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             let trs = '';
             if (presencas && presencas.length > 0) {
-                presencas.forEach(p => {
-                    const medium = mapaMediuns[p.usuario_id] || { nome_completo: 'Médium não identificado', grau: '-' };
+                presencas.forEach((p, index) => {
+                    const medium = mapaMediuns[p.usuario_id] || { nome_completo: 'Médium não identificado', grau: '-', funcao: '-' };
+                    const nomeFinal = medium.nome_social ? medium.nome_social : medium.nome_completo;
                     const horaCheckin = new Date(p.data_hora_checkin).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                    
+                    // Grau e Função combinados
+                    let grauExibicao = '-';
+                    const gStr = medium.grau && medium.grau !== '-' ? medium.grau : '';
+                    const fStr = medium.funcao && medium.funcao !== '-' ? medium.funcao : '';
+                    if (gStr && fStr) grauExibicao = `${gStr}/${fStr}`;
+                    else if (gStr) grauExibicao = gStr;
+                    else if (fStr) grauExibicao = fStr;
+
+                    const isDirigente = medium.funcao === 'Dirigente' || medium.grau === 'Dirigente';
+                    const estiloLinha = isDirigente ? 'font-weight: bold; background-color: #f8fafc;' : '';
+                    
+                    let borderStyle = '1px solid #ddd';
+                    const nextP = presencas[index + 1];
+                    if (isDirigente && nextP) {
+                        const nextMedium = mapaMediuns[nextP.usuario_id] || {};
+                        const isNextDirigente = nextMedium.funcao === 'Dirigente' || nextMedium.grau === 'Dirigente';
+                        if (!isNextDirigente) {
+                            borderStyle = '2px solid #000'; // Separação visual forte após o dirigente
+                        }
+                    }
+
                     trs += `
-                        <tr>
-                            <td style="border-bottom: 1px solid #ddd; padding: 6px 4px;">${medium.nome_completo}</td>
-                            <td style="border-bottom: 1px solid #ddd; padding: 6px 4px; text-align: center;">${medium.grau || '-'}</td>
-                            <td style="border-bottom: 1px solid #ddd; padding: 6px 4px; text-align: right;">${horaCheckin}</td>
+                        <tr style="${estiloLinha}">
+                            <td style="border-bottom: ${borderStyle}; padding: 6px 4px;">${nomeFinal}</td>
+                            <td style="border-bottom: ${borderStyle}; padding: 6px 4px; text-align: center;">${grauExibicao}</td>
+                            <td style="border-bottom: ${borderStyle}; padding: 6px 4px; text-align: right;">${horaCheckin}</td>
                         </tr>
                     `;
                 });
@@ -1156,8 +1343,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 trs = `<tr><td colspan="3" style="text-align: center; padding: 20px; font-style: italic;">Nenhum check-in registrado na plataforma para esta data.</td></tr>`;
             }
 
-            const logoHtml = logoTerreiroGlobal ? `<img src="${logoTerreiroGlobal}" style="max-height: 80px; margin-bottom: 15px;">` : '';
             const nomeCasa = nomeTerreiroGlobal || 'Templo';
+            
+            let watermarkAta = '';
+            if (logoTerreiroGlobal) {
+                watermarkAta = `<div style="position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); opacity: 0.1; z-index: 0; pointer-events: none;">
+                                    <img src="${logoTerreiroGlobal}" style="width: 450px; max-width: 80%;">
+                                 </div>`;
+            }
 
             const corpoTextoAta = evento.texto_ata 
                 ? `<p style="text-align: justify; line-height: 1.8; font-size: 14px; margin-bottom: 30px; white-space: pre-wrap;">${evento.texto_ata}</p>`
@@ -1173,39 +1366,43 @@ document.addEventListener('DOMContentLoaded', async () => {
             div.style.fontFamily = 'Arial, sans-serif';
             div.style.color = '#000';
             div.style.backgroundColor = '#fff';
+            div.style.position = 'relative';
             
             div.innerHTML = `
-                <div style="text-align: center; margin-bottom: 30px;">
-                    ${logoHtml}
-                    <h1 style="font-size: 20px; font-weight: bold; text-transform: uppercase; margin: 0 0 5px 0;">${nomeCasa}</h1>
-                    <h2 style="font-size: 16px; font-weight: normal; margin: 0; letter-spacing: 2px;">LIVRO DE ATAS E PRESENÇAS</h2>
-                </div>
-                
-                <h3 style="text-align: center; font-size: 16px; margin-bottom: 25px; text-transform: uppercase; background-color: #f3f4f6; padding: 10px; border-radius: 4px;">
-                    ATA Nº ${numeroAta.toString().padStart(3, '0')}/${ano} - ${evento.titulo}
-                </h3>
-                
-                ${corpoTextoAta}
-                
-                <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 40px;">
-                    <thead>
-                        <tr>
-                            <th style="border-bottom: 2px solid #000; padding: 8px 4px; text-align: left;">NOME DO MÉDIUM</th>
-                            <th style="border-bottom: 2px solid #000; padding: 8px 4px; text-align: center;">GRAU</th>
-                            <th style="border-bottom: 2px solid #000; padding: 8px 4px; text-align: right;">HORA DO CHECK-IN</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${trs}
-                    </tbody>
-                </table>
-                
-                <div style="margin-top: 60px; text-align: center; page-break-inside: avoid;">
-                    <p style="margin: 0;">________________________________________________________</p>
-                    <p style="font-size: 14px; margin-top: 5px;"><strong>Direção / Presidência</strong></p>
-                    <p style="font-size: 10px; color: #777; margin-top: 25px;">
-                        ATA gerada eletronicamente pelo Sistema de Gestão em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}
-                    </p>
+                ${watermarkAta}
+                <div style="position: relative; z-index: 1;">
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        ${logoTerreiroGlobal ? `<img src="${logoTerreiroGlobal}" style="max-height: 80px; margin-bottom: 15px;">` : ''}
+                        <h1 style="font-size: 20px; font-weight: bold; text-transform: uppercase; margin: 0 0 5px 0;">${nomeCasa}</h1>
+                        <h2 style="font-size: 16px; font-weight: normal; margin: 0; letter-spacing: 2px;">LIVRO DE ATAS E PRESENÇAS</h2>
+                    </div>
+                    
+                    <h3 style="text-align: center; font-size: 16px; margin-bottom: 25px; text-transform: uppercase; background-color: rgba(243, 244, 246, 0.9); padding: 10px; border-radius: 4px;">
+                        ATA Nº ${numeroAta.toString().padStart(3, '0')}/${ano} - ${evento.titulo}
+                    </h3>
+                    
+                    ${corpoTextoAta}
+                    
+                    <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 40px; background-color: rgba(255, 255, 255, 0.6);">
+                        <thead>
+                            <tr>
+                                <th style="border-bottom: 2px solid #000; padding: 8px 4px; text-align: left;">NOME DO MÉDIUM</th>
+                                <th style="border-bottom: 2px solid #000; padding: 8px 4px; text-align: center;">GRAU</th>
+                                <th style="border-bottom: 2px solid #000; padding: 8px 4px; text-align: right;">HORA DO CHECK-IN</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${trs}
+                        </tbody>
+                    </table>
+                    
+                    <div style="margin-top: 60px; text-align: center; page-break-inside: avoid;">
+                        <p style="margin: 0;">________________________________________________________</p>
+                        <p style="font-size: 14px; margin-top: 5px;"><strong>Direção / Presidência</strong></p>
+                        <p style="font-size: 10px; color: #777; margin-top: 25px;">
+                            ATA gerada eletronicamente pelo Sistema de Gestão em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}
+                        </p>
+                    </div>
                 </div>
             `;
 
@@ -1230,14 +1427,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     // GRAUS E FUNÇÕES
     // ==========================================
     const opcoesGrau = ['-', 'I', 'IJ', 'B', 'BJ', 'T', 'TJ', 'SCT', 'Escola de CT', 'CT', 'SCCT', 'Escola de CCT', 'CCT'];
-    const opcoesFuncao = ['-', 'MG', 'MGA', 'MC', 'MCA', 'MD', 'MDA', 'Cantina'];
+    const opcoesFuncao = ['-', 'MG', 'MGA', 'MC', 'MCA', 'MD', 'MDA', 'Cantina', 'Dirigente'];
     function renderizarOpcoes(lista, valorAtual) { return lista.map(op => `<option value="${op === '-' ? '' : op}" ${op === valorAtual ? 'selected' : ''}>${op}</option>`).join(''); }
 
     async function carregarTabelaGraus() {
         if(!idTerreiroGlobal) return;
         const tbody = document.getElementById('tabelaGraus');
         tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center">Buscando...</td></tr>';
-        const { data } = await supabaseClient.from('mediuns').select('id, nome_completo, grau, funcao').eq('terreiro_id', idTerreiroGlobal).order('nome_completo');
+        const { data } = await supabaseClient.from('mediuns').select('id, nome_completo, nome_social, grau, funcao').eq('terreiro_id', idTerreiroGlobal).neq('nome_completo', 'Administrador Sistema').order('nome_completo');
         if (data) { mediunsGrauCache = data; renderizarGraus(data); }
     }
 
@@ -1245,14 +1442,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         const tbody = document.getElementById('tabelaGraus');
         tbody.innerHTML = '';
         lista.forEach(m => {
-            tbody.innerHTML += `<tr class="border-b border-gray-100 hover:bg-gray-50 transition"><td class="py-2 px-3 text-gray-800 font-medium">${m.nome_completo}</td><td class="py-2 px-3"><select id="grau_${m.id}" class="border border-gray-300 rounded px-2 py-1 bg-white text-sm focus:ring-tema-primaria outline-none w-full max-w-[120px]">${renderizarOpcoes(opcoesGrau, m.grau || '-')}</select></td><td class="py-2 px-3"><select id="func_${m.id}" class="border border-gray-300 rounded px-2 py-1 bg-white text-sm focus:ring-tema-primaria outline-none w-full max-w-[120px]">${renderizarOpcoes(opcoesFuncao, m.funcao || '-')}</select></td><td class="py-2 px-3 text-center"><button onclick="salvarGrau(${m.id})" id="btnGrau_${m.id}" class="bg-tema-primaria hover:opacity-90 text-white px-3 py-1 rounded text-xs font-bold transition">Salvar</button></td></tr>`;
+            const nomeStr = m.nome_social ? m.nome_social : m.nome_completo;
+            tbody.innerHTML += `<tr class="border-b border-gray-100 hover:bg-gray-50 transition"><td class="py-2 px-3 text-gray-800 font-medium">${nomeStr}</td><td class="py-2 px-3"><select id="grau_${m.id}" class="border border-gray-300 rounded px-2 py-1 bg-white text-sm focus:ring-tema-primaria outline-none w-full max-w-[120px]">${renderizarOpcoes(opcoesGrau, m.grau || '-')}</select></td><td class="py-2 px-3"><select id="func_${m.id}" class="border border-gray-300 rounded px-2 py-1 bg-white text-sm focus:ring-tema-primaria outline-none w-full max-w-[120px]">${renderizarOpcoes(opcoesFuncao, m.funcao || '-')}</select></td><td class="py-2 px-3 text-center"><button onclick="salvarGrau(${m.id})" id="btnGrau_${m.id}" class="bg-tema-primaria hover:opacity-90 text-white px-3 py-1 rounded text-xs font-bold transition">Salvar</button></td></tr>`;
         });
     }
 
     if(document.getElementById('buscaMediumGrau')) {
         document.getElementById('buscaMediumGrau').addEventListener('input', (e) => {
             const termo = e.target.value.toLowerCase();
-            const filtrado = mediunsGrauCache.filter(m => m.nome_completo.toLowerCase().includes(termo));
+            const filtrado = mediunsGrauCache.filter(m => (m.nome_completo.toLowerCase().includes(termo) || (m.nome_social && m.nome_social.toLowerCase().includes(termo))));
             renderizarGraus(filtrado);
         });
     }
@@ -1282,7 +1480,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const tbody = document.getElementById('tabelaFinanceiro');
         tbody.innerHTML = '<tr><td colspan="14" class="p-6 text-center text-gray-500">Buscando histórico...</td></tr>';
         
-        const { data: mediuns } = await supabaseClient.from('mediuns').select('id, nome_completo').eq('terreiro_id', idTerreiroGlobal).order('nome_completo');
+        const { data: mediuns } = await supabaseClient.from('mediuns').select('id, nome_completo, nome_social').eq('terreiro_id', idTerreiroGlobal).neq('nome_completo', 'Administrador Sistema').order('nome_completo');
         const { data: pgtos } = await supabaseClient.from('financeiro').select('*').eq('ano', ano);
         
         if(!mediuns) return;
@@ -1301,7 +1499,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 htmlMeses += `<td class="py-1 px-1 border-b border-gray-100"><input type="checkbox" ${checkStr} class="w-4 h-4 cursor-pointer accent-tema-secundaria" onchange="salvarPagamento(${m.id}, ${i}, ${ano}, this.checked)"></td>`;
             }
             const statusHtml = emDia ? '<span class="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded">Em Dia</span>' : '<span class="bg-red-100 text-red-700 text-xs font-bold px-2 py-1 rounded">Pendente</span>';
-            tbody.innerHTML += `<tr class="hover:bg-gray-50"><td class="py-2 px-3 border-b border-gray-100 text-left font-medium text-gray-800 text-xs truncate max-w-[220px]">${m.nome_completo}</td>${htmlMeses}<td class="py-2 px-2 border-b border-gray-100 bg-gray-50">${statusHtml}</td></tr>`;
+            const nomeStr = m.nome_social ? m.nome_social : m.nome_completo;
+
+            tbody.innerHTML += `<tr class="hover:bg-gray-50"><td class="py-2 px-3 border-b border-gray-100 text-left font-medium text-gray-800 text-xs truncate max-w-[220px]">${nomeStr}</td>${htmlMeses}<td class="py-2 px-2 border-b border-gray-100 bg-gray-50">${statusHtml}</td></tr>`;
         });
     }
 
@@ -1396,7 +1596,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 document.getElementById('inputLat').value = lat;
                                 document.getElementById('inputLng').value = lon;
                             }
-                            iniciarMapa(lat, lon, 18);
+                            if (typeof iniciarMapa === 'function') iniciarMapa(lat, lon, 18);
                         }
                     }
                 },
@@ -1435,11 +1635,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if(msg) { msg.textContent = "ERRO: O Banco de Dados recusou a alteração. Regra RLS bloqueou a gravação."; msg.className = "mt-4 text-sm font-bold text-red-600 block"; msg.classList.remove('hidden'); }
             } else {
                 if(msg) { msg.textContent = "Localização salva com sucesso!"; msg.className = "mt-4 text-sm font-bold text-green-600 block"; msg.classList.remove('hidden'); setTimeout(() => msg.classList.add('hidden'), 3000); }
-                iniciarMapa(lat, lng, 18);
+                if (typeof iniciarMapa === 'function') iniciarMapa(lat, lng, 18);
             }
         });
     }
-
 
     if(document.getElementById('uploadLogo')) {
         document.getElementById('uploadLogo').addEventListener('change', function(e) {
@@ -1478,6 +1677,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                 
                 document.getElementById('logoSidebar').src = urlData.publicUrl;
                 document.getElementById('logoSidebar').classList.remove('hidden');
+
+                let linkFavicon = document.querySelector("link[rel~='icon']");
+                if (!linkFavicon) {
+                    linkFavicon = document.createElement('link');
+                    linkFavicon.rel = 'icon';
+                    document.head.appendChild(linkFavicon);
+                }
+                linkFavicon.href = urlData.publicUrl;
+
                 msg.textContent = '✅ Logo salva!'; msg.className = 'text-xs font-bold mt-2 text-tema-secundaria';
             } catch (error) {
                 msg.textContent = '❌ Erro: ' + error.message; msg.className = 'text-xs font-bold mt-2 text-red-600';
