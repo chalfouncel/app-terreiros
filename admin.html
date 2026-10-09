@@ -573,7 +573,7 @@
                 </div>
             </div>
 
-            <!-- SEÇÃO CONFIGURAÇÕES DA CASA -->
+            <!-- SEÇÃO CONFIGURAÇÕES DA CASA (GPS, COORDENADAS MANUAIS E MAPA RESTAURADOS) -->
             <div id="secAdministracao" class="secao-painel hidden">
                 <div class="bg-white p-5 md:p-6 rounded-2xl shadow-sm border-t-4 border-green-500 mb-6 md:mb-8">
                     <div class="flex items-center mb-3">
@@ -582,17 +582,49 @@
                         </div>
                         <div>
                             <h3 class="text-base md:text-lg font-bold text-tema-texto">Localização Sede (GPS)</h3>
-                            <p class="text-xs text-gray-500">Ponto exato para validação de check-in.</p>
+                            <p class="text-xs text-gray-500">Ponto exato para validação de check-in dos médiuns.</p>
                         </div>
                     </div>
                     <p class="text-xs md:text-sm text-gray-600 mb-4">
-                        Posicione-se no centro do terreiro com o celular e clique no botão para capturar a coordenada exata.
+                        Capture as coordenadas pelo GPS do seu dispositivo ou introduza a latitude e a longitude manualmente clicando no mapa.
                     </p>
-                    <div>
-                        <button id="btnGravarLocalizacao" class="w-full sm:w-auto bg-green-500 hover:bg-green-600 text-white font-bold py-2.5 px-6 rounded-xl shadow flex items-center justify-center transition text-sm">
-                            Gravar Localização Atual
-                        </button>
-                        <div id="msgLocalizacao" class="mt-3 hidden text-xs md:text-sm font-bold"></div>
+
+                    <!-- AÇÕES E CAMPOS DE COORDENADAS MANUAIS -->
+                    <div class="space-y-4">
+                        <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+                            <button id="btnGravarLocalizacao" class="bg-green-500 hover:bg-green-600 active:scale-95 text-white font-bold py-2.5 px-6 rounded-xl shadow flex items-center justify-center gap-2 transition text-xs md:text-sm">
+                                <i class="fas fa-crosshairs"></i> Gravar Localização Atual (GPS)
+                            </button>
+                        </div>
+
+                        <!-- CAMPOS MANUAIS DE LATITUDE E LONGITUDE -->
+                        <div class="bg-gray-50 p-4 rounded-2xl border border-gray-200">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                                <div>
+                                    <label class="block text-[10px] md:text-xs font-bold text-gray-600 uppercase mb-1">Latitude</label>
+                                    <input type="text" id="inputLat" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm bg-white outline-none focus:ring-2 focus:ring-green-500" placeholder="-22.9068">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] md:text-xs font-bold text-gray-600 uppercase mb-1">Longitude</label>
+                                    <input type="text" id="inputLng" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm bg-white outline-none focus:ring-2 focus:ring-green-500" placeholder="-43.1729">
+                                </div>
+                            </div>
+                            <button id="btnSalvarLocalizacaoManual" class="w-full sm:w-auto bg-gray-800 hover:bg-gray-900 active:scale-95 text-white font-bold py-2 px-5 rounded-xl shadow transition text-xs md:text-sm flex items-center justify-center gap-2">
+                                <i class="fas fa-save"></i> Salvar Manualmente
+                            </button>
+                        </div>
+
+                        <div id="msgLocalizacao" class="hidden text-xs md:text-sm font-bold"></div>
+
+                        <!-- CONTENTOR DO MAPA LEAFLET -->
+                        <div class="mt-4">
+                            <div class="flex justify-between items-center mb-1.5">
+                                <span class="text-xs font-bold text-gray-700"><i class="fas fa-map mr-1.5 text-green-600"></i> Mapa de Localização</span>
+                                <span class="text-[10px] text-gray-500">Clique no mapa para posicionar o marcador</span>
+                            </div>
+                            <div id="mapaOverlay" class="hidden"></div>
+                            <div id="mapaLocalizacao" class="w-full h-80 md:h-96 rounded-2xl border border-gray-200 shadow-inner z-0"></div>
+                        </div>
                     </div>
                 </div>
 
@@ -683,7 +715,7 @@
                     <h3 class="text-base md:text-lg font-bold text-gray-800 mb-4">Terreiros na Plataforma</h3>
                     <div class="overflow-x-auto">
                         <table class="w-full text-left border-collapse">
-                            <thead class="bg-gray-50 border-b border-gray-200">
+                            <thead>
                                 <tr>
                                     <th class="p-3 text-xs md:text-sm font-semibold text-gray-600">ID</th>
                                     <th class="p-3 text-xs md:text-sm font-semibold text-gray-600">NOME DO TERREIRO</th>
