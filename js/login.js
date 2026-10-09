@@ -82,6 +82,11 @@ document.querySelector('form').addEventListener('submit', async (e) => {
                 throw new Error('ID não encontrado no sistema. Procure a administração.');
             }
 
+            // >>> TRAVA DE INATIVIDADE <<<
+            if (medium.status_ativo === false) {
+                throw new Error('Seu acesso ao sistema está inativo. Por favor, entre em contato com a Administração da Casa.');
+            }
+
             // >>> SUPER TRAVA DE SEGURANÇA <<<
             if (medium.auth_id || medium.cadastro_completo || medium.senha_cadastrada) {
                 throw new Error('Seu cadastro já está ativo! Feche este aviso e faça o login normal usando seu Nome ou Telefone e a sua Nova Senha.');
@@ -145,6 +150,21 @@ document.querySelector('form').addEventListener('submit', async (e) => {
 
         if (error) {
             throw new Error('Identificação ou senha incorretos.');
+        }
+
+        // >>> TRAVA DE INATIVIDADE PÓS-LOGIN <<<
+        if (data && data.user) {
+            const { data: perfilData } = await db
+                .from('mediuns')
+                .select('status_ativo')
+                .eq('auth_id', data.user.id)
+                .limit(1)
+                .single();
+
+            if (perfilData && perfilData.status_ativo === false) {
+                await db.auth.signOut();
+                throw new Error('Seu acesso ao sistema está inativo. Por favor, entre em contato com a Administração da Casa.');
+            }
         }
 
         // LOGIN FEITO COM SUCESSO! Decide pra onde mandar:
