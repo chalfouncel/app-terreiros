@@ -1083,7 +1083,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 .select('id, titulo, data_hora_inicio, data_hora_fim, ata_encerrada, texto_ata')
                 .eq('terreiro_id', idTerreiroGlobal)
                 .eq('gera_ata', true)
-                .order('data_hora_inicio', { ascending: false })
+                .order('data_hora_inicio', { ascending: true })
                 .limit(30);
 
             if (error) throw error;
