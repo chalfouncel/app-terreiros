@@ -283,10 +283,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.getElementById('proximaGira').textContent = 'Nenhum evento agendado';
         }
 
-        // 2. LÓGICA DA TABELA DE HOJE
+        // 2. LÓGICA DA TABELA DE HOJE (SOMENTE ATIVOS)
         const tabelaPresencas = document.getElementById('tabelaPresencas');
         
-        // Remove dinamicamente a 3ª coluna ("Status") do cabeçalho
+        // Remove dinamicamente a 3ª coluna ("Status") do cabeçalho se ela ainda existir
         if (tabelaPresencas) {
             const tableEl = tabelaPresencas.closest('table');
             if (tableEl) {
@@ -298,7 +298,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         // Busca dados de todos os médiuns (necessário para nomes e relatório)
-        const { data: todosMediuns } = await supabaseClient.from('mediuns').select('id, auth_id, nome_completo, nome_social, grau, funcao').eq('terreiro_id', idTerreiroGlobal);
+        const { data: todosMediuns } = await supabaseClient.from('mediuns').select('id, auth_id, nome_completo, nome_social, grau, funcao, status_ativo').eq('terreiro_id', idTerreiroGlobal);
 
         if (giraAtualId) {
             const { data: presencas } = await supabaseClient.from('presencas').select('usuario_id, data_hora_checkin').eq('evento_id', giraAtualId).order('data_hora_checkin', { ascending: false });
@@ -309,6 +309,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 tabelaPresencas.innerHTML = ''; 
                 presencas.forEach(p => {
                     const md = todosMediuns?.find(m => m.auth_id === p.usuario_id || String(m.id) === String(p.usuario_id));
+                    // Considera apenas médiuns ativos
+                    if (md && md.status_ativo === false) return;
+
                     const nome = md ? (md.nome_social || md.nome_completo) : 'Médium Excluído';
                     const hora = new Date(p.data_hora_checkin).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
                     
@@ -328,19 +331,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         // 3. LÓGICA DO CARD "RELATÓRIO DE PRESENÇAS" (HISTÓRICO EM PDF)
-        // Varre a área de visão geral para encontrar o <select> e o botão <button>
-        const selectRelatorio = document.querySelector('#secVisaoGeral select');
-        const botoesVisaoGeral = document.querySelectorAll('#secVisaoGeral button');
-        let btnGerarHistorico = null;
-        botoesVisaoGeral.forEach(b => {
-            if (b.textContent.includes('Baixar Relatório')) btnGerarHistorico = b;
-        });
+        const selectRelatorio = document.getElementById('selectEventoRelatorio') || document.querySelector('#secVisaoGeral select');
+        const btnGerarHistorico = document.getElementById('btnBaixarPdfEvento') || document.querySelector('#secVisaoGeral button.btn-pdf-evento');
 
         if (selectRelatorio) {
-            // Busca o histórico de todos os eventos já cadastrados e finalizados
             const { data: historicoEventos } = await supabaseClient
                 .from('agenda')
-                .select('id, titulo, data_hora_inicio')
+                .select('id, titulo, data_hora_inicio, especial')
                 .eq('terreiro_id', idTerreiroGlobal)
                 .order('data_hora_inicio', { ascending: false });
 
@@ -349,7 +346,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (historicoEventos && historicoEventos.length > 0) {
                 historicoEventos.forEach(ev => {
                     const dataFormatada = new Date(ev.data_hora_inicio).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-                    selectRelatorio.innerHTML += `<option value="${ev.id}">${dataFormatada} - ${ev.titulo}</option>`;
+                    const tipo = ev.especial ? ' [Restrita]' : ' [Aberta]';
+                    selectRelatorio.innerHTML += `<option value="${ev.id}">${dataFormatada} - ${ev.titulo}${tipo}</option>`;
                 });
             } else {
                 selectRelatorio.innerHTML = '<option value="">Nenhum evento encontrado no histórico.</option>';
@@ -357,7 +355,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         if (btnGerarHistorico && selectRelatorio) {
-            // Removemos event listeners antigos clonando o botão (evita múltiplos downloads ao navegar pelas abas)
             const novoBtn = btnGerarHistorico.cloneNode(true);
             btnGerarHistorico.parentNode.replaceChild(novoBtn, btnGerarHistorico);
 
@@ -373,43 +370,45 @@ document.addEventListener('DOMContentLoaded', async () => {
                 novoBtn.disabled = true;
 
                 try {
-                    // Descobre o título do evento pelo texto da option selecionada
                     const textoOption = selectRelatorio.options[selectRelatorio.selectedIndex].text;
-                    const tituloEvStr = textoOption.split(' - ')[1] || 'Relatório';
+                    const tituloEvStr = textoOption.split(' - ')[1] || 'Evento';
 
-                    // Busca quem marcou presença neste evento específico
                     const { data: presencasHist } = await supabaseClient
                         .from('presencas')
                         .select('usuario_id, data_hora_checkin')
                         .eq('evento_id', eventoIdSelecionado)
-                        .order('data_hora_checkin', { ascending: true }); // Ordena por hora de chegada no PDF
+                        .order('data_hora_checkin', { ascending: true });
 
                     if (!presencasHist || presencasHist.length === 0) {
-                        alert('Nenhum check-in foi registrado para este evento escolhido.');
+                        alert('Nenhum check-in foi registrado para este evento.');
                         return;
                     }
 
-                    // Monta o array para injeção no PDF
                     const dadosParaPDF = [];
                     presencasHist.forEach(p => {
                         const md = todosMediuns?.find(m => m.auth_id === p.usuario_id || String(m.id) === String(p.usuario_id));
                         const nome = md ? (md.nome_social || md.nome_completo) : 'Médium Excluído';
                         const hora = new Date(p.data_hora_checkin).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                        const grauPdf = md ? (md.grau || '-') : '-';
-                        const funcPdf = md ? (md.funcao || '-') : '-';
                         
-                        dadosParaPDF.push([nome, grauPdf, funcPdf, hora]);
+                        let cargoExibicao = '-';
+                        if (md) {
+                            const g = md.grau && md.grau !== '-' ? md.grau : '';
+                            const f = md.funcao && md.funcao !== '-' ? md.funcao : '';
+                            if (g && f) cargoExibicao = `${g}/${f}`;
+                            else cargoExibicao = g || f || '-';
+                        }
+                        
+                        dadosParaPDF.push([nome, cargoExibicao, hora]);
                     });
 
-                    // Invoca a nossa função universal já estilizada
                     window.gerarPDFRelatorio(
-                        `Relatório Oficial de Presenças - ${tituloEvStr}`, 
-                        ['Nome do Médium', 'Grau', 'Função', 'Hora Check-in'], 
+                        `Relação de Presentes - ${tituloEvStr}`, 
+                        ['Nome', 'Grau / Função', 'Hora Check-in'], 
                         dadosParaPDF
                     );
 
                 } catch (error) {
-                    console.error('Erro na geração do relatório histórico:', error);
+                    console.error('Erro na geração da relação de presença:', error);
                     alert('Erro inesperado ao gerar o relatório.');
                 } finally {
                     novoBtn.innerHTML = originalHtml;
@@ -723,6 +722,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             setTimeout(() => { btn.innerHTML = originalHtml; btn.disabled = false; }, 2000);
         });
 
+        // ========================================================
+        // GERAÇÃO DO PDF DE ANIVERSARIANTES (ALTERAÇÕES SOLICITADAS)
+        // ========================================================
         document.getElementById('btnImprimirAniversariantes')?.addEventListener('click', () => {
             const btn = document.getElementById('btnImprimirAniversariantes');
             const originalHtml = btn.innerHTML;
@@ -754,24 +756,36 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
             
             const dados = lista.map(m => {
-                let dataNasc = '-'; let diaMes = '-';
+                let diaMes = '-';
                 if (m.data_nascimento) {
                     if (m.data_nascimento.includes('-')) {
                         const p = m.data_nascimento.split('-');
-                        if(p.length === 3) { dataNasc = `${p[2]}/${p[1]}/${p[0]}`; diaMes = `${p[2]}/${p[1]}`; }
+                        if(p.length === 3) diaMes = `${p[2]}/${p[1]}`;
                     } else {
-                        dataNasc = m.data_nascimento;
+                        const dataNasc = m.data_nascimento;
                         if(dataNasc.includes('/')) diaMes = dataNasc.substring(0, 5);
                     }
                 }
-                const nomeStr = m.nome_social ? `${m.nome_completo} (${m.nome_social})` : m.nome_completo;
-                return [diaMes, nomeStr, m.grau || '-', dataNasc];
+
+                // 1. Ao invés do nome completo, aparecer o nome social com fallback
+                const nomeExibicao = m.nome_social || m.nome_completo || 'Médium';
+
+                // 3. Na opção de "Grau" colocar também a função (ex.: CCT/MG, CT/Cantina)
+                const g = m.grau && m.grau !== '-' ? m.grau : '';
+                const f = m.funcao && m.funcao !== '-' ? m.funcao : '';
+                let grauFuncao = '-';
+                if (g && f) grauFuncao = `${g}/${f}`;
+                else grauFuncao = g || f || '-';
+
+                // 4. Excluída a coluna nascimento duplicada
+                return [diaMes, nomeExibicao, grauFuncao];
             });
             
             const mesAtual = new Date().toLocaleString('pt-BR', { month: 'long' });
             const titulo = `Aniversariantes de ${mesAtual.charAt(0).toUpperCase() + mesAtual.slice(1)}`;
             
-            window.gerarPDFRelatorio(titulo, ['Dia', 'Nome Completo', 'Grau', 'Nascimento'], dados);
+            // 1. Título "Nome" | 2. Altera "Dia" para "Data"
+            window.gerarPDFRelatorio(titulo, ['Data', 'Nome', 'Grau'], dados);
             setTimeout(() => { btn.innerHTML = originalHtml; btn.disabled = false; }, 2000);
         });
     }, 500);
