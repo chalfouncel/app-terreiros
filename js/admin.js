@@ -1051,7 +1051,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         try {
             const { data, error } = await supabaseClient.from('agenda')
-                .select('id, titulo, data_hora_inicio, ata_encerrada')
+                .select('id, titulo, data_hora_inicio, data_hora_fim, ata_encerrada, texto_ata')
                 .eq('terreiro_id', idTerreiroGlobal)
                 .eq('gera_ata', true)
                 .order('data_hora_inicio', { ascending: false })
@@ -1065,9 +1065,21 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return;
             }
 
+            const agora = new Date();
+
             data.forEach(g => {
                 const inicio = new Date(g.data_hora_inicio).toLocaleString('pt-BR');
-                const encerrada = g.ata_encerrada;
+                let encerrada = g.ata_encerrada;
+                
+                // FECHAMENTO AUTOMÁTICO SE PASSOU DO HORÁRIO DE FIM
+                if (!encerrada && g.data_hora_fim) {
+                    const fim = new Date(g.data_hora_fim);
+                    if (agora >= fim) {
+                        encerrada = true;
+                        // Atualiza no banco silenciosamente sem travar a interface
+                        supabaseClient.from('agenda').update({ ata_encerrada: true }).eq('id', g.id).then();
+                    }
+                }
                 
                 const statusHtml = encerrada 
                     ? '<span class="bg-gray-200 text-gray-800 text-xs px-2 py-1 rounded font-bold"><i class="fas fa-lock mr-1"></i> Finalizada</span>'
@@ -1077,9 +1089,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (encerrada) {
                     acoesHtml = `<button onclick="gerarPDF_ATA('${g.id}')" class="text-xs bg-gray-800 hover:bg-gray-900 text-white font-bold py-1.5 px-3 rounded shadow transition"><i class="fas fa-file-pdf mr-1 text-red-400"></i> Baixar Documento</button>`;
                 } else {
+                    const temTexto = g.texto_ata && g.texto_ata.trim() !== '';
+                    const labelRedigir = temTexto ? '<i class="fas fa-edit"></i> Editar' : '<i class="fas fa-pen"></i> Redigir';
+                    
                     acoesHtml = `
                         <div class="flex items-center justify-center space-x-2">
-                            <button onclick="abrirModalEscreverAta('${g.id}')" class="text-xs bg-indigo-100 text-indigo-700 hover:bg-indigo-200 font-bold py-1 px-3 rounded shadow transition" title="Redigir ATA"><i class="fas fa-pen"></i> Redigir</button>
+                            <button onclick="abrirModalEscreverAta('${g.id}')" class="text-xs bg-indigo-100 text-indigo-700 hover:bg-indigo-200 font-bold py-1 px-3 rounded shadow transition" title="Redigir ATA">${labelRedigir}</button>
                             <button onclick="encerrarAta('${g.id}')" class="text-xs bg-red-500 hover:bg-red-600 text-white font-bold py-1 px-3 rounded shadow transition" title="Travar Check-ins e Gerar PDF"><i class="fas fa-check-double"></i> Encerrar e Gerar</button>
                         </div>
                     `;
@@ -1137,6 +1152,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 msg.textContent = 'Texto salvo com sucesso!';
                 msg.className = 'text-green-600 text-sm font-bold mt-2 block';
                 msg.classList.remove('hidden');
+                carregarLivroAta(); // Atualiza a lista para refletir se mudou de "Redigir" para "Editar"
                 setTimeout(() => fecharModalEscreverAta(), 1500);
             }
         });
@@ -1215,8 +1231,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const mediumA = mapaMediuns[a.usuario_id] || {};
                     const mediumB = mapaMediuns[b.usuario_id] || {};
                     
-                    const isDirigenteA = mediumA.funcao === 'Dirigente';
-                    const isDirigenteB = mediumB.funcao === 'Dirigente';
+                    const isDirigenteA = mediumA.funcao === 'Dirigente' || mediumA.grau === 'Dirigente';
+                    const isDirigenteB = mediumB.funcao === 'Dirigente' || mediumB.grau === 'Dirigente';
                     
                     if (isDirigenteA && !isDirigenteB) return -1;
                     if (!isDirigenteA && isDirigenteB) return 1;
@@ -1230,15 +1246,37 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             let trs = '';
             if (presencas && presencas.length > 0) {
-                presencas.forEach(p => {
-                    const medium = mapaMediuns[p.usuario_id] || { nome_completo: 'Médium não identificado', grau: '-' };
+                presencas.forEach((p, index) => {
+                    const medium = mapaMediuns[p.usuario_id] || { nome_completo: 'Médium não identificado', grau: '-', funcao: '-' };
                     const nomeFinal = medium.nome_social ? medium.nome_social : medium.nome_completo;
                     const horaCheckin = new Date(p.data_hora_checkin).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                    
+                    // Grau e Função combinados
+                    let grauExibicao = '-';
+                    const gStr = medium.grau && medium.grau !== '-' ? medium.grau : '';
+                    const fStr = medium.funcao && medium.funcao !== '-' ? medium.funcao : '';
+                    if (gStr && fStr) grauExibicao = `${gStr}/${fStr}`;
+                    else if (gStr) grauExibicao = gStr;
+                    else if (fStr) grauExibicao = fStr;
+
+                    const isDirigente = medium.funcao === 'Dirigente' || medium.grau === 'Dirigente';
+                    const estiloLinha = isDirigente ? 'font-weight: bold; background-color: #f8fafc;' : '';
+                    
+                    let borderStyle = '1px solid #ddd';
+                    const nextP = presencas[index + 1];
+                    if (isDirigente && nextP) {
+                        const nextMedium = mapaMediuns[nextP.usuario_id] || {};
+                        const isNextDirigente = nextMedium.funcao === 'Dirigente' || nextMedium.grau === 'Dirigente';
+                        if (!isNextDirigente) {
+                            borderStyle = '2px solid #000'; // Separação visual forte após o dirigente
+                        }
+                    }
+
                     trs += `
-                        <tr>
-                            <td style="border-bottom: 1px solid #ddd; padding: 6px 4px;">${nomeFinal}</td>
-                            <td style="border-bottom: 1px solid #ddd; padding: 6px 4px; text-align: center;">${medium.grau || '-'}</td>
-                            <td style="border-bottom: 1px solid #ddd; padding: 6px 4px; text-align: right;">${horaCheckin}</td>
+                        <tr style="${estiloLinha}">
+                            <td style="border-bottom: ${borderStyle}; padding: 6px 4px;">${nomeFinal}</td>
+                            <td style="border-bottom: ${borderStyle}; padding: 6px 4px; text-align: center;">${grauExibicao}</td>
+                            <td style="border-bottom: ${borderStyle}; padding: 6px 4px; text-align: right;">${horaCheckin}</td>
                         </tr>
                     `;
                 });
@@ -1298,7 +1336,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <thead>
                         <tr>
                             <th style="border-bottom: 2px solid #000; padding: 8px 4px; text-align: left;">NOME DO MÉDIUM</th>
-                            <th style="border-bottom: 2px solid #000; padding: 8px 4px; text-align: center;">GRAU</th>
+                            <th style="border-bottom: 2px solid #000; padding: 8px 4px; text-align: center;">GRAU / FUNÇÃO</th>
                             <th style="border-bottom: 2px solid #000; padding: 8px 4px; text-align: right;">HORA DO CHECK-IN</th>
                         </tr>
                     </thead>
@@ -1541,319 +1579,4 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             if(error) {
                 if(msg) { msg.textContent = "Erro: " + error.message; msg.className = "mt-4 text-sm font-bold text-red-600 block"; msg.classList.remove('hidden'); }
-            } else if (!data || data.length === 0) {
-                if(msg) { msg.textContent = "ERRO: O Banco de Dados recusou a alteração. Regra RLS bloqueou a gravação."; msg.className = "mt-4 text-sm font-bold text-red-600 block"; msg.classList.remove('hidden'); }
-            } else {
-                if(msg) { msg.textContent = "Localização salva com sucesso!"; msg.className = "mt-4 text-sm font-bold text-green-600 block"; msg.classList.remove('hidden'); setTimeout(() => msg.classList.add('hidden'), 3000); }
-                iniciarMapa(lat, lng, 18);
             }
-        });
-    }
-
-
-    if(document.getElementById('uploadLogo')) {
-        document.getElementById('uploadLogo').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(evt) {
-                    document.getElementById('previewLogo').src = evt.target.result;
-                    document.getElementById('previewLogo').classList.remove('hidden');
-                    document.getElementById('placeholderLogo').classList.add('hidden');
-                }
-                reader.readAsDataURL(file);
-            }
-        });
-    }
-
-    if(document.getElementById('btnSalvarLogo')) {
-        document.getElementById('btnSalvarLogo').addEventListener('click', async () => {
-            const btnLogo = document.getElementById('btnSalvarLogo');
-            const input = document.getElementById('uploadLogo');
-            const msg = document.getElementById('msgLogo');
-            if(!input.files || input.files.length === 0) { alert('Selecione uma imagem.'); return; }
-            btnLogo.disabled = true; btnLogo.textContent = 'Enviando...'; msg.classList.remove('hidden');
-            msg.textContent = 'Fazendo upload...'; msg.className = 'text-xs font-bold mt-2 text-tema-primaria';
-            
-            try {
-                const arquivo = input.files[0];
-                const nomeArquivo = `logo_${idTerreiroGlobal}_${Date.now()}.${arquivo.name.split('.').pop()}`;
-                const { error: errUp } = await supabaseClient.storage.from('logos').upload(nomeArquivo, arquivo);
-                if (errUp) throw errUp;
-                const { data: urlData } = supabaseClient.storage.from('logos').getPublicUrl(nomeArquivo);
-                const { error: errBd } = await supabaseClient.from('terreiros').update({ logo_url: urlData.publicUrl }).eq('id', idTerreiroGlobal);
-                if (errBd) throw errBd;
-                
-                logoTerreiroGlobal = urlData.publicUrl;
-                
-                document.getElementById('logoSidebar').src = urlData.publicUrl;
-                document.getElementById('logoSidebar').classList.remove('hidden');
-
-                let linkFavicon = document.querySelector("link[rel~='icon']");
-                if (!linkFavicon) {
-                    linkFavicon = document.createElement('link');
-                    linkFavicon.rel = 'icon';
-                    document.head.appendChild(linkFavicon);
-                }
-                linkFavicon.href = urlData.publicUrl;
-
-                msg.textContent = '✅ Logo salva!'; msg.className = 'text-xs font-bold mt-2 text-tema-secundaria';
-            } catch (error) {
-                msg.textContent = '❌ Erro: ' + error.message; msg.className = 'text-xs font-bold mt-2 text-red-600';
-            } finally { btnLogo.disabled = false; btnLogo.textContent = 'Salvar Imagem'; }
-        });
-    }
-
-    if(document.getElementById('btnSalvarCores')) {
-        document.getElementById('btnSalvarCores').addEventListener('click', async () => {
-            const btn = document.getElementById('btnSalvarCores');
-            const msg = document.getElementById('msgCores');
-            const cor1 = document.getElementById('corPrimaria').value;
-            const cor2 = document.getElementById('corSecundaria').value;
-            const corF = document.getElementById('corFundo').value;
-            const corT = document.getElementById('corTexto').value;
-            btn.disabled = true; btn.textContent = 'Salvando...';
-            
-            try {
-                const { error } = await supabaseClient.from('terreiros').update({ cor_primaria: cor1, cor_secundaria: cor2, cor_fundo: corF, cor_texto: corT }).eq('id', idTerreiroGlobal);
-                if (error) throw error;
-                const root = document.documentElement;
-                root.style.setProperty('--cor-primaria', cor1); root.style.setProperty('--cor-secundaria', cor2);
-                root.style.setProperty('--cor-fundo', corF); root.style.setProperty('--cor-texto', corT);
-                msg.textContent = '✅ Tema atualizado!'; msg.className = 'text-sm font-bold mt-3 text-tema-secundaria block';
-                setTimeout(() => msg.classList.add('hidden'), 5000);
-            } catch (error) {
-                msg.textContent = '❌ Erro: ' + error.message; msg.className = 'text-sm font-bold mt-3 text-red-600 block';
-            } finally { btn.disabled = false; btn.textContent = 'Salvar e Aplicar Cores'; }
-        });
-    }
-
-    // ==========================================
-    // DOAÇÕES
-    // ==========================================
-    window.carregarDoacoesPrometidas = async () => {
-        if (!idTerreiroGlobal) return;
-        const tbody = document.getElementById('tabelaDoacoesPrometidas');
-        if(tbody) tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-gray-500">Buscando...</td></tr>';
-        try {
-            const { data: doacoes, error: errD } = await supabaseClient.from('doacoes_registradas').select('*').eq('terreiro_id', idTerreiroGlobal).order('entregue', { ascending: true }).order('data_registro', { ascending: false }); 
-            if (errD) throw errD;
-            const { data: mediuns } = await supabaseClient.from('mediuns').select('auth_id, nome_completo, nome_social').eq('terreiro_id', idTerreiroGlobal).neq('nome_completo', 'Administrador Sistema');
-            const { data: itens } = await supabaseClient.from('itens_doacao').select('id, nome, descricao').eq('terreiro_id', idTerreiroGlobal);
-            window.dadosDoacoesParaPDF = { doacoes, mediuns, itens };
-
-            if (!doacoes || doacoes.length === 0) {
-                if(tbody) tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-gray-500">Nenhum registro.</td></tr>';
-                return;
-            }
-            if(tbody) {
-                tbody.innerHTML = '';
-                doacoes.forEach(d => {
-                    const medium = mediuns?.find(m => m.auth_id === d.medium_auth_id);
-                    const nomeMedium = medium ? (medium.nome_social ? medium.nome_social : medium.nome_completo) : 'Médium Excluído';
-                    
-                    const itemObj = itens?.find(i => i.id == d.item_id);
-                    const itemNome = itemObj ? `${itemObj.nome}` : 'Item';
-                    const data = new Date(d.data_registro).toLocaleDateString('pt-BR');
-                    const statusHtml = d.entregue ? '<span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded font-bold">Entregue</span>' : '<span class="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded font-bold">Pendente</span>';
-                    const acaoHtml = d.entregue ? `<button onclick="marcarDoacao('${d.id}', false)" class="text-xs text-gray-400 hover:text-gray-800 underline mt-1">Desfazer</button>` : `<button onclick="marcarDoacao('${d.id}', true)" class="bg-tema-secundaria hover:opacity-90 text-white text-xs font-bold py-1.5 px-3 rounded shadow-sm mt-1">Dar Baixa</button>`;
-                    const estilo = d.entregue ? 'bg-gray-50 opacity-80' : 'bg-white';
-                    
-                    tbody.innerHTML += `<tr class="border-b border-gray-100 ${estilo}"><td class="p-3 text-sm font-medium">${nomeMedium}</td><td class="p-3 text-sm">${itemNome}</td><td class="p-3 text-center font-bold">${d.quantidade}</td><td class="p-3 text-xs text-gray-500">${data}</td><td class="p-3 text-center flex flex-col items-center">${statusHtml}${acaoHtml}</td></tr>`;
-                });
-            }
-        } catch (error) {
-            if(tbody) tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-red-500">Erro ao carregar.</td></tr>`;
-        }
-    };
-
-    window.marcarDoacao = async (id, status) => {
-        const payload = { entregue: status, data_entrega: status ? new Date().toISOString() : null };
-        const { error } = await supabaseClient.from('doacoes_registradas').update(payload).eq('id', id);
-        if (!error) carregarDoacoesPrometidas(); else alert('Erro: ' + error.message);
-    };
-
-    window.carregarDoacoesCatalogo = async () => {
-        if (!idTerreiroGlobal) return;
-        const tbody = document.getElementById('tabelaItensDoacao');
-        if(!tbody) return;
-        const { data, error } = await supabaseClient.from('itens_doacao').select('*').eq('terreiro_id', idTerreiroGlobal).order('nome');
-        if (error) return;
-        tbody.innerHTML = '';
-        if (data && data.length > 0) {
-            data.forEach(item => {
-                const btn = item.ativo ? `<button onclick="alternarStatusCatalogo('${item.id}', false)" class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded font-bold">Ocultar</button>` : `<button onclick="alternarStatusCatalogo('${item.id}', true)" class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-bold">Ativar</button>`;
-                tbody.innerHTML += `<tr class="border-b border-gray-100 ${item.ativo ? '' : 'opacity-40'}"><td class="p-3 text-sm">${item.nome}</td><td class="p-3 text-xs text-gray-500">${item.descricao || '-'}</td><td class="p-3 text-center">${btn}</td></tr>`;
-            });
-        }
-    };
-
-    window.alternarStatusCatalogo = async (id, status) => {
-        const { error } = await supabaseClient.from('itens_doacao').update({ ativo: status }).eq('id', id);
-        if (!error) carregarDoacoesCatalogo();
-    };
-
-    // ==========================================
-    // SAAS / GESTÃO E CONTEXT SWITCHER
-    // ==========================================
-    window.carregarGestaoPlataforma = async () => {
-        const tbody = document.getElementById('tabelaMasterTerreiros');
-        if(!tbody) return;
-        tbody.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-gray-500">Carregando terreiros...</td></tr>';
-        
-        const { data, error } = await supabaseClient.from('terreiros').select('*').order('id', { ascending: true });
-        if (error) { tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-red-500">Erro: ${error.message}</td></tr>`; return; }
-
-        tbody.innerHTML = '';
-        data.forEach(t => {
-            const statusHtml = t.status_bloqueado ? '<span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded font-bold">Bloqueado</span>' : '<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded font-bold">Ativo</span>';
-            
-            const btnBloqueio = t.status_bloqueado 
-                ? `<button onclick="alternarBloqueioTerreiro('${t.id}', false)" class="text-xs bg-gray-800 text-white py-1 px-3 rounded shadow">Desbloquear</button>` 
-                : `<button onclick="alternarBloqueioTerreiro('${t.id}', true)" class="text-xs bg-red-600 text-white py-1 px-3 rounded shadow">Bloquear</button>`;
-            
-            const btnImportar = `<button onclick="abrirModalImportacao('${t.id}', '${t.nome.replace(/'/g, "\\'")}')" class="text-xs bg-blue-600 hover:bg-blue-700 text-white py-1 px-3 rounded shadow ml-2"><i class="fas fa-file-csv"></i> CSV</button>`;
-            
-            const btnAcessar = `<button onclick="acessarTerreiroSaaS('${t.id}')" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white py-1 px-3 rounded shadow mr-2"><i class="fas fa-sign-in-alt"></i> Acessar</button>`;
-            
-            const acaoHtml = `<div class="flex justify-center items-center">${btnAcessar}${btnBloqueio}${btnImportar}</div>`;
-            
-            tbody.innerHTML += `<tr class="border-b border-gray-100 ${t.status_bloqueado ? 'bg-red-50' : ''}"><td class="p-3 text-sm font-mono">${t.id}</td><td class="p-3 font-bold">${t.nome}</td><td class="p-3 text-center">${statusHtml}</td><td class="p-3 text-center">${acaoHtml}</td></tr>`;
-        });
-    };
-
-    window.acessarTerreiroSaaS = (idTerreiro) => {
-        localStorage.setItem('terreiroAtivoSaaS', idTerreiro);
-        window.location.reload();
-    };
-
-    window.voltarParaMeuPainel = () => {
-        localStorage.removeItem('terreiroAtivoSaaS');
-        window.location.reload();
-    };
-
-    window.alternarBloqueioTerreiro = async (idTerreiro, vaiBloquear) => {
-        const acaoStr = vaiBloquear ? "BLOQUEAR" : "DESBLOQUEAR";
-        if(!confirm(`Deseja ${acaoStr} o terreiro ID ${idTerreiro}?`)) return;
-        const { error } = await supabaseClient.from('terreiros').update({ status_bloqueado: vaiBloquear }).eq('id', idTerreiro);
-        if(error) alert("Erro: " + error.message); else carregarGestaoPlataforma();
-    };
-
-    if (document.getElementById('formNovoTerreiro')) {
-        document.getElementById('formNovoTerreiro').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const btn = document.getElementById('btnSalvarTerreiro');
-            const msg = document.getElementById('msgNovoTerreiro');
-            btn.disabled = true; btn.innerHTML = 'Cadastrando...'; msg.classList.add('hidden');
-
-            const { error } = await supabaseClient.from('terreiros').insert([{ 
-                nome: document.getElementById('novoTerreiroNome').value, 
-                cor_primaria: '#1e3a8a', cor_secundaria: '#16a34a', cor_fundo: '#f3f4f6', cor_texto: '#1f2937' 
-            }]);
-
-            btn.disabled = false; btn.innerHTML = 'Cadastrar Sistema';
-            if (error) { msg.textContent = 'Erro: ' + error.message; msg.className = 'text-sm mt-2 text-red-500 block'; } 
-            else {
-                msg.textContent = '✅ Terreiro cadastrado com sucesso!'; msg.className = 'text-sm mt-2 text-green-400 block font-bold';
-                document.getElementById('formNovoTerreiro').reset(); carregarGestaoPlataforma();
-                setTimeout(() => msg.classList.add('hidden'), 3000);
-            }
-        });
-    }
-
-    window.abrirModalImportacao = (idTerreiro, nomeTerreiro) => {
-        document.getElementById('idTerreiroImport').value = idTerreiro;
-        document.getElementById('nomeTerreiroImport').textContent = nomeTerreiro;
-        document.getElementById('msgImportacao').classList.add('hidden');
-        if (document.getElementById('formImportarCSV')) document.getElementById('formImportarCSV').reset();
-        document.getElementById('modalImportarCSV').classList.remove('hidden');
-    };
-
-    window.fecharModalImportacao = () => {
-        document.getElementById('modalImportarCSV').classList.add('hidden');
-    };
-
-    if (document.getElementById('formImportarCSV')) {
-        document.getElementById('formImportarCSV').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const btn = document.getElementById('btnProcessarCSV');
-            const msg = document.getElementById('msgImportacao');
-            const idTerreiro = document.getElementById('idTerreiroImport').value;
-            const fileInput = document.getElementById('arquivoCSV');
-
-            if (!fileInput.files.length) return;
-            const file = fileInput.files[0];
-
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Processando...';
-            msg.classList.remove('hidden');
-            msg.className = 'text-sm mt-3 text-blue-600 block font-bold text-center';
-            msg.textContent = 'Lendo arquivo local...';
-
-            const reader = new FileReader();
-            reader.onload = async function(event) {
-                try {
-                    const text = event.target.result;
-                    const linhas = text.split(/\r?\n/).filter(l => l.trim() !== '');
-                    if (linhas.length <= 1) throw new Error("O arquivo parece vazio ou só tem cabeçalho.");
-
-                    const mediunsParaInserir = [];
-                    for (let i = 1; i < linhas.length; i++) {
-                        const colunas = linhas[i].split(/[,;]/);
-                        const nome = colunas[0] ? colunas[0].trim() : '';
-                        const telefone = colunas[1] ? colunas[1].trim() : '';
-                        const grau = colunas[2] ? colunas[2].trim() : '-';
-                        const funcao = colunas[3] ? colunas[3].trim() : '-';
-
-                        if (nome) {
-                            mediunsParaInserir.push({
-                                terreiro_id: idTerreiro,
-                                nome_completo: nome,
-                                telefone: telefone,
-                                grau: grau,
-                                funcao: funcao,
-                                cadastro_completo: false
-                            });
-                        }
-                    }
-
-                    if (mediunsParaInserir.length === 0) throw new Error("Nenhum nome válido encontrado na planilha.");
-
-                    msg.textContent = `Enviando ${mediunsParaInserir.length} cadastros para o banco...`;
-
-                    const { error } = await supabaseClient.from('mediuns').insert(mediunsParaInserir);
-                    if (error) throw error;
-
-                    msg.textContent = `✅ ${mediunsParaInserir.length} cadastros importados com sucesso!`;
-                    msg.className = 'text-sm mt-3 text-green-600 block font-bold text-center';
-                    
-                    setTimeout(() => { fecharModalImportacao(); }, 3000);
-
-                } catch (error) {
-                    msg.textContent = '❌ Erro: ' + error.message;
-                    msg.className = 'text-sm mt-3 text-red-600 block font-bold text-center';
-                } finally {
-                    btn.disabled = false;
-                    btn.innerHTML = 'Processar e Importar';
-                }
-            };
-            reader.onerror = () => {
-                msg.textContent = '❌ Erro ao ler o arquivo.';
-                msg.className = 'text-sm mt-3 text-red-600 block font-bold text-center';
-                btn.disabled = false;
-                btn.innerHTML = 'Processar e Importar';
-            };
-
-            reader.readAsText(file);
-        });
-    }
-});
-
-document.querySelectorAll('.menu-item').forEach(item => {
-    item.addEventListener('click', () => {
-        if (window.innerWidth < 768) {
-            document.getElementById('sidebar').classList.add('-translate-x-full');
-            document.getElementById('overlayMobile').classList.add('hidden');
-        }
-    });
-});
