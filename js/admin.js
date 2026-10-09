@@ -139,7 +139,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
 
-        document.getElementById('nomeAdmin').textContent = 'Olá, ' + perfil.nome_completo.split(' ')[0];
+        const primeiroNome = perfil.nome_completo.split(' ')[0];
+        document.getElementById('nomeAdmin').textContent = 'Olá, ' + primeiroNome;
+        const nomeMobileEl = document.getElementById('nomeAdminMobile');
+        if (nomeMobileEl) nomeMobileEl.textContent = primeiroNome;
         
         // Só carrega detalhes (cores/logo) se existir um terreiro em foco
         if (idTerreiroGlobal) {
@@ -187,44 +190,56 @@ document.addEventListener('DOMContentLoaded', async () => {
                 
                 secoes.forEach(s => s.classList.add('hidden'));
                 const titulo = document.getElementById('tituloSecao');
+                const tituloMobile = document.getElementById('tituloMobile');
                 
+                const aplicarTitulos = (texto) => {
+                    if (titulo) titulo.textContent = texto;
+                    if (tituloMobile) tituloMobile.textContent = texto;
+                };
+
                 if (menu.id === 'menuVisaoGeral') {
                     document.getElementById('secVisaoGeral').classList.remove('hidden');
-                    titulo.textContent = 'Visão Geral';
+                    aplicarTitulos('Visão Geral');
                     carregarPainelInicial();
                 } else if (menu.id === 'menuQuadroMediuns') {
                     document.getElementById('secQuadroMediuns').classList.remove('hidden');
-                    titulo.textContent = 'Quadro de Médiuns';
+                    aplicarTitulos('Quadro de Médiuns');
                     carregarQuadroMediuns();
                 } else if (menu.id === 'menuAgendaGiras') {
                     document.getElementById('secAgendaGiras').classList.remove('hidden');
-                    titulo.textContent = 'Agenda de Eventos';
+                    aplicarTitulos('Agenda de Eventos');
                     carregarAgenda();
                 } else if (menu.id === 'menuLivroAta') {
                     document.getElementById('secLivroAta').classList.remove('hidden');
-                    titulo.textContent = 'Livro de Presença (ATA)';
+                    aplicarTitulos('Livro de Presença (ATA)');
                     carregarLivroAta();
                 } else if (menu.id === 'menuGrau') {
                     document.getElementById('secGrau').classList.remove('hidden');
-                    titulo.textContent = 'Alteração de Grau';
+                    aplicarTitulos('Alteração de Grau');
                     carregarTabelaGraus();
                 } else if (menu.id === 'menuFinanceiro') {
                     document.getElementById('secFinanceiro').classList.remove('hidden');
-                    titulo.textContent = 'Controle Financeiro';
+                    aplicarTitulos('Controle Financeiro');
                     carregarFinanceiro();
                 } else if (menu.id === 'menuDoacoes') {
                     document.getElementById('secDoacoes').classList.remove('hidden');
-                    titulo.textContent = 'Doações e Campanhas';
+                    aplicarTitulos('Doações e Campanhas');
                     carregarDoacoesPrometidas();
                     carregarDoacoesCatalogo();
                 } else if (menu.id === 'menuAdmin') {
                     document.getElementById('secAdministracao').classList.remove('hidden');
-                    titulo.textContent = 'Configurações da Casa';
+                    aplicarTitulos('Configurações da Casa');
                     carregarConfiguracoesCasa();
                 } else if (menu.id === 'menuMaster') {
                     document.getElementById('secMaster').classList.remove('hidden');
-                    titulo.textContent = 'Gestão da Plataforma (SaaS)';
+                    aplicarTitulos('Gestão da Plataforma (SaaS)');
                     carregarGestaoPlataforma();
+                }
+
+                // Fecha gaveta no celular após clique
+                if (window.innerWidth < 768) {
+                    sidebar.classList.add('-translate-x-full');
+                    overlayMobile.classList.add('hidden');
                 }
             });
         });
@@ -704,9 +719,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             setTimeout(() => { btn.innerHTML = originalHtml; btn.disabled = false; }, 2000);
         });
 
-        // ========================================================
         // GERAÇÃO DO PDF DE ANIVERSARIANTES
-        // ========================================================
         document.getElementById('btnImprimirAniversariantes')?.addEventListener('click', () => {
             const btn = document.getElementById('btnImprimirAniversariantes');
             const originalHtml = btn.innerHTML;
@@ -749,17 +762,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                 }
 
-                // 1. Ao invés do nome completo, aparecer o nome social com título "Nome"
                 const nomeExibicao = m.nome_social || m.nome_completo || 'Médium';
 
-                // 3. Na opção de "Grau" colocar também a função (ex.: CCT/MG, CT/Cantina)
                 const g = m.grau && m.grau !== '-' ? m.grau : '';
                 const f = m.funcao && m.funcao !== '-' ? m.funcao : '';
                 let grauFuncao = '-';
                 if (g && f) grauFuncao = `${g}/${f}`;
                 else grauFuncao = g || f || '-';
 
-                // 4. Excluída a coluna nascimento
                 return [diaMes, nomeExibicao, grauFuncao];
             });
             
@@ -1646,7 +1656,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     // ==========================================
-    // FINANCEIRO (ISOLAMENTO MULTI-TERREIRO CORRIGIDO)
+    // FINANCEIRO (ISOLAMENTO MULTI-TERREIRO)
     // ==========================================
     async function carregarFinanceiro() {
         if(!idTerreiroGlobal) return;
@@ -1654,7 +1664,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         const tbody = document.getElementById('tabelaFinanceiro');
         tbody.innerHTML = '<tr><td colspan="14" class="p-6 text-center text-gray-500">Buscando histórico...</td></tr>';
         
-        // 1. Busca os médiuns deste terreiro
         const { data: mediuns } = await supabaseClient.from('mediuns')
             .select('id, nome_completo, nome_social')
             .eq('terreiro_id', idTerreiroGlobal)
@@ -1666,7 +1675,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        // 2. Extrai apenas os IDs dos médiuns deste terreiro para garantir que o financeiro não traga nada de fora
         const idsMediunsDesteTerreiro = mediuns.map(m => m.id);
 
         const { data: pgtos } = await supabaseClient.from('financeiro')
@@ -1698,7 +1706,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     if(document.getElementById('selectAnoFinanceiro')) document.getElementById('selectAnoFinanceiro').addEventListener('change', carregarFinanceiro);
 
     window.salvarPagamento = async (mediumId, mes, ano, status) => {
-        // Validação preventiva: garante que o médium pertence ao terreiro ativo
         const mediumValido = listaMediunsGlobal.some(m => m.id === mediumId) || mediunsGrauCache.some(m => m.id === mediumId);
         if (!mediumValido && listaMediunsGlobal.length > 0) {
             alert('Ação bloqueada: Este médium não pertence ao seu terreiro.');
@@ -2130,13 +2137,4 @@ document.addEventListener('DOMContentLoaded', async () => {
             reader.readAsText(file);
         });
     }
-});
-
-document.querySelectorAll('.menu-item').forEach(item => {
-    item.addEventListener('click', () => {
-        if (window.innerWidth < 768) {
-            document.getElementById('sidebar').classList.add('-translate-x-full');
-            document.getElementById('overlayMobile').classList.add('hidden');
-        }
-    });
 });
