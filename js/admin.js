@@ -8,6 +8,61 @@ let mapaGlobal = null;
 let marcadorGlobal = null;
 let circuloGlobal = null;
 
+// ==============================================================================
+// FUNÇÃO UTILITÁRIA: COMPRESSÃO E REDIMENSIONAMENTO DE IMAGEM NO CLIENTE
+// ==============================================================================
+function comprimirImagem(file, maxWidth = 1200, maxHeight = 1200, quality = 0.82) {
+    return new Promise((resolve, reject) => {
+        if (!file.type.match(/image.*/)) {
+            return resolve(file); // Se não for imagem direta, devolve o original
+        }
+
+        const reader = new FileReader();
+        reader.onload = (readerEvent) => {
+            const image = new Image();
+            image.onload = () => {
+                let width = image.width;
+                let height = image.height;
+
+                if (width > height) {
+                    if (width > maxWidth) {
+                        height = Math.round((height * maxWidth) / width);
+                        width = maxWidth;
+                    }
+                } else {
+                    if (height > maxHeight) {
+                        width = Math.round((width * maxHeight) / height);
+                        height = maxHeight;
+                    }
+                }
+
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(image, 0, 0, width, height);
+
+                canvas.toBlob((blob) => {
+                    if (!blob) {
+                        return resolve(file);
+                    }
+                    const ext = file.name.split('.').pop() || 'jpg';
+                    const novoArquivo = new File([blob], file.name.replace(/\.[^/.]+$/, `.${ext}`), {
+                        type: file.type.includes('png') ? 'image/png' : 'image/jpeg',
+                        lastModified: Date.now()
+                    });
+                    resolve(novoArquivo);
+                }, file.type.includes('png') ? 'image/png' : 'image/jpeg', quality);
+            };
+            image.onerror = (err) => reject(err);
+            image.src = readerEvent.target.result;
+        };
+        reader.onerror = (err) => reject(err);
+        reader.readAsDataURL(file);
+    });
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     // Data Cabeçalho
     const dataOpcoes = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
@@ -236,7 +291,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     carregarGestaoPlataforma();
                 }
 
-                // Fecha gaveta no celular após clique
+                // Fecha a gaveta no celular após clique
                 if (window.innerWidth < 768) {
                     sidebar.classList.add('-translate-x-full');
                     overlayMobile.classList.add('hidden');
@@ -1231,9 +1286,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 let imagemFinal = linkA || '';
 
                 if (fileInput && fileInput.files.length > 0) {
-                    const file = fileInput.files[0];
-                    const fileName = `${idTerreiroGlobal}/evento_${Date.now()}.${file.name.split('.').pop()}`;
-                    const { error: uploadError } = await supabaseClient.storage.from('public').upload(fileName, file);
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Otimizando imagem...';
+                    // Compressão e redimensionamento no cliente
+                    const arquivoComprimido = await comprimirImagem(fileInput.files[0], 1200, 1200, 0.82);
+                    
+                    const fileName = `${idTerreiroGlobal}/evento_${Date.now()}.${arquivoComprimido.name.split('.').pop()}`;
+                    const { error: uploadError } = await supabaseClient.storage.from('public').upload(fileName, arquivoComprimido);
                     if (uploadError) throw uploadError;
                     const { data: { publicUrl } } = supabaseClient.storage.from('public').getPublicUrl(fileName);
                     imagemFinal = publicUrl;
@@ -1865,13 +1923,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             const input = document.getElementById('uploadLogo');
             const msg = document.getElementById('msgLogo');
             if(!input.files || input.files.length === 0) { alert('Selecione uma imagem.'); return; }
-            btnLogo.disabled = true; btnLogo.textContent = 'Enviando...'; msg.classList.remove('hidden');
-            msg.textContent = 'Fazendo upload...'; msg.className = 'text-xs font-bold mt-2 text-tema-primaria';
+            btnLogo.disabled = true; btnLogo.textContent = 'Otimizando e enviando...'; msg.classList.remove('hidden');
+            msg.textContent = 'Processando ficheiro...'; msg.className = 'text-xs font-bold mt-2 text-tema-primaria';
             
             try {
-                const arquivo = input.files[0];
-                const nomeArquivo = `logo_${idTerreiroGlobal}_${Date.now()}.${arquivo.name.split('.').pop()}`;
-                const { error: errUp } = await supabaseClient.storage.from('logos').upload(nomeArquivo, arquivo);
+                // Compressão prévia do Logotipo (PNG/JPEG)
+                const arquivoOriginal = input.files[0];
+                const arquivoComprimido = await comprimirImagem(arquivoOriginal, 600, 600, 0.90);
+
+                const nomeArquivo = `logo_${idTerreiroGlobal}_${Date.now()}.${arquivoComprimido.name.split('.').pop()}`;
+                const { error: errUp } = await supabaseClient.storage.from('logos').upload(nomeArquivo, arquivoComprimido);
                 if (errUp) throw errUp;
                 const { data: urlData } = supabaseClient.storage.from('logos').getPublicUrl(nomeArquivo);
                 const { error: errBd } = await supabaseClient.from('terreiros').update({ logo_url: urlData.publicUrl }).eq('id', idTerreiroGlobal);
@@ -1890,7 +1951,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
                 linkFavicon.href = urlData.publicUrl;
 
-                msg.textContent = '✅ Logo salva!'; msg.className = 'text-xs font-bold mt-2 text-tema-secundaria';
+                msg.textContent = '✅ Logo salva com sucesso!'; msg.className = 'text-xs font-bold mt-2 text-tema-secundaria';
             } catch (error) {
                 msg.textContent = '❌ Erro: ' + error.message; msg.className = 'text-xs font-bold mt-2 text-red-600';
             } finally { btnLogo.disabled = false; btnLogo.textContent = 'Salvar Imagem'; }
