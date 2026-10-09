@@ -537,7 +537,7 @@
                     </div>
                     <div>
                         <h3 class="text-xl font-bold text-tema-texto">Localização Sede (GPS)</h3>
-                        <p class="text-sm text-gray-500">Define o ponto exato para a validação do check-in. O raio verde aponta a margem de 50 metros.</p>
+                        <p class="text-sm text-gray-500">Define o ponto exato para a validação do check-in. O raio verde aponta a margem de 30 metros.</p>
                     </div>
                 </div>
                 
@@ -939,7 +939,7 @@
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(mapaGlobal);
                 
                 marcadorGlobal = L.marker([lat, lng]).addTo(mapaGlobal);
-                circuloGlobal = L.circle([lat, lng], { color: 'green', fillColor: '#22c55e', fillOpacity: 0.2, radius: 50 }).addTo(mapaGlobal);
+                circuloGlobal = L.circle([lat, lng], { color: 'green', fillColor: '#22c55e', fillOpacity: 0.2, radius: 30 }).addTo(mapaGlobal);
 
                 mapaGlobal.on('click', function(e) {
                     document.getElementById('inputLat').value = e.latlng.lat;
