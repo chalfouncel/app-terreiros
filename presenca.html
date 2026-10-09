@@ -112,6 +112,7 @@
 
                 <div class="bg-gray-100 p-3 rounded-xl mb-4 relative border border-gray-200">
                     <p class="text-[10px] text-gray-500 font-bold uppercase mb-1">Doação Livre (PIX)</p>
+                    <!-- Substitua o e-mail abaixo pelo pix real do terreiro -->
                     <p id="chavePix" class="text-base font-mono font-bold text-gray-800 break-all">seu.pix.aqui@gmail.com</p>
                     <button id="btnCopiarPix" class="mt-2 w-full bg-gray-800 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-700 transition flex items-center justify-center shadow-sm active:scale-95 text-sm">
                         <i class="fas fa-copy mr-2"></i> Copiar Chave
@@ -121,10 +122,12 @@
                 <h4 class="font-bold text-gray-700 mb-2 border-b pb-1 text-sm text-left">Ou escolha itens para doar:</h4>
             </div>
 
+            <!-- Lista de Itens Dinâmica (Scrollável) -->
             <div class="flex-1 overflow-y-auto text-left mb-4 pr-1 space-y-1" id="listaItensDoacao">
                 <p class="text-center text-gray-500 text-sm py-4"><i class="fas fa-spinner fa-spin mr-2"></i> Carregando itens...</p>
             </div>
 
+            <!-- Botões Inferiores -->
             <div class="flex-shrink-0 pt-2 border-t border-gray-100">
                 <button id="btnConfirmarDoacao" class="hidden w-full bg-green-600 text-white font-bold py-3 px-4 rounded-xl hover:bg-green-700 transition flex items-center justify-center shadow-md active:scale-95 mb-3">
                     <i class="fas fa-check-circle mr-2"></i> Registrar Doação (<span id="qtdTotalDoacao">0</span>)
@@ -162,7 +165,7 @@
                 <p class="text-gray-600 mb-4 text-sm">Seu navegador bloqueou o acesso à localização, por isso o check-in não funciona.</p>
                 <div class="bg-gray-50 p-4 rounded-xl text-left text-sm text-gray-700 mb-6 border border-gray-200 shadow-inner">
                     <ol class="list-decimal pl-4 space-y-3 font-medium">
-                        <li>Clique no ícone de <strong>cadeado 🔒</strong> (ou ícone de ajustes) lá em cima na barra de endereço.</li>
+                        <li>Clique no ícone de <strong>cadeado 🔒</strong> (ou configurações) na barra de endereço.</li>
                         <li>Vá em <strong>Permissões</strong>.</li>
                         <li>Mude Localização para <strong>Permitir</strong>.</li>
                         <li>Atualize (recarregue) esta página.</li>
