@@ -282,7 +282,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 .select('*')
                 .eq('terreiro_id', idTerreiroGlobal)
                 .eq('ativo', true)
-                .order('nome', { ascending: true }); // Baseado nas colunas corretas do seu banco
+                .order('nome', { ascending: true });
 
             if (error) throw error;
 
@@ -451,14 +451,88 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // ====================================================================
-// GPS DO CHECK-IN
+// GPS DO CHECK-IN COM VERIFICAÇÃO DE PERMISSÃO (NOVO)
 // ====================================================================
 
 const btnCheckin = document.getElementById('btnCheckin');
+const modalPermissaoGPS = document.getElementById('modalPermissaoGPS');
+const gpsEstadoPrompt = document.getElementById('gpsEstadoPrompt');
+const gpsEstadoNegado = document.getElementById('gpsEstadoNegado');
+const btnEntendiGps = document.getElementById('btnEntendiGps');
+const btnFecharModalGps = document.getElementById('btnFecharModalGps');
+
+// Função que gerencia a exibição do modal de GPS
+function mostrarModalGPS(estado) {
+    if (modalPermissaoGPS) {
+        modalPermissaoGPS.classList.remove('hidden');
+        gpsEstadoPrompt.classList.add('hidden');
+        gpsEstadoNegado.classList.add('hidden');
+        
+        if (estado === 'prompt') gpsEstadoPrompt.classList.remove('hidden');
+        if (estado === 'denied') gpsEstadoNegado.classList.remove('hidden');
+
+        setTimeout(() => {
+            modalPermissaoGPS.querySelector('div').classList.remove('scale-95');
+            modalPermissaoGPS.querySelector('div').classList.add('scale-100');
+        }, 10);
+    }
+}
+
+// A função original que faz a requisição da localização e grava no banco
+function executarCheckinGPS() {
+    const msg = document.getElementById('msgCheckin');
+    btnCheckin.disabled = true;
+    btnCheckin.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Validando GPS...';
+    
+    if (msg) msg.classList.add('hidden');
+    
+    // Fecha o modal se estiver aberto
+    if (modalPermissaoGPS) modalPermissaoGPS.classList.add('hidden');
+
+    navigator.geolocation.getCurrentPosition(async (posicao) => {
+        const latUsuario = posicao.coords.latitude, lonUsuario = posicao.coords.longitude;
+        const distanciaMetros = calcularDistancia(latUsuario, lonUsuario, coordsTerreiro.lat, coordsTerreiro.lng);
+        
+        if (distanciaMetros > 50) {
+            if (msg) { msg.innerHTML = `Você está muito longe do terreiro.<br>Distância atual: ${Math.round(distanciaMetros)} metros. (Máximo: 50m)`; msg.className = "mt-3 text-sm font-bold text-red-500 block"; msg.classList.remove('hidden'); }
+            restaurarBotao(btnCheckin); return;
+        }
+
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        btnCheckin.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Registrando...';
+
+        const { error } = await supabaseClient.from('presencas').insert([{ 
+            evento_id: idGiraGlobal, 
+            usuario_id: session.user.id, 
+            data_hora_checkin: new Date().toISOString(),
+            localizacao_valida: true,
+            distancia_metros: Math.round(distanciaMetros)
+        }]);
+
+        if (error) {
+            if (msg) { msg.textContent = "Erro ao registrar: " + error.message; msg.className = "mt-3 text-sm font-bold text-red-500 block"; msg.classList.remove('hidden'); }
+            restaurarBotao(btnCheckin);
+        } else {
+            const areaPonto = document.getElementById('areaBaterPonto');
+            const areaSucesso = document.getElementById('areaSucesso');
+            const horaFeito = document.getElementById('horaCheckinFeito');
+            if (areaPonto) areaPonto.classList.add('hidden');
+            if (areaSucesso) areaSucesso.classList.remove('hidden');
+            if (horaFeito) horaFeito.textContent = new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+        }
+    }, (err) => {
+        // Se der erro aqui, é porque a pessoa bloqueou o popup nativo ou o celular tá sem sinal de GPS.
+        if (msg) { msg.textContent = "Erro ao acessar localização. Verifique o acesso ao GPS do celular."; msg.className = "mt-3 text-sm font-bold text-red-500 block"; msg.classList.remove('hidden'); }
+        restaurarBotao(btnCheckin);
+    }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+}
+
+// Intercepta o clique principal
 if (btnCheckin) {
     btnCheckin.addEventListener('click', async () => {
         const msg = document.getElementById('msgCheckin');
         
+        // 1. Validações de Tempo (Original)
         const agoraClick = new Date();
         if (hrInicioPermitidoGlobal && agoraClick < hrInicioPermitidoGlobal) {
             if (msg) { msg.textContent = "A gira ainda não começou. Aguarde o horário."; msg.className = "mt-3 text-sm font-bold text-red-500 block"; msg.classList.remove('hidden'); }
@@ -469,59 +543,63 @@ if (btnCheckin) {
             return;
         }
 
-        btnCheckin.disabled = true;
-        btnCheckin.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Validando GPS...';
-        if (msg) msg.classList.add('hidden');
-
+        // 2. Validações de Sistema
         if (!coordsTerreiro || !coordsTerreiro.lat) {
             if (msg) { msg.textContent = "O administrador ainda não configurou o GPS do terreiro."; msg.className = "mt-3 text-sm font-bold text-red-500 block"; msg.classList.remove('hidden'); }
-            restaurarBotao(btnCheckin); return;
+            return;
         }
 
         if (!navigator.geolocation) {
             if (msg) { msg.textContent = "Seu navegador não suporta GPS."; msg.className = "mt-3 text-sm font-bold text-red-500 block"; msg.classList.remove('hidden'); }
-            restaurarBotao(btnCheckin); return;
+            return;
         }
 
-        navigator.geolocation.getCurrentPosition(async (posicao) => {
-            const latUsuario = posicao.coords.latitude, lonUsuario = posicao.coords.longitude;
-            const distanciaMetros = calcularDistancia(latUsuario, lonUsuario, coordsTerreiro.lat, coordsTerreiro.lng);
-            
-            if (distanciaMetros > 50) {
-                if (msg) { msg.innerHTML = `Você está muito longe do terreiro.<br>Distância atual: ${Math.round(distanciaMetros)} metros. (Máximo: 50m)`; msg.className = "mt-3 text-sm font-bold text-red-500 block"; msg.classList.remove('hidden'); }
-                restaurarBotao(btnCheckin); return;
+        // 3. Verificação de Permissão Nativa (A Mágica acontece aqui)
+        if (navigator.permissions && navigator.permissions.query) {
+            try {
+                const permissao = await navigator.permissions.query({ name: 'geolocation' });
+                
+                if (permissao.state === 'granted') {
+                    // Já tem permissão, roda direto
+                    executarCheckinGPS();
+                } else if (permissao.state === 'prompt') {
+                    // Vai perguntar, prepara o usuário
+                    mostrarModalGPS('prompt');
+                } else if (permissao.state === 'denied') {
+                    // Já está bloqueado, ensina como desbloquear
+                    mostrarModalGPS('denied');
+                }
+            } catch (e) {
+                // Se a API falhar (comum em iPhones muito antigos), segue o fluxo normal
+                executarCheckinGPS();
             }
-
-            const { data: { session } } = await supabaseClient.auth.getSession();
-            btnCheckin.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Registrando...';
-
-            const { error } = await supabaseClient.from('presencas').insert([{ 
-                evento_id: idGiraGlobal, 
-                usuario_id: session.user.id, 
-                data_hora_checkin: new Date().toISOString(),
-                localizacao_valida: true,
-                distancia_metros: Math.round(distanciaMetros)
-            }]);
-
-            if (error) {
-                if (msg) { msg.textContent = "Erro ao registrar: " + error.message; msg.className = "mt-3 text-sm font-bold text-red-500 block"; msg.classList.remove('hidden'); }
-                restaurarBotao(btnCheckin);
-            } else {
-                const areaPonto = document.getElementById('areaBaterPonto');
-                const areaSucesso = document.getElementById('areaSucesso');
-                const horaFeito = document.getElementById('horaCheckinFeito');
-                if (areaPonto) areaPonto.classList.add('hidden');
-                if (areaSucesso) areaSucesso.classList.remove('hidden');
-                if (horaFeito) horaFeito.textContent = new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
-            }
-        }, (err) => {
-            if (msg) { msg.textContent = "Ative a localização do celular no navegador."; msg.className = "mt-3 text-sm font-bold text-red-500 block"; msg.classList.remove('hidden'); }
-            restaurarBotao(btnCheckin);
-        }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+        } else {
+            // Navegadores que não suportam a API Permissions (Safari Antigo)
+            executarCheckinGPS();
+        }
     });
 }
 
-function restaurarBotao(btn) { if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-map-marker-alt"></i> Confirmar Presença'; } }
+// Botões do Modal de GPS
+if (btnEntendiGps) {
+    btnEntendiGps.addEventListener('click', () => {
+        executarCheckinGPS(); // Isso vai forçar o popup nativo a aparecer agora
+    });
+}
+
+if (btnFecharModalGps) {
+    btnFecharModalGps.addEventListener('click', () => {
+        modalPermissaoGPS.classList.add('hidden');
+        restaurarBotao(btnCheckin);
+    });
+}
+
+function restaurarBotao(btn) { 
+    if (btn) { 
+        btn.disabled = false; 
+        btn.innerHTML = '<i class="fas fa-map-marker-alt"></i> Confirmar Presença'; 
+    } 
+}
 
 function calcularDistancia(lat1, lon1, lat2, lon2) {
     const R = 6371e3, p1 = lat1 * Math.PI/180, p2 = lat2 * Math.PI/180, dp = (lat2-lat1) * Math.PI/180, dl = (lon2-lon1) * Math.PI/180;
