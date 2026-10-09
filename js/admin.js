@@ -118,17 +118,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Ocultar menus indesejados baseado no contexto ou permissões
         if (emModoMasterPuro) {
-            // Se está no Master Puro, não faz sentido mostrar Quadro de Médium, Agenda, etc. Ocultamos tudo.
             ['menuVisaoGeral', 'menuQuadroMediuns', 'menuAgendaGiras', 'menuLivroAta', 'menuGrau', 'menuFinanceiro', 'menuDoacoes', 'menuAdmin'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.classList.add('hidden');
             });
-            // Oculta os separadores (hr) do sidebar
             document.querySelectorAll('#sidebar hr').forEach(hr => hr.classList.add('hidden'));
-            
             document.getElementById('nomeTerreiroSidebar').textContent = "Gestão SaaS";
         } else {
-            // Lógica normal de ocultar menus para usuários de terreiro baseados em suas permissões
             if (!perfil.is_admin) {
                 if (!perfil.perm_visao_geral) document.getElementById('menuVisaoGeral').classList.add('hidden');
                 if (!perfil.perm_agenda) document.getElementById('menuAgendaGiras').classList.add('hidden');
@@ -285,19 +281,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // 2. LÓGICA DA TABELA DE HOJE (SOMENTE ATIVOS)
         const tabelaPresencas = document.getElementById('tabelaPresencas');
-        
-        // Remove dinamicamente a 3ª coluna ("Status") do cabeçalho se ela ainda existir
-        if (tabelaPresencas) {
-            const tableEl = tabelaPresencas.closest('table');
-            if (tableEl) {
-                const theadRow = tableEl.querySelector('thead tr');
-                if (theadRow && theadRow.children.length >= 3) {
-                    theadRow.children[2].remove(); 
-                }
-            }
-        }
-
-        // Busca dados de todos os médiuns (necessário para nomes e relatório)
         const { data: todosMediuns } = await supabaseClient.from('mediuns').select('id, auth_id, nome_completo, nome_social, grau, funcao, status_ativo').eq('terreiro_id', idTerreiroGlobal);
 
         if (giraAtualId) {
@@ -309,7 +292,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 tabelaPresencas.innerHTML = ''; 
                 presencas.forEach(p => {
                     const md = todosMediuns?.find(m => m.auth_id === p.usuario_id || String(m.id) === String(p.usuario_id));
-                    // Considera apenas médiuns ativos
                     if (md && md.status_ativo === false) return;
 
                     const nome = md ? (md.nome_social || md.nome_completo) : 'Médium Excluído';
@@ -330,9 +312,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             if(tabelaPresencas) tabelaPresencas.innerHTML = `<tr><td colspan="2" class="p-6 text-center text-gray-500">Nenhum evento agendado para o momento.</td></tr>`;
         }
 
-        // 3. LÓGICA DO CARD "RELATÓRIO DE PRESENÇAS" (HISTÓRICO EM PDF)
-        const selectRelatorio = document.getElementById('selectEventoRelatorio') || document.querySelector('#secVisaoGeral select');
-        const btnGerarHistorico = document.getElementById('btnBaixarPdfEvento') || document.querySelector('#secVisaoGeral button.btn-pdf-evento');
+        // 3. JANELA LATERAL: RELATÓRIO DE MÉDIUNS PRESENTES POR EVENTO (PDF)
+        const selectRelatorio = document.getElementById('selectEventoRelatorio');
+        const btnGerarHistorico = document.getElementById('btnBaixarPdfEvento');
 
         if (selectRelatorio) {
             const { data: historicoEventos } = await supabaseClient
@@ -346,8 +328,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (historicoEventos && historicoEventos.length > 0) {
                 historicoEventos.forEach(ev => {
                     const dataFormatada = new Date(ev.data_hora_inicio).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-                    const tipo = ev.especial ? ' [Restrita]' : ' [Aberta]';
-                    selectRelatorio.innerHTML += `<option value="${ev.id}">${dataFormatada} - ${ev.titulo}${tipo}</option>`;
+                    const tipoEvento = ev.especial ? ' [Restrita]' : ' [Aberta]';
+                    selectRelatorio.innerHTML += `<option value="${ev.id}">${dataFormatada} - ${ev.titulo}${tipoEvento}</option>`;
                 });
             } else {
                 selectRelatorio.innerHTML = '<option value="">Nenhum evento encontrado no histórico.</option>';
@@ -767,7 +749,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                 }
 
-                // 1. Ao invés do nome completo, aparecer o nome social com fallback
+                // 1. Ao invés do nome completo, aparecer o nome social com título "Nome"
                 const nomeExibicao = m.nome_social || m.nome_completo || 'Médium';
 
                 // 3. Na opção de "Grau" colocar também a função (ex.: CCT/MG, CT/Cantina)
@@ -777,14 +759,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (g && f) grauFuncao = `${g}/${f}`;
                 else grauFuncao = g || f || '-';
 
-                // 4. Excluída a coluna nascimento duplicada
+                // 4. Excluída a coluna nascimento
                 return [diaMes, nomeExibicao, grauFuncao];
             });
             
             const mesAtual = new Date().toLocaleString('pt-BR', { month: 'long' });
             const titulo = `Aniversariantes de ${mesAtual.charAt(0).toUpperCase() + mesAtual.slice(1)}`;
             
-            // 1. Título "Nome" | 2. Altera "Dia" para "Data"
+            // 2. Alterar o nome "dia" para "Data" | 1. Título "Nome"
             window.gerarPDFRelatorio(titulo, ['Data', 'Nome', 'Grau'], dados);
             setTimeout(() => { btn.innerHTML = originalHtml; btn.disabled = false; }, 2000);
         });
@@ -984,7 +966,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ==========================================
     // AGENDA E EVENTOS
     // ==========================================
-    
     document.addEventListener('change', (e) => {
         if(e.target.id === 'giraEspecial') {
             const box = document.getElementById('boxConvocados');
@@ -1265,7 +1246,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 document.getElementById('formNovaGira').reset();
                 if (document.getElementById('boxConvocados')) document.getElementById('boxConvocados').classList.add('hidden');
-                if(document.getElementById('giraGeraAta')) document.getElementById('giraGeraAta').checked = true; // Mantém marcado após resetar
+                if(document.getElementById('giraGeraAta')) document.getElementById('giraGeraAta').checked = true;
                 carregarAgenda();
                 
                 msg.textContent = "Evento salvo com sucesso!";
@@ -1334,7 +1315,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const encerrada = g.status_encerrada;
                 
                 const statusHtml = encerrada 
-                    ? '<span class="bg-gray-200 text-gray-800 text-xs px-2 py-1 rounded font-bold"><i class="fas fa-lock mr-1"></i> Finalizada</span>'
+                    ? '<span class="bg-gray-200 text-gray-800 text-xs px-2 py-1 rounded font-bold"><i class="fas fa-lock mr-1"></i> Finalizada</span>' 
                     : '<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded font-bold"><i class="fas fa-lock-open mr-1"></i> Em Aberto</span>';
 
                 let acoesHtml = '';
