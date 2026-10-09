@@ -1041,7 +1041,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     data_hora_inicio: inicioBR,
                     data_hora_fim: fimBR,
                     imagem_url: imagemFinal,
-                    raio_presenca_metros: 50,
+                    raio_presenca_metros: 30,
                     gera_ata: chkGeraAta,
                     especial: isEspecial,
                     convocados: convocadosArray
@@ -1550,7 +1550,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(mapaGlobal);
             
             marcadorGlobal = L.marker([lat, lng]).addTo(mapaGlobal);
-            circuloGlobal = L.circle([lat, lng], { color: 'green', fillColor: '#22c55e', fillOpacity: 0.2, radius: 50 }).addTo(mapaGlobal);
+            circuloGlobal = L.circle([lat, lng], { color: 'green', fillColor: '#22c55e', fillOpacity: 0.2, radius: 30 }).addTo(mapaGlobal);
 
             mapaGlobal.on('click', function(e) {
                 document.getElementById('inputLat').value = e.latlng.lat;
