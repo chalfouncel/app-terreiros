@@ -398,15 +398,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                         const grauPdf = md ? (md.grau || '-') : '-';
                         const funcPdf = md ? (md.funcao || '-') : '-';
                         
-                        const grauFuncPdf = [grauPdf, funcPdf].filter(v => v && v !== '-').join(' / ') || '-';
-                        
-                        dadosParaPDF.push([nome, grauFuncPdf, hora]);
+                        dadosParaPDF.push([nome, grauPdf, funcPdf, hora]);
                     });
 
                     // Invoca a nossa função universal já estilizada
                     window.gerarPDFRelatorio(
                         `Relatório Oficial de Presenças - ${tituloEvStr}`, 
-                        ['Nome do Médium', 'Grau / Função', 'Hora Check-in'], 
+                        ['Nome do Médium', 'Grau', 'Função', 'Hora Check-in'], 
                         dadosParaPDF
                     );
 
@@ -494,6 +492,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 acoesHtml = `
                     <div class="flex items-center justify-center space-x-4">
                         <button onclick="alternarStatusAtivoMedium(${m.id}, ${isAtivo})" class="${colorInativar} transition" title="${titleInativar}"><i class="fas ${iconInativar}"></i></button>
+                        <button onclick="abrirModalEditarMedium(${m.id})" class="text-purple-500 hover:text-purple-700 transition" title="Editar Médium"><i class="fas fa-user-edit"></i></button>
                         <button onclick="abrirModalPermissoes(${m.id}, '${m.nome_completo.replace(/'/g, "\\'")}', '${perms}')" class="text-blue-500 hover:text-blue-700 transition" title="Permissões de Acesso"><i class="fas fa-key"></i></button>
                         <button onclick="excluirMedium(${m.id}, '${m.nome_completo.replace(/'/g, "\\'")}')" class="text-red-500 hover:text-red-700 transition" title="Excluir Médium"><i class="fas fa-trash"></i></button>
                     </div>
@@ -605,12 +604,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             let passaStatus = true;
-            let statusAtual = 'Pendente';
-            if (medium.status_ativo === false) {
-                statusAtual = 'Inativo';
-            } else if (medium.cadastro_completo) {
-                statusAtual = 'Ativo';
-            }
+            const statusAtual = medium.cadastro_completo ? 'Ativo' : 'Pendente';
             if (termoStatus !== '') {
                 passaStatus = (statusAtual === termoStatus);
             }
@@ -720,13 +714,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                         if(p.length === 3) dataNasc = `${p[2]}/${p[1]}/${p[0]}`;
                     } else dataNasc = m.data_nascimento;
                 }
-                const nomeStr = m.nome_social ? m.nome_social : m.nome_completo;
+                const nomeStr = m.nome_social ? `${m.nome_completo} (${m.nome_social})` : m.nome_completo;
                 const whats = m.telefone || '-';
-                const grauFunc = [m.grau, m.funcao].filter(v => v && v !== '-').join(' / ') || '-';
-                return [nomeStr, dataNasc, grauFunc, whats];
+                return [nomeStr, dataNasc, m.grau || '-', m.funcao || '-', whats];
             });
             
-            window.gerarPDFRelatorio('Quadro Oficial de Médiuns', ['Nome', 'Nascimento', 'Grau / Função', 'WhatsApp'], dados);
+            window.gerarPDFRelatorio('Quadro Oficial de Médiuns', ['Nome Completo', 'Nascimento', 'Grau', 'Função', 'WhatsApp'], dados);
             setTimeout(() => { btn.innerHTML = originalHtml; btn.disabled = false; }, 2000);
         });
 
@@ -761,24 +754,24 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
             
             const dados = lista.map(m => {
-                let diaMes = '-';
+                let dataNasc = '-'; let diaMes = '-';
                 if (m.data_nascimento) {
                     if (m.data_nascimento.includes('-')) {
                         const p = m.data_nascimento.split('-');
-                        if(p.length === 3) { diaMes = `${p[2]}/${p[1]}`; }
+                        if(p.length === 3) { dataNasc = `${p[2]}/${p[1]}/${p[0]}`; diaMes = `${p[2]}/${p[1]}`; }
                     } else {
-                        if(m.data_nascimento.includes('/')) diaMes = m.data_nascimento.substring(0, 5);
+                        dataNasc = m.data_nascimento;
+                        if(dataNasc.includes('/')) diaMes = dataNasc.substring(0, 5);
                     }
                 }
-                const nomeStr = m.nome_social ? m.nome_social : m.nome_completo;
-                const grauFunc = [m.grau, m.funcao].filter(v => v && v !== '-').join(' / ') || '-';
-                return [diaMes, nomeStr, grauFunc];
+                const nomeStr = m.nome_social ? `${m.nome_completo} (${m.nome_social})` : m.nome_completo;
+                return [diaMes, nomeStr, m.grau || '-', dataNasc];
             });
             
             const mesAtual = new Date().toLocaleString('pt-BR', { month: 'long' });
             const titulo = `Aniversariantes de ${mesAtual.charAt(0).toUpperCase() + mesAtual.slice(1)}`;
             
-            window.gerarPDFRelatorio(titulo, ['Data', 'Nome', 'Grau / Função'], dados);
+            window.gerarPDFRelatorio(titulo, ['Dia', 'Nome Completo', 'Grau', 'Nascimento'], dados);
             setTimeout(() => { btn.innerHTML = originalHtml; btn.disabled = false; }, 2000);
         });
     }, 500);
@@ -797,6 +790,88 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (document.getElementById('modalNovoMedium')) document.getElementById('modalNovoMedium').classList.add('hidden');
         carregarQuadroMediuns();
     };
+
+    function formatarTitleCaseAdmin(texto) {
+        if (!texto) return '';
+        const preposicoes = ['de', 'da', 'do', 'das', 'dos', 'e'];
+        return texto.toLowerCase().split(' ').map((palavra, index) => {
+            if (preposicoes.includes(palavra) && index !== 0) return palavra;
+            return palavra.charAt(0).toUpperCase() + palavra.slice(1);
+        }).join(' ');
+    }
+
+    window.abrirModalEditarMedium = (id) => {
+        const medium = listaMediunsGlobal.find(m => m.id === id);
+        if (!medium) return alert("Médium não encontrado.");
+
+        document.getElementById('editMediumId').value = medium.id;
+        document.getElementById('editMediumNome').value = medium.nome_completo || '';
+        document.getElementById('editMediumNomeSocial').value = medium.nome_social || '';
+        document.getElementById('editMediumTelefone').value = medium.telefone || '';
+        document.getElementById('editMediumNascimento').value = medium.data_nascimento || '';
+        document.getElementById('editMediumGrau').value = medium.grau || '-';
+        document.getElementById('editMediumFuncao').value = medium.funcao || '-';
+
+        document.getElementById('msgEditMedium').classList.add('hidden');
+        document.getElementById('modalEditarMedium').classList.remove('hidden');
+    };
+
+    window.fecharModalEditarMedium = () => {
+        document.getElementById('modalEditarMedium').classList.add('hidden');
+    };
+
+    if (document.getElementById('formEditarMedium')) {
+        document.getElementById('formEditarMedium').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btnSalvarEditMedium');
+            const msg = document.getElementById('msgEditMedium');
+            const id = document.getElementById('editMediumId').value;
+            
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Salvando...';
+            msg.classList.add('hidden');
+
+            const nomeCompleto = formatarTitleCaseAdmin(document.getElementById('editMediumNome').value.trim());
+            const nomeSocial = formatarTitleCaseAdmin(document.getElementById('editMediumNomeSocial').value.trim());
+            const telefoneRaw = document.getElementById('editMediumTelefone').value || '';
+            const telefone = telefoneRaw.replace(/\D/g, ''); 
+            const dataNascimento = document.getElementById('editMediumNascimento').value || null;
+            const grau = document.getElementById('editMediumGrau').value;
+            const funcao = document.getElementById('editMediumFuncao').value;
+
+            try {
+                const { error } = await supabaseClient.from('mediuns').update({
+                    nome_completo: nomeCompleto,
+                    nome_social: nomeSocial,
+                    telefone: telefone || null,
+                    data_nascimento: dataNascimento,
+                    grau: grau,
+                    funcao: funcao
+                }).eq('id', id);
+
+                if (error) {
+                    if (error.message.includes('unique constraint')) {
+                        throw new Error("Este WhatsApp já está em uso por outro médium.");
+                    }
+                    throw error;
+                }
+
+                msg.textContent = 'Médium atualizado com sucesso!';
+                msg.className = 'text-sm mt-3 text-green-600 block font-bold text-center';
+                msg.classList.remove('hidden');
+                
+                carregarQuadroMediuns();
+                setTimeout(() => fecharModalEditarMedium(), 1500);
+            } catch (error) {
+                msg.textContent = 'Erro: ' + error.message;
+                msg.className = 'text-sm mt-3 text-red-600 block font-bold text-center';
+                msg.classList.remove('hidden');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'Salvar Alterações';
+            }
+        });
+    }
 
     if (document.getElementById('formNovoMedium')) {
         document.getElementById('formNovoMedium').addEventListener('submit', async (e) => {
@@ -1491,7 +1566,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <thead>
                             <tr>
                                 <th style="border-bottom: 2px solid #000; padding: 8px 4px; text-align: left;">NOME DO MÉDIUM</th>
-                                <th style="border-bottom: 2px solid #000; padding: 8px 4px; text-align: center;">GRAU / FUNÇÃO</th>
+                                <th style="border-bottom: 2px solid #000; padding: 8px 4px; text-align: center;">GRAU</th>
                                 <th style="border-bottom: 2px solid #000; padding: 8px 4px; text-align: right;">HORA DO CHECK-IN</th>
                             </tr>
                         </thead>
