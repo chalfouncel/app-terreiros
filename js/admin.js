@@ -705,7 +705,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         // ========================================================
-        // GERAÇÃO DO PDF DE ANIVERSARIANTES (ALTERAÇÕES SOLICITADAS)
+        // GERAÇÃO DO PDF DE ANIVERSARIANTES
         // ========================================================
         document.getElementById('btnImprimirAniversariantes')?.addEventListener('click', () => {
             const btn = document.getElementById('btnImprimirAniversariantes');
@@ -766,7 +766,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             const mesAtual = new Date().toLocaleString('pt-BR', { month: 'long' });
             const titulo = `Aniversariantes de ${mesAtual.charAt(0).toUpperCase() + mesAtual.slice(1)}`;
             
-            // 2. Alterar o nome "dia" para "Data" | 1. Título "Nome"
             window.gerarPDFRelatorio(titulo, ['Data', 'Nome', 'Grau'], dados);
             setTimeout(() => { btn.innerHTML = originalHtml; btn.disabled = false; }, 2000);
         });
@@ -843,7 +842,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     data_nascimento: dataNascimento,
                     grau: grau,
                     funcao: funcao
-                }).eq('id', id);
+                }).eq('id', id).eq('terreiro_id', idTerreiroGlobal);
 
                 if (error) {
                     if (error.message.includes('unique constraint')) {
@@ -898,7 +897,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     window.excluirMedium = async (id, nome) => {
         if(!confirm(`ATENÇÃO: Deseja excluir DEFINITIVAMENTE o médium ${nome}?`)) return;
-        const { error } = await supabaseClient.from('mediuns').delete().eq('id', id);
+        const { error } = await supabaseClient.from('mediuns').delete().eq('id', id).eq('terreiro_id', idTerreiroGlobal);
         if (error) alert('Erro ao excluir: ' + error.message);
         else { alert('Médium excluído!'); carregarQuadroMediuns(); }
     };
@@ -908,7 +907,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const msg = novoStatus ? "Deseja REATIVAR o acesso deste médium?" : "Deseja INATIVAR este médium? Ele não poderá mais acessar a plataforma.";
         if(!confirm(msg)) return;
         
-        const { error } = await supabaseClient.from('mediuns').update({ status_ativo: novoStatus }).eq('id', id);
+        const { error } = await supabaseClient.from('mediuns').update({ status_ativo: novoStatus }).eq('id', id).eq('terreiro_id', idTerreiroGlobal);
         if (error) alert('Erro ao alterar status: ' + error.message);
         else carregarQuadroMediuns();
     };
@@ -953,7 +952,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (document.getElementById('chkPermVisao')) payload.perm_visao_geral = document.getElementById('chkPermVisao').checked;
             if (document.getElementById('chkPermAta')) payload.perm_ata = document.getElementById('chkPermAta').checked;
             
-            const { error } = await supabaseClient.from('mediuns').update(payload).eq('id', idMedium);
+            const { error } = await supabaseClient.from('mediuns').update(payload).eq('id', idMedium).eq('terreiro_id', idTerreiroGlobal);
 
             btn.disabled = false;
             btn.innerHTML = 'Salvar Permissões';
@@ -1102,13 +1101,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (!confirm("Tem certeza que deseja excluir este evento da agenda? A exclusão é irreversível.")) return;
 
-        const { error } = await supabaseClient.from('agenda').delete().eq('id', id);
+        const { error } = await supabaseClient.from('agenda').delete().eq('id', id).eq('terreiro_id', idTerreiroGlobal);
         if (error) alert("Erro ao excluir o evento: " + error.message);
         else { alert("Evento apagado com sucesso!"); carregarAgenda(); }
     };
 
     window.abrirModalEditarGira = async (id) => {
-        const { data, error } = await supabaseClient.from('agenda').select('*').eq('id', id).single();
+        const { data, error } = await supabaseClient.from('agenda').select('*').eq('id', id).eq('terreiro_id', idTerreiroGlobal).single();
         if (error) { alert("Erro ao buscar dados: " + error.message); return; }
 
         document.getElementById('editGiraId').value = data.id;
@@ -1178,7 +1177,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                         especial: isEspecial,
                         convocados: convocadosArray
                     })
-                    .eq('id', id);
+                    .eq('id', id)
+                    .eq('terreiro_id', idTerreiroGlobal);
 
                 if (error) throw error;
                 alert("Evento atualizado com sucesso!");
@@ -1297,7 +1297,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const fim = new Date(g.data_hora_fim);
                     if (agora > fim) {
                         g.status_encerrada = true;
-                        supabaseClient.from('agenda').update({ ata_encerrada: true }).eq('id', g.id).then();
+                        supabaseClient.from('agenda').update({ ata_encerrada: true }).eq('id', g.id).eq('terreiro_id', idTerreiroGlobal).then();
                     }
                 }
             });
@@ -1349,7 +1349,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     window.abrirModalEscreverAta = async (id) => {
         try {
-            const { data } = await supabaseClient.from('agenda').select('texto_ata').eq('id', id).single();
+            const { data } = await supabaseClient.from('agenda').select('texto_ata').eq('id', id).eq('terreiro_id', idTerreiroGlobal).single();
             document.getElementById('ataEventoId').value = id;
             document.getElementById('ataTexto').value = data?.texto_ata || '';
             document.getElementById('modalEscreverAta').classList.remove('hidden');
@@ -1373,7 +1373,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Salvando...';
             
-            const { error } = await supabaseClient.from('agenda').update({ texto_ata: texto }).eq('id', id);
+            const { error } = await supabaseClient.from('agenda').update({ texto_ata: texto }).eq('id', id).eq('terreiro_id', idTerreiroGlobal);
             
             btn.disabled = false; btn.innerHTML = '<i class="fas fa-save mr-2"></i> Salvar Texto da Ata';
             
@@ -1394,7 +1394,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.encerrarAta = async (id) => {
         if(!confirm("Atenção! Ao encerrar a ATA, os check-ins serão bloqueados para este evento e o documento não poderá mais ser alterado. Confirmar fechamento?")) return;
         
-        const { error } = await supabaseClient.from('agenda').update({ ata_encerrada: true }).eq('id', id);
+        const { error } = await supabaseClient.from('agenda').update({ ata_encerrada: true }).eq('id', id).eq('terreiro_id', idTerreiroGlobal);
         
         if (error) {
             alert("Erro ao encerrar: " + error.message);
@@ -1427,7 +1427,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     window.gerarPDF_ATA = async (eventoId) => {
         try {
-            const { data: evento, error: errEv } = await supabaseClient.from('agenda').select('*').eq('id', eventoId).single();
+            const { data: evento, error: errEv } = await supabaseClient.from('agenda').select('*').eq('id', eventoId).eq('terreiro_id', idTerreiroGlobal).single();
             if (errEv || !evento) throw new Error("Erro ao buscar dados do evento.");
 
             const anoEvento = new Date(evento.data_hora_inicio).getFullYear();
@@ -1634,7 +1634,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const grau = document.getElementById(`grau_${id}`).value;
         const funcao = document.getElementById(`func_${id}`).value;
         btn.innerHTML = 'Salvando...'; btn.disabled = true;
-        const { error } = await supabaseClient.from('mediuns').update({ grau, funcao }).eq('id', id);
+        const { error } = await supabaseClient.from('mediuns').update({ grau, funcao }).eq('id', id).eq('terreiro_id', idTerreiroGlobal);
         btn.disabled = false;
         if (error) { btn.innerHTML = 'Erro!'; btn.classList.replace('bg-tema-primaria', 'bg-red-500'); } 
         else {
@@ -1646,7 +1646,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     // ==========================================
-    // FINANCEIRO
+    // FINANCEIRO (ISOLAMENTO MULTI-TERREIRO CORRIGIDO)
     // ==========================================
     async function carregarFinanceiro() {
         if(!idTerreiroGlobal) return;
@@ -1654,10 +1654,26 @@ document.addEventListener('DOMContentLoaded', async () => {
         const tbody = document.getElementById('tabelaFinanceiro');
         tbody.innerHTML = '<tr><td colspan="14" class="p-6 text-center text-gray-500">Buscando histórico...</td></tr>';
         
-        const { data: mediuns } = await supabaseClient.from('mediuns').select('id, nome_completo, nome_social').eq('terreiro_id', idTerreiroGlobal).neq('nome_completo', 'Administrador Sistema').order('nome_completo');
-        const { data: pgtos } = await supabaseClient.from('financeiro').select('*').eq('ano', ano);
+        // 1. Busca os médiuns deste terreiro
+        const { data: mediuns } = await supabaseClient.from('mediuns')
+            .select('id, nome_completo, nome_social')
+            .eq('terreiro_id', idTerreiroGlobal)
+            .neq('nome_completo', 'Administrador Sistema')
+            .order('nome_completo');
+
+        if(!mediuns || mediuns.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="14" class="p-6 text-center text-gray-500">Nenhum médium cadastrado neste terreiro.</td></tr>';
+            return;
+        }
+
+        // 2. Extrai apenas os IDs dos médiuns deste terreiro para garantir que o financeiro não traga nada de fora
+        const idsMediunsDesteTerreiro = mediuns.map(m => m.id);
+
+        const { data: pgtos } = await supabaseClient.from('financeiro')
+            .select('*')
+            .eq('ano', ano)
+            .in('medium_id', idsMediunsDesteTerreiro);
         
-        if(!mediuns) return;
         tbody.innerHTML = '';
         
         mediuns.forEach(m => {
@@ -1682,6 +1698,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     if(document.getElementById('selectAnoFinanceiro')) document.getElementById('selectAnoFinanceiro').addEventListener('change', carregarFinanceiro);
 
     window.salvarPagamento = async (mediumId, mes, ano, status) => {
+        // Validação preventiva: garante que o médium pertence ao terreiro ativo
+        const mediumValido = listaMediunsGlobal.some(m => m.id === mediumId) || mediunsGrauCache.some(m => m.id === mediumId);
+        if (!mediumValido && listaMediunsGlobal.length > 0) {
+            alert('Ação bloqueada: Este médium não pertence ao seu terreiro.');
+            return carregarFinanceiro();
+        }
+
         const { error } = await supabaseClient.from('financeiro').upsert({ medium_id: mediumId, mes: mes, ano: ano, pago: status }, { onConflict: 'medium_id,mes,ano' });
         if(error) { alert('Erro: ' + error.message); carregarFinanceiro(); }
     };
@@ -1929,7 +1952,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     window.marcarDoacao = async (id, status) => {
         const payload = { entregue: status, data_entrega: status ? new Date().toISOString() : null };
-        const { error } = await supabaseClient.from('doacoes_registradas').update(payload).eq('id', id);
+        const { error } = await supabaseClient.from('doacoes_registradas').update(payload).eq('id', id).eq('terreiro_id', idTerreiroGlobal);
         if (!error) carregarDoacoesPrometidas(); else alert('Erro: ' + error.message);
     };
 
@@ -1949,7 +1972,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     window.alternarStatusCatalogo = async (id, status) => {
-        const { error } = await supabaseClient.from('itens_doacao').update({ ativo: status }).eq('id', id);
+        const { error } = await supabaseClient.from('itens_doacao').update({ ativo: status }).eq('id', id).eq('terreiro_id', idTerreiroGlobal);
         if (!error) carregarDoacoesCatalogo();
     };
 
