@@ -433,7 +433,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             const { data, error } = await supabaseClient
                 .from('mediuns')
-                .select('id, nome_completo, nome_social, data_nascimento, grau, funcao, telefone, cadastro_completo, is_admin, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin, perm_visao_geral, perm_ata')
+                .select('id, nome_completo, nome_social, data_nascimento, grau, funcao, telefone, cadastro_completo, is_admin, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin, perm_visao_geral, perm_ata, status_ativo')
                 .eq('terreiro_id', idTerreiroGlobal)
                 .neq('nome_completo', 'Administrador Sistema')
                 .order('nome_completo');
@@ -473,14 +473,25 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             const cargo = [m.grau, m.funcao].filter(Boolean).join(' / ') || '-';
-            const status = m.cadastro_completo ? '<span class="text-green-600 font-bold">Ativo</span>' : '<span class="text-yellow-600 font-bold">Pendente</span>';
+            
+            let status = m.cadastro_completo ? '<span class="text-green-600 font-bold">Ativo</span>' : '<span class="text-yellow-600 font-bold">Pendente</span>';
+            if (m.status_ativo === false) {
+                status = '<span class="text-red-600 font-bold">Inativo</span>';
+            }
             
             let acoesHtml = '<span class="text-gray-400 text-xs">Sem acesso</span>';
             
             if (perfilAdminLogado && perfilAdminLogado.is_admin) {
                 const perms = `${m.perm_agenda || false},${m.perm_grau || false},${m.perm_financeiro || false},${m.perm_doacoes || false},${m.perm_admin || false},${m.perm_visao_geral || false},${m.perm_ata || false}`;
+                
+                const isAtivo = m.status_ativo !== false;
+                const iconInativar = isAtivo ? 'fa-user-times' : 'fa-user-check';
+                const colorInativar = isAtivo ? 'text-orange-500 hover:text-orange-700' : 'text-green-500 hover:text-green-700';
+                const titleInativar = isAtivo ? 'Inativar Médium' : 'Reativar Médium';
+                
                 acoesHtml = `
                     <div class="flex items-center justify-center space-x-4">
+                        <button onclick="alternarStatusAtivoMedium(${m.id}, ${isAtivo})" class="${colorInativar} transition" title="${titleInativar}"><i class="fas ${iconInativar}"></i></button>
                         <button onclick="abrirModalPermissoes(${m.id}, '${m.nome_completo.replace(/'/g, "\\'")}', '${perms}')" class="text-blue-500 hover:text-blue-700 transition" title="Permissões de Acesso"><i class="fas fa-key"></i></button>
                         <button onclick="excluirMedium(${m.id}, '${m.nome_completo.replace(/'/g, "\\'")}')" class="text-red-500 hover:text-red-700 transition" title="Excluir Médium"><i class="fas fa-trash"></i></button>
                     </div>
@@ -494,9 +505,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 linkWhats = `<a href="https://wa.me/${ddi}${numeroLimpo}" target="_blank" class="text-green-600 hover:text-green-700 hover:underline flex items-center gap-1 font-medium" title="Chamar no WhatsApp"><i class="fab fa-whatsapp text-lg"></i> ${m.telefone}</a>`;
             }
 
-            const nomeHtml = m.nome_social 
-                ? `${m.nome_completo}<br><span class="text-[10px] text-gray-500">Social: ${m.nome_social}</span>`
-                : m.nome_completo;
+            const nomeHtml = m.nome_social ? m.nome_social : m.nome_completo;
 
             tbody.innerHTML += `
                 <tr class="hover:bg-gray-50 transition-colors group">
@@ -558,7 +567,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             const nomeExibicao = m.nome_social ? m.nome_social : (m.nome_completo ? m.nome_completo.split(' ')[0] : 'Médium');
-            const badgeSocial = m.nome_social ? `<span class="bg-blue-100 text-blue-700 text-[9px] px-1.5 py-0.5 rounded ml-1 font-bold">SOCIAL</span>` : '';
 
             ul.innerHTML += `
                 <li class="p-3 hover:bg-gray-50 flex items-center justify-between transition-colors border-l-4 border-transparent hover:border-blue-500">
@@ -567,7 +575,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             ${dia}
                         </div>
                         <div>
-                            <p class="text-sm font-bold text-gray-800 flex items-center">${nomeExibicao} ${badgeSocial}</p>
+                            <p class="text-sm font-bold text-gray-800 flex items-center">${nomeExibicao}</p>
                             <p class="text-[10px] text-gray-500 uppercase">${m.grau || 'Médium'}</p>
                         </div>
                     </div>
@@ -814,6 +822,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         const { error } = await supabaseClient.from('mediuns').delete().eq('id', id);
         if (error) alert('Erro ao excluir: ' + error.message);
         else { alert('Médium excluído!'); carregarQuadroMediuns(); }
+    };
+
+    window.alternarStatusAtivoMedium = async (id, statusAtual) => {
+        const novoStatus = !statusAtual;
+        const msg = novoStatus ? "Deseja REATIVAR o acesso deste médium?" : "Deseja INATIVAR este médium? Ele não poderá mais acessar a plataforma.";
+        if(!confirm(msg)) return;
+        
+        const { error } = await supabaseClient.from('mediuns').update({ status_ativo: novoStatus }).eq('id', id);
+        if (error) alert('Erro ao alterar status: ' + error.message);
+        else carregarQuadroMediuns();
     };
 
     window.abrirModalPermissoes = (id, nome, permsString) => {
