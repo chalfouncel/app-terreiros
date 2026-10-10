@@ -467,12 +467,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // ====================================================================
-    // LÓGICA DO MÓDULO DE MENSALIDADES (CARRINHO E PIX)
+    // LÓGICA DO MÓDULO DE MENSALIDADES (BLINDADA CONTRA BOTÃO MORTO)
     // ====================================================================
     const modalMensalidade = document.getElementById('modalMensalidade');
-    const btnAbrirMensalidade = document.getElementById('btnAbrirMensalidade');
-    const btnAbrirMensalidadeSucesso = document.getElementById('btnAbrirMensalidadeSucesso');
-    const btnFecharMensalidadeSuperior = document.getElementById('btnFecharMensalidadeSuperior');
     const selectAnoMensalidade = document.getElementById('selectAnoMensalidade');
     const containerCarrinhoMensalidades = document.getElementById('containerCarrinhoMensalidades');
     const btnAdicionarOutroMedium = document.getElementById('btnAdicionarOutroMedium');
@@ -502,7 +499,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     async function abrirModalMensalidade() {
-        if (!modalMensalidade) return;
+        if (!modalMensalidade) {
+            alert("Erro estrutural: O modal de mensalidade não foi encontrado no HTML.");
+            return;
+        }
         
         if (chavePixMensalidade && terreiroConfigMensalidade) {
             chavePixMensalidade.textContent = terreiroConfigMensalidade.chave_pix_manual || 'Chave PIX não configurada';
@@ -530,24 +530,39 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         modalMensalidade.classList.remove('hidden');
         setTimeout(() => {
-            modalMensalidade.querySelector('div').classList.remove('scale-95');
-            modalMensalidade.querySelector('div').classList.add('scale-100');
+            const painelModal = modalMensalidade.querySelector('div');
+            if (painelModal) {
+                painelModal.classList.remove('scale-95');
+                painelModal.classList.add('scale-100');
+            }
         }, 10);
     }
 
-    if (btnAbrirMensalidade) btnAbrirMensalidade.addEventListener('click', abrirModalMensalidade);
-    if (btnAbrirMensalidadeSucesso) btnAbrirMensalidadeSucesso.addEventListener('click', abrirModalMensalidade);
+    // OUVINTE GLOBAL POR DELEGAÇÃO: Garante que qualquer clique num botão de mensalidade abre o modal instantaneamente
+    document.addEventListener('click', (e) => {
+        const alvoBtn = e.target.closest('#btnAbrirMensalidade, #btnAbrirMensalidadeSucesso');
+        if (alvoBtn) {
+            e.preventDefault();
+            abrirModalMensalidade();
+        }
+        
+        // Botão de fechar superior
+        if (e.target.closest('#btnFecharMensalidadeSuperior')) {
+            fecharModalMensalidade();
+        }
+    });
 
     const fecharModalMensalidade = () => {
         if (!modalMensalidade) return;
-        modalMensalidade.querySelector('div').classList.remove('scale-100');
-        modalMensalidade.querySelector('div').classList.add('scale-95');
+        const painelModal = modalMensalidade.querySelector('div');
+        if (painelModal) {
+            painelModal.classList.remove('scale-100');
+            painelModal.classList.add('scale-95');
+        }
         setTimeout(() => {
             modalMensalidade.classList.add('hidden');
         }, 200);
     };
-
-    if (btnFecharMensalidadeSuperior) btnFecharMensalidadeSuperior.addEventListener('click', fecharModalMensalidade);
 
     if (selectAnoMensalidade) {
         selectAnoMensalidade.addEventListener('change', async () => {
