@@ -18,9 +18,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         const authId = session.user.id;
         let idNumerico = null;
 
-        if (session.user.email && session.user.email.includes('@')) {
-            const parte = session.user.email.split('@')[0];
-            if (!isNaN(parte)) idNumerico = parseInt(parte);
+        // Extrai o ID numérico do email se existir (ex: id_149@templo.app ou 149@...)
+        if (session.user.email) {
+            const parte = session.user.email.split('@')[0].replace(/\D/g, '');
+            if (parte && !isNaN(parte)) idNumerico = parseInt(parte);
         }
         if (!idNumerico) {
             const local = localStorage.getItem('medium_id');
@@ -29,7 +30,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         let medium = null;
 
-        // Busca pelo auth_id
+        // Busca prioritária por auth_id
         const { data: mAuth } = await supabaseClient
             .from('mediuns')
             .select('*')
@@ -39,7 +40,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (mAuth) {
             medium = mAuth;
         } else if (idNumerico) {
-            // Busca pelo ID numérico
+            // Busca por ID numérico e vincula o auth_id
             const { data: mId } = await supabaseClient
                 .from('mediuns')
                 .select('*')
@@ -57,14 +58,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (!medium) {
             if (msg) {
-                msg.textContent = 'Carregando sua ficha cadastral... aguarde.';
-                msg.className = 'text-xs md:text-sm font-bold text-center text-blue-600 block mt-2';
+                msg.textContent = 'Aguardando sincronização da ficha. Por favor, atualize a página.';
+                msg.className = 'text-xs md:text-sm font-bold text-center text-yellow-600 block mt-2';
                 msg.classList.remove('hidden');
             }
             return;
         }
 
-        // Se o médium já concluiu o cadastro, segue para a presença
+        // Se o médium já completou o cadastro, direciona para o check-in
         if (medium.cadastro_completo === true) {
             window.location.replace('presenca.html');
             return;
@@ -73,7 +74,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         mediumId = medium.id;
         localStorage.setItem('medium_id', medium.id);
 
-        // Preenche campos existentes na tela
+        // Preenche campos conhecidos
         const elNomeComp = document.getElementById('cadNomeCompleto');
         if (elNomeComp) elNomeComp.value = medium.nome_completo || '';
 
@@ -96,7 +97,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.error('Erro ao recuperar ficha do médium:', err);
     }
 
-    // 2. Conclusão do Cadastro
+    // 2. Submissão do Formulário
     if (form) {
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -107,7 +108,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             if (!mediumId) {
-                alert('Erro na identificação da ficha. Recarregue a página.');
+                alert('Erro na identificação da ficha. Atualize a página.');
                 return;
             }
 
@@ -138,18 +139,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             btnSalvar.disabled = true;
-            btnSalvar.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Concluindo cadastro...';
+            btnSalvar.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> A concluir cadastro...';
             msg.classList.add('hidden');
 
             try {
-                // Atualiza a senha no Supabase Auth
+                // Atualiza a palavra-passe no Supabase Auth
                 const { error: erroAuth } = await supabaseClient.auth.updateUser({
                     password: novaSenha
                 });
 
                 if (erroAuth) throw erroAuth;
 
-                // Atualiza a ficha do médium e marca cadastro_completo = true
+                // Atualiza a ficha do médium e confirma cadastro_completo = true
                 const { error: erroUpdate } = await supabaseClient
                     .from('mediuns')
                     .update({
@@ -163,7 +164,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 if (erroUpdate) {
                     if (erroUpdate.message.includes('unique constraint')) {
-                        throw new Error("Este número de WhatsApp já está cadastrado.");
+                        throw new Error("Este número de WhatsApp já se encontra registado.");
                     }
                     throw erroUpdate;
                 }
