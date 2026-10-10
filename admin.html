@@ -692,6 +692,69 @@
                     </button>
                     <p id="msgCores" class="text-xs md:text-sm font-bold mt-3 hidden"></p>
                 </div>
+                
+                <!-- NOVO MÓDULO: CONFIGURAÇÕES DE MENSALIDADE -->
+                <div id="boxConfigMensalidade" class="bg-white rounded-3xl shadow-xl p-6 md:p-8 mt-8 border-l-4 border-tema-secundaria hidden">
+                    <div class="flex items-center gap-3 mb-2">
+                        <div class="w-10 h-10 rounded-full bg-green-100 text-green-600 flex items-center justify-center text-xl shadow-inner">
+                            <i class="fas fa-hand-holding-usd"></i>
+                        </div>
+                        <h3 class="text-xl font-black text-gray-800 tracking-tight">Mensalidades e Tesouraria</h3>
+                    </div>
+                    <p class="text-sm text-gray-500 mb-6 ml-13">Configure a forma de recebimento e os valores por grau da sua corrente.</p>
+                    
+                    <form id="formConfigMensalidade" class="space-y-6">
+                        <!-- Seleção de Gateway -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-2xl border border-gray-200">
+                            <label class="flex items-start space-x-3 cursor-pointer p-3 border border-green-200 rounded-xl bg-white shadow-sm hover:shadow transition">
+                                <input type="radio" name="gatewayPagamento" value="manual" class="mt-1 w-5 h-5 text-green-600 focus:ring-green-500" checked>
+                                <div>
+                                    <p class="font-bold text-gray-800 text-sm">PIX Manual + Comprovativo</p>
+                                    <p class="text-xs text-gray-500 mt-1">Custo Zero. O médium anexa a foto do PIX e a tesouraria aprova.</p>
+                                </div>
+                            </label>
+                            
+                            <label class="flex items-start space-x-3 cursor-not-allowed p-3 border border-gray-200 rounded-xl bg-gray-50 opacity-60 relative" title="Em fase de integração">
+                                <div class="absolute top-2 right-2 bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded uppercase">Em Breve</div>
+                                <input type="radio" name="gatewayPagamento" value="asaas" class="mt-1 w-5 h-5 text-blue-600 focus:ring-blue-500" disabled>
+                                <div>
+                                    <p class="font-bold text-gray-800 text-sm">Asaas (Automático)</p>
+                                    <p class="text-xs text-gray-500 mt-1">Geração de QR Code dinâmico e baixa automática no sistema.</p>
+                                </div>
+                            </label>
+                        </div>
+
+                        <!-- Chaves PIX / API -->
+                        <div id="boxChavePix" class="space-y-2 bg-green-50 p-4 rounded-xl border border-green-100">
+                            <label class="block text-sm font-bold text-green-800"><i class="fab fa-pix mr-1"></i> Sua Chave PIX (Para receber as transferências)</label>
+                            <input type="text" id="chavePixManual" class="w-full px-4 py-2.5 border border-green-300 rounded-xl outline-none focus:ring-2 focus:ring-green-500 bg-white" placeholder="Ex: 12.345.678/0001-99 ou celular">
+                        </div>
+                        
+                        <div id="boxChaveAsaas" class="space-y-2 hidden bg-blue-50 p-4 rounded-xl border border-blue-100">
+                            <label class="block text-sm font-bold text-blue-800"><i class="fas fa-key mr-1"></i> API Key do Asaas</label>
+                            <input type="text" id="asaasApiKey" class="w-full px-4 py-2.5 border border-blue-300 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Ex: $aact_Y7... ">
+                        </div>
+
+                        <hr class="border-gray-200">
+
+                        <!-- Valores por Grau -->
+                        <div>
+                            <h4 class="text-sm font-bold text-gray-800 mb-3"><i class="fas fa-sliders-h mr-2 text-gray-400"></i>Definição de Valores Mensais por Grau</h4>
+                            <div id="listaValoresGrau" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                                <!-- Gerado via JavaScript -->
+                                <p class="text-xs text-gray-400">A carregar graus...</p>
+                            </div>
+                        </div>
+
+                        <p id="msgConfigMensalidade" class="text-sm font-bold hidden"></p>
+
+                        <div class="flex justify-end pt-2">
+                            <button type="submit" id="btnSalvarConfigMensalidade" class="bg-tema-secundaria hover:opacity-90 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition w-full md:w-auto flex items-center justify-center gap-2">
+                                <i class="fas fa-save"></i> Salvar Tesouraria
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
 
             <!-- SEÇÃO MASTER SAAS -->
