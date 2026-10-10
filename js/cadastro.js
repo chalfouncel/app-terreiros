@@ -3,10 +3,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const msg = document.getElementById('msgCadastro');
     const btnSalvar = document.getElementById('btnSalvarCadastro');
 
-    // 1. Verifica se existe sessão autenticada
-    const { data: { session }, error: erroSessao } = await supabaseClient.auth.getSession();
+    // 1. Pega sessão
+    const { data: { session } } = await supabaseClient.auth.getSession();
 
-    if (erroSessao || !session) {
+    if (!session) {
         localStorage.clear();
         window.location.replace('index.html');
         return;
@@ -18,19 +18,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         const authId = session.user.id;
         let idNumerico = null;
 
-        // Extrai o ID numérico do email se existir (ex: id_149@templo.app ou 149@...)
         if (session.user.email) {
-            const parte = session.user.email.split('@')[0].replace(/\D/g, '');
-            if (parte && !isNaN(parte)) idNumerico = parseInt(parte);
+            const extrairId = session.user.email.split('@')[0].replace(/\D/g, '');
+            if (extrairId) idNumerico = parseInt(extrairId);
         }
         if (!idNumerico) {
             const local = localStorage.getItem('medium_id');
-            if (local && !isNaN(local)) idNumerico = parseInt(local);
+            if (local) idNumerico = parseInt(local);
         }
 
         let medium = null;
 
-        // Busca prioritária por auth_id
+        // Busca por auth_id
         const { data: mAuth } = await supabaseClient
             .from('mediuns')
             .select('*')
@@ -40,7 +39,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (mAuth) {
             medium = mAuth;
         } else if (idNumerico) {
-            // Busca por ID numérico e vincula o auth_id
+            // Busca por ID numérico
             const { data: mId } = await supabaseClient
                 .from('mediuns')
                 .select('*')
@@ -49,23 +48,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (mId) {
                 medium = mId;
-                await supabaseClient
-                    .from('mediuns')
-                    .update({ auth_id: authId })
-                    .eq('id', medium.id);
+                await supabaseClient.from('mediuns').update({ auth_id: authId }).eq('id', medium.id);
             }
         }
 
         if (!medium) {
             if (msg) {
-                msg.textContent = 'Aguardando sincronização da ficha. Por favor, atualize a página.';
+                msg.textContent = 'Sincronizando dados... por favor recarregue a página se não carregar os campos.';
                 msg.className = 'text-xs md:text-sm font-bold text-center text-yellow-600 block mt-2';
                 msg.classList.remove('hidden');
             }
             return;
         }
 
-        // Se o médium já completou o cadastro, direciona para o check-in
         if (medium.cadastro_completo === true) {
             window.location.replace('presenca.html');
             return;
@@ -74,30 +69,26 @@ document.addEventListener('DOMContentLoaded', async () => {
         mediumId = medium.id;
         localStorage.setItem('medium_id', medium.id);
 
-        // Preenche campos conhecidos
-        const elNomeComp = document.getElementById('cadNomeCompleto');
-        if (elNomeComp) elNomeComp.value = medium.nome_completo || '';
-
-        const elNomeSoc = document.getElementById('cadNomeSocial');
-        if (elNomeSoc && medium.nome_social) elNomeSoc.value = medium.nome_social;
-
-        const elTel = document.getElementById('cadTelefone');
-        if (elTel && medium.telefone) {
-            let telLimpo = medium.telefone.replace(/\D/g, '');
-            if (telLimpo.startsWith('55') && telLimpo.length > 11) {
-                telLimpo = telLimpo.substring(2);
-            }
-            elTel.value = telLimpo;
+        if (document.getElementById('cadNomeCompleto')) {
+            document.getElementById('cadNomeCompleto').value = medium.nome_completo || '';
+        }
+        if (document.getElementById('cadNomeSocial') && medium.nome_social) {
+            document.getElementById('cadNomeSocial').value = medium.nome_social;
+        }
+        if (document.getElementById('cadTelefone') && medium.telefone) {
+            let tel = medium.telefone.replace(/\D/g, '');
+            if (tel.startsWith('55') && tel.length > 11) tel = tel.substring(2);
+            document.getElementById('cadTelefone').value = tel;
+        }
+        if (document.getElementById('cadNascimento') && medium.data_nascimento) {
+            document.getElementById('cadNascimento').value = medium.data_nascimento;
         }
 
-        const elNasc = document.getElementById('cadNascimento');
-        if (elNasc && medium.data_nascimento) elNasc.value = medium.data_nascimento;
-
     } catch (err) {
-        console.error('Erro ao recuperar ficha do médium:', err);
+        console.error('Erro ao ler ficha:', err);
     }
 
-    // 2. Submissão do Formulário
+    // 2. Concluir Cadastro
     if (form) {
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -108,7 +99,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             if (!mediumId) {
-                alert('Erro na identificação da ficha. Atualize a página.');
+                alert('Sessão expirada. Recarregue a página.');
                 return;
             }
 
@@ -119,13 +110,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             const confirmaSenha = document.getElementById('cadConfirmaSenha')?.value || '';
 
             let telefoneLimpo = telefoneRaw.replace(/\D/g, '');
-
             if (telefoneLimpo.startsWith('55') && telefoneLimpo.length >= 12) {
                 telefoneLimpo = telefoneLimpo.substring(2);
             }
 
             if (!telefoneLimpo || telefoneLimpo.length < 10 || telefoneLimpo.length > 11) {
-                msg.textContent = 'Digite um telefone válido com DDD (ex: 21999999999).';
+                msg.textContent = 'Digite um WhatsApp válido com DDD (ex: 21999999999).';
                 msg.className = 'text-xs md:text-sm font-bold text-center text-red-600 block mt-2';
                 msg.classList.remove('hidden');
                 return;
@@ -139,18 +129,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             btnSalvar.disabled = true;
-            btnSalvar.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> A concluir cadastro...';
+            btnSalvar.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Salvando cadastro...';
             msg.classList.add('hidden');
 
             try {
-                // Atualiza a palavra-passe no Supabase Auth
+                // Atualiza a senha no Supabase Auth
                 const { error: erroAuth } = await supabaseClient.auth.updateUser({
                     password: novaSenha
                 });
-
                 if (erroAuth) throw erroAuth;
 
-                // Atualiza a ficha do médium e confirma cadastro_completo = true
+                // Atualiza a ficha do médium
                 const { error: erroUpdate } = await supabaseClient
                     .from('mediuns')
                     .update({
@@ -164,7 +153,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 if (erroUpdate) {
                     if (erroUpdate.message.includes('unique constraint')) {
-                        throw new Error("Este número de WhatsApp já se encontra registado.");
+                        throw new Error("Este número de WhatsApp já está cadastrado.");
                     }
                     throw erroUpdate;
                 }
@@ -178,7 +167,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }, 1200);
 
             } catch (error) {
-                console.error('Erro ao salvar cadastro:', error);
+                console.error('Erro ao salvar:', error);
                 msg.textContent = 'Erro: ' + error.message;
                 msg.className = 'text-xs md:text-sm font-bold text-center text-red-600 block mt-2';
                 msg.classList.remove('hidden');
