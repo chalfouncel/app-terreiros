@@ -1168,9 +1168,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             if(dashboard) dashboard.innerHTML = '<div class="col-span-full p-6 text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>A calcular métricas...</div>';
             
             const { data: mediuns } = await supabaseClient.from('mediuns')
-                .select('id, nome_completo, nome_social, isento_mensalidade, grau') 
+                .select('id, nome_completo, nome_social, isento_mensalidade, grau, funcao') 
                 .eq('terreiro_id', idTerreiroGlobal)
                 .neq('nome_completo', 'Administrador Sistema')
+                .neq('grau', 'Dirigente')
+                .neq('funcao', 'Dirigente')
+                .eq('isento_mensalidade', false)
                 .order('nome_completo');
 
             if(!mediuns || mediuns.length === 0) {
