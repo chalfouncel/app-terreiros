@@ -90,6 +90,10 @@
             <a href="#" id="menuFinanceiro" class="menu-item py-3 px-4 rounded-xl hover:bg-white/10 active:scale-[0.98] transition flex items-center text-sm font-semibold">
                 <i class="fas fa-file-invoice-dollar w-6 mr-3 text-base"></i> Financeiro
             </a>
+            <!-- NOVO MENU: VALIDAR PAGAMENTOS -->
+            <a href="#" id="menuComprovantes" class="menu-item py-3 px-4 rounded-xl hover:bg-white/10 active:scale-[0.98] transition flex items-center text-sm font-semibold">
+                <i class="fas fa-check-double w-6 mr-3 text-base text-yellow-300"></i> Validar Pagamentos
+            </a>
             
             <hr class="border-white/10 my-3">
             
@@ -146,7 +150,7 @@
                     <span class="text-gray-700 font-medium" id="nomeAdmin">Olá, Admin</span>
                 </div>
             </header>
-
+            
             <!-- SEÇÃO VISÃO GERAL -->
             <div id="secVisaoGeral" class="secao-painel">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
@@ -302,7 +306,7 @@
                                 <i class="fas fa-gift text-blue-500"></i>
                                 <h3 class="font-bold text-blue-900 text-sm" id="tituloAniversariantesMes">Aniversariantes</h3>
                             </div>
-                            <button id="btnImprimirAniversariantes" class="text-blue-600 hover:text-blue-800 bg-blue-100 hover:bg-blue-200 p-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1">
+                            <button id="btnImprimirAniversariantes" class="text-blue-600 hover:text-blue-800 bg-blue-100 hover:bg-blue-200 p-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1" title="Imprimir Aniversariantes">
                                 <i class="fas fa-print"></i> PDF
                             </button>
                         </div>
@@ -453,33 +457,6 @@
 
             <!-- SEÇÃO FINANCEIRO -->
             <div id="secFinanceiro" class="secao-painel hidden">
-                
-                <!-- NOVO BLOCO: APROVAÇÃO DE COMPROVANTES -->
-                <div id="boxAprovacaoComprovantes" class="bg-yellow-50 border border-yellow-200 rounded-2xl p-5 md:p-6 mb-6 hidden">
-                    <h3 class="text-base md:text-lg font-bold text-yellow-800 mb-2">
-                        <i class="fas fa-bell mr-2"></i> Comprovantes Pendentes
-                    </h3>
-                    <p class="text-xs md:text-sm text-yellow-700 mb-4">Analise os comprovantes enviados pelos médiuns. Ao aprovar, os meses serão marcados como pagos na planilha abaixo.</p>
-
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left border-collapse bg-white rounded-xl shadow-sm overflow-hidden">
-                            <thead class="bg-yellow-100/50">
-                                <tr>
-                                    <th class="p-3 text-xs font-semibold text-yellow-800">ENVIADO POR</th>
-                                    <th class="p-3 text-xs font-semibold text-yellow-800">REFERÊNCIA</th>
-                                    <th class="p-3 text-xs font-semibold text-yellow-800">VALOR</th>
-                                    <th class="p-3 text-xs font-semibold text-yellow-800 text-center">ARQUIVO</th>
-                                    <th class="p-3 text-xs font-semibold text-yellow-800 text-center">AÇÃO</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tabelaComprovantesPendentes">
-                                <tr><td colspan="5" class="p-4 text-center text-yellow-700 text-sm">Buscando comprovantes...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                <!-- FIM DO NOVO BLOCO -->
-
                 <div class="bg-white rounded-2xl shadow-sm border-t-4 border-tema-secundaria p-5 md:p-6">
                     <div class="flex justify-between items-center mb-6 flex-wrap gap-3">
                         <p class="text-xs md:text-sm text-gray-500">Marque o mês para registrar o pagamento. Salvamento automático.</p>
@@ -514,6 +491,45 @@
                                 </tr>
                             </thead>
                             <tbody id="tabelaFinanceiro"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECÃO 5.5: VALIDAR PAGAMENTOS -->
+            <div id="secComprovantes" class="secao-painel hidden">
+                <div class="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+                    <div>
+                        <h2 class="text-xl md:text-2xl font-bold text-gray-800">Validar Pagamentos</h2>
+                        <p class="text-gray-500 text-xs md:text-sm mt-1">Avalie e aprove os comprovantes de PIX enviados pelos médiuns.</p>
+                    </div>
+                </div>
+
+                <!-- Lista em formato de Grid de Cards para Mobile-First -->
+                <div id="listaComprovantesPendentes" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mb-8">
+                    <div class="col-span-full p-8 text-center text-gray-500 bg-white rounded-2xl shadow-sm border border-gray-100">
+                        <i class="fas fa-spinner fa-spin mr-2 text-xl"></i> Buscando comprovantes pendentes...
+                    </div>
+                </div>
+                
+                <!-- Histórico de Validados -->
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div class="p-4 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
+                        <h3 class="font-bold text-gray-800 text-sm"><i class="fas fa-history mr-2 text-gray-500"></i> Últimas Validações</h3>
+                    </div>
+                    <div class="overflow-x-auto max-h-64 overflow-y-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead class="sticky top-0 bg-gray-100 shadow-sm z-10">
+                                <tr class="border-b border-gray-200">
+                                    <th class="p-3 text-[10px] md:text-xs font-semibold text-gray-600 uppercase">Médium</th>
+                                    <th class="p-3 text-[10px] md:text-xs font-semibold text-gray-600 uppercase">Referência</th>
+                                    <th class="p-3 text-[10px] md:text-xs font-semibold text-gray-600 uppercase">Valor</th>
+                                    <th class="p-3 text-[10px] md:text-xs font-semibold text-gray-600 uppercase text-center">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabelaComprovantesHistorico" class="text-sm divide-y divide-gray-100">
+                                <tr><td colspan="4" class="p-4 text-center text-gray-500">Nenhum histórico recente.</td></tr>
+                            </tbody>
                         </table>
                     </div>
                 </div>
@@ -1076,7 +1092,131 @@
         </div>
     </div>
 
+    <!-- MODAL VISUALIZAR COMPROVANTE -->
+    <div id="modalVerComprovante" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[60] transition-opacity">
+        <div class="bg-white rounded-3xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col h-[85vh] md:h-[90vh]">
+            <div class="flex justify-between items-center p-4 border-b shrink-0 bg-gray-50">
+                <div>
+                    <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                        <i class="fas fa-file-invoice text-tema-secundaria"></i> Comprovante
+                    </h3>
+                    <p id="modalComprovanteSubtitulo" class="text-xs text-gray-500 mt-1">Carregando...</p>
+                </div>
+                <button onclick="document.getElementById('modalVerComprovante').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 p-2 rounded-lg hover:bg-gray-200 transition"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            
+            <div class="flex-1 overflow-auto p-4 flex justify-center items-center bg-gray-100 relative">
+                <div id="loaderComprovante" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <i class="fas fa-spinner fa-spin text-4xl text-gray-400 mb-2"></i>
+                    <span class="text-sm text-gray-500 font-bold">Carregando imagem...</span>
+                </div>
+                <iframe id="frameComprovante" class="w-full h-full border-0 relative z-10" onload="document.getElementById('loaderComprovante').classList.add('hidden')" src=""></iframe>
+            </div>
+            
+            <div class="p-4 border-t flex flex-col sm:flex-row gap-3 shrink-0 bg-white" id="modalComprovanteAcoes">
+                <button id="btnRejeitarModal" class="flex-1 bg-red-100 text-red-700 hover:bg-red-200 font-bold py-3.5 px-4 rounded-xl shadow-sm transition active:scale-95 flex justify-center items-center gap-2 border border-red-200">
+                    <i class="fas fa-times"></i> Rejeitar Falha
+                </button>
+                <button id="btnAprovarModal" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-md transition active:scale-95 flex justify-center items-center gap-2">
+                    <i class="fas fa-check"></i> Aprovar Baixa
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script src="js/supabase.js"></script>
     <script src="js/admin.js"></script>
+
+    <!-- LÓGICA DO MAPA DE GPS (LEAFLET) -->
+    <script>
+        let mapaGlobal = null;
+        let marcadorGlobal = null;
+        let circuloGlobal = null;
+
+        const observerConfig = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if(mutation.target.classList.contains('hidden') === false) {
+                    if(typeof idTerreiroGlobal !== 'undefined' && idTerreiroGlobal) {
+                        supabaseClient.from('terreiros').select('latitude, longitude').eq('id', idTerreiroGlobal).single().then(({data}) => {
+                            if(data) {
+                                document.getElementById('inputLat').value = data.latitude || '';
+                                document.getElementById('inputLng').value = data.longitude || '';
+                                let lat = data.latitude || -14.2350; 
+                                let lng = data.longitude || -51.9253;
+                                let zoom = data.latitude ? 18 : 4;
+                                iniciarMapa(lat, lng, zoom);
+                            }
+                        });
+                    }
+                }
+            });
+        });
+        
+        const secAdmin = document.getElementById('secAdministracao');
+        if(secAdmin) observerConfig.observe(secAdmin, { attributes: true, attributeFilter: ['class'] });
+
+        function iniciarMapa(lat, lng, zoomLvl) {
+            document.getElementById('mapaOverlay').classList.add('hidden');
+            if(!mapaGlobal) {
+                mapaGlobal = L.map('mapaLocalizacao').setView([lat, lng], zoomLvl);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(mapaGlobal);
+                
+                marcadorGlobal = L.marker([lat, lng]).addTo(mapaGlobal);
+                circuloGlobal = L.circle([lat, lng], { color: 'green', fillColor: '#22c55e', fillOpacity: 0.2, radius: 50 }).addTo(mapaGlobal);
+
+                mapaGlobal.on('click', function(e) {
+                    document.getElementById('inputLat').value = e.latlng.lat;
+                    document.getElementById('inputLng').value = e.latlng.lng;
+                    marcadorGlobal.setLatLng([e.latlng.lat, e.latlng.lng]);
+                    circuloGlobal.setLatLng([e.latlng.lat, e.latlng.lng]);
+                });
+            } else {
+                mapaGlobal.setView([lat, lng], zoomLvl);
+                marcadorGlobal.setLatLng([lat, lng]);
+                circuloGlobal.setLatLng([lat, lng]);
+            }
+            setTimeout(() => mapaGlobal.invalidateSize(), 300);
+        }
+
+        document.getElementById('btnSalvarLocalizacaoManual')?.addEventListener('click', async () => {
+            const btn = document.getElementById('btnSalvarLocalizacaoManual');
+            const msg = document.getElementById('msgLocalizacao');
+            const lat = parseFloat(document.getElementById('inputLat').value);
+            const lng = parseFloat(document.getElementById('inputLng').value);
+            
+            if(isNaN(lat) || isNaN(lng)) {
+                alert("Por favor, digite latitude e longitude válidas ou clique no mapa.");
+                return;
+            }
+
+            btn.disabled = true; btn.innerHTML = "Salvando...";
+            const { error } = await supabaseClient.from('terreiros').update({ latitude: lat, longitude: lng }).eq('id', idTerreiroGlobal);
+            btn.disabled = false; btn.innerHTML = '<i class="fas fa-save mr-2"></i> Salvar Manualmente';
+            
+            if(error) {
+                msg.textContent = "Erro: " + error.message;
+                msg.className = "mt-4 text-sm font-bold text-red-600 block";
+            } else {
+                msg.textContent = "Localização salva com sucesso!";
+                msg.className = "mt-4 text-sm font-bold text-green-600 block";
+                if(marcadorGlobal) { 
+                    marcadorGlobal.setLatLng([lat, lng]); 
+                    circuloGlobal.setLatLng([lat, lng]); 
+                    mapaGlobal.setView([lat, lng], 18); 
+                }
+                setTimeout(() => msg.classList.add('hidden'), 3000);
+            }
+        });
+    </script>
+
+    <!-- PWA Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .catch(error => console.error('Erro ao registrar o Service Worker:', error));
+            });
+        }
+    </script>
 </body>
 </html>
