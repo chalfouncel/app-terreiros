@@ -9,12 +9,8 @@ let marcadorGlobal = null;
 let circuloGlobal = null;
 let listaMediunsGlobal = []; 
 
-// Variavel global para o modal de comprovantes
 window.comprovanteAtualId = null;
 
-// ==============================================================================
-// FUNÇÃO UTILITÁRIA: COMPRESSÃO DE IMAGEM
-// ==============================================================================
 function comprimirImagem(file, maxWidth = 1200, maxHeight = 1200, quality = 0.82) {
     return new Promise((resolve) => {
         if (!file || !file.type || !file.type.match(/image.*/)) {
@@ -66,7 +62,6 @@ function comprimirImagem(file, maxWidth = 1200, maxHeight = 1200, quality = 0.82
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // ESCOPO SEGURO PARA A VARIÁVEL DE CARREGAMENTO INICIAL
     let emModoMasterPuro = false;
     let terreiroSaaSForcado = null;
 
@@ -175,7 +170,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (!perfil.perm_doacoes && document.getElementById('menuDoacoes')) document.getElementById('menuDoacoes').classList.add('hidden');
                 if (!perfil.perm_admin && document.getElementById('menuAdmin')) document.getElementById('menuAdmin').classList.add('hidden');
                 
-                // Financeiro afeta as duas abas
                 if (!perfil.perm_financeiro) {
                     if (document.getElementById('menuFinanceiro')) document.getElementById('menuFinanceiro').classList.add('hidden');
                     if (document.getElementById('menuComprovantes')) document.getElementById('menuComprovantes').classList.add('hidden');
@@ -286,9 +280,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         });
 
-        // ========================================================
-        // ATIVAÇÃO DOS BOTÕES DO MODAL DE COMPROVANTE
-        // ========================================================
         const btnAprovarModal = document.getElementById('btnAprovarModal');
         const btnRejeitarModal = document.getElementById('btnRejeitarModal');
 
@@ -322,7 +313,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                                         ano: det.ano,
                                         pago: true,
                                         isento: false,
-                                        origem: 'pix_sistema' // <- REGISTRA A ORIGEM DO PIX
+                                        origem: 'pix_sistema' 
                                     });
                                 });
                             }
@@ -388,9 +379,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
 
-        // ========================================================
-        // ATIVAÇÃO DO BOTÃO SALVAR CONFIG MENSALIDADES
-        // ========================================================
         if (document.getElementById('formConfigMensalidade')) {
             document.getElementById('formConfigMensalidade').addEventListener('submit', async (e) => {
                 e.preventDefault();
@@ -439,9 +427,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
 
-        // ========================================================
-        // ATIVAÇÃO DO BOTÃO "EXPORTAR PDF" DAS DOAÇÕES
-        // ========================================================
         setTimeout(() => {
             const btnPDFDoacoes = document.getElementById('btnGerarPDF_doacoes');
             if (btnPDFDoacoes) {
@@ -471,10 +456,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
             }
         }, 800);
-
-        // ==========================================
-        // TODAS AS FUNÇÕES DE CARREGAMENTO NO ESCOPO
-        // ==========================================
 
         async function carregarPainelInicial() {
             if(!idTerreiroGlobal) return; 
@@ -737,7 +718,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     </tr>`;
             });
         }
-
         function renderizarAniversariantes(lista) {
             const ul = document.getElementById('listaAniversariantes');
             const titulo = document.getElementById('tituloAniversariantesMes');
