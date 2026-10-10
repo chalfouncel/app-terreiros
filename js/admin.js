@@ -320,7 +320,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                                         medium_id: det.medium_id,
                                         mes: mes,
                                         ano: det.ano,
-                                        pago: true
+                                        pago: true,
+                                        isento: false,
+                                        origem: 'pix_sistema' // <- REGISTRA A ORIGEM DO PIX
                                     });
                                 });
                             }
@@ -643,7 +645,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             try {
                 const { data, error } = await supabaseClient
                     .from('mediuns')
-                    .select('id, nome_completo, nome_social, data_nascimento, grau, funcao, telefone, palavra, cadastro_completo, is_admin, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin, perm_visao_geral, perm_ata, status_ativo')
+                    .select('id, nome_completo, nome_social, data_nascimento, grau, funcao, telefone, palavra, cadastro_completo, is_admin, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin, perm_visao_geral, perm_ata, status_ativo, isento_mensalidade')
                     .eq('terreiro_id', idTerreiroGlobal)
                     .neq('nome_completo', 'Administrador Sistema')
                     .order('nome_completo');
@@ -973,7 +975,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     .select('*')
                     .eq('terreiro_id', idTerreiroGlobal)
                     .eq('status', 'pendente')
-                    .order('data_envio', { ascending: true }); // <--- CORRIGIDO AQUI
+                    .order('data_envio', { ascending: true });
 
                 if (error) throw error;
 
@@ -1005,7 +1007,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
 
                     const valFmt = Number(comp.valor_total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                    // <--- CORRIGIDO AQUI EMBAIXO TAMBÉM (comp.data_envio)
                     const dataEnvio = new Date(comp.data_envio).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
                     const card = `
@@ -1052,7 +1053,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     .select('*')
                     .eq('terreiro_id', idTerreiroGlobal)
                     .neq('status', 'pendente')
-                    .order('data_envio', { ascending: false }) // <--- GARANTINDO QUE USE A COLUNA CERTA AQUI TAMBÉM
+                    .order('data_envio', { ascending: false }) 
                     .limit(20);
 
                 if (error) throw error;
@@ -1123,8 +1124,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (!tbody) return;
             tbody.innerHTML = '<tr><td colspan="14" class="p-6 text-center text-gray-500">Buscando histórico...</td></tr>';
             
+            // Passo 3: Buscar a coluna de isenção permanente do médium, caso você crie futuramente no banco.
             const { data: mediuns } = await supabaseClient.from('mediuns')
-                .select('id, nome_completo, nome_social')
+                .select('id, nome_completo, nome_social, isento_mensalidade') 
                 .eq('terreiro_id', idTerreiroGlobal)
                 .neq('nome_completo', 'Administrador Sistema')
                 .order('nome_completo');
@@ -1136,8 +1138,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             const idsMediunsDesteTerreiro = mediuns.map(m => m.id);
 
+            // Passo 2: Puxamos também as colunas isento e origem da tabela financeiro
             const { data: pgtos } = await supabaseClient.from('financeiro')
-                .select('*')
+                .select('medium_id, mes, ano, pago, isento, origem')
                 .eq('ano', anoBusca)
                 .in('medium_id', idsMediunsDesteTerreiro);
             
@@ -1149,11 +1152,48 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const mesAtual = new Date().getMonth() + 1; const anoAtual = new Date().getFullYear();
 
                 for (let i = 1; i <= 12; i++) {
-                    const pago = meusPgtos.some(p => p.mes === i && p.pago);
+                    const pgto = meusPgtos.find(p => p.mes === i);
+                    
+                    // Tratamento de Isenção (Global no Medium ou Pontual no Mês)
+                    const isentoAnual = m.isento_mensalidade === true;
+                    const isentoMensal = pgto ? pgto.isento : false;
+                    const isIsento = isentoAnual || isentoMensal;
+                    
+                    const pago = pgto ? pgto.pago : false;
+                    const origem = pgto ? pgto.origem : null;
+
                     const passou = (anoBusca < anoAtual) || (anoBusca === anoAtual && i < mesAtual);
-                    if (passou && !pago) emDia = false;
-                    const checkStr = pago ? 'checked' : '';
-                    htmlMeses += `<td class="py-1 px-1 border-b border-gray-100"><input type="checkbox" ${checkStr} class="w-4 h-4 cursor-pointer accent-tema-secundaria" onchange="salvarPagamento(${m.id}, ${i}, ${anoBusca}, this.checked)"></td>`;
+                    
+                    // Se estiver isento, conta como em dia. Se não estiver isento e não pagou o mês passado, fica pendente.
+                    if (passou && !pago && !isIsento) emDia = false; 
+
+                    let corCheck = '';
+                    let titleStr = '';
+                    let checkedStr = '';
+
+                    // Lógica de Cores Inteligente
+                    if (isIsento) {
+                        checkedStr = 'checked';
+                        corCheck = 'accent-color: #a855f7;'; // Roxo (Isento)
+                        titleStr = isentoAnual ? 'Isento (Permanente)' : 'Isento (Mês Específico) - Clique p/ desfazer';
+                    } else if (pago && origem === 'pix_sistema') {
+                        checkedStr = 'checked';
+                        corCheck = 'accent-color: #3b82f6;'; // Azul (PIX Automático)
+                        titleStr = 'Pago via PIX (Sistema)';
+                    } else if (pago) {
+                        checkedStr = 'checked';
+                        corCheck = 'accent-color: #16a34a;'; // Verde (Manual)
+                        titleStr = 'Pago (Manual)';
+                    } else {
+                        titleStr = 'Pendente (Clique Esq. p/ Pagar | Clique Dir. p/ Isentar)';
+                    }
+
+                    // A mágica acontece no oncontextmenu (Botão direito do Mouse ou Long Press no celular)
+                    htmlMeses += `<td class="py-1 px-1 border-b border-gray-100">
+                        <input type="checkbox" ${checkedStr} style="${corCheck}" title="${titleStr}" class="w-4 h-4 cursor-pointer" 
+                        onchange="salvarPagamento(${m.id}, ${i}, ${anoBusca}, this.checked)"
+                        oncontextmenu="toggleIsentoMes(event, ${m.id}, ${i}, ${anoBusca})">
+                    </td>`;
                 }
                 const statusHtml = emDia ? '<span class="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded">Em Dia</span>' : '<span class="bg-red-100 text-red-700 text-xs font-bold px-2 py-1 rounded">Pendente</span>';
                 const nomeStr = m.nome_completo;
@@ -2146,8 +2186,40 @@ window.salvarPagamento = async (mediumId, mes, ano, status) => {
         return document.getElementById('menuFinanceiro')?.click();
     }
 
-    const { error } = await supabaseClient.from('financeiro').upsert({ medium_id: mediumId, mes: mes, ano: ano, pago: status }, { onConflict: 'medium_id,mes,ano' });
-    if(error) { alert('Erro: ' + error.message); document.getElementById('menuFinanceiro')?.click(); }
+    // Ao mexer no checkbox, tira qualquer isenção que houvesse e força como lançamento manual
+    const { error } = await supabaseClient.from('financeiro').upsert({ 
+        medium_id: mediumId, 
+        mes: mes, 
+        ano: ano, 
+        pago: status,
+        isento: false,
+        origem: 'manual' 
+    }, { onConflict: 'medium_id,mes,ano' });
+    
+    if(error) { 
+        alert('Erro: ' + error.message); 
+        document.getElementById('menuFinanceiro')?.click(); 
+    } else {
+        document.getElementById('menuFinanceiro')?.click(); // Força o refresh pra atualizar cores
+    }
+};
+
+window.toggleIsentoMes = async (event, mediumId, mes, ano) => {
+    event.preventDefault(); // Impede o menu do navegador de abrir
+    
+    if(!confirm(`Deseja ISENTAR/ANISTIAR este médium da mensalidade do mês ${mes}/${ano}?`)) return;
+    
+    const { error } = await supabaseClient.from('financeiro').upsert({ 
+        medium_id: mediumId, 
+        mes: mes, 
+        ano: ano, 
+        pago: false, // Isenção não é pagamento efetivo
+        isento: true, 
+        origem: 'manual' 
+    }, { onConflict: 'medium_id,mes,ano' });
+    
+    if(error) alert('Erro: ' + error.message);
+    else document.getElementById('menuFinanceiro')?.click(); // Recarrega tela pra pintar de roxo
 };
 
 window.aprovarComprovante = async (comprovanteId) => {
@@ -2172,7 +2244,9 @@ window.aprovarComprovante = async (comprovanteId) => {
                             medium_id: det.medium_id,
                             mes: mes,
                             ano: det.ano,
-                            pago: true
+                            pago: true,
+                            isento: false,
+                            origem: 'pix_sistema' // <- REGISTRA A ORIGEM DO PIX NA FUNÇÃO SOLTA TB
                         });
                     });
                 }
