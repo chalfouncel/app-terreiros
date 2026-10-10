@@ -995,8 +995,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const remetente = mediuns?.find(m => m.auth_id === comp.enviado_por)?.nome_completo || 'Médium Desconhecido';
                     
                     let refTexto = '';
+                    let nomesInclusos = [];
                     if (comp.detalhes_pagamento && Array.isArray(comp.detalhes_pagamento)) {
                         comp.detalhes_pagamento.forEach(det => {
+                            if (det.medium_nome && !nomesInclusos.includes(det.medium_nome)) {
+                                nomesInclusos.push(det.medium_nome);
+                            }
                             if (det.meses && Array.isArray(det.meses)) {
                                 const mesesNomes = det.meses.map(m => ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][m-1]).join(', ');
                                 refTexto += `<div class="mb-1"><span class="font-bold text-gray-700">${det.medium_nome}:</span> ${mesesNomes}/${det.ano}</div>`;
@@ -1005,6 +1009,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     } else {
                         refTexto = '<span class="text-gray-400">Sem detalhes estruturados</span>';
                     }
+                    
+                    const nomesExibicao = nomesInclusos.length > 0 ? nomesInclusos.join(', ') : remetente;
 
                     const valFmt = Number(comp.valor_total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
                     const dataEnvio = new Date(comp.data_envio).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
@@ -1012,7 +1018,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const card = `
                         <div class="bg-white p-5 rounded-2xl shadow-sm border border-yellow-200 border-t-4 hover:shadow-md transition">
                             <div class="flex justify-between items-start mb-3">
-                                <h4 class="font-bold text-gray-800 text-sm truncate pr-2" title="${remetente}"><i class="fas fa-user-circle text-yellow-500 mr-1.5"></i> ${remetente}</h4>
+                                <h4 class="font-bold text-gray-800 text-sm truncate pr-2" title="${nomesExibicao}"><i class="fas fa-user-circle text-yellow-500 mr-1.5"></i> ${nomesExibicao}</h4>
                                 <span class="bg-yellow-100 text-yellow-800 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">Avaliar</span>
                             </div>
                             <div class="text-xs text-gray-600 mb-3 bg-gray-50 p-2.5 rounded-lg border border-gray-100">
@@ -1028,7 +1034,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                                     <p class="text-lg font-black text-green-600 leading-none">${valFmt}</p>
                                 </div>
                             </div>
-                            <button onclick="abrirModalVerComprovante('${comp.id}', '${comp.url_comprovante}', '${remetente} - ${valFmt}')" class="w-full bg-gray-800 hover:bg-gray-900 active:scale-95 text-white font-bold py-2.5 px-4 rounded-xl shadow-sm transition text-sm flex justify-center items-center gap-2">
+                            <button onclick="abrirModalVerComprovante('${comp.id}', '${comp.url_comprovante}', '${nomesExibicao} - ${valFmt}')" class="w-full bg-gray-800 hover:bg-gray-900 active:scale-95 text-white font-bold py-2.5 px-4 rounded-xl shadow-sm transition text-sm flex justify-center items-center gap-2">
                                 <i class="fas fa-search"></i> Analisar Comprovante
                             </button>
                         </div>
@@ -1068,20 +1074,32 @@ document.addEventListener('DOMContentLoaded', async () => {
                 tbody.innerHTML = '';
                 comprovantes.forEach(comp => {
                     const remetente = mediuns?.find(m => m.auth_id === comp.enviado_por)?.nome_completo || 'Desconhecido';
+                    
+                    let nomesInclusos = [];
+                    let qtdMeses = 0;
+                    if (comp.detalhes_pagamento && Array.isArray(comp.detalhes_pagamento)) {
+                        comp.detalhes_pagamento.forEach(det => {
+                            if (det.medium_nome && !nomesInclusos.includes(det.medium_nome)) {
+                                nomesInclusos.push(det.medium_nome);
+                            }
+                            if (det.meses && Array.isArray(det.meses)) {
+                                qtdMeses += det.meses.length;
+                            }
+                        });
+                    }
+                    const nomesExibicao = nomesInclusos.length > 0 ? nomesInclusos.join(', ') : remetente;
+                    
                     const valFmt = Number(comp.valor_total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
                     
                     let statusBadge = '';
                     if(comp.status === 'aprovado') statusBadge = '<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[10px] font-bold"><i class="fas fa-check mr-1"></i> Aprovado</span>';
                     else if(comp.status === 'rejeitado') statusBadge = '<span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-[10px] font-bold"><i class="fas fa-times mr-1"></i> Rejeitado</span>';
 
-                    let refStr = 'Vários';
-                    if (comp.detalhes_pagamento && comp.detalhes_pagamento[0]) {
-                        refStr = `${comp.detalhes_pagamento[0].meses?.length || 0} mes(es)`;
-                    }
+                    let refStr = qtdMeses > 0 ? `${qtdMeses} mes(es)` : 'Vários';
 
                     tbody.innerHTML += `
                         <tr class="hover:bg-gray-50">
-                            <td class="p-3 text-[11px] font-medium text-gray-800 max-w-[100px] truncate" title="${remetente}">${remetente}</td>
+                            <td class="p-3 text-[11px] font-medium text-gray-800 max-w-[150px] truncate" title="${nomesExibicao}">${nomesExibicao}</td>
                             <td class="p-3 text-[11px] text-gray-500">${refStr}</td>
                             <td class="p-3 text-[11px] font-bold text-gray-800">${valFmt}</td>
                             <td class="p-3 text-center">${statusBadge}</td>
@@ -1128,7 +1146,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if(dashboard) dashboard.innerHTML = '<div class="col-span-full p-6 text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>A calcular métricas...</div>';
             
             const { data: mediuns } = await supabaseClient.from('mediuns')
-                .select('id, nome_completo, nome_social, isento_mensalidade, grau') 
+                .select('id, nome_completo, nome_social, isento_mensalidade, grau, created_at') 
                 .eq('terreiro_id', idTerreiroGlobal)
                 .neq('nome_completo', 'Administrador Sistema')
                 .order('nome_completo');
@@ -1215,8 +1233,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                         oncontextmenu="toggleIsentoMes(event, ${m.id}, ${i}, ${anoBusca}, ${isAntesDoIngresso})">
                     </td>`;
                 }
+                const btnIsentarAno = `<button onclick="isentarAnoTodo(${m.id}, ${anoBusca})" title="Isentar ano todo (Automático)" class="ml-2 text-purple-400 hover:text-purple-600 active:scale-90 transition p-1"><i class="fas fa-magic"></i></button>`;
                 const statusHtml = emDia ? '<span class="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded">Em Dia</span>' : '<span class="bg-red-100 text-red-700 text-xs font-bold px-2 py-1 rounded">Pendente</span>';
-                tbody.innerHTML += `<tr class="hover:bg-gray-50"><td class="py-2 px-3 border-b border-gray-100 text-left font-medium text-gray-800 text-xs truncate max-w-[220px]" title="Ingresso: ${dataIngresso.toLocaleDateString('pt-BR')}">${m.nome_completo}</td>${htmlMeses}<td class="py-2 px-2 border-b border-gray-100 bg-gray-50">${statusHtml}</td></tr>`;
+                tbody.innerHTML += `<tr class="hover:bg-gray-50"><td class="py-2 px-3 border-b border-gray-100 text-left font-medium text-gray-800 text-xs max-w-[220px]"><div class="flex items-center justify-between"><span class="truncate" title="Ingresso: ${dataIngresso.toLocaleDateString('pt-BR')}">${m.nome_completo}</span>${btnIsentarAno}</div></td>${htmlMeses}<td class="py-2 px-2 border-b border-gray-100 bg-gray-50">${statusHtml}</td></tr>`;
             });
 
             if(dashboard) {
@@ -2227,27 +2246,36 @@ window.salvarGrau = async (id) => {
     }
 };
 
-window.salvarPagamento = async (mediumId, mes, ano, status) => {
-            const { error } = await supabaseClient.from('financeiro').upsert({ 
-                medium_id: mediumId, mes: mes, ano: ano, pago: status, isento: false, origem: 'manual' 
-            }, { onConflict: 'medium_id,mes,ano' });
-            
-            if(error) alert('Erro: ' + error.message); 
-            document.getElementById('menuFinanceiro')?.click(); 
-        };
+window.isentarAnoTodo = async (mediumId, ano) => {
+    const upserts = Array.from({length: 12}, (_, i) => ({
+        medium_id: mediumId, mes: i + 1, ano: ano, pago: false, isento: true, origem: 'manual'
+    }));
+    const { error } = await supabaseClient.from('financeiro').upsert(upserts, { onConflict: 'medium_id,mes,ano' });
+    if(error) alert('Erro: ' + error.message);
+    document.getElementById('menuFinanceiro')?.click();
+};
 
-        window.toggleIsentoMes = async (event, mediumId, mes, ano, bloqueado) => {
-            event.preventDefault(); 
-            if (bloqueado) return;
-            if(!confirm(`Deseja ISENTAR este médium do mês ${mes}/${ano}?`)) return;
-            
-            const { error } = await supabaseClient.from('financeiro').upsert({ 
-                medium_id: mediumId, mes: mes, ano: ano, pago: false, isento: true, origem: 'manual' 
-            }, { onConflict: 'medium_id,mes,ano' });
-            
-            if(error) alert('Erro: ' + error.message);
-            document.getElementById('menuFinanceiro')?.click(); 
-        };
+window.salvarPagamento = async (mediumId, mes, ano, status) => {
+    const { error } = await supabaseClient.from('financeiro').upsert({ 
+        medium_id: mediumId, mes: mes, ano: ano, pago: status, isento: false, origem: 'manual' 
+    }, { onConflict: 'medium_id,mes,ano' });
+    
+    if(error) alert('Erro: ' + error.message); 
+    document.getElementById('menuFinanceiro')?.click(); 
+};
+
+window.toggleIsentoMes = async (event, mediumId, mes, ano, bloqueado) => {
+    event.preventDefault(); 
+    if (bloqueado) return;
+    if(!confirm(`Deseja ISENTAR este médium do mês ${mes}/${ano}?`)) return;
+    
+    const { error } = await supabaseClient.from('financeiro').upsert({ 
+        medium_id: mediumId, mes: mes, ano: ano, pago: false, isento: true, origem: 'manual' 
+    }, { onConflict: 'medium_id,mes,ano' });
+    
+    if(error) alert('Erro: ' + error.message);
+    document.getElementById('menuFinanceiro')?.click(); 
+};
 
 window.aprovarComprovante = async (comprovanteId) => {
     if (!confirm("Aprovar este comprovante? Os meses associados serão marcados como pagos e o documento será arquivado.")) return;
