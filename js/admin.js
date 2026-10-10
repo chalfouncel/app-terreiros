@@ -1168,7 +1168,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if(dashboard) dashboard.innerHTML = '<div class="col-span-full p-6 text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>A calcular métricas...</div>';
             
             const { data: mediuns } = await supabaseClient.from('mediuns')
-                .select('id, nome_completo, nome_social, isento_mensalidade, grau, created_at') 
+                .select('id, nome_completo, nome_social, isento_mensalidade, grau') 
                 .eq('terreiro_id', idTerreiroGlobal)
                 .neq('nome_completo', 'Administrador Sistema')
                 .order('nome_completo');
@@ -1257,8 +1257,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
                 const btnIsentarAno = `<button onclick="isentarAnoTodo(${m.id}, ${anoBusca})" title="Isentar ano todo (Automático)" class="ml-2 text-purple-400 hover:text-purple-600 active:scale-90 transition p-1"><i class="fas fa-magic"></i></button>`;
                 const statusHtml = emDia ? '<span class="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded">Em Dia</span>' : '<span class="bg-red-100 text-red-700 text-xs font-bold px-2 py-1 rounded">Pendente</span>';
-                tbody.innerHTML += `<tr class="hover:bg-gray-50"><td class="py-2 px-3 border-b border-gray-100 text-left font-medium text-gray-800 text-xs max-w-[220px]"><div class="flex items-center justify-between"><span class="truncate" title="Ingresso: ${dataIngresso.toLocaleDateString('pt-BR')}">${m.nome_completo}</span>${btnIsentarAno}</div></td>${htmlMeses}<td class="py-2 px-2 border-b border-gray-100 bg-gray-50">${statusHtml}</td></tr>`;
-            });
+                tbody.innerHTML += `<tr class="hover:bg-gray-50"><td class="py-2 px-3 border-b border-gray-100 text-left font-medium text-gray-800 text-xs max-w-[220px]"><div class="flex items-center justify-between"><span class="truncate" title="${m.nome_completo}">${m.nome_completo}</span>${btnIsentarAno}</div></td>${htmlMeses}<td class="py-2 px-2 border-b border-gray-100 bg-gray-50">${statusHtml}</td></tr>`;
 
             if(dashboard) {
                 dashboard.innerHTML = '';
