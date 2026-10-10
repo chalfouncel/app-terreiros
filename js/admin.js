@@ -292,7 +292,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         setTimeout(() => {
             const btnPDFDoacoes = document.getElementById('btnGerarPDF_doacoes');
             if (btnPDFDoacoes) {
-                // Remove listeners órfãos e reconecta o evento
                 const novoBtn = btnPDFDoacoes.cloneNode(true);
                 btnPDFDoacoes.parentNode.replaceChild(novoBtn, btnPDFDoacoes);
 
@@ -371,7 +370,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         presencas.forEach(p => {
                             const md = todosMediuns?.find(m => m.auth_id === p.usuario_id || String(m.id) === String(p.usuario_id));
                             if (md && md.status_ativo === false) return;
-                            const nome = md ? (md.nome_social ? `${md.nome_completo} (${md.nome_social})` : md.nome_completo) : 'Médium Excluído';
+                            const nome = md ? md.nome_completo : 'Médium Excluído';
                             const hora = new Date(p.data_hora_checkin).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
                             arrayPresencasVisuais.push({ nome, hora });
                         });
@@ -453,7 +452,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         const dadosParaPDF = [];
                         presencasHist.forEach(p => {
                             const md = todosMediuns?.find(m => m.auth_id === p.usuario_id || String(m.id) === String(p.usuario_id));
-                            const nome = md ? (md.nome_social ? `${md.nome_completo} (${md.nome_social})` : md.nome_completo) : 'Médium Excluído';
+                            const nome = md ? md.nome_completo : 'Médium Excluído';
                             const hora = new Date(p.data_hora_checkin).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
                             
                             let cargoExibicao = '-';
@@ -506,7 +505,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 .from('mediuns')
                 .select('id, nome_completo, nome_social, data_nascimento, grau, funcao, telefone, cadastro_completo, is_admin, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin, perm_visao_geral, perm_ata, status_ativo')
                 .eq('terreiro_id', idTerreiroGlobal)
-                .neq('nome_completo', 'Administrador Sistema');
+                .neq('nome_completo', 'Administrador Sistema')
+                .order('nome_completo');
 
             if (error) throw error;
 
@@ -581,8 +581,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 linkWhats = `<a href="https://wa.me/${ddi}${numeroLimpo}" target="_blank" class="text-green-600 hover:text-green-700 hover:underline flex items-center gap-1 font-medium" title="Chamar no WhatsApp"><i class="fab fa-whatsapp text-lg"></i> ${m.telefone}</a>`;
             }
 
-            // Mostra o Nome Completo (e o Nome Social se existir)
-            const nomeHtml = m.nome_social ? `${m.nome_completo} (${m.nome_social})` : m.nome_completo;
+            const nomeHtml = m.nome_completo;
 
             tbody.innerHTML += `
                 <tr class="hover:bg-gray-50 transition-colors group">
@@ -643,7 +642,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 dia = p[2]; mes = p[1];
             }
 
-            const nomeExibicao = m.nome_social ? m.nome_social : (m.nome_completo ? m.nome_completo.split(' ')[0] : 'Médium');
+            const nomeExibicao = m.nome_completo.split(' ')[0] || 'Médium';
 
             ul.innerHTML += `
                 <li class="p-3 hover:bg-gray-50 flex items-center justify-between transition-colors border-l-4 border-transparent hover:border-blue-500">
@@ -790,7 +789,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         if(p.length === 3) dataNasc = `${p[2]}/${p[1]}/${p[0]}`;
                     } else dataNasc = m.data_nascimento;
                 }
-                const nomeStr = m.nome_social ? `${m.nome_completo} (${m.nome_social})` : m.nome_completo;
+                const nomeStr = m.nome_completo;
                 const whats = m.telefone || '-';
                 return [nomeStr, dataNasc, m.grau || '-', m.funcao || '-', whats];
             });
@@ -845,7 +844,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                 }
 
-                const nomeExibicao = m.nome_social || m.nome_completo || 'Médium';
+                const nomeExibicao = m.nome_completo || 'Médium';
 
                 const g = m.grau && m.grau !== '-' ? m.grau : '';
                 const f = m.funcao && m.funcao !== '-' ? m.funcao : '';
@@ -1578,7 +1577,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (presencas && presencas.length > 0) {
                 presencas.forEach((p, index) => {
                     const medium = mapaMediuns[p.usuario_id] || { nome_completo: 'Médium não identificado', grau: '-', funcao: '-' };
-                    const nomeFinal = medium.nome_social ? medium.nome_social : medium.nome_completo;
+                    const nomeFinal = medium.nome_completo;
                     const horaCheckin = new Date(p.data_hora_checkin).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
                     
                     let grauExibicao = '-';
@@ -1714,7 +1713,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!tbody) return;
         tbody.innerHTML = '';
         lista.forEach(m => {
-            const nomeStr = m.nome_social ? m.nome_social : m.nome_completo;
+            const nomeStr = m.nome_completo;
             tbody.innerHTML += `<tr class="border-b border-gray-100 hover:bg-gray-50 transition"><td class="py-2 px-3 text-gray-800 font-medium">${nomeStr}</td><td class="py-2 px-3"><select id="grau_${m.id}" class="border border-gray-300 rounded px-2 py-1 bg-white text-sm focus:ring-tema-primaria outline-none w-full max-w-[120px]">${renderizarOpcoes(opcoesGrau, m.grau || '-')}</select></td><td class="py-2 px-3"><select id="func_${m.id}" class="border border-gray-300 rounded px-2 py-1 bg-white text-sm focus:ring-tema-primaria outline-none w-full max-w-[120px]">${renderizarOpcoes(opcoesFuncao, m.funcao || '-')}</select></td><td class="py-2 px-3 text-center"><button onclick="salvarGrau(${m.id})" id="btnGrau_${m.id}" class="bg-tema-primaria hover:opacity-90 text-white px-3 py-1 rounded text-xs font-bold transition">Salvar</button></td></tr>`;
         });
     }
@@ -1786,7 +1785,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 htmlMeses += `<td class="py-1 px-1 border-b border-gray-100"><input type="checkbox" ${checkStr} class="w-4 h-4 cursor-pointer accent-tema-secundaria" onchange="salvarPagamento(${m.id}, ${i}, ${ano}, this.checked)"></td>`;
             }
             const statusHtml = emDia ? '<span class="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded">Em Dia</span>' : '<span class="bg-red-100 text-red-700 text-xs font-bold px-2 py-1 rounded">Pendente</span>';
-            const nomeStr = m.nome_social ? m.nome_social : m.nome_completo;
+            const nomeStr = m.nome_completo;
 
             tbody.innerHTML += `<tr class="hover:bg-gray-50"><td class="py-2 px-3 border-b border-gray-100 text-left font-medium text-gray-800 text-xs truncate max-w-[220px]">${nomeStr}</td>${htmlMeses}<td class="py-2 px-2 border-b border-gray-100 bg-gray-50">${statusHtml}</td></tr>`;
         });
@@ -2042,7 +2041,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 tbody.innerHTML = '';
                 doacoes.forEach(d => {
                     const mdEncontrado = mediuns?.find(m => m.auth_id === d.medium_auth_id || String(m.id) === String(d.medium_auth_id));
-                    const medium = mdEncontrado ? (mdEncontrado.nome_social || mdEncontrado.nome_completo) : 'Médium Desconhecido';
+                    const medium = mdEncontrado ? mdEncontrado.nome_completo : 'Médium Desconhecido';
                     const itemObj = itens?.find(i => String(i.id) === String(d.item_id));
                     const itemNome = itemObj ? `${itemObj.nome}` : 'Item';
                     const data = new Date(d.data_registro).toLocaleDateString('pt-BR');
