@@ -9,6 +9,7 @@ let perfilMediumLogado = null;
 let configValoresGrau = {};
 let terreiroConfigMensalidade = {};
 let carrinhoMensalidadesState = []; 
+let valorPendenteParaPix = 0; // Nova variável para o PIX Copia e Cola
 
 document.addEventListener('DOMContentLoaded', async () => {
     
@@ -670,7 +671,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         await atualizarCarrinhoRender();
     };
 
-    // FUNÇÃO CORRIGIDA: Nome correto agora (recalcularTotalCarrinho)
     function recalcularTotalCarrinho() {
         let totalGeral = 0;
         let totalMesesSelecionados = 0;
@@ -680,6 +680,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             totalMesesSelecionados += qtd;
             totalGeral += qtd * item.valorUnitario;
         });
+
+        // ATUALIZA A VARIÁVEL PARA O GERADOR DE PIX:
+        valorPendenteParaPix = totalGeral;
 
         if (valorTotalMensalidade) valorTotalMensalidade.textContent = totalGeral.toFixed(2).replace('.', ',');
 
@@ -760,20 +763,69 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    // FUNÇÃO QUE GERA O CÓDIGO BRCODE (EMV) DO PIX COPIA E COLA
+    function gerarPayloadPix(chavePix, valorTotal, nomeBeneficiario = 'Terreiro', cidade = 'Rio de Janeiro') {
+        const formatarTamanho = (id, valor) => {
+            const v = String(valor);
+            return id + String(v.length).padStart(2, '0') + v;
+        };
+
+        const chave = String(chavePix).trim().replace(/ /g, '');
+        const valor = Number(valorTotal).toFixed(2);
+        const merchantAccount = formatarTamanho('00', 'br.gov.bcb.pix') + formatarTamanho('01', chave);
+        
+        let payload = formatarTamanho('00', '01') + // Payload Format Indicator
+                      formatarTamanho('26', merchantAccount) + // Merchant Account Info
+                      formatarTamanho('52', '0000') + // Merchant Category Code
+                      formatarTamanho('53', '986') + // Moeda (BRL)
+                      formatarTamanho('54', valor) + // Valor
+                      formatarTamanho('58', 'BR') + // País
+                      formatarTamanho('59', nomeBeneficiario.substring(0, 25)) + // Beneficiário (Máx 25 char)
+                      formatarTamanho('60', cidade.substring(0, 15)) + // Cidade (Máx 15 char)
+                      formatarTamanho('62', formatarTamanho('05', 'MENSALIDADE')); // TXID
+        payload += '6304'; // Inicia o CRC16
+
+        // Calcula o CRC16
+        let crc = 0xFFFF;
+        for (let i = 0; i < payload.length; i++) {
+            crc ^= payload.charCodeAt(i) << 8;
+            for (let j = 0; j < 8; j++) {
+                if ((crc & 0x8000) !== 0) {
+                    crc = (crc << 1) ^ 0x1021;
+                } else {
+                    crc = crc << 1;
+                }
+            }
+        }
+        crc = (crc & 0xFFFF).toString(16).toUpperCase().padStart(4, '0');
+        return payload + crc;
+    }
+
     // BOTÃO PARA COPIAR A CHAVE PIX DA MENSALIDADE
     if (btnCopiarPixMensalidade) {
         btnCopiarPixMensalidade.addEventListener('click', () => {
-            if(chavePixMensalidade) {
-                navigator.clipboard.writeText(chavePixMensalidade.innerText).then(() => {
-                    const originalHTML = btnCopiarPixMensalidade.innerHTML;
-                    btnCopiarPixMensalidade.innerHTML = '<i class="fas fa-check mr-2 text-white"></i> Chave Copiada!';
-                    btnCopiarPixMensalidade.classList.replace('bg-gray-800', 'bg-green-600');
-                    setTimeout(() => {
-                        btnCopiarPixMensalidade.innerHTML = originalHTML;
-                        btnCopiarPixMensalidade.classList.replace('bg-green-600', 'bg-gray-800');
-                    }, 2000);
-                });
+            const chave = terreiroConfigMensalidade.chave_pix_manual;
+            
+            if (!chave) {
+                alert("A chave PIX do terreiro não está configurada.");
+                return;
             }
+
+            // Pega o nome do terreiro (se não existir, usa 'Terreiro')
+            const nomeTerreiroPix = terreiroConfigMensalidade.nome || 'Terreiro';
+            
+            // Gera o código gigante do PIX Copia e Cola
+            const codigoCopiaECola = gerarPayloadPix(chave, valorPendenteParaPix, nomeTerreiroPix);
+
+            navigator.clipboard.writeText(codigoCopiaECola).then(() => {
+                const originalHTML = btnCopiarPixMensalidade.innerHTML;
+                btnCopiarPixMensalidade.innerHTML = '<i class="fas fa-check mr-2 text-white"></i> PIX Copiado c/ Valor!';
+                btnCopiarPixMensalidade.classList.replace('bg-gray-800', 'bg-green-600');
+                setTimeout(() => {
+                    btnCopiarPixMensalidade.innerHTML = originalHTML;
+                    btnCopiarPixMensalidade.classList.replace('bg-green-600', 'bg-gray-800');
+                }, 2500);
+            });
         });
     }
 
@@ -796,6 +848,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const arquivo = arquivoComprovanteMensalidade.files[0];
                 const anoRef = parseInt(selectAnoMensalidade.value);
 
+                // CORREÇÃO AQUI: Mudando o bucket de 'public' para 'comprovantes'
                 const fileName = `${idTerreiroGlobal}/comprovante_${perfilMediumLogado.id}_${Date.now()}.${arquivo.name.split('.').pop()}`;
                 const { error: errUpload } = await supabaseClient.storage.from('comprovantes').upload(fileName, arquivo);
                 if (errUpload) throw errUpload;
@@ -859,7 +912,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // ====================================================================
-// GPS DO CHECK-IN
+// GPS DO CHECK-IN COM VERIFICAÇÃO DE PERMISSÃO E TRAVA DE 30 METROS
 // ====================================================================
 
 const btnCheckin = document.getElementById('btnCheckin');
@@ -888,50 +941,33 @@ function mostrarModalGPS(estado) {
 function executarCheckinGPS() {
     const msg = document.getElementById('msgCheckin');
     btnCheckin.disabled = true;
-    btnCheckin.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> A ler sinal de GPS...';
+    btnCheckin.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Validando GPS...';
     
     if (msg) msg.classList.add('hidden');
     if (modalPermissaoGPS) modalPermissaoGPS.classList.add('hidden');
 
     navigator.geolocation.getCurrentPosition(async (posicao) => {
-        const latUsuario = posicao.coords.latitude;
-        const lonUsuario = posicao.coords.longitude;
-        const precisaoAparelho = posicao.coords.accuracy || 0; 
-
-        const distanciaBruta = calcularDistancia(latUsuario, lonUsuario, coordsTerreiro.lat, coordsTerreiro.lng);
+        const latUsuario = posicao.coords.latitude, lonUsuario = posicao.coords.longitude;
+        const distanciaMetros = calcularDistancia(latUsuario, lonUsuario, coordsTerreiro.lat, coordsTerreiro.lng);
         
-        const margemTolerancia = Math.min(precisaoAparelho / 2, 15);
-        const distanciaEfetiva = Math.max(0, distanciaBruta - margemTolerancia);
-
-        if (distanciaEfetiva > 30) {
-            const distanciaExibida = Math.round(distanciaBruta);
-            const metrosRestantes = Math.round(distanciaBruta - 30);
-            if (msg) { 
-                msg.innerHTML = `Está a <strong>${distanciaExibida} metros</strong> do terreiro.<br>Aproxime-se mais cerca de <strong>${metrosRestantes}m</strong> para confirmar. (Limite: 30m)`; 
-                msg.className = "mt-3 text-xs md:text-sm font-semibold text-red-500 block text-center leading-relaxed"; 
-                msg.classList.remove('hidden'); 
-            }
-            restaurarBotao(btnCheckin); 
-            return;
+        if (distanciaMetros > 30) {
+            if (msg) { msg.innerHTML = `Você está muito longe do terreiro.<br>Distância atual: ${Math.round(distanciaMetros)} metros. (Máximo: 30m)`; msg.className = "mt-3 text-sm font-bold text-red-500 block"; msg.classList.remove('hidden'); }
+            restaurarBotao(btnCheckin); return;
         }
 
         const { data: { session } } = await supabaseClient.auth.getSession();
-        btnCheckin.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> A registar presença...';
+        btnCheckin.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Registrando...';
 
         const { error } = await supabaseClient.from('presencas').insert([{ 
             evento_id: idGiraGlobal, 
             usuario_id: session.user.id, 
             data_hora_checkin: new Date().toISOString(),
             localizacao_valida: true,
-            distancia_metros: Math.round(distanciaBruta)
+            distancia_metros: Math.round(distanciaMetros)
         }]);
 
         if (error) {
-            if (msg) { 
-                msg.textContent = "Erro ao registar: " + error.message; 
-                msg.className = "mt-3 text-xs md:text-sm font-bold text-red-500 block text-center"; 
-                msg.classList.remove('hidden'); 
-            }
+            if (msg) { msg.textContent = "Erro ao registrar: " + error.message; msg.className = "mt-3 text-sm font-bold text-red-500 block"; msg.classList.remove('hidden'); }
             restaurarBotao(btnCheckin);
         } else {
             const areaPonto = document.getElementById('areaBaterPonto');
@@ -942,13 +978,9 @@ function executarCheckinGPS() {
             if (horaFeito) horaFeito.textContent = new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
         }
     }, (err) => {
-        if (msg) { 
-            msg.textContent = "Não foi possível obter a sua localização. Ative a localização de alta precisão do dispositivo."; 
-            msg.className = "mt-3 text-xs md:text-sm font-bold text-red-500 block text-center"; 
-            msg.classList.remove('hidden'); 
-        }
+        if (msg) { msg.textContent = "Erro ao acessar localização. Verifique o acesso ao GPS do celular."; msg.className = "mt-3 text-sm font-bold text-red-500 block"; msg.classList.remove('hidden'); }
         restaurarBotao(btnCheckin);
-    }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
+    }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
 }
 
 if (btnCheckin) {
@@ -957,21 +989,21 @@ if (btnCheckin) {
         
         const agoraClick = new Date();
         if (hrInicioPermitidoGlobal && agoraClick < hrInicioPermitidoGlobal) {
-            if (msg) { msg.textContent = "O evento ainda não iniciou. Aguarde o horário permitido."; msg.className = "mt-3 text-xs md:text-sm font-bold text-red-500 block text-center"; msg.classList.remove('hidden'); }
+            if (msg) { msg.textContent = "A gira ainda não começou. Aguarde o horário."; msg.className = "mt-3 text-sm font-bold text-red-500 block"; msg.classList.remove('hidden'); }
             return;
         }
         if (hrFimGiraGlobal && agoraClick > hrFimGiraGlobal) {
-            if (msg) { msg.textContent = "Este evento já se encontra encerrado."; msg.className = "mt-3 text-xs md:text-sm font-bold text-red-500 block text-center"; msg.classList.remove('hidden'); }
+            if (msg) { msg.textContent = "Esta gira já foi encerrada."; msg.className = "mt-3 text-sm font-bold text-red-500 block"; msg.classList.remove('hidden'); }
             return;
         }
 
         if (!coordsTerreiro || !coordsTerreiro.lat) {
-            if (msg) { msg.textContent = "A localização do terreiro ainda não foi configurada pela direção."; msg.className = "mt-3 text-xs md:text-sm font-bold text-red-500 block text-center"; msg.classList.remove('hidden'); }
+            if (msg) { msg.textContent = "O administrador ainda não configurou o GPS do terreiro."; msg.className = "mt-3 text-sm font-bold text-red-500 block"; msg.classList.remove('hidden'); }
             return;
         }
 
         if (!navigator.geolocation) {
-            if (msg) { msg.textContent = "O seu navegador não possui suporte a GPS."; msg.className = "mt-3 text-xs md:text-sm font-bold text-red-500 block text-center"; msg.classList.remove('hidden'); }
+            if (msg) { msg.textContent = "Seu navegador não suporta GPS."; msg.className = "mt-3 text-sm font-bold text-red-500 block"; msg.classList.remove('hidden'); }
             return;
         }
 
@@ -1011,16 +1043,12 @@ if (btnFecharModalGps) {
 function restaurarBotao(btn) { 
     if (btn) { 
         btn.disabled = false; 
-        btn.innerHTML = '<i class="fas fa-map-marker-alt mr-2"></i> Confirmar Presença'; 
+        btn.innerHTML = '<i class="fas fa-map-marker-alt"></i> Confirmar Presença'; 
     } 
 }
 
 function calcularDistancia(lat1, lon1, lat2, lon2) {
-    const R = 6371e3;
-    const p1 = lat1 * Math.PI/180;
-    const p2 = lat2 * Math.PI/180;
-    const dp = (lat2-lat1) * Math.PI/180;
-    const dl = (lon2-lon1) * Math.PI/180;
+    const R = 6371e3, p1 = lat1 * Math.PI/180, p2 = lat2 * Math.PI/180, dp = (lat2-lat1) * Math.PI/180, dl = (lon2-lon1) * Math.PI/180;
     const a = Math.sin(dp/2) * Math.sin(dp/2) + Math.cos(p1) * Math.cos(p2) * Math.sin(dl/2) * Math.sin(dl/2);
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
 }
