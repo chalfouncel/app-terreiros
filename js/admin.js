@@ -2249,42 +2249,6 @@ window.salvarPagamento = async (mediumId, mes, ano, status) => {
             document.getElementById('menuFinanceiro')?.click(); 
         };
 
-    // Ao mexer no checkbox, tira qualquer isenção que houvesse e força como lançamento manual
-    const { error } = await supabaseClient.from('financeiro').upsert({ 
-        medium_id: mediumId, 
-        mes: mes, 
-        ano: ano, 
-        pago: status,
-        isento: false,
-        origem: 'manual' 
-    }, { onConflict: 'medium_id,mes,ano' });
-    
-    if(error) { 
-        alert('Erro: ' + error.message); 
-        document.getElementById('menuFinanceiro')?.click(); 
-    } else {
-        document.getElementById('menuFinanceiro')?.click(); // Força o refresh pra atualizar cores
-    }
-};
-
-window.toggleIsentoMes = async (event, mediumId, mes, ano) => {
-    event.preventDefault(); // Impede o menu do navegador de abrir
-    
-    if(!confirm(`Deseja ISENTAR/ANISTIAR este médium da mensalidade do mês ${mes}/${ano}?`)) return;
-    
-    const { error } = await supabaseClient.from('financeiro').upsert({ 
-        medium_id: mediumId, 
-        mes: mes, 
-        ano: ano, 
-        pago: false, // Isenção não é pagamento efetivo
-        isento: true, 
-        origem: 'manual' 
-    }, { onConflict: 'medium_id,mes,ano' });
-    
-    if(error) alert('Erro: ' + error.message);
-    else document.getElementById('menuFinanceiro')?.click(); // Recarrega tela pra pintar de roxo
-};
-
 window.aprovarComprovante = async (comprovanteId) => {
     if (!confirm("Aprovar este comprovante? Os meses associados serão marcados como pagos e o documento será arquivado.")) return;
 
