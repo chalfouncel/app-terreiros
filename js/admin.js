@@ -1121,85 +1121,133 @@ document.addEventListener('DOMContentLoaded', async () => {
             const anoBusca = ano || parseInt(document.getElementById('selectAnoFinanceiro').value);
             
             const tbody = document.getElementById('tabelaFinanceiro');
+            const dashboard = document.getElementById('cardsMesesFinanceiro');
             if (!tbody) return;
-            tbody.innerHTML = '<tr><td colspan="14" class="p-6 text-center text-gray-500">Buscando histórico...</td></tr>';
             
-            // Passo 3: Buscar a coluna de isenção permanente do médium, caso você crie futuramente no banco.
+            tbody.innerHTML = '<tr><td colspan="14" class="p-6 text-center text-gray-500">A procurar histórico...</td></tr>';
+            if(dashboard) dashboard.innerHTML = '<div class="col-span-full p-6 text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>A calcular métricas...</div>';
+            
             const { data: mediuns } = await supabaseClient.from('mediuns')
-                .select('id, nome_completo, nome_social, isento_mensalidade') 
+                .select('id, nome_completo, nome_social, isento_mensalidade, created_at, grau') 
                 .eq('terreiro_id', idTerreiroGlobal)
                 .neq('nome_completo', 'Administrador Sistema')
                 .order('nome_completo');
 
             if(!mediuns || mediuns.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="14" class="p-6 text-center text-gray-500">Nenhum médium cadastrado neste terreiro.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="14" class="p-6 text-center text-gray-500">Nenhum médium registado.</td></tr>';
+                if(dashboard) dashboard.innerHTML = '';
                 return;
             }
 
-            const idsMediunsDesteTerreiro = mediuns.map(m => m.id);
+            const idsMediuns = mediuns.map(m => m.id);
 
-            // Passo 2: Puxamos também as colunas isento e origem da tabela financeiro
             const { data: pgtos } = await supabaseClient.from('financeiro')
                 .select('medium_id, mes, ano, pago, isento, origem')
                 .eq('ano', anoBusca)
-                .in('medium_id', idsMediunsDesteTerreiro);
+                .in('medium_id', idsMediuns);
+
+            const { data: configs } = await supabaseClient.from('config_mensalidades')
+                .select('grau, valor')
+                .eq('terreiro_id', idTerreiroGlobal);
+                
+            const valorPorGrau = {};
+            if (configs) configs.forEach(c => valorPorGrau[c.grau] = parseFloat(c.valor) || 0);
+            
+            const statsMeses = Array.from({ length: 12 }, () => ({
+                arrecadado: 0, totalMediuns: 0, adimplentes: 0, inadimplentes: 0
+            }));
             
             tbody.innerHTML = '';
-            
+            const mesAtual = new Date().getMonth() + 1; 
+            const anoAtual = new Date().getFullYear();
+
             mediuns.forEach(m => {
                 const meusPgtos = pgtos ? pgtos.filter(p => p.medium_id === m.id) : [];
                 let htmlMeses = ''; let emDia = true;
-                const mesAtual = new Date().getMonth() + 1; const anoAtual = new Date().getFullYear();
+                
+                const dataIngresso = m.created_at ? new Date(m.created_at) : new Date('2000-01-01');
+                const mesIngresso = dataIngresso.getMonth() + 1;
+                const anoIngresso = dataIngresso.getFullYear();
 
                 for (let i = 1; i <= 12; i++) {
                     const pgto = meusPgtos.find(p => p.mes === i);
                     
-                    // Tratamento de Isenção (Global no Medium ou Pontual no Mês)
-                    const isentoAnual = m.isento_mensalidade === true;
-                    const isentoMensal = pgto ? pgto.isento : false;
-                    const isIsento = isentoAnual || isentoMensal;
-                    
+                    const isAntesDoIngresso = (anoBusca < anoIngresso) || (anoBusca === anoIngresso && i < mesIngresso);
+                    const isIsento = m.isento_mensalidade === true || (pgto ? pgto.isento : false);
                     const pago = pgto ? pgto.pago : false;
                     const origem = pgto ? pgto.origem : null;
-
                     const passou = (anoBusca < anoAtual) || (anoBusca === anoAtual && i < mesAtual);
                     
-                    // Se estiver isento, conta como em dia. Se não estiver isento e não pagou o mês passado, fica pendente.
-                    if (passou && !pago && !isIsento) emDia = false; 
+                    if (passou && !pago && !isIsento && !isAntesDoIngresso) emDia = false; 
 
-                    let corCheck = '';
-                    let titleStr = '';
-                    let checkedStr = '';
-
-                    // Lógica de Cores Inteligente
-                    if (isIsento) {
-                        checkedStr = 'checked';
-                        corCheck = 'accent-color: #a855f7;'; // Roxo (Isento)
-                        titleStr = isentoAnual ? 'Isento (Permanente)' : 'Isento (Mês Específico) - Clique p/ desfazer';
-                    } else if (pago && origem === 'pix_sistema') {
-                        checkedStr = 'checked';
-                        corCheck = 'accent-color: #3b82f6;'; // Azul (PIX Automático)
-                        titleStr = 'Pago via PIX (Sistema)';
-                    } else if (pago) {
-                        checkedStr = 'checked';
-                        corCheck = 'accent-color: #16a34a;'; // Verde (Manual)
-                        titleStr = 'Pago (Manual)';
-                    } else {
-                        titleStr = 'Pendente (Clique Esq. p/ Pagar | Clique Dir. p/ Isentar)';
+                    if (!isAntesDoIngresso) {
+                        statsMeses[i-1].totalMediuns++;
+                        if (isIsento || pago) {
+                            statsMeses[i-1].adimplentes++;
+                            if (pago) statsMeses[i-1].arrecadado += valorPorGrau[m.grau] || 0;
+                        } else if (passou) {
+                            statsMeses[i-1].inadimplentes++;
+                        }
                     }
 
-                    // A mágica acontece no oncontextmenu (Botão direito do Mouse ou Long Press no celular)
+                    let corCheck = '', titleStr = '', checkedStr = '', disabledStr = '';
+
+                    if (isAntesDoIngresso) {
+                        checkedStr = 'checked'; disabledStr = 'disabled';
+                        corCheck = 'accent-color: #9ca3af; opacity: 0.4; cursor: not-allowed;'; 
+                        titleStr = 'Anterior ao ingresso';
+                    } else if (isIsento) {
+                        checkedStr = 'checked'; corCheck = 'accent-color: #a855f7;'; 
+                        titleStr = 'Isento (Botão direito p/ desfazer)';
+                    } else if (pago && origem === 'pix_sistema') {
+                        checkedStr = 'checked'; corCheck = 'accent-color: #3b82f6;'; 
+                        titleStr = 'Pago via PIX (Sistema)';
+                    } else if (pago) {
+                        checkedStr = 'checked'; corCheck = 'accent-color: #16a34a;'; 
+                        titleStr = 'Pago (Manual)';
+                    } else {
+                        titleStr = 'Pendente (Esq. Pagar | Dir. Isentar)';
+                    }
+
                     htmlMeses += `<td class="py-1 px-1 border-b border-gray-100">
-                        <input type="checkbox" ${checkedStr} style="${corCheck}" title="${titleStr}" class="w-4 h-4 cursor-pointer" 
+                        <input type="checkbox" ${checkedStr} ${disabledStr} style="${corCheck}" title="${titleStr}" class="w-4 h-4 cursor-pointer" 
                         onchange="salvarPagamento(${m.id}, ${i}, ${anoBusca}, this.checked)"
-                        oncontextmenu="toggleIsentoMes(event, ${m.id}, ${i}, ${anoBusca})">
+                        oncontextmenu="toggleIsentoMes(event, ${m.id}, ${i}, ${anoBusca}, ${isAntesDoIngresso})">
                     </td>`;
                 }
                 const statusHtml = emDia ? '<span class="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded">Em Dia</span>' : '<span class="bg-red-100 text-red-700 text-xs font-bold px-2 py-1 rounded">Pendente</span>';
-                const nomeStr = m.nome_completo;
-
-                tbody.innerHTML += `<tr class="hover:bg-gray-50"><td class="py-2 px-3 border-b border-gray-100 text-left font-medium text-gray-800 text-xs truncate max-w-[220px]">${nomeStr}</td>${htmlMeses}<td class="py-2 px-2 border-b border-gray-100 bg-gray-50">${statusHtml}</td></tr>`;
+                tbody.innerHTML += `<tr class="hover:bg-gray-50"><td class="py-2 px-3 border-b border-gray-100 text-left font-medium text-gray-800 text-xs truncate max-w-[220px]" title="Ingresso: ${dataIngresso.toLocaleDateString('pt-BR')}">${m.nome_completo}</td>${htmlMeses}<td class="py-2 px-2 border-b border-gray-100 bg-gray-50">${statusHtml}</td></tr>`;
             });
+
+            if(dashboard) {
+                dashboard.innerHTML = '';
+                const nomesMeses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+                
+                statsMeses.forEach((stat, index) => {
+                    const progresso = stat.totalMediuns > 0 ? Math.round((stat.adimplentes / stat.totalMediuns) * 100) : 0;
+                    let corProgresso = progresso < 50 ? 'bg-red-500' : (progresso < 80 ? 'bg-yellow-500' : 'bg-green-500');
+                    const valFmt = stat.arrecadado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    
+                    dashboard.innerHTML += `
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-3 hover:shadow-md transition">
+                            <h4 class="text-xs font-black text-gray-700 uppercase mb-2 border-b pb-1">${nomesMeses[index]}</h4>
+                            <p class="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-0.5">Arrecadado</p>
+                            <p class="text-lg font-black text-green-600 leading-none mb-3">${valFmt}</p>
+                            
+                            <div class="flex justify-between items-center text-[10px] text-gray-600 mb-1 font-bold">
+                                <span>Adimplentes</span><span>${stat.adimplentes} / ${stat.totalMediuns}</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-1.5 mb-2">
+                                <div class="${corProgresso} h-1.5 rounded-full" style="width: ${progresso}%"></div>
+                            </div>
+                            <div class="flex justify-between items-center text-[10px]">
+                                <span class="text-gray-500">Inadimplentes:</span>
+                                <span class="font-bold ${stat.inadimplentes > 0 ? 'text-red-500' : 'text-gray-600'}">${stat.inadimplentes}</span>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
         }
 
         if(document.getElementById('selectAnoFinanceiro')) document.getElementById('selectAnoFinanceiro').addEventListener('change', (e) => carregarFinanceiro(parseInt(e.target.value)));
@@ -2180,11 +2228,26 @@ window.salvarGrau = async (id) => {
 };
 
 window.salvarPagamento = async (mediumId, mes, ano, status) => {
-    const mediumValido = listaMediunsGlobal.some(m => m.id === mediumId) || mediunsGrauCache.some(m => m.id === mediumId);
-    if (!mediumValido && listaMediunsGlobal.length > 0) {
-        alert('Ação bloqueada: Este médium não pertence ao seu terreiro.');
-        return document.getElementById('menuFinanceiro')?.click();
-    }
+            const { error } = await supabaseClient.from('financeiro').upsert({ 
+                medium_id: mediumId, mes: mes, ano: ano, pago: status, isento: false, origem: 'manual' 
+            }, { onConflict: 'medium_id,mes,ano' });
+            
+            if(error) alert('Erro: ' + error.message); 
+            document.getElementById('menuFinanceiro')?.click(); 
+        };
+
+        window.toggleIsentoMes = async (event, mediumId, mes, ano, bloqueado) => {
+            event.preventDefault(); 
+            if (bloqueado) return;
+            if(!confirm(`Deseja ISENTAR este médium do mês ${mes}/${ano}?`)) return;
+            
+            const { error } = await supabaseClient.from('financeiro').upsert({ 
+                medium_id: mediumId, mes: mes, ano: ano, pago: false, isento: true, origem: 'manual' 
+            }, { onConflict: 'medium_id,mes,ano' });
+            
+            if(error) alert('Erro: ' + error.message);
+            document.getElementById('menuFinanceiro')?.click(); 
+        };
 
     // Ao mexer no checkbox, tira qualquer isenção que houvesse e força como lançamento manual
     const { error } = await supabaseClient.from('financeiro').upsert({ 
