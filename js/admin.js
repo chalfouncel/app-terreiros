@@ -960,7 +960,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             carregarHistoricoComprovantes();
         };
 
-        async function carregarComprovantesPendentes() {
+       async function carregarComprovantesPendentes() {
             if (!idTerreiroGlobal) return;
             const listaCards = document.getElementById('listaComprovantesPendentes');
             if (!listaCards) return;
@@ -973,7 +973,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     .select('*')
                     .eq('terreiro_id', idTerreiroGlobal)
                     .eq('status', 'pendente')
-                    .order('criado_em', { ascending: true });
+                    .order('created_at', { ascending: true }); // <--- CORRIGIDO AQUI
 
                 if (error) throw error;
 
@@ -1005,7 +1005,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
 
                     const valFmt = Number(comp.valor_total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                    const dataEnvio = new Date(comp.criado_em).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+                    // <--- CORRIGIDO AQUI EMBAIXO TAMBÉM (comp.created_at)
+                    const dataEnvio = new Date(comp.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
                     const card = `
                         <div class="bg-white p-5 rounded-2xl shadow-sm border border-yellow-200 border-t-4 hover:shadow-md transition">
@@ -1051,7 +1052,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     .select('*')
                     .eq('terreiro_id', idTerreiroGlobal)
                     .neq('status', 'pendente')
-                    .order('data_avaliacao', { ascending: false, nullsFirst: false })
+                    .order('created_at', { ascending: false }) // <--- GARANTINDO QUE USE A COLUNA CERTA AQUI TAMBÉM
                     .limit(20);
 
                 if (error) throw error;
