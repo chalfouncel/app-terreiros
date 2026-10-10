@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Painel Admin - Templo</title>
     
     <!-- PWA Meta Tags -->
@@ -1132,7 +1132,8 @@
                     <i class="fas fa-spinner fa-spin text-4xl text-gray-400 mb-2"></i>
                     <span class="text-sm text-gray-500 font-bold">Carregando imagem...</span>
                 </div>
-                <iframe id="frameComprovante" class="w-full h-full border-0 relative z-10" onload="document.getElementById('loaderComprovante').classList.add('hidden')" src=""></iframe>
+                <iframe id="frameComprovante" class="hidden w-full h-full border-0 relative z-10" onload="document.getElementById('loaderComprovante').classList.add('hidden')" src=""></iframe>
+                <img id="imgComprovante" class="hidden max-w-full max-h-full object-contain relative z-10 cursor-zoom-in rounded shadow-md" src="" onload="document.getElementById('loaderComprovante').classList.add('hidden')" onclick="this.classList.toggle('object-contain'); this.classList.toggle('max-w-full'); this.classList.toggle('max-h-full'); this.classList.toggle('cursor-zoom-in'); this.classList.toggle('cursor-zoom-out');" style="transition: all 0.3s ease;">
             </div>
             
             <div class="p-4 border-t flex flex-col sm:flex-row gap-3 shrink-0 bg-white" id="modalComprovanteAcoes">
