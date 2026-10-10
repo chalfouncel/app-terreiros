@@ -24,7 +24,9 @@
         .bg-tema-primaria { background-color: var(--cor-primaria) !important; }
         .text-tema-primaria { color: var(--cor-primaria) !important; }
         .bg-tema-secundaria { background-color: var(--cor-secundaria) !important; }
+        .text-tema-secundaria { color: var(--cor-secundaria) !important; }
         .border-tema-primaria { border-color: var(--cor-primaria) !important; }
+        .border-tema-secundaria { border-color: var(--cor-secundaria) !important; }
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center p-4 transition-colors duration-300">
@@ -37,7 +39,7 @@
     </div>
 
     <!-- Container Principal do Check-in -->
-    <main class="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden border-t-4 border-tema-primaria">
+    <main class="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden border-t-4 border-tema-primaria relative">
         
         <!-- Estado 1: Sem Gira -->
         <div id="estadoSemGira" class="p-8 text-center hidden">
@@ -57,13 +59,19 @@
                 <p id="horarioGira" class="text-gray-500 text-sm mt-1"><i class="far fa-clock"></i> 00:00 às 00:00</p>
             </div>
 
-            <!-- Botão de Check-in e Doação -->
+            <!-- Botões de Ação (Check-in, Mensalidade, Doação) -->
             <div id="areaBaterPonto" class="text-center">
                 <p class="text-sm text-gray-600 mb-4 px-2">Confirme sua presença no terreiro clicando no botão abaixo. O uso do GPS é obrigatório.</p>
                 <button id="btnCheckin" class="w-full bg-tema-primaria text-white text-lg font-bold py-4 rounded-xl shadow-lg hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2 mb-3">
                     <i class="fas fa-map-marker-alt"></i> Confirmar Presença
                 </button>
-                <button id="btnAbrirDoacao" class="w-full flex items-center justify-center py-3 px-4 border-2 border-tema-primaria rounded-xl shadow-sm text-lg font-bold text-tema-primaria bg-white hover:bg-gray-50 transition-all active:scale-95">
+                
+                <!-- NOVO: Botão de Mensalidades (Ficará Oculto caso o Terreiro não ative o Módulo) -->
+                <button id="btnAbrirMensalidade" class="hidden w-full items-center justify-center py-3 px-4 border-2 border-tema-secundaria rounded-xl shadow-sm text-lg font-bold text-tema-secundaria bg-white hover:bg-green-50 transition-all active:scale-95 mb-3">
+                    <i class="fas fa-file-invoice-dollar mr-2"></i> Mensalidade / Tesouraria
+                </button>
+
+                <button id="btnAbrirDoacao" class="w-full flex items-center justify-center py-3 px-4 border-2 border-tema-primaria rounded-xl shadow-sm text-lg font-bold text-tema-primaria bg-white hover:bg-blue-50 transition-all active:scale-95">
                     <i class="fas fa-heart text-red-500 mr-2"></i> Fazer uma Doação
                 </button>
                 <p id="msgCheckin" class="mt-3 text-sm font-bold hidden"></p>
@@ -78,7 +86,12 @@
                 <p class="text-gray-500 text-sm mt-2">Sua chegada foi registrada às <span id="horaCheckinFeito" class="font-bold">--:--</span>.</p>
                 <p class="text-gray-500 text-sm mb-6">Bom trabalho espiritual!</p>
                 
-                <button id="btnAbrirDoacaoSucesso" class="w-full flex items-center justify-center py-3 px-4 border-2 border-tema-primaria rounded-xl shadow-sm text-lg font-bold text-tema-primaria bg-white hover:bg-gray-50 transition-all active:scale-95">
+                <!-- Re-render do botão mensalidade caso já tenha feito check-in -->
+                <button id="btnAbrirMensalidadeSucesso" class="hidden w-full items-center justify-center py-3 px-4 border-2 border-tema-secundaria rounded-xl shadow-sm text-lg font-bold text-tema-secundaria bg-white hover:bg-green-50 transition-all active:scale-95 mb-3">
+                    <i class="fas fa-file-invoice-dollar mr-2"></i> Mensalidade / Tesouraria
+                </button>
+
+                <button id="btnAbrirDoacaoSucesso" class="w-full flex items-center justify-center py-3 px-4 border-2 border-tema-primaria rounded-xl shadow-sm text-lg font-bold text-tema-primaria bg-white hover:bg-blue-50 transition-all active:scale-95">
                     <i class="fas fa-heart text-red-500 mr-2"></i> Fazer uma Doação
                 </button>
             </div>
@@ -99,7 +112,85 @@
         </button>
     </div>
 
+    <!-- ============================================== -->
+    <!-- MODAL DE MENSALIDADE (CARRINHO E PIX) -->
+    <!-- ============================================== -->
+    <div id="modalMensalidade" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50 transition-opacity">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 text-center transform scale-95 transition-all flex flex-col max-h-[95vh]">
+            
+            <div class="flex-shrink-0">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-xl font-black text-gray-800 tracking-tight flex items-center">
+                        <i class="fas fa-file-invoice-dollar text-tema-secundaria mr-2 text-2xl"></i> Mensalidade
+                    </h3>
+                    <button id="btnFecharMensalidadeSuperior" class="text-gray-400 hover:text-gray-800 p-1 active:scale-90"><i class="fas fa-times text-xl"></i></button>
+                </div>
+                
+                <!-- Seleção de Ano -->
+                <div class="bg-gray-50 border border-gray-200 rounded-xl p-3 flex justify-between items-center mb-4">
+                    <span class="text-xs font-bold text-gray-600 uppercase">Referência:</span>
+                    <select id="selectAnoMensalidade" class="bg-white border border-gray-300 rounded-lg px-3 py-1 font-bold text-gray-800 text-sm outline-none focus:ring-2 focus:ring-tema-secundaria shadow-sm">
+                        <!-- Gerado via JS (Anos: Atual, Anterior, Próximo) -->
+                    </select>
+                </div>
+            </div>
+
+            <!-- Lista de Meses e Adição de Outros Médiuns (Scrollável) -->
+            <div class="flex-1 overflow-y-auto text-left mb-4 pr-1">
+                
+                <!-- Container onde será gerado o(s) bloco(s) de cobrança -->
+                <div id="containerCarrinhoMensalidades" class="space-y-4">
+                    <p class="text-center text-gray-500 text-sm py-4"><i class="fas fa-spinner fa-spin mr-2"></i> Carregando meses...</p>
+                </div>
+
+                <!-- Botão Adicionar Familiar/Médium -->
+                <div class="mt-4 pt-4 border-t border-dashed border-gray-300 text-center">
+                    <button id="btnAdicionarOutroMedium" class="text-xs font-bold text-tema-secundaria hover:text-green-800 bg-green-50 hover:bg-green-100 py-2 px-4 rounded-xl transition border border-green-200 shadow-sm inline-flex items-center gap-1 active:scale-95">
+                        <i class="fas fa-user-plus"></i> Adicionar mensalidade de outro Médium
+                    </button>
+                    <!-- Campo de Busca que aparece ao clicar acima -->
+                    <div id="boxBuscaOutroMedium" class="hidden mt-3">
+                        <input type="text" id="buscaOutroMedium" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:border-tema-secundaria mb-2 shadow-inner" placeholder="Digite o nome para buscar...">
+                        <ul id="resultadoBuscaOutroMedium" class="bg-white border border-gray-200 rounded-lg shadow-md max-h-32 overflow-y-auto text-left divide-y divide-gray-100"></ul>
+                    </div>
+                </div>
+                
+                <!-- Área de Pagamento (PIX Estático) -->
+                <div id="boxPagamentoManual" class="hidden mt-6 bg-gray-50 border border-gray-200 rounded-2xl p-4 text-center">
+                    <p class="text-xs text-gray-500 uppercase font-bold mb-1 tracking-wider">Chave PIX (Tesouraria)</p>
+                    <p id="chavePixMensalidade" class="text-lg font-mono font-black text-gray-800 break-all mb-3">Carregando...</p>
+                    <button id="btnCopiarPixMensalidade" class="w-full bg-gray-800 text-white font-bold py-2.5 px-4 rounded-xl hover:bg-gray-700 transition flex items-center justify-center shadow-sm active:scale-95 text-xs mb-4">
+                        <i class="fas fa-copy mr-2 text-tema-secundaria"></i> Copiar Chave
+                    </button>
+
+                    <div class="text-left border-t border-gray-200 pt-4">
+                        <label class="block text-xs font-bold text-gray-700 mb-2"><i class="fas fa-receipt mr-1 text-gray-400"></i> Anexar Comprovativo do PIX</label>
+                        <input type="file" id="arquivoComprovanteMensalidade" accept="image/*,.pdf" class="block w-full text-[10px] text-gray-500 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-green-100 file:text-green-700 hover:file:bg-green-200 cursor-pointer border border-gray-300 rounded-xl p-1 bg-white">
+                        <p class="text-[10px] text-gray-400 mt-1">Formatos aceites: Imagens (JPG, PNG) ou PDF.</p>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Rodapé Fixo de Total e Checkout -->
+            <div class="flex-shrink-0 pt-4 border-t border-gray-200 bg-white">
+                <div class="flex justify-between items-end mb-3 px-1">
+                    <span class="text-sm font-bold text-gray-500 uppercase tracking-wider">Total a Pagar</span>
+                    <span class="text-3xl font-black text-gray-900 leading-none">R$ <span id="valorTotalMensalidade">0,00</span></span>
+                </div>
+
+                <button id="btnFinalizarMensalidade" class="w-full bg-tema-secundaria text-white font-bold py-4 px-4 rounded-xl hover:bg-green-700 transition flex items-center justify-center shadow-lg active:scale-95 text-base opacity-50 cursor-not-allowed" disabled>
+                    Selecionar Meses
+                </button>
+                <p id="msgErroMensalidade" class="text-xs font-bold text-red-600 mt-2 hidden text-center"></p>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ============================================== -->
     <!-- Modal de Doação -->
+    <!-- ============================================== -->
     <div id="modalDoacao" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 transition-opacity">
         <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 text-center transform scale-95 transition-all flex flex-col max-h-[90vh]">
             
@@ -112,7 +203,6 @@
 
                 <div class="bg-gray-100 p-3 rounded-xl mb-4 relative border border-gray-200">
                     <p class="text-[10px] text-gray-500 font-bold uppercase mb-1">Doação Livre (PIX)</p>
-                    <!-- Substitua o e-mail abaixo pelo pix real do terreiro -->
                     <p id="chavePix" class="text-base font-mono font-bold text-gray-800 break-all">ciccantinho@gmail.com</p>
                     <button id="btnCopiarPix" class="mt-2 w-full bg-gray-800 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-700 transition flex items-center justify-center shadow-sm active:scale-95 text-sm">
                         <i class="fas fa-copy mr-2"></i> Copiar Chave
@@ -122,12 +212,11 @@
                 <h4 class="font-bold text-gray-700 mb-2 border-b pb-1 text-sm text-left">Ou escolha itens para doar:</h4>
             </div>
 
-            <!-- Lista de Itens Dinâmica (Scrollável) -->
+            <!-- Lista de Itens Dinâmica -->
             <div class="flex-1 overflow-y-auto text-left mb-4 pr-1 space-y-1" id="listaItensDoacao">
                 <p class="text-center text-gray-500 text-sm py-4"><i class="fas fa-spinner fa-spin mr-2"></i> Carregando itens...</p>
             </div>
 
-            <!-- Botões Inferiores -->
             <div class="flex-shrink-0 pt-2 border-t border-gray-100">
                 <button id="btnConfirmarDoacao" class="hidden w-full bg-green-600 text-white font-bold py-3 px-4 rounded-xl hover:bg-green-700 transition flex items-center justify-center shadow-md active:scale-95 mb-3">
                     <i class="fas fa-check-circle mr-2"></i> Registrar Doação (<span id="qtdTotalDoacao">0</span>)
@@ -140,11 +229,10 @@
         </div>
     </div>
 
-    <!-- NOVO: Modal Educativo de Permissão de GPS -->
+    <!-- Modal Educativo de Permissão de GPS -->
     <div id="modalPermissaoGPS" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-[60] transition-opacity">
         <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 text-center transform scale-95 transition-all flex flex-col">
             
-            <!-- Estado 1: Preparando o usuário para o aviso do navegador -->
             <div id="gpsEstadoPrompt" class="hidden">
                 <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
                     <i class="fas fa-location-arrow text-3xl text-blue-600"></i>
@@ -156,7 +244,6 @@
                 </button>
             </div>
 
-            <!-- Estado 2: Instruções de como desbloquear se a pessoa já bloqueou antes -->
             <div id="gpsEstadoNegado" class="hidden">
                 <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
                     <i class="fas fa-lock text-3xl text-red-500"></i>
