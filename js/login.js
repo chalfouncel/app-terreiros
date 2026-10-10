@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const msgErro = document.getElementById('msgErro');
     const btnEntrar = document.getElementById('btnEntrar');
 
-    // 1. Verifica se já existe sessão ativa ao carregar
+    // 1. Verifica se já existe sessão ativa
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (session) {
         await rotearUsuarioLogado(session.user.id);
@@ -18,40 +18,66 @@ document.addEventListener('DOMContentLoaded', async () => {
             const senhaInput = document.getElementById('senha').value.trim();
 
             btnEntrar.disabled = true;
-            btnEntrar.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Entrando...';
+            btnEntrar.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> A entrar...';
             if (msgErro) msgErro.classList.add('hidden');
 
             try {
                 let emailLogin = loginInput;
                 let idNumerico = null;
 
-                // Identifica se é ID numérico (ex: 149)
+                // Se o utilizador introduziu um ID numérico (ex: 149)
                 if (!loginInput.includes('@')) {
                     idNumerico = parseInt(loginInput.replace(/\D/g, ''));
-                    emailLogin = `${idNumerico}@app-terreiros.local`;
+                    if (isNaN(idNumerico)) throw new Error('Identificação inválida.');
+                    emailLogin = `id_${idNumerico}@templo.app`;
                 }
 
-                // Tenta login direto
+                // Tenta autenticação direta
                 let { data, error } = await supabaseClient.auth.signInWithPassword({
                     email: emailLogin,
                     password: senhaInput
                 });
 
-                // Se falhou e for o primeiro acesso com a senha padrão 123456[cite: 14]
+                // Se falhar e for o primeiro acesso com a palavra-passe padrão 123456
                 if (error && idNumerico && senhaInput === '123456') {
-                    // Cria a credencial no Auth com auto-confirmação
+                    // Verifica se a ficha do médium existe na tabela mediuns
+                    const { data: fichaMedium, error: errFicha } = await supabaseClient
+                        .from('mediuns')
+                        .select('id, cadastro_completo')
+                        .eq('id', idNumerico)
+                        .maybeSingle();
+
+                    if (errFicha || !fichaMedium) {
+                        throw new Error(`O ID ${idNumerico} não foi encontrado no sistema.`);
+                    }
+
+                    // Cria o registo no Supabase Auth para este médium
                     const { data: signUpData, error: signUpError } = await supabaseClient.auth.signUp({
                         email: emailLogin,
                         password: '123456'
                     });
 
-                    if (!signUpError && signUpData.user) {
-                        data = { user: signUpData.user };
-                        error = null;
-                    } else if (signUpError && signUpError.message.includes('already registered')) {
-                        throw new Error('ID ou senha incorretos.');
-                    } else if (signUpError) {
+                    if (signUpError) {
+                        // Se já existia conta no Auth mas a palavra-passe 123456 falhou
+                        if (signUpError.message.includes('already registered')) {
+                            throw new Error('A sua palavra-passe padrão já foi alterada. Utilize a sua palavra-passe definitiva.');
+                        }
                         throw signUpError;
+                    }
+
+                    // Se a conta foi criada ou requer sessão imediata
+                    if (signUpData.session) {
+                        data = signUpData;
+                        error = null;
+                    } else {
+                        // Faz login imediato com a conta recém-criada
+                        const loginPosCadastro = await supabaseClient.auth.signInWithPassword({
+                            email: emailLogin,
+                            password: '123456'
+                        });
+                        if (loginPosCadastro.error) throw loginPosCadastro.error;
+                        data = loginPosCadastro.data;
+                        error = null;
                     }
                 }
 
@@ -69,7 +95,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 console.error("Erro no login:", err);
                 if (msgErro) {
                     msgErro.textContent = err.message.includes('Invalid login') 
-                        ? 'ID ou senha incorretos.' 
+                        ? 'ID ou palavra-passe incorretos.' 
                         : (err.message || 'Erro ao realizar login.');
                     msgErro.classList.remove('hidden');
                 }
@@ -84,14 +110,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             let idBusca = idNumericoForcado || localStorage.getItem('medium_id');
 
-            // 1. Busca pelo auth_id
+            // 1. Tenta buscar pelo auth_id
             let { data: perfil } = await supabaseClient
                 .from('mediuns')
                 .select('id, cadastro_completo, auth_id, is_admin, is_master')
                 .eq('auth_id', authId)
                 .maybeSingle();
 
-            // 2. Se não achou por auth_id, busca por ID numérico e vincula
+            // 2. Se não encontrou pelo auth_id, busca pelo ID numérico e vincula
             if (!perfil && idBusca) {
                 const { data: perfilPorId } = await supabaseClient
                     .from('mediuns')
@@ -119,7 +145,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 window.location.replace('admin.html');
             }
         } catch (e) {
-            console.error("Erro ao rotear:", e);
+            console.error("Erro ao rotear utilizador:", e);
             window.location.replace('cadastro.html');
         }
     }
