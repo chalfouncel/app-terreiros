@@ -691,7 +691,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (btnFinalizarMensalidade) {
                 btnFinalizarMensalidade.disabled = false;
                 btnFinalizarMensalidade.classList.remove('opacity-50', 'cursor-not-allowed');
-                btnFinalizarMensalidade.innerHTML = `<i class="fas fa-check-circle mr-2"></i> Enviar Comprovativo (R$ ${totalGeral.toFixed(2).replace('.', ',')})`;
+                btnFinalizarMensalidade.innerHTML = `<i class="fas fa-check-circle mr-2"></i> Enviar Comprovante (R$ ${totalGeral.toFixed(2).replace('.', ',')})`;
             }
         } else {
             if (boxPagamentoManual) boxPagamentoManual.classList.add('hidden');
@@ -833,7 +833,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         btnFinalizarMensalidade.addEventListener('click', async () => {
             if (!arquivoComprovanteMensalidade || arquivoComprovanteMensalidade.files.length === 0) {
                 if (msgErroMensalidade) {
-                    msgErroMensalidade.textContent = "Por favor, anexe a foto ou PDF do comprovativo do PIX antes de enviar.";
+                    msgErroMensalidade.textContent = "Por favor, anexe a foto ou PDF do comprovante do PIX antes de enviar.";
                     msgErroMensalidade.classList.remove('hidden');
                 }
                 return;
@@ -841,7 +841,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             const originalBtnText = btnFinalizarMensalidade.innerHTML;
             btnFinalizarMensalidade.disabled = true;
-            btnFinalizarMensalidade.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Enviando comprovativo...';
+            btnFinalizarMensalidade.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Enviando comprovante...';
             if (msgErroMensalidade) msgErroMensalidade.classList.add('hidden');
 
             try {
@@ -885,7 +885,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 if (errIns) throw errIns;
 
-                alert("✅ Comprovativo enviado com sucesso para a Tesouraria! A administração fará a validação em breve.");
+                alert("✅ Comprovante enviado com sucesso para a Tesouraria! A administração fará a validação em breve.");
                 fecharModalMensalidade();
 
             } catch (error) {
