@@ -1115,14 +1115,32 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.abrirModalVerComprovante = (id, url, subtitulo) => {
             window.comprovanteAtualId = id;
             document.getElementById('modalComprovanteSubtitulo').textContent = subtitulo;
-            const frame = document.getElementById('frameComprovante');
-            document.getElementById('loaderComprovante').classList.remove('hidden');
             
-            // Força a renderização se for PDF num mobile ou iframe genérico
+            const frame = document.getElementById('frameComprovante');
+            const img = document.getElementById('imgComprovante');
+            const loader = document.getElementById('loaderComprovante');
+            
+            loader.classList.remove('hidden');
+            
+            // Esconde ambos inicialmente
+            if(frame) frame.classList.add('hidden');
+            if(img) img.classList.add('hidden');
+            
+            // Se for PDF, usa o Iframe
             if(url.toLowerCase().endsWith('.pdf')) {
-                frame.src = `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
+                if(frame) {
+                    frame.src = `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
+                    frame.classList.remove('hidden');
+                }
             } else {
-                frame.src = url;
+                // Se for Imagem, usa a tag IMG (que permite o zoom corretamente)
+                if(img) {
+                    img.src = url;
+                    img.classList.remove('hidden');
+                } else if(frame) { 
+                    frame.src = url;
+                    frame.classList.remove('hidden');
+                }
             }
             
             document.getElementById('modalVerComprovante').classList.remove('hidden');
@@ -1130,7 +1148,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         window.fecharModalVerComprovante = () => {
             document.getElementById('modalVerComprovante').classList.add('hidden');
-            document.getElementById('frameComprovante').src = '';
+            const frame = document.getElementById('frameComprovante');
+            const img = document.getElementById('imgComprovante');
+            
+            if(frame) frame.src = '';
+            if(img) img.src = '';
             window.comprovanteAtualId = null;
         };
 
