@@ -645,7 +645,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             try {
                 const { data, error } = await supabaseClient
                     .from('mediuns')
-                    .select('id, nome_completo, nome_social, data_nascimento, grau, funcao, telefone, palavra, cadastro_completo, is_admin, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin, perm_visao_geral, perm_ata, status_ativo, isento_mensalidade, created_at')
+                    .select('id, nome_completo, nome_social, data_nascimento, grau, funcao, telefone, palavra, cadastro_completo, is_admin, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin, perm_visao_geral, perm_ata, status_ativo, isento_mensalidade')
                     .eq('terreiro_id', idTerreiroGlobal)
                     .neq('nome_completo', 'Administrador Sistema')
                     .order('nome_completo');
@@ -954,6 +954,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
 
+        // ========================================================
+        // NOVO: VALIDADOR DE PAGAMENTOS (PIX MANUAL)
+        // ========================================================
         window.carregarValidadorPagamentos = () => {
             carregarComprovantesPendentes();
             carregarHistoricoComprovantes();
@@ -1097,6 +1100,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const frame = document.getElementById('frameComprovante');
             document.getElementById('loaderComprovante').classList.remove('hidden');
             
+            // Força a renderização se for PDF num mobile ou iframe genérico
             if(url.toLowerCase().endsWith('.pdf')) {
                 frame.src = `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
             } else {
@@ -1118,10 +1122,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             const tbody = document.getElementById('tabelaFinanceiro');
             const dashboard = document.getElementById('cardsMesesFinanceiro');
-            if (!tbody || !dashboard) return;
+            if (!tbody) return;
             
-            tbody.innerHTML = '<tr><td colspan="14" class="p-6 text-center text-gray-500">Buscando histórico...</td></tr>';
-            dashboard.innerHTML = '<div class="col-span-full p-6 text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>A calcular métricas financeiras...</div>';
+            tbody.innerHTML = '<tr><td colspan="14" class="p-6 text-center text-gray-500">A procurar histórico...</td></tr>';
+            if(dashboard) dashboard.innerHTML = '<div class="col-span-full p-6 text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>A calcular métricas...</div>';
             
             const { data: mediuns } = await supabaseClient.from('mediuns')
                 .select('id, nome_completo, nome_social, isento_mensalidade, created_at, grau') 
@@ -1130,17 +1134,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                 .order('nome_completo');
 
             if(!mediuns || mediuns.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="14" class="p-6 text-center text-gray-500">Nenhum médium cadastrado neste terreiro.</td></tr>';
-                dashboard.innerHTML = '';
+                tbody.innerHTML = '<tr><td colspan="14" class="p-6 text-center text-gray-500">Nenhum médium registado.</td></tr>';
+                if(dashboard) dashboard.innerHTML = '';
                 return;
             }
 
-            const idsMediunsDesteTerreiro = mediuns.map(m => m.id);
+            const idsMediuns = mediuns.map(m => m.id);
 
             const { data: pgtos } = await supabaseClient.from('financeiro')
                 .select('medium_id, mes, ano, pago, isento, origem')
                 .eq('ano', anoBusca)
-                .in('medium_id', idsMediunsDesteTerreiro);
+                .in('medium_id', idsMediuns);
 
             const { data: configs } = await supabaseClient.from('config_mensalidades')
                 .select('grau, valor')
@@ -1154,7 +1158,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             }));
             
             tbody.innerHTML = '';
-            
             const mesAtual = new Date().getMonth() + 1; 
             const anoAtual = new Date().getFullYear();
 
@@ -1170,13 +1173,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const pgto = meusPgtos.find(p => p.mes === i);
                     
                     const isAntesDoIngresso = (anoBusca < anoIngresso) || (anoBusca === anoIngresso && i < mesIngresso);
-                    const isentoAnual = m.isento_mensalidade === true;
-                    const isentoMensal = pgto ? pgto.isento : false;
-                    const isIsento = isentoAnual || isentoMensal;
-                    
+                    const isIsento = m.isento_mensalidade === true || (pgto ? pgto.isento : false);
                     const pago = pgto ? pgto.pago : false;
                     const origem = pgto ? pgto.origem : null;
-
                     const passou = (anoBusca < anoAtual) || (anoBusca === anoAtual && i < mesAtual);
                     
                     if (passou && !pago && !isIsento && !isAntesDoIngresso) emDia = false; 
@@ -1185,38 +1184,29 @@ document.addEventListener('DOMContentLoaded', async () => {
                         statsMeses[i-1].totalMediuns++;
                         if (isIsento || pago) {
                             statsMeses[i-1].adimplentes++;
-                            if (pago) {
-                                statsMeses[i-1].arrecadado += valorPorGrau[m.grau] || 0;
-                            }
+                            if (pago) statsMeses[i-1].arrecadado += valorPorGrau[m.grau] || 0;
                         } else if (passou) {
                             statsMeses[i-1].inadimplentes++;
                         }
                     }
 
-                    let corCheck = '';
-                    let titleStr = '';
-                    let checkedStr = '';
-                    let disabledStr = '';
+                    let corCheck = '', titleStr = '', checkedStr = '', disabledStr = '';
 
                     if (isAntesDoIngresso) {
-                        checkedStr = 'checked';
-                        disabledStr = 'disabled';
+                        checkedStr = 'checked'; disabledStr = 'disabled';
                         corCheck = 'accent-color: #9ca3af; opacity: 0.4; cursor: not-allowed;'; 
-                        titleStr = 'Não era membro (Anterior ao ingresso)';
+                        titleStr = 'Anterior ao ingresso';
                     } else if (isIsento) {
-                        checkedStr = 'checked';
-                        corCheck = 'accent-color: #a855f7;'; 
-                        titleStr = isentoAnual ? 'Isento (Permanente)' : 'Isento (Mês Específico) - Clique p/ desfazer';
+                        checkedStr = 'checked'; corCheck = 'accent-color: #a855f7;'; 
+                        titleStr = 'Isento (Botão direito p/ desfazer)';
                     } else if (pago && origem === 'pix_sistema') {
-                        checkedStr = 'checked';
-                        corCheck = 'accent-color: #3b82f6;'; 
+                        checkedStr = 'checked'; corCheck = 'accent-color: #3b82f6;'; 
                         titleStr = 'Pago via PIX (Sistema)';
                     } else if (pago) {
-                        checkedStr = 'checked';
-                        corCheck = 'accent-color: #16a34a;'; 
+                        checkedStr = 'checked'; corCheck = 'accent-color: #16a34a;'; 
                         titleStr = 'Pago (Manual)';
                     } else {
-                        titleStr = 'Pendente (Clique Esq. p/ Pagar | Clique Dir. p/ Isentar)';
+                        titleStr = 'Pendente (Esq. Pagar | Dir. Isentar)';
                     }
 
                     htmlMeses += `<td class="py-1 px-1 border-b border-gray-100">
@@ -1226,738 +1216,1204 @@ document.addEventListener('DOMContentLoaded', async () => {
                     </td>`;
                 }
                 const statusHtml = emDia ? '<span class="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded">Em Dia</span>' : '<span class="bg-red-100 text-red-700 text-xs font-bold px-2 py-1 rounded">Pendente</span>';
-                const nomeStr = m.nome_completo;
-
-                tbody.innerHTML += `<tr class="hover:bg-gray-50"><td class="py-2 px-3 border-b border-gray-100 text-left font-medium text-gray-800 text-xs truncate max-w-[220px]" title="Ingresso: ${dataIngresso.toLocaleDateString('pt-BR')}">${nomeStr}</td>${htmlMeses}<td class="py-2 px-2 border-b border-gray-100 bg-gray-50">${statusHtml}</td></tr>`;
+                tbody.innerHTML += `<tr class="hover:bg-gray-50"><td class="py-2 px-3 border-b border-gray-100 text-left font-medium text-gray-800 text-xs truncate max-w-[220px]" title="Ingresso: ${dataIngresso.toLocaleDateString('pt-BR')}">${m.nome_completo}</td>${htmlMeses}<td class="py-2 px-2 border-b border-gray-100 bg-gray-50">${statusHtml}</td></tr>`;
             });
 
-            dashboard.innerHTML = '';
-            const nomesMeses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-            
-            statsMeses.forEach((stat, index) => {
-                const progresso = stat.totalMediuns > 0 ? Math.round((stat.adimplentes / stat.totalMediuns) * 100) : 0;
-                let corProgresso = 'bg-green-500';
-                if (progresso < 50) corProgresso = 'bg-red-500';
-                else if (progresso < 80) corProgresso = 'bg-yellow-500';
+            if(dashboard) {
+                dashboard.innerHTML = '';
+                const nomesMeses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
                 
-                const valFmt = stat.arrecadado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                
-                dashboard.innerHTML += `
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-3 hover:shadow-md transition">
-                        <h4 class="text-xs font-black text-gray-700 uppercase mb-2 border-b pb-1">${nomesMeses[index]}</h4>
-                        <p class="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-0.5">Arrecadado</p>
-                        <p class="text-lg font-black text-green-600 leading-none mb-3">${valFmt}</p>
-                        
-                        <div class="flex justify-between items-center text-[10px] text-gray-600 mb-1 font-bold">
-                            <span>Adimplentes</span>
-                            <span>${stat.adimplentes} / ${stat.totalMediuns}</span>
+                statsMeses.forEach((stat, index) => {
+                    const progresso = stat.totalMediuns > 0 ? Math.round((stat.adimplentes / stat.totalMediuns) * 100) : 0;
+                    let corProgresso = progresso < 50 ? 'bg-red-500' : (progresso < 80 ? 'bg-yellow-500' : 'bg-green-500');
+                    const valFmt = stat.arrecadado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    
+                    dashboard.innerHTML += `
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-3 hover:shadow-md transition">
+                            <h4 class="text-xs font-black text-gray-700 uppercase mb-2 border-b pb-1">${nomesMeses[index]}</h4>
+                            <p class="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-0.5">Arrecadado</p>
+                            <p class="text-lg font-black text-green-600 leading-none mb-3">${valFmt}</p>
+                            
+                            <div class="flex justify-between items-center text-[10px] text-gray-600 mb-1 font-bold">
+                                <span>Adimplentes</span><span>${stat.adimplentes} / ${stat.totalMediuns}</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-1.5 mb-2">
+                                <div class="${corProgresso} h-1.5 rounded-full" style="width: ${progresso}%"></div>
+                            </div>
+                            <div class="flex justify-between items-center text-[10px]">
+                                <span class="text-gray-500">Inadimplentes:</span>
+                                <span class="font-bold ${stat.inadimplentes > 0 ? 'text-red-500' : 'text-gray-600'}">${stat.inadimplentes}</span>
+                            </div>
                         </div>
-                        <div class="w-full bg-gray-200 rounded-full h-1.5 mb-2">
-                            <div class="${corProgresso} h-1.5 rounded-full" style="width: ${progresso}%"></div>
-                        </div>
-                        
-                        <div class="flex justify-between items-center text-[10px]">
-                            <span class="text-gray-500">Inadimplentes:</span>
-                            <span class="font-bold ${stat.inadimplentes > 0 ? 'text-red-500' : 'text-gray-600'}">${stat.inadimplentes}</span>
-                        </div>
-                    </div>
-                `;
-            });
+                    `;
+                });
+            }
         }
 
         if(document.getElementById('selectAnoFinanceiro')) document.getElementById('selectAnoFinanceiro').addEventListener('change', (e) => carregarFinanceiro(parseInt(e.target.value)));
 
-        window.salvarPagamento = async (mediumId, mes, ano, status) => {
-            const mediumValido = listaMediunsGlobal.some(m => m.id === mediumId) || mediunsGrauCache.some(m => m.id === mediumId);
-            if (!mediumValido && listaMediunsGlobal.length > 0) {
-                alert('Ação bloqueada: Este médium não pertence ao seu terreiro.');
-                return document.getElementById('menuFinanceiro')?.click();
+        async function carregarConfiguracoesCasa() {
+            if (!idTerreiroGlobal) return;
+            const { data } = await supabaseClient.from('terreiros').select('logo_url, cor_primaria, cor_secundaria, cor_fundo, cor_texto, latitude, longitude, modulo_mensalidade_ativo, gateway_pagamento, chave_pix_manual, asaas_api_key').eq('id', idTerreiroGlobal).single();
+            if (data) {
+                if(data.logo_url) {
+                    const prev = document.getElementById('previewLogo');
+                    if (prev) {
+                        prev.src = data.logo_url;
+                        prev.classList.remove('hidden');
+                    }
+                    document.getElementById('placeholderLogo')?.classList.add('hidden');
+                }
+                if(document.getElementById('corPrimaria')) document.getElementById('corPrimaria').value = data.cor_primaria || '#1e3a8a';
+                if(document.getElementById('corSecundaria')) document.getElementById('corSecundaria').value = data.cor_secundaria || '#16a34a';
+                if(document.getElementById('corFundo')) document.getElementById('corFundo').value = data.cor_fundo || '#f3f4f6';
+                if(document.getElementById('corTexto')) document.getElementById('corTexto').value = data.cor_texto || '#1f2937';
+
+                if(document.getElementById('inputLat')) {
+                    document.getElementById('inputLat').value = data.latitude || '';
+                    document.getElementById('inputLng').value = data.longitude || '';
+                    
+                    let lat = data.latitude || -14.2350; 
+                    let lng = data.longitude || -51.9253;
+                    let zoom = data.latitude ? 18 : 4;
+                    iniciarMapa(lat, lng, zoom);
+                }
+
+                if (data.modulo_mensalidade_ativo) {
+                    document.getElementById('boxConfigMensalidade')?.classList.remove('hidden');
+                    
+                    const radios = document.getElementsByName('gatewayPagamento');
+                    radios.forEach(r => {
+                        if(r.value === (data.gateway_pagamento || 'manual')) r.checked = true;
+                        r.addEventListener('change', (e) => {
+                            if(e.target.value === 'manual') {
+                                document.getElementById('boxChavePix')?.classList.remove('hidden');
+                                document.getElementById('boxChaveAsaas')?.classList.add('hidden');
+                            } else {
+                                document.getElementById('boxChavePix')?.classList.add('hidden');
+                                document.getElementById('boxChaveAsaas')?.classList.remove('hidden');
+                            }
+                        });
+                    });
+                    
+                    if(data.gateway_pagamento === 'asaas') {
+                         document.getElementById('boxChavePix')?.classList.add('hidden');
+                         document.getElementById('boxChaveAsaas')?.classList.remove('hidden');
+                    } else {
+                         document.getElementById('boxChavePix')?.classList.remove('hidden');
+                         document.getElementById('boxChaveAsaas')?.classList.add('hidden');
+                    }
+                    
+                    if(document.getElementById('chavePixManual')) document.getElementById('chavePixManual').value = data.chave_pix_manual || '';
+                    if(document.getElementById('asaasApiKey')) document.getElementById('asaasApiKey').value = data.asaas_api_key || '';
+                    
+                    const { data: configVals } = await supabaseClient.from('config_mensalidades').select('*').eq('terreiro_id', idTerreiroGlobal);
+                    const containerGraus = document.getElementById('listaValoresGrau');
+                    if(containerGraus) {
+                        containerGraus.innerHTML = '';
+                        const grausBase = ['I', 'IJ', 'B', 'BJ', 'T', 'TJ', 'SCT', 'Escola de CT', 'CT', 'SCCT', 'Escola de CCT', 'CCT', 'Dirigente', 'Outros'];
+                        grausBase.forEach(g => {
+                            const conf = configVals?.find(c => c.grau === g);
+                            const valor = conf ? conf.valor : '0.00';
+                            containerGraus.innerHTML += `
+                                <div class="flex flex-col bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
+                                    <label class="text-[10px] font-black text-gray-500 uppercase mb-1 truncate">${g}</label>
+                                    <div class="flex items-center">
+                                        <span class="text-xs font-bold text-gray-800 mr-1">R$</span>
+                                        <input type="number" step="0.01" min="0" data-grau="${g}" value="${valor}" class="input-valor-grau w-full px-2 py-1 text-sm border-b-2 border-gray-100 outline-none focus:border-tema-secundaria bg-transparent text-gray-700 font-medium">
+                                    </div>
+                                </div>
+                            `;
+                        });
+                    }
+                } else {
+                    document.getElementById('boxConfigMensalidade')?.classList.add('hidden');
+                }
+            }
+        }
+
+        function iniciarMapa(lat, lng, zoomLvl) {
+            const mapEl = document.getElementById('mapaLocalizacao');
+            const overlay = document.getElementById('mapaOverlay');
+            if(!mapaGlobal && mapEl && typeof L !== 'undefined') {
+                if(overlay) overlay.classList.add('hidden');
+                mapaGlobal = L.map('mapaLocalizacao').setView([lat, lng], zoomLvl);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(mapaGlobal);
+                
+                marcadorGlobal = L.marker([lat, lng]).addTo(mapaGlobal);
+                circuloGlobal = L.circle([lat, lng], { color: 'green', fillColor: '#22c55e', fillOpacity: 0.2, radius: 30 }).addTo(mapaGlobal);
+
+                mapaGlobal.on('click', function(e) {
+                    if (document.getElementById('inputLat')) document.getElementById('inputLat').value = e.latlng.lat;
+                    if (document.getElementById('inputLng')) document.getElementById('inputLng').value = e.latlng.lng;
+                    marcadorGlobal.setLatLng([e.latlng.lat, e.latlng.lng]);
+                    circuloGlobal.setLatLng([e.latlng.lat, e.latlng.lng]);
+                });
+            } else if(mapaGlobal) {
+                if(overlay) overlay.classList.add('hidden');
+                mapaGlobal.setView([lat, lng], zoomLvl);
+                marcadorGlobal.setLatLng([lat, lng]);
+                circuloGlobal.setLatLng([lat, lng]);
+            }
+            setTimeout(() => { if(mapaGlobal) mapaGlobal.invalidateSize(); }, 300);
+        }
+
+        if (document.getElementById('btnGravarLocalizacao')) {
+            document.getElementById('btnGravarLocalizacao').addEventListener('click', async () => {
+                const msg = document.getElementById('msgLocalizacao');
+                if(msg) {
+                    msg.classList.remove('hidden');
+                    msg.className = 'mt-4 text-sm font-bold text-blue-600 block';
+                    msg.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Lendo GPS do celular...';
+                }
+                
+                navigator.geolocation.getCurrentPosition(
+                    async (pos) => {
+                        const lat = pos.coords.latitude, lon = pos.coords.longitude;
+                        if(idTerreiroGlobal) {
+                            const { data, error } = await supabaseClient.from('terreiros')
+                                .update({ latitude: lat, longitude: lon })
+                                .eq('id', idTerreiroGlobal)
+                                .select(); 
+
+                            if(error) {
+                                if(msg) { msg.className = 'mt-4 text-sm font-bold text-red-600 block'; msg.textContent = 'Erro ao salvar no banco: ' + error.message; }
+                            } else if (!data || data.length === 0) {
+                                if(msg) { msg.className = 'mt-4 text-sm font-bold text-red-600 block'; msg.textContent = 'ERRO: O Banco de Dados recusou a alteração.'; }
+                            } else {
+                                if(msg) { msg.className = 'mt-4 text-sm font-bold text-green-600 block'; msg.innerHTML = '<i class="fas fa-check-circle mr-2"></i> Ponto Registrado!'; setTimeout(() => msg.classList.add('hidden'), 3000); }
+                                if(document.getElementById('inputLat')) {
+                                    document.getElementById('inputLat').value = lat;
+                                    document.getElementById('inputLng').value = lon;
+                                }
+                                if (typeof iniciarMapa === 'function') iniciarMapa(lat, lon, 18);
+                            }
+                        }
+                    },
+                    (err) => {
+                        if(msg) { msg.className = 'mt-4 text-sm font-bold text-red-600 block'; msg.textContent = 'Erro no GPS: Libere a permissão de localização do seu navegador.'; }
+                    },
+                    { enableHighAccuracy: true }
+                );
+            });
+        }
+
+        if (document.getElementById('btnSalvarLocalizacaoManual')) {
+            document.getElementById('btnSalvarLocalizacaoManual').addEventListener('click', async () => {
+                const btn = document.getElementById('btnSalvarLocalizacaoManual');
+                const msg = document.getElementById('msgLocalizacao');
+                const lat = parseFloat(document.getElementById('inputLat').value);
+                const lng = parseFloat(document.getElementById('inputLng').value);
+                
+                if(isNaN(lat) || isNaN(lng)) {
+                    alert("Por favor, digite latitude e longitude válidas ou clique no mapa para marcar.");
+                    return;
+                }
+
+                btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Salvando...';
+                
+                const { data, error } = await supabaseClient.from('terreiros')
+                    .update({ latitude: lat, longitude: lng })
+                    .eq('id', idTerreiroGlobal)
+                    .select(); 
+                    
+                btn.disabled = false; btn.innerHTML = '<i class="fas fa-save mr-2"></i> Salvar Manualmente';
+                
+                if(error) {
+                    if(msg) { msg.textContent = "Erro: " + error.message; msg.className = "mt-4 text-sm font-bold text-red-600 block"; msg.classList.remove('hidden'); }
+                } else if (!data || data.length === 0) {
+                    if(msg) { msg.textContent = "ERRO: O Banco de Dados recusou a alteração. Regra RLS bloqueou a gravação."; msg.className = "mt-4 text-sm font-bold text-red-600 block"; msg.classList.remove('hidden'); }
+                } else {
+                    if(msg) { msg.textContent = "Localização salva com sucesso!"; msg.className = "mt-4 text-sm font-bold text-green-600 block"; msg.classList.remove('hidden'); setTimeout(() => msg.classList.add('hidden'), 3000); }
+                    if (typeof iniciarMapa === 'function') iniciarMapa(lat, lng, 18);
+                }
+            });
+        }
+
+        if(document.getElementById('uploadLogo')) {
+            document.getElementById('uploadLogo').addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(evt) {
+                        const prev = document.getElementById('previewLogo');
+                        if (prev) {
+                            prev.src = evt.target.result;
+                            prev.classList.remove('hidden');
+                        }
+                        document.getElementById('placeholderLogo')?.classList.add('hidden');
+                    }
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
+
+        if(document.getElementById('btnSalvarLogo')) {
+            document.getElementById('btnSalvarLogo').addEventListener('click', async () => {
+                const btnLogo = document.getElementById('btnSalvarLogo');
+                const input = document.getElementById('uploadLogo');
+                const msg = document.getElementById('msgLogo');
+                if(!input.files || input.files.length === 0) { alert('Selecione uma imagem.'); return; }
+                btnLogo.disabled = true; btnLogo.textContent = 'Otimizando e enviando...'; msg?.classList.remove('hidden');
+                if (msg) { msg.textContent = 'Processando ficheiro...'; msg.className = 'text-xs font-bold mt-2 text-tema-primaria'; }
+                
+                try {
+                    const arquivoOriginal = input.files[0];
+                    const arquivoComprimido = await comprimirImagem(arquivoOriginal, 600, 600, 0.90);
+
+                    const nomeArquivo = `logo_${idTerreiroGlobal}_${Date.now()}.${arquivoComprimido.name.split('.').pop()}`;
+                    const { error: errUp } = await supabaseClient.storage.from('logos').upload(nomeArquivo, arquivoComprimido);
+                    if (errUp) throw errUp;
+                    const { data: urlData } = supabaseClient.storage.from('logos').getPublicUrl(nomeArquivo);
+                    const { error: errBd } = await supabaseClient.from('terreiros').update({ logo_url: urlData.publicUrl }).eq('id', idTerreiroGlobal);
+                    if (errBd) throw errBd;
+                    
+                    logoTerreiroGlobal = urlData.publicUrl;
+                    
+                    const sideLogo = document.getElementById('logoSidebar');
+                    if (sideLogo) {
+                        sideLogo.src = urlData.publicUrl;
+                        sideLogo.classList.remove('hidden');
+                    }
+
+                    let linkFavicon = document.querySelector("link[rel~='icon']");
+                    if (!linkFavicon) {
+                        linkFavicon = document.createElement('link');
+                        linkFavicon.rel = 'icon';
+                        document.head.appendChild(linkFavicon);
+                    }
+                    linkFavicon.href = urlData.publicUrl;
+
+                    if (msg) { msg.textContent = '✅ Logo salva com sucesso!'; msg.className = 'text-xs font-bold mt-2 text-tema-secundaria'; }
+                } catch (error) {
+                    if (msg) { msg.textContent = '❌ Erro: ' + error.message; msg.className = 'text-xs font-bold mt-2 text-red-600'; }
+                } finally { btnLogo.disabled = false; btnLogo.textContent = 'Salvar Imagem'; }
+            });
+        }
+
+        if(document.getElementById('btnSalvarCores')) {
+            document.getElementById('btnSalvarCores').addEventListener('click', async () => {
+                const btn = document.getElementById('btnSalvarCores');
+                const msg = document.getElementById('msgCores');
+                const cor1 = document.getElementById('corPrimaria').value;
+                const cor2 = document.getElementById('corSecundaria').value;
+                const corF = document.getElementById('corFundo').value;
+                const corT = document.getElementById('corTexto').value;
+                btn.disabled = true; btn.textContent = 'Salvando...';
+                
+                try {
+                    const { error } = await supabaseClient.from('terreiros').update({ cor_primaria: cor1, cor_secundaria: cor2, cor_fundo: corF, cor_texto: corT }).eq('id', idTerreiroGlobal);
+                    if (error) throw error;
+                    const root = document.documentElement;
+                    root.style.setProperty('--cor-primaria', cor1); root.style.setProperty('--cor-secundaria', cor2);
+                    root.style.setProperty('--cor-fundo', corF); root.style.setProperty('--cor-texto', corT);
+                    if (msg) { msg.textContent = '✅ Tema atualizado!'; msg.className = 'text-sm font-bold mt-3 text-tema-secundaria block'; setTimeout(() => msg.classList.add('hidden'), 5000); }
+                } catch (error) {
+                    if (msg) { msg.textContent = '❌ Erro: ' + error.message; msg.className = 'text-sm font-bold mt-3 text-red-600 block'; }
+                } finally { btn.disabled = false; btn.textContent = 'Salvar e Aplicar Cores'; }
+            });
+        }
+
+        window.carregarDoacoesPrometidas = async () => {
+            if (!idTerreiroGlobal) return;
+            const tbody = document.getElementById('tabelaDoacoesPrometidas');
+            if(tbody) tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-gray-500">Buscando...</td></tr>';
+            try {
+                const { data: doacoes, error: errD } = await supabaseClient.from('doacoes_registradas').select('*').eq('terreiro_id', idTerreiroGlobal).order('entregue', { ascending: true }).order('data_registro', { ascending: false }); 
+                if (errD) throw errD;
+                const { data: mediuns } = await supabaseClient.from('mediuns').select('id, auth_id, nome_completo, nome_social').eq('terreiro_id', idTerreiroGlobal);
+                const { data: itens } = await supabaseClient.from('itens_doacao').select('id, nome, descricao').eq('terreiro_id', idTerreiroGlobal);
+                window.dadosDoacoesParaPDF = { doacoes, mediuns, itens };
+
+                if (!doacoes || doacoes.length === 0) {
+                    if(tbody) tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-gray-500">Nenhum registro.</td></tr>';
+                    return;
+                }
+                if(tbody) {
+                    tbody.innerHTML = '';
+                    doacoes.forEach(d => {
+                        const mdEncontrado = mediuns?.find(m => m.auth_id === d.medium_auth_id || String(m.id) === String(d.medium_auth_id));
+                        const medium = mdEncontrado ? mdEncontrado.nome_completo : 'Médium Desconhecido';
+                        const itemObj = itens?.find(i => String(i.id) === String(d.item_id));
+                        const itemNome = itemObj ? `${itemObj.nome}` : 'Item';
+                        const data = new Date(d.data_registro).toLocaleDateString('pt-BR');
+                        const statusHtml = d.entregue ? '<span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded font-bold">Entregue</span>' : '<span class="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded font-bold">Pendente</span>';
+                        
+                        const acaoBaixa = d.entregue 
+                            ? `<button onclick="marcarDoacao('${d.id}', false)" class="text-xs text-gray-400 hover:text-gray-800 underline mt-1">Desfazer</button>` 
+                            : `<button onclick="marcarDoacao('${d.id}', true)" class="bg-tema-secundaria hover:opacity-90 text-white text-xs font-bold py-1.5 px-3 rounded shadow-sm mt-1">Dar Baixa</button>`;
+                        
+                        const btnExcluir = `<button onclick="excluirDoacao('${d.id}')" class="text-xs text-red-500 hover:text-red-700 ml-2" title="Excluir Registro"><i class="fas fa-trash"></i></button>`;
+
+                        const estilo = d.entregue ? 'bg-gray-50 opacity-80' : 'bg-white';
+                        tbody.innerHTML += `
+                            <tr class="border-b border-gray-100 ${estilo}">
+                                <td class="p-3 text-sm">${medium}</td>
+                                <td class="p-3 text-sm">${itemNome}</td>
+                                <td class="p-3 text-center font-bold">${d.quantidade}</td>
+                                <td class="p-3 text-xs text-gray-500">${data}</td>
+                                <td class="p-3 text-center">
+                                    <div class="flex items-center justify-center gap-2">
+                                        <div class="flex flex-col items-center">${statusHtml}${acaoBaixa}</div>
+                                        ${btnExcluir}
+                                    </div>
+                                </td>
+                            </tr>`;
+                    });
+                }
+            } catch (error) {
+                if(tbody) tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-red-500">Erro ao carregar doações.</td></tr>`;
+            }
+        };
+
+        window.carregarDoacoesCatalogo = async () => {
+            if (!idTerreiroGlobal) return;
+            const tbody = document.getElementById('tabelaItensDoacao');
+            if(!tbody) return;
+            const { data, error } = await supabaseClient.from('itens_doacao').select('*').eq('terreiro_id', idTerreiroGlobal).order('nome');
+            if (error) return;
+            tbody.innerHTML = '';
+            if (data && data.length > 0) {
+                data.forEach(item => {
+                    const btn = item.ativo ? `<button onclick="alternarStatusCatalogo('${item.id}', false)" class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded font-bold">Ocultar</button>` : `<button onclick="alternarStatusCatalogo('${item.id}', true)" class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-bold">Ativar</button>`;
+                    tbody.innerHTML += `<tr class="border-b border-gray-100 ${item.ativo ? '' : 'opacity-40'}"><td class="p-3 text-sm">${item.nome}</td><td class="p-3 text-xs text-gray-500">${item.descricao || '-'}</td><td class="p-3 text-center">${btn}</td></tr>`;
+                });
+            }
+        };
+
+        async function carregarGestaoPlataforma() {
+            const tbody = document.getElementById('tabelaMasterTerreiros') || document.querySelector('#secMaster tbody');
+            if(!tbody) return;
+            tbody.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-gray-500">Carregando terreiros...</td></tr>';
+            
+            const { data, error } = await supabaseClient.from('terreiros').select('*').order('id', { ascending: true });
+            if (error) { tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-red-500">Erro: ${error.message}</td></tr>`; return; }
+
+            tbody.innerHTML = '';
+            data.forEach(t => {
+                const statusHtml = t.status_bloqueado ? '<span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded font-bold">Bloqueado</span>' : '<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded font-bold">Ativo</span>';
+                
+                const btnAcessar = `<button onclick="acessarTerreiroSaaS('${t.id}')" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white py-1 px-3 rounded shadow mr-2"><i class="fas fa-sign-in-alt"></i></button>`;
+                const btnBloqueio = t.status_bloqueado 
+                    ? `<button onclick="alternarBloqueioTerreiro('${t.id}', false)" class="text-xs bg-gray-800 text-white py-1 px-3 rounded shadow"><i class="fas fa-lock-open"></i></button>` 
+                    : `<button onclick="alternarBloqueioTerreiro('${t.id}', true)" class="text-xs bg-red-600 text-white py-1 px-3 rounded shadow"><i class="fas fa-lock"></i></button>`;
+                const btnImportar = `<button onclick="abrirModalImportacao('${t.id}', '${t.nome.replace(/'/g, "\\'")}')" class="text-xs bg-blue-600 hover:bg-blue-700 text-white py-1 px-3 rounded shadow ml-2"><i class="fas fa-file-csv"></i></button>`;
+                
+                const statusMensalidade = t.modulo_mensalidade_ativo ? 'bg-amber-500 text-white hover:bg-amber-600' : 'bg-gray-200 text-gray-500 hover:bg-gray-300';
+                const btnMensalidade = `<button onclick="alternarModuloMensalidade('${t.id}', ${!t.modulo_mensalidade_ativo})" class="text-xs py-1 px-3 rounded shadow ml-2 transition ${statusMensalidade}" title="Habilitar/Desabilitar Módulo Tesouraria"><i class="fas fa-hand-holding-usd"></i></button>`;
+
+                const acaoHtml = `<div class="flex justify-center items-center">${btnAcessar}${btnBloqueio}${btnImportar}${btnMensalidade}</div>`;
+                
+                tbody.innerHTML += `<tr class="border-b border-gray-100 ${t.status_bloqueado ? 'bg-red-50' : ''}"><td class="p-3 text-sm font-mono text-gray-500 truncate max-w-[120px]" title="${t.id}">${t.id.substring(0,8)}...</td><td class="p-3 font-bold text-gray-800">${t.nome}</td><td class="p-3 text-center">${statusHtml}</td><td class="p-3 text-center">${acaoHtml}</td></tr>`;
+            });
+        }
+
+        // ==========================================
+        // VÍNCULO DAS FUNÇÕES DE CARREGAMENTO NO ESCOPO (Se não estiverem globais)
+        // ==========================================
+        window.aplicarFiltrosMediuns = aplicarFiltrosMediuns;
+        window.carregarValidadorPagamentos = carregarValidadorPagamentos;
+        
+        // DISPARO SEGURO DO CLIQUE INICIAL
+        if (emModoMasterPuro) {
+            document.getElementById('menuMaster')?.click();
+        } else if (perfilAdminLogado.is_admin || perfilAdminLogado.perm_visao_geral) {
+            document.getElementById('menuVisaoGeral')?.click();
+        } else {
+            if (perfilAdminLogado.perm_agenda) document.getElementById('menuAgendaGiras')?.click();
+            else if (perfilAdminLogado.perm_ata) document.getElementById('menuLivroAta')?.click();
+            else document.getElementById('menuQuadroMediuns')?.click(); 
+        }
+
+    } catch (error) {
+        console.error('Erro de inicialização:', error);
+    }
+});
+
+// ==========================================
+// FUNÇÕES VINCULADAS AO OBJETO WINDOW (ACIONADAS POR ONCLICK DO HTML)
+// ==========================================
+
+window.aplicarFiltrosMediuns = () => {}; 
+window.carregarValidadorPagamentos = () => {};
+
+window.gerarPDFRelatorio = (titulo, colunas, dados) => {
+    const containerPDF = document.createElement('div');
+    containerPDF.style.padding = '20px 30px';
+    containerPDF.style.fontFamily = 'Arial, sans-serif';
+    containerPDF.style.color = '#333';
+    containerPDF.style.position = 'relative';
+
+    let watermark = '';
+    if (logoTerreiroGlobal) {
+        watermark = `<div style="position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); opacity: 0.08; z-index: -1; pointer-events: none;">
+                        <img src="${logoTerreiroGlobal}" style="width: 400px; max-width: 80%;">
+                     </div>`;
+    }
+
+    let html = `
+        ${watermark}
+        <table style="width: 100%; margin-bottom: 15px; border-bottom: 2px solid #16a34a; padding-bottom: 10px;">
+            <tr>
+                <td style="width: 20%; text-align: left; vertical-align: middle;">
+                    ${logoTerreiroGlobal ? `<img src="${logoTerreiroGlobal}" style="max-height: 70px; max-width: 100px; object-fit: contain;">` : ''}
+                </td>
+                <td style="width: 60%; text-align: center; vertical-align: middle;">
+                    <h2 style="margin: 0; color: #1e3a8a; font-size: 20px; text-transform: uppercase;">${nomeTerreiroGlobal || 'Templo'}</h2>
+                    <h3 style="margin: 4px 0 0 0; color: #444; font-size: 16px;">${titulo}</h3>
+                    <p style="margin: 4px 0 0 0; color: #666; font-size: 11px;">Emitido em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</p>
+                </td>
+                <td style="width: 20%;"></td>
+            </tr>
+        </table>
+        <table style="width: 100%; border-collapse: collapse; font-size: 11px; position: relative; z-index: 1;">
+            <thead>
+                <tr style="background-color: #f3f4f6;">
+                    ${colunas.map(c => `<th style="padding: 6px 4px; border: 1px solid #ddd; text-align: left; font-weight: bold; color: #555;">${c}</th>`).join('')}
+                </tr>
+            </thead>
+            <tbody>
+    `;
+    
+    dados.forEach((linha, i) => {
+        const bg = i % 2 === 0 ? '#ffffff' : '#f9fafb';
+        html += `<tr style="background-color: ${bg};">
+                    ${linha.map(celula => `<td style="padding: 3px 4px; border: 1px solid #ddd; color: #222; border-bottom: 1px solid #eee;">${celula}</td>`).join('')}
+                 </tr>`;
+    });
+    
+    html += `</tbody></table>`;
+    containerPDF.innerHTML = html;
+
+    const opt = {
+        margin:       10,
+        filename:     `${titulo.replace(/\s+/g, '_')}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    html2pdf().set(opt).from(containerPDF).save();
+};
+
+setTimeout(() => {
+    document.getElementById('filtroNomeMedium')?.addEventListener('input', window.aplicarFiltrosMediuns);
+    document.getElementById('filtroGrauMedium')?.addEventListener('change', window.aplicarFiltrosMediuns);
+    document.getElementById('filtroStatusMedium')?.addEventListener('change', window.aplicarFiltrosMediuns);
+    document.getElementById('filtroMesNascimento')?.addEventListener('change', window.aplicarFiltrosMediuns);
+    
+    document.getElementById('filtroConvocadosNome')?.addEventListener('input', () => window.filtrarConvocados('listaCheckConvocados', 'filtroConvocadosNome', 'filtroConvocadosGrau'));
+    document.getElementById('filtroConvocadosGrau')?.addEventListener('change', () => window.filtrarConvocados('listaCheckConvocados', 'filtroConvocadosNome', 'filtroConvocadosGrau'));
+    document.getElementById('editFiltroConvocadosNome')?.addEventListener('input', () => window.filtrarConvocados('editListaCheckConvocados', 'editFiltroConvocadosNome', 'editFiltroConvocadosGrau'));
+    document.getElementById('editFiltroConvocadosGrau')?.addEventListener('change', () => window.filtrarConvocados('editListaCheckConvocados', 'editFiltroConvocadosNome', 'editFiltroConvocadosGrau'));
+
+    document.getElementById('btnImprimirMediuns')?.addEventListener('click', () => {
+        const btn = document.getElementById('btnImprimirMediuns');
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Gerando...';
+        btn.disabled = true;
+        
+        const lista = window.mediunsFiltrados || listaMediunsGlobal;
+        const dados = lista.map(m => {
+            let dataNasc = '-';
+            if (m.data_nascimento) {
+                if (m.data_nascimento.includes('-')) {
+                    const p = m.data_nascimento.split('-');
+                    if(p.length === 3) dataNasc = `${p[2]}/${p[1]}/${p[0]}`;
+                } else dataNasc = m.data_nascimento;
+            }
+            const nomeStr = m.nome_completo;
+            const whats = m.telefone || '-';
+            const palavra = m.palavra || '-';
+            return [nomeStr, dataNasc, m.grau || '-', m.funcao || '-', whats, palavra];
+        });
+        
+        dados.sort((a, b) => a[0].localeCompare(b[0], 'pt-BR'));
+        
+        window.gerarPDFRelatorio('Quadro Oficial de Médiuns', ['Nome Completo', 'Nascimento', 'Grau', 'Função', 'WhatsApp', 'Palavra'], dados);
+        setTimeout(() => { btn.innerHTML = originalHtml; btn.disabled = false; }, 2000);
+    });
+
+    document.getElementById('btnImprimirAniversariantes')?.addEventListener('click', () => {
+        const btn = document.getElementById('btnImprimirAniversariantes');
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        btn.disabled = true;
+        
+        const dataAtual = new Date();
+        const mesAtualNum = (dataAtual.getMonth() + 1).toString().padStart(2, '0');
+        
+        const lista = listaMediunsGlobal.filter(m => {
+            if (!m.data_nascimento) return false;
+            let mesNasc = '';
+            if (m.data_nascimento.includes('-')) mesNasc = m.data_nascimento.split('-')[1];
+            else if (m.data_nascimento.includes('/')) mesNasc = m.data_nascimento.split('/')[1];
+            return mesNasc === mesAtualNum;
+        });
+        
+        if(lista.length === 0) {
+            alert("Nenhum aniversariante neste mês para gerar relatório.");
+            btn.innerHTML = originalHtml; btn.disabled = false;
+            return;
+        }
+        
+        lista.sort((a, b) => {
+            let diaA = 0, diaB = 0;
+            if(a.data_nascimento.includes('-')) diaA = parseInt(a.data_nascimento.split('-')[2]);
+            if(b.data_nascimento.includes('-')) diaB = parseInt(b.data_nascimento.split('-')[2]);
+            return diaA - diaB;
+        });
+        
+        const dados = lista.map(m => {
+            let diaMes = '-';
+            if (m.data_nascimento) {
+                if (m.data_nascimento.includes('-')) {
+                    const p = m.data_nascimento.split('-');
+                    if(p.length === 3) diaMes = `${p[2]}/${p[1]}`;
+                } else {
+                    const dataNasc = m.data_nascimento;
+                    if(dataNasc.includes('/')) diaMes = dataNasc.substring(0, 5);
+                }
             }
 
+            const nomeExibicao = m.nome_completo || 'Médium';
+            const g = m.grau && m.grau !== '-' ? m.grau : '';
+            const f = m.funcao && m.funcao !== '-' ? m.funcao : '';
+            let grauFuncao = '-';
+            if (g && f) grauFuncao = `${g}/${f}`;
+            else grauFuncao = g || f || '-';
+
+            return [diaMes, nomeExibicao, grauFuncao];
+        });
+        
+        const mesAtual = new Date().toLocaleString('pt-BR', { month: 'long' });
+        const titulo = `Aniversariantes de ${mesAtual.charAt(0).toUpperCase() + mesAtual.slice(1)}`;
+        
+        window.gerarPDFRelatorio(titulo, ['Data', 'Nome', 'Grau'], dados);
+        setTimeout(() => { btn.innerHTML = originalHtml; btn.disabled = false; }, 2000);
+    });
+}, 500);
+
+window.abrirModalNovoMedium = () => {
+    document.getElementById('msgNovoMedium')?.classList.add('hidden');
+    document.getElementById('resultadoNovoMedium')?.classList.add('hidden');
+    const f = document.getElementById('formNovoMedium');
+    if (f) {
+        f.reset();
+        f.classList.remove('hidden');
+    }
+    document.getElementById('modalNovoMedium')?.classList.remove('hidden');
+};
+
+window.fecharModalNovoMedium = () => {
+    document.getElementById('modalNovoMedium')?.classList.add('hidden');
+    document.getElementById('menuQuadroMediuns')?.click();
+};
+
+window.abrirModalEditarMedium = (id) => {
+    const medium = listaMediunsGlobal.find(m => m.id === id);
+    if (!medium) return alert("Médium não encontrado.");
+
+    document.getElementById('editMediumId').value = medium.id;
+    document.getElementById('editMediumNome').value = medium.nome_completo || '';
+    document.getElementById('editMediumNomeSocial').value = medium.nome_social || '';
+    document.getElementById('editMediumTelefone').value = medium.telefone || '';
+    document.getElementById('editMediumNascimento').value = medium.data_nascimento || '';
+    document.getElementById('editMediumGrau').value = medium.grau || '-';
+    document.getElementById('editMediumFuncao').value = medium.funcao || '-';
+
+    document.getElementById('msgEditMedium')?.classList.add('hidden');
+    document.getElementById('modalEditarMedium')?.classList.remove('hidden');
+};
+
+window.fecharModalEditarMedium = () => {
+    document.getElementById('modalEditarMedium')?.classList.add('hidden');
+};
+
+window.excluirMedium = async (id, nome) => {
+    if(!confirm(`ATENÇÃO: Deseja excluir DEFINITIVAMENTE o médium ${nome}?`)) return;
+    const { error } = await supabaseClient.from('mediuns').delete().eq('id', id).eq('terreiro_id', idTerreiroGlobal);
+    if (error) alert('Erro ao excluir: ' + error.message);
+    else { alert('Médium excluído!'); document.getElementById('menuQuadroMediuns')?.click(); }
+};
+
+window.alternarStatusAtivoMedium = async (id, statusAtual) => {
+    const novoStatus = !statusAtual;
+    const msg = novoStatus ? "Deseja REATIVAR o acesso deste médium?" : "Deseja INATIVAR este médium? Ele não poderá mais acessar a plataforma.";
+    if(!confirm(msg)) return;
+    
+    const { error } = await supabaseClient.from('mediuns').update({ status_ativo: novoStatus }).eq('id', id).eq('terreiro_id', idTerreiroGlobal);
+    if (error) alert('Erro ao alterar status: ' + error.message);
+    else document.getElementById('menuQuadroMediuns')?.click();
+};
+
+window.abrirModalPermissoes = (id, nome, permsString) => {
+    document.getElementById('idMediumPermissao').value = id;
+    document.getElementById('nomeMediumPermissao').textContent = nome;
+    const [pAgenda, pGrau, pFin, pDoa, pAdmin, pVisao, pAta] = permsString.split(',');
+    
+    document.getElementById('chkPermAgenda').checked = pAgenda === 'true';
+    document.getElementById('chkPermGrau').checked = pGrau === 'true';
+    document.getElementById('chkPermFinanceiro').checked = pFin === 'true';
+    document.getElementById('chkPermDoacoes').checked = pDoa === 'true';
+    document.getElementById('chkPermAdmin').checked = pAdmin === 'true';
+    if (document.getElementById('chkPermVisao')) document.getElementById('chkPermVisao').checked = pVisao === 'true';
+    if (document.getElementById('chkPermAta')) document.getElementById('chkPermAta').checked = pAta === 'true';
+    
+    document.getElementById('modalPermissoes').classList.remove('hidden');
+};
+
+document.addEventListener('change', (e) => {
+    if(e.target.id === 'giraEspecial') {
+        const box = document.getElementById('boxConvocados');
+        if(e.target.checked) {
+            box?.classList.remove('hidden');
+            if(typeof renderizarCheckboxesConvocados === 'function') renderizarCheckboxesConvocados('listaCheckConvocados', []);
+        } else box?.classList.add('hidden');
+    }
+    if(e.target.id === 'editGiraEspecial') {
+        const box = document.getElementById('editBoxConvocados');
+        if(e.target.checked) {
+            box?.classList.remove('hidden');
+        } else box?.classList.add('hidden');
+    }
+});
+
+window.atualizarSelecao = (containerId, checkbox) => {
+    let arr = window['selecionados_' + containerId] || [];
+    if(checkbox.checked) {
+        if(!arr.includes(checkbox.value)) arr.push(checkbox.value);
+    } else {
+        arr = arr.filter(v => v !== checkbox.value);
+    }
+    window['selecionados_' + containerId] = arr;
+};
+
+window.filtrarConvocados = (containerId, inputNomeId, selectGrauId) => {
+    const termoNome = (document.getElementById(inputNomeId)?.value || '').toLowerCase();
+    const termoGrau = (document.getElementById(selectGrauId)?.value || '').toLowerCase();
+    
+    const filtrados = (listaMediunsGlobal || []).filter(m => {
+        const nomeStr = (m.nome_social ? m.nome_social : m.nome_completo).toLowerCase();
+        const passaNome = nomeStr.includes(termoNome);
+        
+        let passaGrau = true;
+        if (termoGrau !== '') {
+            const grauCompleto = `${m.grau || ''} ${m.funcao || ''}`.toLowerCase();
+            passaGrau = grauCompleto.includes(termoGrau);
+        }
+        
+        return passaNome && passaGrau;
+    });
+
+    const container = document.getElementById(containerId);
+    if(!container) return;
+    
+    let html = '';
+    const selecionados = window['selecionados_' + containerId] || [];
+
+    if(filtrados.length === 0) {
+        html = '<span class="text-xs text-gray-500 col-span-2 md:col-span-4">Nenhum médium encontrado.</span>';
+    } else {
+        filtrados.forEach(m => {
+            const idStr = String(m.id);
+            const isChecked = selecionados.includes(idStr) ? 'checked' : '';
+            const nomeExibicao = m.nome_social ? m.nome_social : m.nome_completo;
+            html += `
+                <label class="flex items-center space-x-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-50 p-1 rounded" title="Grau: ${m.grau || '-'} / Função: ${m.funcao || '-'}">
+                    <input type="checkbox" value="${m.id}" class="chk-convocado rounded text-red-500 focus:ring-red-500" ${isChecked} onchange="atualizarSelecao('${containerId}', this)">
+                    <span class="truncate">${nomeExibicao}</span>
+                </label>
+            `;
+        });
+    }
+    container.innerHTML = html;
+};
+
+window.excluirGira = async (id, dataInicioISO) => {
+    const dataInicio = new Date(dataInicioISO);
+    const agora = new Date();
+    const diferencaHoras = (dataInicio - agora) / (1000 * 60 * 60);
+
+    if (diferencaHoras < 2) {
+        alert("⚠️ AÇÃO BLOQUEADA: Não é permitido excluir um evento que já iniciou, já passou, ou que começa em menos de 2 horas. Isso evita perda de dados de check-ins.");
+        return;
+    }
+
+    if (!confirm("Tem certeza que deseja excluir este evento da agenda? A exclusão é irreversível.")) return;
+
+    const { error } = await supabaseClient.from('agenda').delete().eq('id', id).eq('terreiro_id', idTerreiroGlobal);
+    if (error) alert("Erro ao excluir o evento: " + error.message);
+    else { alert("Evento apagado com sucesso!"); document.getElementById('menuAgendaGiras')?.click(); }
+};
+
+window.abrirModalEditarGira = async (id) => {
+    const { data, error } = await supabaseClient.from('agenda').select('*').eq('id', id).eq('terreiro_id', idTerreiroGlobal).single();
+    if (error) { alert("Erro ao buscar dados: " + error.message); return; }
+
+    document.getElementById('editGiraId').value = data.id;
+    document.getElementById('editGiraTitulo').value = data.titulo;
+    
+    const formataParaInput = (isoString) => {
+        if (!isoString) return '';
+        const dataBanco = new Date(isoString);
+        const spDateString = dataBanco.toLocaleString("en-US", {timeZone: "America/Sao_Paulo"});
+        const spDate = new Date(spDateString);
+        
+        const ano = spDate.getFullYear();
+        const mes = String(spDate.getMonth() + 1).padStart(2, '0');
+        const dia = String(spDate.getDate()).padStart(2, '0');
+        const horas = String(spDate.getHours()).padStart(2, '0');
+        const minutos = String(spDate.getMinutes()).padStart(2, '0');
+        
+        return `${ano}-${mes}-${dia}T${horas}:${minutos}`;
+    };
+
+    document.getElementById('editGiraInicio').value = formataParaInput(data.data_hora_inicio);
+    document.getElementById('editGiraFim').value = formataParaInput(data.data_hora_fim);
+    if (document.getElementById('editGiraGeraAta')) document.getElementById('editGiraGeraAta').checked = data.gera_ata || false;
+
+    const chkEspecial = document.getElementById('editGiraEspecial');
+    const boxEspecial = document.getElementById('editBoxConvocados');
+    if (chkEspecial && boxEspecial) {
+        chkEspecial.checked = data.especial || false;
+        if (data.especial) boxEspecial.classList.remove('hidden');
+        else boxEspecial.classList.add('hidden');
+        if(typeof renderizarCheckboxesConvocados === 'function') {
+            renderizarCheckboxesConvocados('editListaCheckConvocados', data.convocados || []);
+        }
+    }
+
+    document.getElementById('modalEditarGira').classList.remove('hidden');
+};
+
+window.fecharModalEditarGira = () => document.getElementById('modalEditarGira').classList.add('hidden');
+
+window.abrirModalEscreverAta = async (id) => {
+    try {
+        const { data } = await supabaseClient.from('agenda').select('texto_ata').eq('id', id).eq('terreiro_id', idTerreiroGlobal).single();
+        document.getElementById('ataEventoId').value = id;
+        document.getElementById('ataTexto').value = data?.texto_ata || '';
+        document.getElementById('modalEscreverAta').classList.remove('hidden');
+        document.getElementById('msgEscreverAta').classList.add('hidden');
+    } catch (error) {
+        alert("Erro ao buscar texto: " + error.message);
+    }
+};
+
+window.fecharModalEscreverAta = () => {
+    document.getElementById('modalEscreverAta').classList.add('hidden');
+};
+
+window.encerrarAta = async (id) => {
+    if(!confirm("Atenção! Ao encerrar a ATA, os check-ins serão bloqueados para este evento e o documento não poderá mais ser alterado. Confirmar fechamento?")) return;
+    
+    const { error } = await supabaseClient.from('agenda').update({ ata_encerrada: true }).eq('id', id).eq('terreiro_id', idTerreiroGlobal);
+    
+    if (error) {
+        alert("Erro ao encerrar: " + error.message);
+    } else {
+        alert("Sessão Encerrada! O documento oficial está disponível para download.");
+        document.getElementById('menuLivroAta')?.click();
+    }
+};
+
+window.baixarLivroAnual = async () => {
+    alert("Atenção: A consolidação do Livro Anual gera arquivo muito pesado. Esta função está sendo adaptada para rodar em segundo plano e será liberada em breve. Por favor, baixe as atas de forma individual na tabela abaixo.");
+};
+
+window.arquivarAnoAnterior = async () => {
+    const anoAtual = new Date().getFullYear();
+    if(!confirm(`ATENÇÃO EXTREMA: Você está prestes a excluir definitivamente todas as ATAs anteriores a ${anoAtual}. Certifique-se de já ter baixado e feito backup dos PDFs. Deseja prosseguir com a exclusão?`)) return;
+    
+    const { error } = await supabaseClient.from('agenda')
+        .delete()
+        .eq('terreiro_id', idTerreiroGlobal)
+        .eq('gera_ata', true)
+        .lte('data_hora_inicio', `${anoAtual}-01-01T00:00:00`);
+        
+    if (error) alert("Erro ao limpar dados antigos: " + error.message);
+    else {
+        alert("Limpeza do exercício anterior concluída com sucesso!");
+        document.getElementById('menuLivroAta')?.click();
+    }
+};
+
+window.gerarPDF_ATA = async (eventoId) => {
+    try {
+        const { data: evento, error: errEv } = await supabaseClient.from('agenda').select('*').eq('id', eventoId).eq('terreiro_id', idTerreiroGlobal).single();
+        if (errEv || !evento) throw new Error("Erro ao buscar dados do evento.");
+
+        const anoEvento = new Date(evento.data_hora_inicio).getFullYear();
+        const { data: eventosAnteriores } = await supabaseClient
+            .from('agenda')
+            .select('id')
+            .eq('terreiro_id', idTerreiroGlobal)
+            .eq('gera_ata', true)
+            .gte('data_hora_inicio', `${anoEvento}-01-01T00:00:00`)
+            .lte('data_hora_inicio', evento.data_hora_inicio);
+            
+        const numeroAta = eventosAnteriores ? eventosAnteriores.length : 1;
+
+        const { data: presencas } = await supabaseClient.from('presencas').select('data_hora_checkin, usuario_id').eq('evento_id', eventoId).order('data_hora_checkin', { ascending: true });
+        
+        const { data: mediuns } = await supabaseClient.from('mediuns').select('id, auth_id, nome_completo, nome_social, grau, funcao').eq('terreiro_id', idTerreiroGlobal);
+            
+        const mapaMediuns = {};
+        if(mediuns) {
+            mediuns.forEach(m => {
+                mapaMediuns[m.id] = m;
+                if(m.auth_id) mapaMediuns[m.auth_id] = m;
+            });
+        }
+
+        const dataEv = new Date(evento.data_hora_inicio);
+        const dia = dataEv.getDate().toString().padStart(2, '0');
+        const meses = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+        const mesExtenso = meses[dataEv.getMonth()];
+        const ano = dataEv.getFullYear();
+        const hora = dataEv.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+        if (presencas && presencas.length > 0) {
+            presencas.sort((a, b) => {
+                const mediumA = mapaMediuns[a.usuario_id] || {};
+                const mediumB = mapaMediuns[b.usuario_id] || {};
+                
+                const isDirigenteA = mediumA.funcao === 'Dirigente' || mediumA.grau === 'Dirigente';
+                const isDirigenteB = mediumB.funcao === 'Dirigente' || mediumB.grau === 'Dirigente';
+                
+                if (isDirigenteA && !isDirigenteB) return -1;
+                if (!isDirigenteA && isDirigenteB) return 1;
+                
+                const timeA = new Date(a.data_hora_checkin).getTime();
+                const timeB = new Date(b.data_hora_checkin).getTime();
+                
+                return timeA - timeB;
+            });
+        }
+
+        let trs = '';
+        if (presencas && presencas.length > 0) {
+            presencas.forEach((p, index) => {
+                const medium = mapaMediuns[p.usuario_id] || { nome_completo: 'Médium não identificado', grau: '-', funcao: '-' };
+                const nomeFinal = medium.nome_completo;
+                const horaCheckin = new Date(p.data_hora_checkin).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                
+                let grauExibicao = '-';
+                const gStr = medium.grau && medium.grau !== '-' ? medium.grau : '';
+                const fStr = medium.funcao && medium.funcao !== '-' ? medium.funcao : '';
+                if (gStr && fStr) grauExibicao = `${gStr}/${fStr}`;
+                else if (gStr) grauExibicao = gStr;
+                else if (fStr) grauExibicao = fStr;
+
+                const isDirigente = medium.funcao === 'Dirigente' || medium.grau === 'Dirigente';
+                const estiloLinha = isDirigente ? 'font-weight: bold; background-color: #f8fafc;' : '';
+                
+                let borderStyle = '1px solid #ddd';
+                const nextP = presencas[index + 1];
+                if (isDirigente && nextP) {
+                    const nextMedium = mapaMediuns[nextP.usuario_id] || {};
+                    const isNextDirigente = nextMedium.funcao === 'Dirigente' || nextMedium.grau === 'Dirigente';
+                    if (!isNextDirigente) {
+                        borderStyle = '2px solid #000'; 
+                    }
+                }
+
+                trs += `
+                    <tr style="${estiloLinha}">
+                        <td style="border-bottom: ${borderStyle}; padding: 6px 4px;">${nomeFinal}</td>
+                        <td style="border-bottom: ${borderStyle}; padding: 6px 4px; text-align: center;">${grauExibicao}</td>
+                        <td style="border-bottom: ${borderStyle}; padding: 6px 4px; text-align: right;">${horaCheckin}</td>
+                    </tr>
+                `;
+            });
+        } else {
+            trs = `<tr><td colspan="3" style="text-align: center; padding: 20px; font-style: italic;">Nenhum check-in registrado na plataforma para esta data.</td></tr>`;
+        }
+
+        const nomeCasa = nomeTerreiroGlobal || 'Templo';
+        
+        let watermarkAta = '';
+        if (logoTerreiroGlobal) {
+            watermarkAta = `<div style="position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); opacity: 0.1; z-index: 0; pointer-events: none;">
+                                <img src="${logoTerreiroGlobal}" style="width: 450px; max-width: 80%;">
+                             </div>`;
+        }
+
+        const corpoTextoAta = evento.texto_ata 
+            ? `<p style="text-align: justify; line-height: 1.8; font-size: 14px; margin-bottom: 30px; white-space: pre-wrap;">${evento.texto_ata}</p>`
+            : `<p style="text-align: justify; line-height: 1.8; font-size: 14px; margin-bottom: 30px; text-indent: 40px;">
+                Aos <strong>${dia}</strong> dias do mês de <strong>${mesExtenso}</strong> do ano de <strong>${ano}</strong>,
+                com início às <strong>${hora}</strong>, realizou-se a sessão de <strong>${evento.titulo}</strong> nas dependências
+                do templo <strong>${nomeCasa}</strong>. Abaixo, assinam digitalmente, através de validação
+                presencial por geolocalização no sistema, os médiuns que compuseram a corrente neste trabalho:
+               </p>`;
+
+        const div = document.createElement('div');
+        div.style.padding = '40px';
+        div.style.fontFamily = 'Arial, sans-serif';
+        div.style.color = '#000';
+        div.style.backgroundColor = '#fff';
+        div.style.position = 'relative';
+        
+        div.innerHTML = `
+            ${watermarkAta}
+            <div style="position: relative; z-index: 1;">
+                <div style="text-align: center; margin-bottom: 30px;">
+                    ${logoTerreiroGlobal ? `<img src="${logoTerreiroGlobal}" style="max-height: 80px; margin-bottom: 15px;">` : ''}
+                    <h1 style="font-size: 20px; font-weight: bold; text-transform: uppercase; margin: 0 0 5px 0;">${nomeCasa}</h1>
+                    <h2 style="font-size: 16px; font-weight: normal; margin: 0; letter-spacing: 2px;">LIVRO DE ATAS E PRESENÇAS</h2>
+                </div>
+                
+                <h3 style="text-align: center; font-size: 16px; margin-bottom: 25px; text-transform: uppercase; background-color: rgba(243, 244, 246, 0.9); padding: 10px; border-radius: 4px;">
+                    ATA Nº ${numeroAta.toString().padStart(3, '0')}/${ano} - ${evento.titulo}
+                </h3>
+                
+                ${corpoTextoAta}
+                
+                <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 40px; background-color: rgba(255, 255, 255, 0.6);">
+                    <thead>
+                        <tr>
+                            <th style="border-bottom: 2px solid #000; padding: 8px 4px; text-align: left;">NOME DO MÉDIUM</th>
+                            <th style="border-bottom: 2px solid #000; padding: 8px 4px; text-align: center;">GRAU</th>
+                            <th style="border-bottom: 2px solid #000; padding: 8px 4px; text-align: right;">HORA DO CHECK-IN</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${trs}
+                    </tbody>
+                </table>
+                
+                <div style="margin-top: 60px; text-align: center; page-break-inside: avoid;">
+                    <p style="margin: 0;">________________________________________________________</p>
+                    <p style="font-size: 14px; margin-top: 5px;"><strong>Direção / Presidência</strong></p>
+                    <p style="font-size: 10px; color: #777; margin-top: 25px;">
+                        ATA gerada eletronicamente pelo Sistema de Gestão em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}
+                    </p>
+                </div>
+            </div>
+        `;
+
+        const opt = {
+            margin:       10,
+            filename:     `ATA_${numeroAta.toString().padStart(3, '0')}_${ano}_${evento.titulo.replace(/\s+/g, '_')}.pdf`,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+
+        alert("Gerando Livro de Presença (PDF)... Aguarde um instante.");
+        html2pdf().set(opt).from(div).save();
+
+    } catch (error) {
+        console.error(error);
+        alert("Não foi possível gerar a ATA: " + error.message);
+    }
+};
+
+window.salvarGrau = async (id) => {
+    const btn = document.getElementById(`btnGrau_${id}`);
+    const grau = document.getElementById(`grau_${id}`).value;
+    const funcao = document.getElementById(`func_${id}`).value;
+    btn.innerHTML = 'Salvando...'; btn.disabled = true;
+    const { error } = await supabaseClient.from('mediuns').update({ grau, funcao }).eq('id', id).eq('terreiro_id', idTerreiroGlobal);
+    btn.disabled = false;
+    if (error) { btn.innerHTML = 'Erro!'; btn.classList.replace('bg-tema-primaria', 'bg-red-500'); } 
+    else {
+        btn.innerHTML = 'Salvo <i class="fas fa-check"></i>'; btn.classList.replace('bg-tema-primaria', 'bg-green-600');
+        setTimeout(() => { btn.innerHTML = 'Salvar'; btn.classList.replace('bg-green-600', 'bg-tema-primaria'); }, 2000);
+        const md = mediunsGrauCache.find(m => m.id === id);
+        if(md) { md.grau = grau; md.funcao = funcao; }
+    }
+};
+
+window.salvarPagamento = async (mediumId, mes, ano, status) => {
             const { error } = await supabaseClient.from('financeiro').upsert({ 
-                medium_id: mediumId, 
-                mes: mes, 
-                ano: ano, 
-                pago: status,
-                isento: false,
-                origem: 'manual' 
+                medium_id: mediumId, mes: mes, ano: ano, pago: status, isento: false, origem: 'manual' 
             }, { onConflict: 'medium_id,mes,ano' });
             
-            if(error) { 
-                alert('Erro: ' + error.message); 
-                document.getElementById('menuFinanceiro')?.click(); 
-            } else {
-                document.getElementById('menuFinanceiro')?.click(); 
-            }
+            if(error) alert('Erro: ' + error.message); 
+            document.getElementById('menuFinanceiro')?.click(); 
         };
 
         window.toggleIsentoMes = async (event, mediumId, mes, ano, bloqueado) => {
             event.preventDefault(); 
             if (bloqueado) return;
-            
-            if(!confirm(`Deseja ISENTAR/ANISTIAR este médium da mensalidade do mês ${mes}/${ano}?`)) return;
+            if(!confirm(`Deseja ISENTAR este médium do mês ${mes}/${ano}?`)) return;
             
             const { error } = await supabaseClient.from('financeiro').upsert({ 
-                medium_id: mediumId, 
-                mes: mes, 
-                ano: ano, 
-                pago: false, 
-                isento: true, 
-                origem: 'manual' 
+                medium_id: mediumId, mes: mes, ano: ano, pago: false, isento: true, origem: 'manual' 
             }, { onConflict: 'medium_id,mes,ano' });
             
             if(error) alert('Erro: ' + error.message);
-            else document.getElementById('menuFinanceiro')?.click(); 
+            document.getElementById('menuFinanceiro')?.click(); 
         };
 
-        window.aplicarFiltrosMediuns = () => {}; 
-        window.carregarValidadorPagamentos = () => {};
+    // Ao mexer no checkbox, tira qualquer isenção que houvesse e força como lançamento manual
+    const { error } = await supabaseClient.from('financeiro').upsert({ 
+        medium_id: mediumId, 
+        mes: mes, 
+        ano: ano, 
+        pago: status,
+        isento: false,
+        origem: 'manual' 
+    }, { onConflict: 'medium_id,mes,ano' });
+    
+    if(error) { 
+        alert('Erro: ' + error.message); 
+        document.getElementById('menuFinanceiro')?.click(); 
+    } else {
+        document.getElementById('menuFinanceiro')?.click(); // Força o refresh pra atualizar cores
+    }
+};
+
+window.toggleIsentoMes = async (event, mediumId, mes, ano) => {
+    event.preventDefault(); // Impede o menu do navegador de abrir
+    
+    if(!confirm(`Deseja ISENTAR/ANISTIAR este médium da mensalidade do mês ${mes}/${ano}?`)) return;
+    
+    const { error } = await supabaseClient.from('financeiro').upsert({ 
+        medium_id: mediumId, 
+        mes: mes, 
+        ano: ano, 
+        pago: false, // Isenção não é pagamento efetivo
+        isento: true, 
+        origem: 'manual' 
+    }, { onConflict: 'medium_id,mes,ano' });
+    
+    if(error) alert('Erro: ' + error.message);
+    else document.getElementById('menuFinanceiro')?.click(); // Recarrega tela pra pintar de roxo
+};
+
+window.aprovarComprovante = async (comprovanteId) => {
+    if (!confirm("Aprovar este comprovante? Os meses associados serão marcados como pagos e o documento será arquivado.")) return;
+
+    try {
+        const { data: comp, error: errComp } = await supabaseClient
+            .from('comprovantes_mensalidade')
+            .select('detalhes_pagamento')
+            .eq('id', comprovanteId)
+            .eq('terreiro_id', idTerreiroGlobal)
+            .single();
+
+        if (errComp) throw errComp;
+
+        let upserts = [];
+        if (comp.detalhes_pagamento && Array.isArray(comp.detalhes_pagamento)) {
+            comp.detalhes_pagamento.forEach(det => {
+                if (det.meses && Array.isArray(det.meses)) {
+                    det.meses.forEach(mes => {
+                        upserts.push({
+                            medium_id: det.medium_id,
+                            mes: mes,
+                            ano: det.ano,
+                            pago: true,
+                            isento: false,
+                            origem: 'pix_sistema' // <- REGISTRA A ORIGEM DO PIX NA FUNÇÃO SOLTA TB
+                        });
+                    });
+                }
+            });
+        }
+
+        if (upserts.length > 0) {
+            const { error: errUpsert } = await supabaseClient
+                .from('financeiro')
+                .upsert(upserts, { onConflict: 'medium_id,mes,ano' });
+            if (errUpsert) throw errUpsert;
+        }
+
+        const { error: errStatus } = await supabaseClient
+            .from('comprovantes_mensalidade')
+            .update({ status: 'aprovado' })
+            .eq('id', comprovanteId)
+            .eq('terreiro_id', idTerreiroGlobal);
+        if (errStatus) throw errStatus;
+
+        alert("Comprovante aprovado com sucesso! Baixas realizadas.");
+        if(typeof window.carregarValidadorPagamentos === 'function') window.carregarValidadorPagamentos();
+
+    } catch (err) {
+        console.error(err);
+        alert("Erro ao aprovar comprovante: " + err.message);
+    }
+};
+
+window.rejeitarComprovante = async (comprovanteId) => {
+    if (!confirm("Rejeitar este comprovante? As mensalidades continuarão pendentes.")) return;
+
+    try {
+        const { error } = await supabaseClient
+            .from('comprovantes_mensalidade')
+            .update({ status: 'rejeitado' })
+            .eq('id', comprovanteId)
+            .eq('terreiro_id', idTerreiroGlobal);
+
+        if (error) throw error;
         
-        window.gerarPDFRelatorio = (titulo, colunas, dados) => {
-            const containerPDF = document.createElement('div');
-            containerPDF.style.padding = '20px 30px';
-            containerPDF.style.fontFamily = 'Arial, sans-serif';
-            containerPDF.style.color = '#333';
-            containerPDF.style.position = 'relative';
+        alert("Comprovante rejeitado.");
+        if(typeof window.carregarValidadorPagamentos === 'function') window.carregarValidadorPagamentos();
+    } catch (err) {
+        console.error(err);
+        alert("Erro ao rejeitar comprovante: " + err.message);
+    }
+};
 
-            let watermark = '';
-            if (logoTerreiroGlobal) {
-                watermark = `<div style="position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); opacity: 0.08; z-index: -1; pointer-events: none;">
-                                <img src="${logoTerreiroGlobal}" style="width: 400px; max-width: 80%;">
-                             </div>`;
-            }
+window.marcarDoacao = async (id, status) => {
+    const payload = { entregue: status, data_entrega: status ? new Date().toISOString() : null };
+    const { error } = await supabaseClient.from('doacoes_registradas').update(payload).eq('id', id).eq('terreiro_id', idTerreiroGlobal);
+    if (!error) {
+        if(typeof window.carregarDoacoesPrometidas === 'function') window.carregarDoacoesPrometidas();
+    } else alert('Erro: ' + error.message);
+};
 
-            let html = `
-                ${watermark}
-                <table style="width: 100%; margin-bottom: 15px; border-bottom: 2px solid #16a34a; padding-bottom: 10px;">
-                    <tr>
-                        <td style="width: 20%; text-align: left; vertical-align: middle;">
-                            ${logoTerreiroGlobal ? `<img src="${logoTerreiroGlobal}" style="max-height: 70px; max-width: 100px; object-fit: contain;">` : ''}
-                        </td>
-                        <td style="width: 60%; text-align: center; vertical-align: middle;">
-                            <h2 style="margin: 0; color: #1e3a8a; font-size: 20px; text-transform: uppercase;">${nomeTerreiroGlobal || 'Templo'}</h2>
-                            <h3 style="margin: 4px 0 0 0; color: #444; font-size: 16px;">${titulo}</h3>
-                            <p style="margin: 4px 0 0 0; color: #666; font-size: 11px;">Emitido em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</p>
-                        </td>
-                        <td style="width: 20%;"></td>
-                    </tr>
-                </table>
-                <table style="width: 100%; border-collapse: collapse; font-size: 11px; position: relative; z-index: 1;">
-                    <thead>
-                        <tr style="background-color: #f3f4f6;">
-                            ${colunas.map(c => `<th style="padding: 6px 4px; border: 1px solid #ddd; text-align: left; font-weight: bold; color: #555;">${c}</th>`).join('')}
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
-            
-            dados.forEach((linha, i) => {
-                const bg = i % 2 === 0 ? '#ffffff' : '#f9fafb';
-                html += `<tr style="background-color: ${bg};">
-                            ${linha.map(celula => `<td style="padding: 3px 4px; border: 1px solid #ddd; color: #222; border-bottom: 1px solid #eee;">${celula}</td>`).join('')}
-                         </tr>`;
-            });
-            
-            html += `</tbody></table>`;
-            containerPDF.innerHTML = html;
+window.excluirDoacao = async (id) => {
+    if (!confirm('Deseja excluir este registro de doação permanentemente?')) return;
+    const { error } = await supabaseClient.from('doacoes_registradas').delete().eq('id', id).eq('terreiro_id', idTerreiroGlobal);
+    if (!error) {
+        if(typeof window.carregarDoacoesPrometidas === 'function') window.carregarDoacoesPrometidas();
+    } else alert('Erro ao excluir: ' + error.message);
+};
 
-            const opt = {
-                margin:       10,
-                filename:     `${titulo.replace(/\s+/g, '_')}.pdf`,
-                image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2, useCORS: true },
-                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            };
+window.alternarStatusCatalogo = async (id, status) => {
+    const { error } = await supabaseClient.from('itens_doacao').update({ ativo: status }).eq('id', id).eq('terreiro_id', idTerreiroGlobal);
+    if (!error) {
+        if(typeof window.carregarDoacoesCatalogo === 'function') window.carregarDoacoesCatalogo();
+    }
+};
 
-            html2pdf().set(opt).from(containerPDF).save();
-        };
+window.alternarModuloMensalidade = async (idTerreiro, vaiAtivar) => {
+    const msg = vaiAtivar ? "Deseja ATIVAR o módulo de Tesouraria/Mensalidades para este Terreiro?" : "Desativar o módulo de Mensalidades deste Terreiro?";
+    if(!confirm(msg)) return;
+    const { error } = await supabaseClient.from('terreiros').update({ modulo_mensalidade_ativo: vaiAtivar }).eq('id', idTerreiro);
+    if(error) alert("Erro: " + error.message); else document.getElementById('menuMaster')?.click();
+};
 
-        setTimeout(() => {
-            document.getElementById('filtroNomeMedium')?.addEventListener('input', window.aplicarFiltrosMediuns);
-            document.getElementById('filtroGrauMedium')?.addEventListener('change', window.aplicarFiltrosMediuns);
-            document.getElementById('filtroStatusMedium')?.addEventListener('change', window.aplicarFiltrosMediuns);
-            document.getElementById('filtroMesNascimento')?.addEventListener('change', window.aplicarFiltrosMediuns);
-            
-            document.getElementById('filtroConvocadosNome')?.addEventListener('input', () => window.filtrarConvocados('listaCheckConvocados', 'filtroConvocadosNome', 'filtroConvocadosGrau'));
-            document.getElementById('filtroConvocadosGrau')?.addEventListener('change', () => window.filtrarConvocados('listaCheckConvocados', 'filtroConvocadosNome', 'filtroConvocadosGrau'));
-            document.getElementById('editFiltroConvocadosNome')?.addEventListener('input', () => window.filtrarConvocados('editListaCheckConvocados', 'editFiltroConvocadosNome', 'editFiltroConvocadosGrau'));
-            document.getElementById('editFiltroConvocadosGrau')?.addEventListener('change', () => window.filtrarConvocados('editListaCheckConvocados', 'editFiltroConvocadosNome', 'editFiltroConvocadosGrau'));
+window.acessarTerreiroSaaS = (idTerreiro) => {
+    localStorage.setItem('terreiroAtivoSaaS', idTerreiro);
+    window.location.reload();
+};
 
-            document.getElementById('btnImprimirMediuns')?.addEventListener('click', () => {
-                const btn = document.getElementById('btnImprimirMediuns');
-                const originalHtml = btn.innerHTML;
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Gerando...';
-                btn.disabled = true;
-                
-                const lista = window.mediunsFiltrados || listaMediunsGlobal;
-                const dados = lista.map(m => {
-                    let dataNasc = '-';
-                    if (m.data_nascimento) {
-                        if (m.data_nascimento.includes('-')) {
-                            const p = m.data_nascimento.split('-');
-                            if(p.length === 3) dataNasc = `${p[2]}/${p[1]}/${p[0]}`;
-                        } else dataNasc = m.data_nascimento;
-                    }
-                    const nomeStr = m.nome_completo;
-                    const whats = m.telefone || '-';
-                    const palavra = m.palavra || '-';
-                    return [nomeStr, dataNasc, m.grau || '-', m.funcao || '-', whats, palavra];
-                });
-                
-                dados.sort((a, b) => a[0].localeCompare(b[0], 'pt-BR'));
-                
-                window.gerarPDFRelatorio('Quadro Oficial de Médiuns', ['Nome Completo', 'Nascimento', 'Grau', 'Função', 'WhatsApp', 'Palavra'], dados);
-                setTimeout(() => { btn.innerHTML = originalHtml; btn.disabled = false; }, 2000);
-            });
+window.voltarParaMeuPainel = () => {
+    localStorage.removeItem('terreiroAtivoSaaS');
+    window.location.reload();
+};
 
-            document.getElementById('btnImprimirAniversariantes')?.addEventListener('click', () => {
-                const btn = document.getElementById('btnImprimirAniversariantes');
-                const originalHtml = btn.innerHTML;
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-                btn.disabled = true;
-                
-                const dataAtual = new Date();
-                const mesAtualNum = (dataAtual.getMonth() + 1).toString().padStart(2, '0');
-                
-                const lista = listaMediunsGlobal.filter(m => {
-                    if (!m.data_nascimento) return false;
-                    let mesNasc = '';
-                    if (m.data_nascimento.includes('-')) mesNasc = m.data_nascimento.split('-')[1];
-                    else if (m.data_nascimento.includes('/')) mesNasc = m.data_nascimento.split('/')[1];
-                    return mesNasc === mesAtualNum;
-                });
-                
-                if(lista.length === 0) {
-                    alert("Nenhum aniversariante neste mês para gerar relatório.");
-                    btn.innerHTML = originalHtml; btn.disabled = false;
-                    return;
-                }
-                
-                lista.sort((a, b) => {
-                    let diaA = 0, diaB = 0;
-                    if(a.data_nascimento.includes('-')) diaA = parseInt(a.data_nascimento.split('-')[2]);
-                    if(b.data_nascimento.includes('-')) diaB = parseInt(b.data_nascimento.split('-')[2]);
-                    return diaA - diaB;
-                });
-                
-                const dados = lista.map(m => {
-                    let diaMes = '-';
-                    if (m.data_nascimento) {
-                        if (m.data_nascimento.includes('-')) {
-                            const p = m.data_nascimento.split('-');
-                            if(p.length === 3) diaMes = `${p[2]}/${p[1]}`;
-                        } else {
-                            const dataNasc = m.data_nascimento;
-                            if(dataNasc.includes('/')) diaMes = dataNasc.substring(0, 5);
-                        }
-                    }
+window.alternarBloqueioTerreiro = async (idTerreiro, vaiBloquear) => {
+    const acaoStr = vaiBloquear ? "BLOQUEAR" : "DESBLOQUEAR";
+    if(!confirm(`Deseja ${acaoStr} o terreiro ID ${idTerreiro}?`)) return;
+    const { error } = await supabaseClient.from('terreiros').update({ status_bloqueado: vaiBloquear }).eq('id', idTerreiro);
+    if(error) alert("Erro: " + error.message); else document.getElementById('menuMaster')?.click();
+};
 
-                    const nomeExibicao = m.nome_completo || 'Médium';
-                    const g = m.grau && m.grau !== '-' ? m.grau : '';
-                    const f = m.funcao && m.funcao !== '-' ? m.funcao : '';
-                    let grauFuncao = '-';
-                    if (g && f) grauFuncao = `${g}/${f}`;
-                    else grauFuncao = g || f || '-';
+window.abrirModalImportacao = (idTerreiro, nomeTerreiro) => {
+    document.getElementById('idTerreiroImport').value = idTerreiro;
+    document.getElementById('nomeTerreiroImport').textContent = nomeTerreiro;
+    document.getElementById('msgImportacao')?.classList.add('hidden');
+    if (document.getElementById('formImportarCSV')) document.getElementById('formImportarCSV').reset();
+    document.getElementById('modalImportarCSV')?.classList.remove('hidden');
+};
 
-                    return [diaMes, nomeExibicao, grauFuncao];
-                });
-                
-                const mesAtual = new Date().toLocaleString('pt-BR', { month: 'long' });
-                const titulo = `Aniversariantes de ${mesAtual.charAt(0).toUpperCase() + mesAtual.slice(1)}`;
-                
-                window.gerarPDFRelatorio(titulo, ['Data', 'Nome', 'Grau'], dados);
-                setTimeout(() => { btn.innerHTML = originalHtml; btn.disabled = false; }, 2000);
-            });
-        }, 500);
-
-        window.abrirModalNovoMedium = () => {
-            document.getElementById('msgNovoMedium')?.classList.add('hidden');
-            document.getElementById('resultadoNovoMedium')?.classList.add('hidden');
-            const f = document.getElementById('formNovoMedium');
-            if (f) {
-                f.reset();
-                f.classList.remove('hidden');
-            }
-            document.getElementById('modalNovoMedium')?.classList.remove('hidden');
-        };
-
-        window.fecharModalNovoMedium = () => {
-            document.getElementById('modalNovoMedium')?.classList.add('hidden');
-            document.getElementById('menuQuadroMediuns')?.click();
-        };
-
-        window.abrirModalEditarMedium = (id) => {
-            const medium = listaMediunsGlobal.find(m => m.id === id);
-            if (!medium) return alert("Médium não encontrado.");
-
-            document.getElementById('editMediumId').value = medium.id;
-            document.getElementById('editMediumNome').value = medium.nome_completo || '';
-            document.getElementById('editMediumNomeSocial').value = medium.nome_social || '';
-            document.getElementById('editMediumTelefone').value = medium.telefone || '';
-            document.getElementById('editMediumNascimento').value = medium.data_nascimento || '';
-            document.getElementById('editMediumGrau').value = medium.grau || '-';
-            document.getElementById('editMediumFuncao').value = medium.funcao || '-';
-
-            document.getElementById('msgEditMedium')?.classList.add('hidden');
-            document.getElementById('modalEditarMedium')?.classList.remove('hidden');
-        };
-
-        window.fecharModalEditarMedium = () => {
-            document.getElementById('modalEditarMedium')?.classList.add('hidden');
-        };
-
-        window.excluirMedium = async (id, nome) => {
-            if(!confirm(`ATENÇÃO: Deseja excluir DEFINITIVAMENTE o médium ${nome}?`)) return;
-            const { error } = await supabaseClient.from('mediuns').delete().eq('id', id).eq('terreiro_id', idTerreiroGlobal);
-            if (error) alert('Erro ao excluir: ' + error.message);
-            else { alert('Médium excluído!'); document.getElementById('menuQuadroMediuns')?.click(); }
-        };
-
-        window.alternarStatusAtivoMedium = async (id, statusAtual) => {
-            const novoStatus = !statusAtual;
-            const msg = novoStatus ? "Deseja REATIVAR o acesso deste médium?" : "Deseja INATIVAR este médium? Ele não poderá mais acessar a plataforma.";
-            if(!confirm(msg)) return;
-            
-            const { error } = await supabaseClient.from('mediuns').update({ status_ativo: novoStatus }).eq('id', id).eq('terreiro_id', idTerreiroGlobal);
-            if (error) alert('Erro ao alterar status: ' + error.message);
-            else document.getElementById('menuQuadroMediuns')?.click();
-        };
-
-        window.abrirModalPermissoes = (id, nome, permsString) => {
-            document.getElementById('idMediumPermissao').value = id;
-            document.getElementById('nomeMediumPermissao').textContent = nome;
-            const [pAgenda, pGrau, pFin, pDoa, pAdmin, pVisao, pAta] = permsString.split(',');
-            
-            document.getElementById('chkPermAgenda').checked = pAgenda === 'true';
-            document.getElementById('chkPermGrau').checked = pGrau === 'true';
-            document.getElementById('chkPermFinanceiro').checked = pFin === 'true';
-            document.getElementById('chkPermDoacoes').checked = pDoa === 'true';
-            document.getElementById('chkPermAdmin').checked = pAdmin === 'true';
-            if (document.getElementById('chkPermVisao')) document.getElementById('chkPermVisao').checked = pVisao === 'true';
-            if (document.getElementById('chkPermAta')) document.getElementById('chkPermAta').checked = pAta === 'true';
-            
-            document.getElementById('modalPermissoes').classList.remove('hidden');
-        };
-
-        document.addEventListener('change', (e) => {
-            if(e.target.id === 'giraEspecial') {
-                const box = document.getElementById('boxConvocados');
-                if(e.target.checked) {
-                    box?.classList.remove('hidden');
-                    if(typeof renderizarCheckboxesConvocados === 'function') renderizarCheckboxesConvocados('listaCheckConvocados', []);
-                } else box?.classList.add('hidden');
-            }
-            if(e.target.id === 'editGiraEspecial') {
-                const box = document.getElementById('editBoxConvocados');
-                if(e.target.checked) {
-                    box?.classList.remove('hidden');
-                } else box?.classList.add('hidden');
-            }
-        });
-
-        window.atualizarSelecao = (containerId, checkbox) => {
-            let arr = window['selecionados_' + containerId] || [];
-            if(checkbox.checked) {
-                if(!arr.includes(checkbox.value)) arr.push(checkbox.value);
-            } else {
-                arr = arr.filter(v => v !== checkbox.value);
-            }
-            window['selecionados_' + containerId] = arr;
-        };
-
-        window.filtrarConvocados = (containerId, inputNomeId, selectGrauId) => {
-            const termoNome = (document.getElementById(inputNomeId)?.value || '').toLowerCase();
-            const termoGrau = (document.getElementById(selectGrauId)?.value || '').toLowerCase();
-            
-            const filtrados = (listaMediunsGlobal || []).filter(m => {
-                const nomeStr = (m.nome_social ? m.nome_social : m.nome_completo).toLowerCase();
-                const passaNome = nomeStr.includes(termoNome);
-                
-                let passaGrau = true;
-                if (termoGrau !== '') {
-                    const grauCompleto = `${m.grau || ''} ${m.funcao || ''}`.toLowerCase();
-                    passaGrau = grauCompleto.includes(termoGrau);
-                }
-                
-                return passaNome && passaGrau;
-            });
-
-            const container = document.getElementById(containerId);
-            if(!container) return;
-            
-            let html = '';
-            const selecionados = window['selecionados_' + containerId] || [];
-
-            if(filtrados.length === 0) {
-                html = '<span class="text-xs text-gray-500 col-span-2 md:col-span-4">Nenhum médium encontrado.</span>';
-            } else {
-                filtrados.forEach(m => {
-                    const idStr = String(m.id);
-                    const isChecked = selecionados.includes(idStr) ? 'checked' : '';
-                    const nomeExibicao = m.nome_social ? m.nome_social : m.nome_completo;
-                    html += `
-                        <label class="flex items-center space-x-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-50 p-1 rounded" title="Grau: ${m.grau || '-'} / Função: ${m.funcao || '-'}">
-                            <input type="checkbox" value="${m.id}" class="chk-convocado rounded text-red-500 focus:ring-red-500" ${isChecked} onchange="atualizarSelecao('${containerId}', this)">
-                            <span class="truncate">${nomeExibicao}</span>
-                        </label>
-                    `;
-                });
-            }
-            container.innerHTML = html;
-        };
-
-        window.excluirGira = async (id, dataInicioISO) => {
-            const dataInicio = new Date(dataInicioISO);
-            const agora = new Date();
-            const diferencaHoras = (dataInicio - agora) / (1000 * 60 * 60);
-
-            if (diferencaHoras < 2) {
-                alert("⚠️ AÇÃO BLOQUEADA: Não é permitido excluir um evento que já iniciou, já passou, ou que começa em menos de 2 horas. Isso evita perda de dados de check-ins.");
-                return;
-            }
-
-            if (!confirm("Tem certeza que deseja excluir este evento da agenda? A exclusão é irreversível.")) return;
-
-            const { error } = await supabaseClient.from('agenda').delete().eq('id', id).eq('terreiro_id', idTerreiroGlobal);
-            if (error) alert("Erro ao excluir o evento: " + error.message);
-            else { alert("Evento apagado com sucesso!"); document.getElementById('menuAgendaGiras')?.click(); }
-        };
-
-        window.abrirModalEditarGira = async (id) => {
-            const { data, error } = await supabaseClient.from('agenda').select('*').eq('id', id).eq('terreiro_id', idTerreiroGlobal).single();
-            if (error) { alert("Erro ao buscar dados: " + error.message); return; }
-
-            document.getElementById('editGiraId').value = data.id;
-            document.getElementById('editGiraTitulo').value = data.titulo;
-            
-            const formataParaInput = (isoString) => {
-                if (!isoString) return '';
-                const dataBanco = new Date(isoString);
-                const spDateString = dataBanco.toLocaleString("en-US", {timeZone: "America/Sao_Paulo"});
-                const spDate = new Date(spDateString);
-                
-                const ano = spDate.getFullYear();
-                const mes = String(spDate.getMonth() + 1).padStart(2, '0');
-                const dia = String(spDate.getDate()).padStart(2, '0');
-                const horas = String(spDate.getHours()).padStart(2, '0');
-                const minutos = String(spDate.getMinutes()).padStart(2, '0');
-                
-                return `${ano}-${mes}-${dia}T${horas}:${minutos}`;
-            };
-
-            document.getElementById('editGiraInicio').value = formataParaInput(data.data_hora_inicio);
-            document.getElementById('editGiraFim').value = formataParaInput(data.data_hora_fim);
-            if (document.getElementById('editGiraGeraAta')) document.getElementById('editGiraGeraAta').checked = data.gera_ata || false;
-
-            const chkEspecial = document.getElementById('editGiraEspecial');
-            const boxEspecial = document.getElementById('editBoxConvocados');
-            if (chkEspecial && boxEspecial) {
-                chkEspecial.checked = data.especial || false;
-                if (data.especial) boxEspecial.classList.remove('hidden');
-                else boxEspecial.classList.add('hidden');
-                if(typeof renderizarCheckboxesConvocados === 'function') {
-                    renderizarCheckboxesConvocados('editListaCheckConvocados', data.convocados || []);
-                }
-            }
-
-            document.getElementById('modalEditarGira').classList.remove('hidden');
-        };
-
-        window.fecharModalEditarGira = () => document.getElementById('modalEditarGira').classList.add('hidden');
-
-        window.abrirModalEscreverAta = async (id) => {
-            try {
-                const { data } = await supabaseClient.from('agenda').select('texto_ata').eq('id', id).eq('terreiro_id', idTerreiroGlobal).single();
-                document.getElementById('ataEventoId').value = id;
-                document.getElementById('ataTexto').value = data?.texto_ata || '';
-                document.getElementById('modalEscreverAta').classList.remove('hidden');
-                document.getElementById('msgEscreverAta').classList.add('hidden');
-            } catch (error) {
-                alert("Erro ao buscar texto: " + error.message);
-            }
-        };
-
-        window.fecharModalEscreverAta = () => {
-            document.getElementById('modalEscreverAta').classList.add('hidden');
-        };
-
-        window.encerrarAta = async (id) => {
-            if(!confirm("Atenção! Ao encerrar a ATA, os check-ins serão bloqueados para este evento e o documento não poderá mais ser alterado. Confirmar fechamento?")) return;
-            
-            const { error } = await supabaseClient.from('agenda').update({ ata_encerrada: true }).eq('id', id).eq('terreiro_id', idTerreiroGlobal);
-            
-            if (error) {
-                alert("Erro ao encerrar: " + error.message);
-            } else {
-                alert("Sessão Encerrada! O documento oficial está disponível para download.");
-                document.getElementById('menuLivroAta')?.click();
-            }
-        };
-
-        window.baixarLivroAnual = async () => {
-            alert("Atenção: A consolidação do Livro Anual gera arquivo muito pesado. Esta função está sendo adaptada para rodar em segundo plano e será liberada em breve. Por favor, baixe as atas de forma individual na tabela abaixo.");
-        };
-
-        window.arquivarAnoAnterior = async () => {
-            const anoAtual = new Date().getFullYear();
-            if(!confirm(`ATENÇÃO EXTREMA: Você está prestes a excluir definitivamente todas as ATAs anteriores a ${anoAtual}. Certifique-se de já ter baixado e feito backup dos PDFs. Deseja prosseguir com a exclusão?`)) return;
-            
-            const { error } = await supabaseClient.from('agenda')
-                .delete()
-                .eq('terreiro_id', idTerreiroGlobal)
-                .eq('gera_ata', true)
-                .lte('data_hora_inicio', `${anoAtual}-01-01T00:00:00`);
-                
-            if (error) alert("Erro ao limpar dados antigos: " + error.message);
-            else {
-                alert("Limpeza do exercício anterior concluída com sucesso!");
-                document.getElementById('menuLivroAta')?.click();
-            }
-        };
-
-        window.gerarPDF_ATA = async (eventoId) => {
-            try {
-                const { data: evento, error: errEv } = await supabaseClient.from('agenda').select('*').eq('id', eventoId).eq('terreiro_id', idTerreiroGlobal).single();
-                if (errEv || !evento) throw new Error("Erro ao buscar dados do evento.");
-
-                const anoEvento = new Date(evento.data_hora_inicio).getFullYear();
-                const { data: eventosAnteriores } = await supabaseClient
-                    .from('agenda')
-                    .select('id')
-                    .eq('terreiro_id', idTerreiroGlobal)
-                    .eq('gera_ata', true)
-                    .gte('data_hora_inicio', `${anoEvento}-01-01T00:00:00`)
-                    .lte('data_hora_inicio', evento.data_hora_inicio);
-                    
-                const numeroAta = eventosAnteriores ? eventosAnteriores.length : 1;
-
-                const { data: presencas } = await supabaseClient.from('presencas').select('data_hora_checkin, usuario_id').eq('evento_id', eventoId).order('data_hora_checkin', { ascending: true });
-                
-                const { data: mediuns } = await supabaseClient.from('mediuns').select('id, auth_id, nome_completo, nome_social, grau, funcao').eq('terreiro_id', idTerreiroGlobal);
-                    
-                const mapaMediuns = {};
-                if(mediuns) {
-                    mediuns.forEach(m => {
-                        mapaMediuns[m.id] = m;
-                        if(m.auth_id) mapaMediuns[m.auth_id] = m;
-                    });
-                }
-
-                const dataEv = new Date(evento.data_hora_inicio);
-                const dia = dataEv.getDate().toString().padStart(2, '0');
-                const meses = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
-                const mesExtenso = meses[dataEv.getMonth()];
-                const ano = dataEv.getFullYear();
-                const hora = dataEv.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-
-                if (presencas && presencas.length > 0) {
-                    presencas.sort((a, b) => {
-                        const mediumA = mapaMediuns[a.usuario_id] || {};
-                        const mediumB = mapaMediuns[b.usuario_id] || {};
-                        
-                        const isDirigenteA = mediumA.funcao === 'Dirigente' || mediumA.grau === 'Dirigente';
-                        const isDirigenteB = mediumB.funcao === 'Dirigente' || mediumB.grau === 'Dirigente';
-                        
-                        if (isDirigenteA && !isDirigenteB) return -1;
-                        if (!isDirigenteA && isDirigenteB) return 1;
-                        
-                        const timeA = new Date(a.data_hora_checkin).getTime();
-                        const timeB = new Date(b.data_hora_checkin).getTime();
-                        
-                        return timeA - timeB;
-                    });
-                }
-
-                let trs = '';
-                if (presencas && presencas.length > 0) {
-                    presencas.forEach((p, index) => {
-                        const medium = mapaMediuns[p.usuario_id] || { nome_completo: 'Médium não identificado', grau: '-', funcao: '-' };
-                        const nomeFinal = medium.nome_completo;
-                        const horaCheckin = new Date(p.data_hora_checkin).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                        
-                        let grauExibicao = '-';
-                        const gStr = medium.grau && medium.grau !== '-' ? medium.grau : '';
-                        const fStr = medium.funcao && medium.funcao !== '-' ? medium.funcao : '';
-                        if (gStr && fStr) grauExibicao = `${gStr}/${fStr}`;
-                        else if (gStr) grauExibicao = gStr;
-                        else if (fStr) grauExibicao = fStr;
-
-                        const isDirigente = medium.funcao === 'Dirigente' || medium.grau === 'Dirigente';
-                        const estiloLinha = isDirigente ? 'font-weight: bold; background-color: #f8fafc;' : '';
-                        
-                        let borderStyle = '1px solid #ddd';
-                        const nextP = presencas[index + 1];
-                        if (isDirigente && nextP) {
-                            const nextMedium = mapaMediuns[nextP.usuario_id] || {};
-                            const isNextDirigente = nextMedium.funcao === 'Dirigente' || nextMedium.grau === 'Dirigente';
-                            if (!isNextDirigente) {
-                                borderStyle = '2px solid #000'; 
-                            }
-                        }
-
-                        trs += `
-                            <tr style="${estiloLinha}">
-                                <td style="border-bottom: ${borderStyle}; padding: 6px 4px;">${nomeFinal}</td>
-                                <td style="border-bottom: ${borderStyle}; padding: 6px 4px; text-align: center;">${grauExibicao}</td>
-                                <td style="border-bottom: ${borderStyle}; padding: 6px 4px; text-align: right;">${horaCheckin}</td>
-                            </tr>
-                        `;
-                    });
-                } else {
-                    trs = `<tr><td colspan="3" style="text-align: center; padding: 20px; font-style: italic;">Nenhum check-in registrado na plataforma para esta data.</td></tr>`;
-                }
-
-                const nomeCasa = nomeTerreiroGlobal || 'Templo';
-                
-                let watermarkAta = '';
-                if (logoTerreiroGlobal) {
-                    watermarkAta = `<div style="position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); opacity: 0.1; z-index: 0; pointer-events: none;">
-                                        <img src="${logoTerreiroGlobal}" style="width: 450px; max-width: 80%;">
-                                     </div>`;
-                }
-
-                const corpoTextoAta = evento.texto_ata 
-                    ? `<p style="text-align: justify; line-height: 1.8; font-size: 14px; margin-bottom: 30px; white-space: pre-wrap;">${evento.texto_ata}</p>`
-                    : `<p style="text-align: justify; line-height: 1.8; font-size: 14px; margin-bottom: 30px; text-indent: 40px;">
-                        Aos <strong>${dia}</strong> dias do mês de <strong>${mesExtenso}</strong> do ano de <strong>${ano}</strong>,
-                        com início às <strong>${hora}</strong>, realizou-se a sessão de <strong>${evento.titulo}</strong> nas dependências
-                        do templo <strong>${nomeCasa}</strong>. Abaixo, assinam digitalmente, através de validação
-                        presencial por geolocalização no sistema, os médiuns que compuseram a corrente neste trabalho:
-                       </p>`;
-
-                const div = document.createElement('div');
-                div.style.padding = '40px';
-                div.style.fontFamily = 'Arial, sans-serif';
-                div.style.color = '#000';
-                div.style.backgroundColor = '#fff';
-                div.style.position = 'relative';
-                
-                div.innerHTML = `
-                    ${watermarkAta}
-                    <div style="position: relative; z-index: 1;">
-                        <div style="text-align: center; margin-bottom: 30px;">
-                            ${logoTerreiroGlobal ? `<img src="${logoTerreiroGlobal}" style="max-height: 80px; margin-bottom: 15px;">` : ''}
-                            <h1 style="font-size: 20px; font-weight: bold; text-transform: uppercase; margin: 0 0 5px 0;">${nomeCasa}</h1>
-                            <h2 style="font-size: 16px; font-weight: normal; margin: 0; letter-spacing: 2px;">LIVRO DE ATAS E PRESENÇAS</h2>
-                        </div>
-                        
-                        <h3 style="text-align: center; font-size: 16px; margin-bottom: 25px; text-transform: uppercase; background-color: rgba(243, 244, 246, 0.9); padding: 10px; border-radius: 4px;">
-                            ATA Nº ${numeroAta.toString().padStart(3, '0')}/${ano} - ${evento.titulo}
-                        </h3>
-                        
-                        ${corpoTextoAta}
-                        
-                        <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 40px; background-color: rgba(255, 255, 255, 0.6);">
-                            <thead>
-                                <tr>
-                                    <th style="border-bottom: 2px solid #000; padding: 8px 4px; text-align: left;">NOME DO MÉDIUM</th>
-                                    <th style="border-bottom: 2px solid #000; padding: 8px 4px; text-align: center;">GRAU</th>
-                                    <th style="border-bottom: 2px solid #000; padding: 8px 4px; text-align: right;">HORA DO CHECK-IN</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${trs}
-                            </tbody>
-                        </table>
-                        
-                        <div style="margin-top: 60px; text-align: center; page-break-inside: avoid;">
-                            <p style="margin: 0;">________________________________________________________</p>
-                            <p style="font-size: 14px; margin-top: 5px;"><strong>Direção / Presidência</strong></p>
-                            <p style="font-size: 10px; color: #777; margin-top: 25px;">
-                                ATA gerada eletronicamente pelo Sistema de Gestão em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}
-                            </p>
-                        </div>
-                    </div>
-                `;
-
-                const opt = {
-                    margin:       10,
-                    filename:     `ATA_${numeroAta.toString().padStart(3, '0')}_${ano}_${evento.titulo.replace(/\s+/g, '_')}.pdf`,
-                    image:        { type: 'jpeg', quality: 0.98 },
-                    html2canvas:  { scale: 2, useCORS: true },
-                    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-                };
-
-                alert("Gerando Livro de Presença (PDF)... Aguarde um instante.");
-                html2pdf().set(opt).from(div).save();
-
-            } catch (error) {
-                console.error(error);
-                alert("Não foi possível gerar a ATA: " + error.message);
-            }
-        };
-
-        window.salvarGrau = async (id) => {
-            const btn = document.getElementById(`btnGrau_${id}`);
-            const grau = document.getElementById(`grau_${id}`).value;
-            const funcao = document.getElementById(`func_${id}`).value;
-            btn.innerHTML = 'Salvando...'; btn.disabled = true;
-            const { error } = await supabaseClient.from('mediuns').update({ grau, funcao }).eq('id', id).eq('terreiro_id', idTerreiroGlobal);
-            btn.disabled = false;
-            if (error) { btn.innerHTML = 'Erro!'; btn.classList.replace('bg-tema-primaria', 'bg-red-500'); } 
-            else {
-                btn.innerHTML = 'Salvo <i class="fas fa-check"></i>'; btn.classList.replace('bg-tema-primaria', 'bg-green-600');
-                setTimeout(() => { btn.innerHTML = 'Salvar'; btn.classList.replace('bg-green-600', 'bg-tema-primaria'); }, 2000);
-                const md = mediunsGrauCache.find(m => m.id === id);
-                if(md) { md.grau = grau; md.funcao = funcao; }
-            }
-        };
-
-        window.marcarDoacao = async (id, status) => {
-            const payload = { entregue: status, data_entrega: status ? new Date().toISOString() : null };
-            const { error } = await supabaseClient.from('doacoes_registradas').update(payload).eq('id', id).eq('terreiro_id', idTerreiroGlobal);
-            if (!error) {
-                if(typeof window.carregarDoacoesPrometidas === 'function') window.carregarDoacoesPrometidas();
-            } else alert('Erro: ' + error.message);
-        };
-
-        window.excluirDoacao = async (id) => {
-            if (!confirm('Deseja excluir este registro de doação permanentemente?')) return;
-            const { error } = await supabaseClient.from('doacoes_registradas').delete().eq('id', id).eq('terreiro_id', idTerreiroGlobal);
-            if (!error) {
-                if(typeof window.carregarDoacoesPrometidas === 'function') window.carregarDoacoesPrometidas();
-            } else alert('Erro ao excluir: ' + error.message);
-        };
-
-        window.alternarStatusCatalogo = async (id, status) => {
-            const { error } = await supabaseClient.from('itens_doacao').update({ ativo: status }).eq('id', id).eq('terreiro_id', idTerreiroGlobal);
-            if (!error) {
-                if(typeof window.carregarDoacoesCatalogo === 'function') window.carregarDoacoesCatalogo();
-            }
-        };
-
-        window.alternarModuloMensalidade = async (idTerreiro, vaiAtivar) => {
-            const msg = vaiAtivar ? "Deseja ATIVAR o módulo de Tesouraria/Mensalidades para este Terreiro?" : "Desativar o módulo de Mensalidades deste Terreiro?";
-            if(!confirm(msg)) return;
-            const { error } = await supabaseClient.from('terreiros').update({ modulo_mensalidade_ativo: vaiAtivar }).eq('id', idTerreiro);
-            if(error) alert("Erro: " + error.message); else document.getElementById('menuMaster')?.click();
-        };
-
-        window.acessarTerreiroSaaS = (idTerreiro) => {
-            localStorage.setItem('terreiroAtivoSaaS', idTerreiro);
-            window.location.reload();
-        };
-
-        window.voltarParaMeuPainel = () => {
-            localStorage.removeItem('terreiroAtivoSaaS');
-            window.location.reload();
-        };
-
-        window.alternarBloqueioTerreiro = async (idTerreiro, vaiBloquear) => {
-            const acaoStr = vaiBloquear ? "BLOQUEAR" : "DESBLOQUEAR";
-            if(!confirm(`Deseja ${acaoStr} o terreiro ID ${idTerreiro}?`)) return;
-            const { error } = await supabaseClient.from('terreiros').update({ status_bloqueado: vaiBloquear }).eq('id', idTerreiro);
-            if(error) alert("Erro: " + error.message); else document.getElementById('menuMaster')?.click();
-        };
-
-        window.abrirModalImportacao = (idTerreiro, nomeTerreiro) => {
-            document.getElementById('idTerreiroImport').value = idTerreiro;
-            document.getElementById('nomeTerreiroImport').textContent = nomeTerreiro;
-            document.getElementById('msgImportacao')?.classList.add('hidden');
-            if (document.getElementById('formImportarCSV')) document.getElementById('formImportarCSV').reset();
-            document.getElementById('modalImportarCSV')?.classList.remove('hidden');
-        };
-
-        window.fecharModalImportacao = () => {
-            document.getElementById('modalImportarCSV')?.classList.add('hidden');
-        };
+window.fecharModalImportacao = () => {
+    document.getElementById('modalImportarCSV')?.classList.add('hidden');
+};
