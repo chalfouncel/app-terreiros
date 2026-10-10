@@ -241,7 +241,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 } else if (menu.id === 'menuLivroAta') {
                     document.getElementById('secLivroAta')?.classList.remove('hidden');
                     aplicarTitulos('Livro de Presença (ATA)');
-                    if (typeof carregarLivroAta === 'function') carregarLivroAta();
+                    carregarLivroAta();
                 } else if (menu.id === 'menuGrau') {
                     document.getElementById('secGrau')?.classList.remove('hidden');
                     aplicarTitulos('Alteração de Grau');
@@ -253,8 +253,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 } else if (menu.id === 'menuDoacoes') {
                     document.getElementById('secDoacoes')?.classList.remove('hidden');
                     aplicarTitulos('Doações e Campanhas');
-                    if (typeof carregarDoacoesPrometidas === 'function') carregarDoacoesPrometidas();
-                    if (typeof carregarDoacoesCatalogo === 'function') carregarDoacoesCatalogo();
+                    carregarDoacoesPrometidas();
+                    carregarDoacoesCatalogo();
                 } else if (menu.id === 'menuAdmin') {
                     document.getElementById('secAdministracao')?.classList.remove('hidden');
                     aplicarTitulos('Configurações da Casa');
@@ -262,7 +262,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 } else if (menu.id === 'menuMaster') {
                     document.getElementById('secMaster')?.classList.remove('hidden');
                     aplicarTitulos('Gestão da Plataforma (SaaS)');
-                    if (typeof carregarGestaoPlataforma === 'function') carregarGestaoPlataforma();
+                    carregarGestaoPlataforma();
                 }
 
                 if (window.innerWidth < 768 && sidebar && overlayMobile) {
@@ -272,9 +272,55 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         });
 
-        // ========================================================
-        // ATIVAÇÃO DO BOTÃO "EXPORTAR PDF" DAS DOAÇÕES
-        // ========================================================
+        // Configuração de Mensalidade - SALVAR
+        if (document.getElementById('formConfigMensalidade')) {
+            document.getElementById('formConfigMensalidade').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const btn = document.getElementById('btnSalvarConfigMensalidade');
+                const msg = document.getElementById('msgConfigMensalidade');
+                
+                btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Salvando...';
+                
+                try {
+                    let gateway = 'manual';
+                    document.getElementsByName('gatewayPagamento').forEach(r => { if(r.checked) gateway = r.value; });
+                    
+                    const chavePix = document.getElementById('chavePixManual').value.trim();
+                    const asaasKey = document.getElementById('asaasApiKey') ? document.getElementById('asaasApiKey').value.trim() : '';
+                    
+                    const { error: errT } = await supabaseClient.from('terreiros').update({
+                        gateway_pagamento: gateway, chave_pix_manual: chavePix, asaas_api_key: asaasKey
+                    }).eq('id', idTerreiroGlobal);
+                    if (errT) throw errT;
+                    
+                    const inputs = document.querySelectorAll('.input-valor-grau');
+                    const upserts = Array.from(inputs).map(inp => {
+                        return { terreiro_id: idTerreiroGlobal, grau: inp.getAttribute('data-grau'), valor: parseFloat(inp.value) || 0 };
+                    });
+                    
+                    if(upserts.length > 0){
+                        const { error: errM } = await supabaseClient.from('config_mensalidades').upsert(upserts, { onConflict: 'terreiro_id,grau' });
+                        if(errM) throw errM;
+                    }
+                    
+                    if (msg) {
+                        msg.innerHTML = '<i class="fas fa-check-circle mr-1"></i> Configurações financeiras salvas!';
+                        msg.className = 'text-sm text-green-600 block mb-4 border border-green-200 bg-green-50 p-2 rounded';
+                        msg.classList.remove('hidden');
+                        setTimeout(() => msg.classList.add('hidden'), 5000);
+                    }
+                } catch(error) {
+                    if (msg) {
+                        msg.textContent = '❌ Erro: ' + error.message;
+                        msg.className = 'text-sm text-red-600 block mb-4';
+                        msg.classList.remove('hidden');
+                    }
+                } finally {
+                    btn.disabled = false; btn.innerHTML = '<i class="fas fa-save"></i> Salvar Tesouraria';
+                }
+            });
+        }
+
         setTimeout(() => {
             const btnPDFDoacoes = document.getElementById('btnGerarPDF_doacoes');
             if (btnPDFDoacoes) {
@@ -311,11 +357,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // ==========================================
-    // TODAS AS FUNÇÕES DE CARREGAMENTO (HOISTED)
+    // VISÃO GERAL
     // ==========================================
-
     async function carregarPainelInicial() {
         if(!idTerreiroGlobal) return; 
+        
         try {
             const { count: totalMediuns } = await supabaseClient.from('mediuns')
                 .select('*', { count: 'exact', head: true })
@@ -361,6 +407,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             arrayPresencasVisuais.push({ nome, hora });
                         });
 
+                        // Ordenação Alfabética da Tabela de Presenças Diárias
                         arrayPresencasVisuais.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
 
                         tabelaPresencas.innerHTML = ''; 
@@ -451,6 +498,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             dadosParaPDF.push([nome, cargoExibicao, hora]);
                         });
 
+                        // Ordenação Alfabética do PDF de Presenças no Evento
                         dadosParaPDF.sort((a, b) => a[0].localeCompare(b[0], 'pt-BR'));
 
                         window.gerarPDFRelatorio(
@@ -473,6 +521,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    // ==========================================
+    // QUADRO DE MÉDIUNS
+    // ==========================================
+    let listaMediunsGlobal = []; 
+
     async function carregarQuadroMediuns() {
         if(!idTerreiroGlobal) return;
         const tbody = document.getElementById('tabelaTodosMediuns');
@@ -490,6 +543,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (error) throw error;
 
             if (data) {
+                // Ordenação Alfabética por Nome Completo A-Z
                 data.sort((a, b) => (a.nome_completo || '').localeCompare(b.nome_completo || '', 'pt-BR'));
             }
 
@@ -1669,7 +1723,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.error(error);
             alert("Não foi possível gerar a ATA: " + error.message);
         }
-    }
+    };
 
     // ==========================================
     // GRAUS E FUNÇÕES
@@ -1788,14 +1842,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ==========================================
     async function carregarConfiguracoesCasa() {
         if (!idTerreiroGlobal) return;
-        const { data } = await supabaseClient.from('terreiros').select('logo_url, cor_primaria, cor_secundaria, cor_fundo, cor_texto, latitude, longitude').eq('id', idTerreiroGlobal).single();
+        const { data } = await supabaseClient.from('terreiros').select('logo_url, cor_primaria, cor_secundaria, cor_fundo, cor_texto, latitude, longitude, modulo_mensalidade_ativo, gateway_pagamento, chave_pix_manual, asaas_api_key').eq('id', idTerreiroGlobal).single();
         if (data) {
             if(data.logo_url) {
                 const prev = document.getElementById('previewLogo');
-                if (prev) {
-                    prev.src = data.logo_url;
-                    prev.classList.remove('hidden');
-                }
+                if (prev) { prev.src = data.logo_url; prev.classList.remove('hidden'); }
                 document.getElementById('placeholderLogo')?.classList.add('hidden');
             }
             if(document.getElementById('corPrimaria')) document.getElementById('corPrimaria').value = data.cor_primaria || '#1e3a8a';
@@ -1806,11 +1857,58 @@ document.addEventListener('DOMContentLoaded', async () => {
             if(document.getElementById('inputLat')) {
                 document.getElementById('inputLat').value = data.latitude || '';
                 document.getElementById('inputLng').value = data.longitude || '';
+                let lat = data.latitude || -14.2350, lng = data.longitude || -51.9253;
+                if(typeof iniciarMapa === 'function') iniciarMapa(lat, lng, data.latitude ? 18 : 4);
+            }
+
+            // Exibição e População do Módulo de Mensalidades
+            if (data.modulo_mensalidade_ativo) {
+                document.getElementById('boxConfigMensalidade')?.classList.remove('hidden');
                 
-                let lat = data.latitude || -14.2350; 
-                let lng = data.longitude || -51.9253;
-                let zoom = data.latitude ? 18 : 4;
-                iniciarMapa(lat, lng, zoom);
+                const radios = document.getElementsByName('gatewayPagamento');
+                radios.forEach(r => {
+                    if(r.value === (data.gateway_pagamento || 'manual')) r.checked = true;
+                    r.addEventListener('change', (e) => {
+                        if(e.target.value === 'manual') {
+                            document.getElementById('boxChavePix')?.classList.remove('hidden');
+                            document.getElementById('boxChaveAsaas')?.classList.add('hidden');
+                        } else {
+                            document.getElementById('boxChavePix')?.classList.add('hidden');
+                            document.getElementById('boxChaveAsaas')?.classList.remove('hidden');
+                        }
+                    });
+                });
+                
+                if(data.gateway_pagamento === 'asaas') {
+                     document.getElementById('boxChavePix')?.classList.add('hidden');
+                     document.getElementById('boxChaveAsaas')?.classList.remove('hidden');
+                }
+                
+                if(document.getElementById('chavePixManual')) document.getElementById('chavePixManual').value = data.chave_pix_manual || '';
+                if(document.getElementById('asaasApiKey')) document.getElementById('asaasApiKey').value = data.asaas_api_key || '';
+                
+                // Carrega os Valores por Grau
+                const { data: configVals } = await supabaseClient.from('config_mensalidades').select('*').eq('terreiro_id', idTerreiroGlobal);
+                const containerGraus = document.getElementById('listaValoresGrau');
+                if(containerGraus) {
+                    containerGraus.innerHTML = '';
+                    const grausBase = ['I', 'IJ', 'B', 'BJ', 'T', 'TJ', 'SCT', 'Escola de CT', 'CT', 'SCCT', 'Escola de CCT', 'CCT', 'Dirigente', 'Outros'];
+                    grausBase.forEach(g => {
+                        const conf = configVals?.find(c => c.grau === g);
+                        const valor = conf ? conf.valor : '0.00';
+                        containerGraus.innerHTML += `
+                            <div class="flex flex-col bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
+                                <label class="text-[10px] font-black text-gray-500 uppercase mb-1 truncate">${g}</label>
+                                <div class="flex items-center">
+                                    <span class="text-xs font-bold text-gray-800 mr-1">R$</span>
+                                    <input type="number" step="0.01" min="0" data-grau="${g}" value="${valor}" class="input-valor-grau w-full px-2 py-1 text-sm border-b-2 border-gray-100 outline-none focus:border-tema-secundaria bg-transparent text-gray-700 font-medium">
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+            } else {
+                document.getElementById('boxConfigMensalidade')?.classList.add('hidden');
             }
         }
     }
@@ -2100,33 +2198,33 @@ document.addEventListener('DOMContentLoaded', async () => {
         data.forEach(t => {
             const statusHtml = t.status_bloqueado ? '<span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded font-bold">Bloqueado</span>' : '<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded font-bold">Ativo</span>';
             
+            const btnAcessar = `<button onclick="acessarTerreiroSaaS('${t.id}')" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white py-1 px-3 rounded shadow mr-2"><i class="fas fa-sign-in-alt"></i></button>`;
             const btnBloqueio = t.status_bloqueado 
-                ? `<button onclick="alternarBloqueioTerreiro('${t.id}', false)" class="text-xs bg-gray-800 text-white py-1 px-3 rounded shadow">Desbloquear</button>` 
-                : `<button onclick="alternarBloqueioTerreiro('${t.id}', true)" class="text-xs bg-red-600 text-white py-1 px-3 rounded shadow">Bloquear</button>`;
+                ? `<button onclick="alternarBloqueioTerreiro('${t.id}', false)" class="text-xs bg-gray-800 text-white py-1 px-3 rounded shadow"><i class="fas fa-lock-open"></i></button>` 
+                : `<button onclick="alternarBloqueioTerreiro('${t.id}', true)" class="text-xs bg-red-600 text-white py-1 px-3 rounded shadow"><i class="fas fa-lock"></i></button>`;
+            const btnImportar = `<button onclick="abrirModalImportacao('${t.id}', '${t.nome.replace(/'/g, "\\'")}')" class="text-xs bg-blue-600 hover:bg-blue-700 text-white py-1 px-3 rounded shadow ml-2"><i class="fas fa-file-csv"></i></button>`;
             
-            const btnImportar = `<button onclick="abrirModalImportacao('${t.id}', '${t.nome.replace(/'/g, "\\'")}')" class="text-xs bg-blue-600 hover:bg-blue-700 text-white py-1 px-3 rounded shadow ml-2"><i class="fas fa-file-csv"></i> CSV</button>`;
+            // NOVO: Botão Módulo Mensalidade
+            const statusMensalidade = t.modulo_mensalidade_ativo ? 'bg-amber-500 text-white hover:bg-amber-600' : 'bg-gray-200 text-gray-500 hover:bg-gray-300';
+            const btnMensalidade = `<button onclick="alternarModuloMensalidade('${t.id}', ${!t.modulo_mensalidade_ativo})" class="text-xs py-1 px-3 rounded shadow ml-2 transition ${statusMensalidade}" title="Habilitar/Desabilitar Módulo Tesouraria"><i class="fas fa-hand-holding-usd"></i></button>`;
+
+            const acaoHtml = `<div class="flex justify-center items-center">${btnAcessar}${btnBloqueio}${btnImportar}${btnMensalidade}</div>`;
             
-            const btnAcessar = `<button onclick="acessarTerreiroSaaS('${t.id}')" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white py-1 px-3 rounded shadow mr-2"><i class="fas fa-sign-in-alt"></i> Acessar</button>`;
-            
-            const acaoHtml = `<div class="flex justify-center items-center">${btnAcessar}${btnBloqueio}${btnImportar}</div>`;
-            
-            tbody.innerHTML += `<tr class="border-b border-gray-100 ${t.status_bloqueado ? 'bg-red-50' : ''}"><td class="p-3 text-sm font-mono">${t.id}</td><td class="p-3 font-bold">${t.nome}</td><td class="p-3 text-center">${statusHtml}</td><td class="p-3 text-center">${acaoHtml}</td></tr>`;
+            tbody.innerHTML += `<tr class="border-b border-gray-100 ${t.status_bloqueado ? 'bg-red-50' : ''}"><td class="p-3 text-sm font-mono text-gray-500 truncate max-w-[120px]" title="${t.id}">${t.id.substring(0,8)}...</td><td class="p-3 font-bold text-gray-800">${t.nome}</td><td class="p-3 text-center">${statusHtml}</td><td class="p-3 text-center">${acaoHtml}</td></tr>`;
         });
     }
 
-    window.acessarTerreiroSaaS = (idTerreiro) => {
-        localStorage.setItem('terreiroAtivoSaaS', idTerreiro);
-        window.location.reload();
+    window.alternarModuloMensalidade = async (idTerreiro, vaiAtivar) => {
+        const msg = vaiAtivar ? "Deseja ATIVAR o módulo de Tesouraria/Mensalidades para este Terreiro?" : "Desativar o módulo de Mensalidades deste Terreiro?";
+        if(!confirm(msg)) return;
+        const { error } = await supabaseClient.from('terreiros').update({ modulo_mensalidade_ativo: vaiAtivar }).eq('id', idTerreiro);
+        if(error) alert("Erro: " + error.message); else carregarGestaoPlataforma();
     };
 
-    window.voltarParaMeuPainel = () => {
-        localStorage.removeItem('terreiroAtivoSaaS');
-        window.location.reload();
-    };
-
+    window.acessarTerreiroSaaS = (idTerreiro) => { localStorage.setItem('terreiroAtivoSaaS', idTerreiro); window.location.reload(); };
+    window.voltarParaMeuPainel = () => { localStorage.removeItem('terreiroAtivoSaaS'); window.location.reload(); };
     window.alternarBloqueioTerreiro = async (idTerreiro, vaiBloquear) => {
-        const acaoStr = vaiBloquear ? "BLOQUEAR" : "DESBLOQUEAR";
-        if(!confirm(`Deseja ${acaoStr} o terreiro ID ${idTerreiro}?`)) return;
+        if(!confirm(`Deseja ${vaiBloquear ? "BLOQUEAR" : "DESBLOQUEAR"} este terreiro?`)) return;
         const { error } = await supabaseClient.from('terreiros').update({ status_bloqueado: vaiBloquear }).eq('id', idTerreiro);
         if(error) alert("Erro: " + error.message); else carregarGestaoPlataforma();
     };
@@ -2253,15 +2351,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ==========================================
     if (emModoMasterPuro) {
         document.getElementById('menuMaster')?.click();
-    } else if (perfil.is_admin || perfil.perm_visao_geral) {
+    } else if (perfilAdminLogado.is_admin || perfilAdminLogado.perm_visao_geral) {
         document.getElementById('menuVisaoGeral')?.click();
     } else {
-        if (perfil.perm_agenda) document.getElementById('menuAgendaGiras')?.click();
-        else if (perfil.perm_ata) document.getElementById('menuLivroAta')?.click();
-        else if (perfil.perm_grau) document.getElementById('menuGrau')?.click();
-        else if (perfil.perm_financeiro) document.getElementById('menuFinanceiro')?.click();
-        else if (perfil.perm_doacoes) document.getElementById('menuDoacoes')?.click();
-        else if (perfil.perm_admin) document.getElementById('menuAdmin')?.click();
+        if (perfilAdminLogado.perm_agenda) document.getElementById('menuAgendaGiras')?.click();
+        else if (perfilAdminLogado.perm_ata) document.getElementById('menuLivroAta')?.click();
         else document.getElementById('menuQuadroMediuns')?.click(); 
     }
 });
