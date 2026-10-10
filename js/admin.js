@@ -1112,40 +1112,51 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
 
-        window.abrirModalVerComprovante = (id, url, subtitulo) => {
-            window.comprovanteAtualId = id;
-            document.getElementById('modalComprovanteSubtitulo').textContent = subtitulo;
-            
-            const frame = document.getElementById('frameComprovante');
-            const img = document.getElementById('imgComprovante');
-            
-            document.getElementById('loaderComprovante').classList.remove('hidden');
-            
-            // Reseta a visualização
-            frame.classList.add('hidden');
-            img.classList.add('hidden');
-            img.classList.add('object-contain', 'max-w-full', 'max-h-full', 'cursor-zoom-in');
-            img.classList.remove('cursor-zoom-out');
-            
-            // Verifica se é imagem ou PDF
-            const isPDF = url.toLowerCase().includes('.pdf');
-            
-            if(isPDF) {
-                frame.src = `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
-                frame.classList.remove('hidden');
-            } else {
-                img.src = url;
-                img.classList.remove('hidden');
-            }
-            
-            document.getElementById('modalVerComprovante').classList.remove('hidden');
-        };
+       window.abrirModalVerComprovante = (id, url, subtitulo) => {
+    window.comprovanteAtualId = id;
+    document.getElementById('modalComprovanteSubtitulo').textContent = subtitulo;
+    
+    const frame = document.getElementById('frameComprovante');
+    const img = document.getElementById('imgComprovante');
+    
+    document.getElementById('loaderComprovante').classList.remove('hidden');
+    
+    // Reseta a visualização
+    frame.classList.add('hidden');
+    img.classList.add('hidden');
+    
+    // Importante: garante que a imagem comece sem o zoom aplicado (estado menor)
+    img.classList.remove('max-w-full', 'max-h-full', 'cursor-zoom-out');
+    img.classList.add('object-contain', 'cursor-zoom-in');
+    
+    // Verifica se é PDF para usar o iframe (com visualizador do Google), caso contrário usa a tag IMG
+    const isPDF = url.toLowerCase().includes('.pdf');
+    
+    if (isPDF) {
+        frame.src = `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
+        frame.classList.remove('hidden');
+    } else {
+        img.src = url;
+        img.classList.remove('hidden');
+    }
+    
+    document.getElementById('modalVerComprovante').classList.remove('hidden');
+};
 
-        window.fecharModalVerComprovante = () => {
-            document.getElementById('modalVerComprovante').classList.add('hidden');
-            document.getElementById('frameComprovante').src = '';
-            document.getElementById('imgComprovante').src = '';
-            window.comprovanteAtualId = null;
+window.fecharModalVerComprovante = () => {
+    document.getElementById('modalVerComprovante').classList.add('hidden');
+    document.getElementById('frameComprovante').src = '';
+    document.getElementById('imgComprovante').src = '';
+    
+    // Volta a imagem para o estado original caso fechem o modal com o zoom aberto
+    const img = document.getElementById('imgComprovante');
+    if (img) {
+        img.classList.remove('max-w-full', 'max-h-full', 'cursor-zoom-out');
+        img.classList.add('object-contain', 'cursor-zoom-in');
+    }
+    
+    window.comprovanteAtualId = null;
+};
         };;
 
         async function carregarFinanceiro(ano) {
