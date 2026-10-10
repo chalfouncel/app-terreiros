@@ -1,20 +1,20 @@
 document.addEventListener('DOMContentLoaded', async () => {
-    const form = document.querySelector('form');
-    const btnSalvar = document.querySelector('button[type="submit"]');
-    const msgErro = document.getElementById('msgCadastro') || document.createElement('p');
-
-    if (!document.getElementById('msgCadastro') && form) {
-        msgErro.id = 'msgCadastro';
-        form.insertBefore(msgErro, btnSalvar);
-    }
+    const form = document.getElementById('formCompletarCadastro');
+    const msgErro = document.getElementById('msgCadastro');
+    const btnSalvar = document.getElementById('btnSalvarCadastro');
 
     function exibirMensagem(texto, cor = 'red') {
-        msgErro.textContent = texto;
-        msgErro.className = `text-xs md:text-sm font-bold text-center text-${cor}-600 block my-3`;
-        msgErro.classList.remove('hidden');
+        if (msgErro) {
+            msgErro.textContent = texto;
+            msgErro.className = `text-xs md:text-sm font-bold text-center text-${cor}-600 block my-3`;
+            msgErro.classList.remove('hidden');
+        } else {
+            alert(texto);
+        }
     }
 
-    // AQUI NÃO SE EXIGE SESSÃO! O utilizador ainda não tem conta Auth
+    // No fluxo desenhado, o médio só acede a esta página se passou pelo index.html com o ID e senha 123456.
+    // O ID está guardado no localStorage.
     const mediumIdLocal = localStorage.getItem('medium_id');
     if (!mediumIdLocal) {
         window.location.replace('index.html');
@@ -22,126 +22,138 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     const idNumerico = parseInt(mediumIdLocal);
+    let dadosMedium = null;
 
-    // Busca os dados do médium
-    const { data: medium, error: errMed } = await supabaseClient
-        .from('mediuns')
-        .select('*')
-        .eq('id', idNumerico)
-        .maybeSingle();
+    try {
+        // Busca a ficha do médium na base de dados
+        const { data: medium, error: errMed } = await supabaseClient
+            .from('mediuns')
+            .select('*')
+            .eq('id', idNumerico)
+            .maybeSingle();
 
-    if (errMed || !medium) {
-        exibirMensagem("Ficha não encontrada. Volte ao ecrã de login.", "red");
-        return;
+        if (errMed || !medium) {
+            exibirMensagem("Ficha não encontrada. Volte ao ecrã de login e tente novamente.");
+            return;
+        }
+
+        // Bloqueio de segurança: Se o médium já tiver ativado a senha, não pode repetir o processo
+        if (medium.senha_cadastrada) {
+            window.location.replace('index.html');
+            return;
+        }
+
+        dadosMedium = medium;
+
+        // Pré-preenche os campos que já existem na base de dados
+        if (document.getElementById('cadNomeCompleto')) document.getElementById('cadNomeCompleto').value = medium.nome_completo || '';
+        if (document.getElementById('cadNomeSocial')) document.getElementById('cadNomeSocial').value = medium.nome_social || '';
+        if (document.getElementById('cadNascimento') && medium.data_nascimento) document.getElementById('cadNascimento').value = medium.data_nascimento;
+        if (document.getElementById('cadTelefone') && medium.telefone) document.getElementById('cadTelefone').value = medium.telefone;
+        if (document.getElementById('cadPalavra') && medium.palavra) document.getElementById('cadPalavra').value = medium.palavra;
+        
+        if (document.getElementById('cadGrau') && medium.grau && medium.grau !== '-') document.getElementById('cadGrau').value = medium.grau;
+        if (document.getElementById('cadFuncao') && medium.funcao && medium.funcao !== '-') document.getElementById('cadFuncao').value = medium.funcao;
+
+    } catch (err) {
+        console.error('Erro ao ler ficha:', err);
+        exibirMensagem("Falha ao sincronizar a ficha cadastral.");
     }
-
-    // Se já foi cadastrado, expulsa para o login
-    if (medium.senha_cadastrada) {
-        window.location.replace('index.html');
-        return;
-    }
-
-    // Preenche os campos do teu formulário original
-    const todosInputs = Array.from(document.querySelectorAll('input'));
-    todosInputs.forEach(inp => {
-        const idHtml = (inp.id || '').toLowerCase();
-        const placeholder = (inp.placeholder || '').toLowerCase();
-
-        if ((idHtml.includes('nome') || placeholder.includes('nome')) && !idHtml.includes('social')) {
-            if (!inp.value) inp.value = medium.nome_completo || '';
-        }
-        if (idHtml.includes('social') || placeholder.includes('social')) {
-            if (!inp.value) inp.value = medium.nome_social || '';
-        }
-        if (inp.type === 'date' || idHtml.includes('nasc')) {
-            if (!inp.value && medium.data_nascimento) inp.value = medium.data_nascimento;
-        }
-    });
 
     if (form) {
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
 
+            if (!dadosMedium) return exibirMensagem("Os dados da ficha ainda não foram carregados.");
+
+            const valNomeSocial = document.getElementById('cadNomeSocial').value.trim();
+            const valGrau = document.getElementById('cadGrau').value;
+            const valFuncao = document.getElementById('cadFuncao').value;
+            const valNasc = document.getElementById('cadNascimento').value;
+            
+            // Força a PALAVRA a ser gravada e lida sempre em MAIÚSCULAS
+            const valPalavra = document.getElementById('cadPalavra').value.trim().toUpperCase();
+            
+            const valTelBruto = document.getElementById('cadTelefone').value;
+            const valNovaSenha = document.getElementById('cadNovaSenha').value.trim();
+            const valConfirmaSenha = document.getElementById('cadConfirmaSenha').value.trim();
+
+            // 1. Validação estrita do WhatsApp
+            let telefoneLimpo = valTelBruto.replace(/\D/g, '');
+            if (telefoneLimpo.startsWith('55') && telefoneLimpo.length >= 12) {
+                telefoneLimpo = telefoneLimpo.substring(2);
+            }
+
+            if (!telefoneLimpo || telefoneLimpo.length < 10) {
+                return exibirMensagem("Digite o seu WhatsApp válido com DDD (apenas números).");
+            }
+
+            // 2. Validação estrita da Senha (Apenas 6 números)
+            const apenasNumerosSenha = valNovaSenha.replace(/\D/g, '');
+            if (apenasNumerosSenha.length !== 6 || valNovaSenha.length !== 6) {
+                return exibirMensagem("A senha deve conter exatamente 6 números.");
+            }
+
+            if (valNovaSenha !== valConfirmaSenha) {
+                return exibirMensagem("As senhas digitadas não são iguais. Tente novamente.");
+            }
+
             if (btnSalvar) {
                 btnSalvar.disabled = true;
-                btnSalvar.innerHTML = 'A criar acesso...';
+                btnSalvar.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> A criar acesso...';
             }
-            msgErro.classList.add('hidden');
+            if (msgErro) msgErro.classList.add('hidden');
 
             try {
-                let valNomeSocial = null, valTel = null, valNasc = null, valPalavra = null;
-                let valGrau = null, valFuncao = null;
-
-                // Captura os dados que o médium preencheu
-                const inputsAtuais = Array.from(document.querySelectorAll('input'));
-                inputsAtuais.forEach(inp => {
-                    const idHtml = (inp.id || '').toLowerCase();
-                    const placeholder = (inp.placeholder || '').toLowerCase();
-
-                    if (idHtml.includes('social') || placeholder.includes('social')) valNomeSocial = inp.value.trim();
-                    if (inp.type === 'tel' || idHtml.includes('tel') || idHtml.includes('whats') || placeholder.includes('tel')) valTel = inp.value;
-                    if (inp.type === 'date' || idHtml.includes('nasc')) valNasc = inp.value;
-
-                    // O teu campo "Palavra *" (senha)
-                    if (inp.type === 'password' || idHtml.includes('palavra') || idHtml.includes('senha') || placeholder.includes('palavra')) {
-                        valPalavra = inp.value.trim();
-                    }
-                });
-
-                const selectsAtuais = Array.from(document.querySelectorAll('select'));
-                selectsAtuais.forEach(sel => {
-                    const idHtml = (sel.id || '').toLowerCase();
-                    if (idHtml.includes('grau')) valGrau = sel.value;
-                    if (idHtml.includes('func') || idHtml.includes('função')) valFuncao = sel.value;
-                });
-
-                let telefoneLimpo = (valTel || '').replace(/\D/g, '');
-                if (telefoneLimpo.startsWith('55') && telefoneLimpo.length >= 12) {
-                    telefoneLimpo = telefoneLimpo.substring(2);
-                }
-
-                if (!telefoneLimpo || telefoneLimpo.length < 10) {
-                    throw new Error("Digite o seu WhatsApp válido com DDD.");
-                }
-                if (!valPalavra || valPalavra.length < 6) {
-                    throw new Error("A sua senha (Palavra) precisa ter pelo menos 6 caracteres.");
-                }
-
-                // 1. Cria a conta de acesso no Supabase Auth usando o Telefone
+                // O email oficial do Auth passará a ser o Telefone
                 const emailAuth = `${telefoneLimpo}@terreiro.app`;
+
+                // 1. Cria a conta no Supabase Auth usando o Telefone e a nova Senha de 6 dígitos
                 const { data: authData, error: errAuth } = await supabaseClient.auth.signUp({
                     email: emailAuth,
-                    password: valPalavra
+                    password: valNovaSenha
                 });
 
                 if (errAuth) {
                     if (errAuth.message.includes('already registered')) {
-                        throw new Error("Este número de WhatsApp já está atrelado a outro acesso.");
+                        throw new Error("Este número de WhatsApp já possui acesso registado no sistema.");
                     }
-                    throw errAuth;
+                    throw new Error("Erro na criação do acesso: " + errAuth.message);
                 }
 
-                // Apanha o ID gerado pelo sistema Auth
                 const novoAuthId = authData.user.id;
 
-                // 2. Atualiza a ficha do médium
-                const updateData = {
+                // 2. Atualiza a tabela mediuns com os dados preenchidos, a Palavra, e marca a senha como cadastrada[cite: 24]
+                const { error: errBd } = await supabaseClient.from('mediuns').update({
                     nome_social: valNomeSocial,
                     telefone: telefoneLimpo,
                     data_nascimento: valNasc,
+                    grau: valGrau,
+                    funcao: valFuncao,
                     palavra: valPalavra,
                     senha_cadastrada: true,
                     auth_id: novoAuthId
-                };
+                }).eq('id', dadosMedium.id);
 
-                if (valGrau && valGrau !== '-') updateData.grau = valGrau;
-                if (valFuncao && valFuncao !== '-') updateData.funcao = valFuncao;
+                if (errBd) {
+                    if (errBd.message.includes('unique constraint')) {
+                        throw new Error("O número de WhatsApp informado já está a ser utilizado por outro médium.");
+                    }
+                    throw errBd;
+                }
 
-                const { error: errBd } = await supabaseClient.from('mediuns').update(updateData).eq('id', medium.id);
+                // Efetua o login automático logo após criar a conta
+                const loginAutomatico = await supabaseClient.auth.signInWithPassword({
+                    email: emailAuth,
+                    password: valNovaSenha
+                });
+                
+                if (loginAutomatico.error) throw loginAutomatico.error;
 
-                if (errBd) throw errBd;
+                // Guarda o telefone em cache para a próxima vez
+                localStorage.setItem('telefone_acesso', telefoneLimpo);
 
-                exibirMensagem('✅ Conta ativada com sucesso! A entrar...', 'green');
+                exibirMensagem('✅ Acesso ativado com sucesso! A entrar no painel...', 'green');
 
                 setTimeout(() => {
                     window.location.replace('presenca.html');
