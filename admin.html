@@ -3,20 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Painel Admin - Templo</title>
-    
-    <!-- PWA Meta Tags -->
+    <title>Painel de Gestão - Templo</title>
+
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#1e3a8a">
     <link rel="apple-touch-icon" href="https://pbjwqhfzsvdougeksztq.supabase.co/storage/v1/object/public/public-img/icone-192.png">
 
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
     <style>
         :root {
             --cor-primaria: #1e3a8a;   
@@ -28,259 +27,355 @@
         .bg-tema-primaria { background-color: var(--cor-primaria) !important; }
         .text-tema-primaria { color: var(--cor-primaria) !important; }
         .border-tema-primaria { border-color: var(--cor-primaria) !important; }
+        .hover\:bg-tema-primaria:hover { background-color: var(--cor-primaria) !important; opacity: 0.9; }
         
         .bg-tema-secundaria { background-color: var(--cor-secundaria) !important; }
         .text-tema-secundaria { color: var(--cor-secundaria) !important; }
-        .border-tema-secundaria { border-color: var(--cor-secundaria) !important; }
+        .hover\:bg-tema-secundaria:hover { background-color: var(--cor-secundaria) !important; opacity: 0.9; }
         
-        .bg-tema-fundo { background-color: var(--cor-fundo) !important; }
-        .text-tema-texto { color: var(--cor-texto) !important; }
+        body { background-color: var(--cor-fundo); color: var(--cor-texto); }
 
-        body {
-            background-color: var(--cor-fundo);
-            color: var(--cor-texto);
-            transition: background-color 0.3s ease;
-            -webkit-tap-highlight-color: transparent;
+        #sidebar { transition: transform 0.3s ease-in-out; }
+        @media (max-width: 768px) {
+            #sidebar { position: fixed; top: 0; left: 0; height: 100%; z-index: 50; }
         }
+        
+        .secao-painel { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
+        /* Ajustes de Impressão (PDF/A4) */
         @media print {
-            body * { visibility: hidden; }
-            #areaImpressaoMediuns, #areaImpressaoMediuns * { visibility: visible; }
-            #areaImpressaoMediuns { position: absolute; left: 0; top: 0; width: 100%; }
-            .no-print { display: none !important; }
+            body { background: white !important; padding: 0 !important; margin: 0 !important; }
+            #sidebar, header, .no-print, button { display: none !important; }
+            .secao-painel { display: block !important; box-shadow: none !important; border: none !important; padding: 0 !important; margin: 0 !important; }
+            .container { max-width: 100% !important; width: 100% !important; padding: 0 !important; }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         }
     </style>
 </head>
-<body class="min-h-screen flex transition-colors duration-300 overflow-hidden">
+<body class="flex h-screen overflow-hidden text-sm">
 
-    <!-- OVERLAY ESCURECIDO MOBILE -->
-    <div id="overlayMobile" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 hidden md:hidden transition-opacity duration-300"></div>
+    <!-- Overlay Mobile -->
+    <div id="overlayMobile" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden md:hidden"></div>
 
-    <!-- MENU LATERAL (GAVETA MOBILE + SIDEBAR DESKTOP) -->
-    <aside id="sidebar" class="fixed md:static top-0 left-0 h-[100dvh] transform -translate-x-full md:translate-x-0 z-50 w-72 md:w-64 bg-tema-primaria text-white flex flex-col shadow-2xl transition-transform duration-300 ease-out">
-        <div class="p-6 text-center border-b border-white/10 flex flex-col items-center relative shrink-0">
-            <button id="btnFecharMenu" class="md:hidden absolute top-4 right-4 text-white/70 hover:text-white p-2 rounded-lg hover:bg-white/10 active:scale-95 transition" aria-label="Fechar menu">
+    <!-- Sidebar Lateral -->
+    <aside id="sidebar" class="w-64 bg-tema-primaria text-white flex flex-col flex-shrink-0 -translate-x-full md:translate-x-0 h-full absolute md:relative z-50">
+        <div class="p-5 border-b border-white/10 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <img id="logoSidebar" src="" alt="Logo" class="h-10 w-10 object-contain rounded hidden bg-white p-1">
+                <div>
+                    <h2 id="nomeTerreiroSidebar" class="text-lg font-black tracking-tight leading-tight">Painel Gestão</h2>
+                    <p class="text-[10px] text-blue-200 uppercase tracking-widest mt-0.5 font-semibold">Templo / Terreiro</p>
+                </div>
+            </div>
+            <button id="btnFecharMenu" class="md:hidden text-white/70 hover:text-white transition">
                 <i class="fas fa-times text-xl"></i>
             </button>
-            <img id="logoSidebar" src="" class="hidden max-h-16 mb-2 rounded-lg bg-white/10 p-1.5 object-contain" alt="Ponto da Casa">
-            <h1 class="text-lg md:text-xl font-black text-white drop-shadow-sm tracking-wide">Painel Gestão</h1>
-            <p class="text-xs text-white/80 mt-0.5 truncate max-w-[200px]" id="nomeTerreiroSidebar">Carregando...</p>
         </div>
-        
-        <!-- LISTAGEM DE LINKS -->
-        <nav class="flex-1 min-h-0 overflow-y-auto p-4 space-y-1.5">
-            <a href="#" id="menuVisaoGeral" class="menu-item py-3 px-4 bg-white/20 rounded-xl hover:bg-white/10 active:scale-[0.98] transition flex items-center text-sm font-semibold">
-                <i class="fas fa-home w-6 mr-3 text-base"></i> Visão Geral
+
+        <nav class="flex-1 overflow-y-auto py-4 px-3 space-y-1 custom-scrollbar">
+            <!-- SaaS -->
+            <a href="#" id="menuMaster" class="menu-item hidden flex items-center px-4 py-3 text-white rounded-xl bg-white/20 font-bold mb-4 shadow-sm">
+                <i class="fas fa-globe mr-3 text-lg w-5 text-center"></i> Gestão Plataforma
             </a>
-            <a href="#" id="menuQuadroMediuns" class="menu-item py-3 px-4 rounded-xl hover:bg-white/10 active:scale-[0.98] transition flex items-center text-sm font-semibold">
-                <i class="fas fa-users w-6 mr-3 text-base"></i> Quadro de Médiuns
-            </a>
-            <a href="#" id="menuAgendaGiras" class="menu-item py-3 px-4 rounded-xl hover:bg-white/10 active:scale-[0.98] transition flex items-center text-sm font-semibold">
-                <i class="fas fa-calendar-alt w-6 mr-3 text-base"></i> Agenda de Eventos
-            </a>
-            <a href="#" id="menuLivroAta" class="menu-item py-3 px-4 rounded-xl hover:bg-white/10 active:scale-[0.98] transition flex items-center text-sm font-semibold">
-                <i class="fas fa-book-open w-6 mr-3 text-base"></i> Livro de Presença
+
+            <!-- Módulos Terreiro -->
+            <a href="#" id="menuVisaoGeral" class="menu-item flex items-center px-4 py-2.5 text-white/80 hover:bg-white/10 hover:text-white rounded-xl font-medium transition-colors">
+                <i class="fas fa-chart-pie mr-3 text-lg w-5 text-center"></i> Visão Geral
             </a>
             
-            <hr class="border-white/10 my-3">
-            
-            <a href="#" id="menuGrau" class="menu-item py-3 px-4 rounded-xl hover:bg-white/10 active:scale-[0.98] transition flex items-center text-sm font-semibold">
-                <i class="fas fa-graduation-cap w-6 mr-3 text-base"></i> Alteração de Grau
-            </a>
-            <a href="#" id="menuFinanceiro" class="menu-item py-3 px-4 rounded-xl hover:bg-white/10 active:scale-[0.98] transition flex items-center text-sm font-semibold">
-                <i class="fas fa-file-invoice-dollar w-6 mr-3 text-base"></i> Financeiro
+            <a href="#" id="menuQuadroMediuns" class="menu-item flex items-center px-4 py-2.5 text-white/80 hover:bg-white/10 hover:text-white rounded-xl font-medium transition-colors">
+                <i class="fas fa-users mr-3 text-lg w-5 text-center"></i> Quadro de Médiuns
             </a>
             
-            <hr class="border-white/10 my-3">
-            
-            <a href="#" id="menuDoacoes" class="menu-item py-3 px-4 rounded-xl hover:bg-white/10 active:scale-[0.98] transition flex items-center text-sm font-semibold text-rose-200 hover:text-white">
-                <i class="fas fa-hand-holding-heart w-6 mr-3 text-base text-rose-400"></i> Doações / Campanhas
+            <a href="#" id="menuAgendaGiras" class="menu-item flex items-center px-4 py-2.5 text-white/80 hover:bg-white/10 hover:text-white rounded-xl font-medium transition-colors">
+                <i class="fas fa-calendar-alt mr-3 text-lg w-5 text-center"></i> Agenda / Eventos
             </a>
-            
-            <hr class="border-white/10 my-3">
-            
-            <a href="#" id="menuAdmin" class="menu-item py-3 px-4 rounded-xl hover:bg-white/10 active:scale-[0.98] transition flex items-center text-sm font-bold text-yellow-300">
-                <i class="fas fa-cog w-6 mr-3 text-base"></i> Config. da Casa
+
+            <a href="#" id="menuLivroAta" class="menu-item flex items-center px-4 py-2.5 text-white/80 hover:bg-white/10 hover:text-white rounded-xl font-medium transition-colors">
+                <i class="fas fa-book-open mr-3 text-lg w-5 text-center"></i> Livro de Presença
             </a>
-            <a href="#" id="menuMaster" class="menu-item hidden py-3 px-4 rounded-xl bg-gray-950/60 hover:bg-gray-900 border border-gray-700/80 active:scale-[0.98] transition flex items-center text-sm font-black text-white mt-4 shadow-inner">
-                <i class="fas fa-globe w-6 mr-3 text-base text-blue-400"></i> Gestão Plataforma
+
+            <hr class="border-white/10 my-3 mx-2">
+            
+            <a href="#" id="menuGrau" class="menu-item flex items-center px-4 py-2.5 text-white/80 hover:bg-white/10 hover:text-white rounded-xl font-medium transition-colors">
+                <i class="fas fa-layer-group mr-3 text-lg w-5 text-center"></i> Graus e Funções
+            </a>
+
+            <a href="#" id="menuFinanceiro" class="menu-item flex items-center px-4 py-2.5 text-white/80 hover:bg-white/10 hover:text-white rounded-xl font-medium transition-colors">
+                <i class="fas fa-coins mr-3 text-lg w-5 text-center"></i> Controle Financeiro
+            </a>
+
+            <a href="#" id="menuDoacoes" class="menu-item flex items-center px-4 py-2.5 text-white/80 hover:bg-white/10 hover:text-white rounded-xl font-medium transition-colors">
+                <i class="fas fa-hand-holding-heart mr-3 text-lg w-5 text-center"></i> Doações / Campanhas
+            </a>
+
+            <hr class="border-white/10 my-3 mx-2">
+
+            <a href="#" id="menuAdmin" class="menu-item flex items-center px-4 py-2.5 text-white/80 hover:bg-white/10 hover:text-white rounded-xl font-medium transition-colors">
+                <i class="fas fa-cogs mr-3 text-lg w-5 text-center"></i> Configurações da Casa
             </a>
         </nav>
-        
-        <div class="p-4 border-t border-white/10 shrink-0 pb-6 md:pb-4">
-            <button id="btnSair" class="w-full py-2.5 px-4 bg-red-600/90 hover:bg-red-700 active:scale-95 rounded-xl transition flex items-center justify-center font-bold text-sm shadow-md">
-                <i class="fas fa-sign-out-alt mr-2"></i> Sair do Sistema
+
+        <div class="p-4 border-t border-white/10">
+            <button id="btnSair" class="w-full bg-red-500/90 hover:bg-red-600 text-white font-bold py-2.5 px-4 rounded-xl transition-colors shadow-sm flex items-center justify-center gap-2">
+                <i class="fas fa-sign-out-alt"></i> Sair do Sistema
             </button>
         </div>
     </aside>
 
-    <div class="flex-1 flex flex-col h-screen overflow-hidden">
-        <!-- BARRA SUPERIOR MOBILE (NAVBAR REFINADA) -->
-        <header class="md:hidden bg-white border-b border-gray-200 px-4 py-3 flex justify-between items-center shadow-sm flex-shrink-0 z-10">
-            <div class="flex items-center gap-3">
-                <button id="btnAbrirMenu" class="w-10 h-10 rounded-xl bg-gray-100 text-tema-primaria flex items-center justify-center active:scale-90 transition hover:bg-gray-200" aria-label="Abrir menu">
-                    <i class="fas fa-bars text-lg"></i>
-                </button>
-                <div>
-                    <h1 class="font-extrabold text-base text-gray-800 leading-tight" id="tituloMobile">Visão Geral</h1>
-                    <p class="text-[10px] text-gray-500 font-medium truncate max-w-[170px]" id="dataHojeMobile"></p>
-                </div>
+    <!-- Área de Conteúdo Principal -->
+    <main class="flex-1 flex flex-col h-full bg-gray-50/50 overflow-hidden relative">
+        
+        <!-- Header Desktop -->
+        <header class="hidden md:flex bg-white shadow-sm h-16 items-center justify-between px-8 border-b border-gray-100 z-10 flex-shrink-0">
+            <div class="flex items-center gap-4">
+                <h1 id="tituloSecao" class="text-xl font-black text-gray-800 tracking-tight">Carregando...</h1>
             </div>
-            <div class="flex items-center gap-2">
-                <span class="text-xs font-bold text-gray-700 hidden sm:inline" id="nomeAdminMobile"></span>
-                <div class="w-9 h-9 rounded-full bg-tema-primaria/10 text-tema-primaria flex items-center justify-center font-bold shadow-inner border border-tema-primaria/20">
-                    <i class="fas fa-user text-sm"></i>
+            <div class="flex items-center space-x-6">
+                <div class="text-right">
+                    <p class="text-xs font-bold text-gray-500 uppercase tracking-wide" id="dataHoje"></p>
+                </div>
+                <div class="h-8 border-l border-gray-200"></div>
+                <div class="flex items-center gap-3 bg-gray-50 py-1.5 px-3 rounded-full border border-gray-100">
+                    <div class="w-7 h-7 rounded-full bg-tema-secundaria text-white flex items-center justify-center text-xs shadow-sm">
+                        <i class="fas fa-user-shield"></i>
+                    </div>
+                    <span id="nomeAdmin" class="font-bold text-gray-700 text-sm mr-1">Olá, Admin</span>
                 </div>
             </div>
         </header>
 
-        <main class="flex-1 p-4 md:p-8 overflow-y-auto">
-            <!-- CABEÇALHO DESKTOP -->
-            <header class="hidden md:flex justify-between items-center mb-8">
-                <div>
-                    <h2 class="text-3xl font-bold text-tema-texto" id="tituloSecao">Visão Geral</h2>
-                    <p class="text-gray-500" id="dataHoje"></p>
+        <!-- Header Mobile -->
+        <header class="md:hidden bg-white shadow-sm px-4 py-3 flex items-center justify-between border-b border-gray-100 z-10 flex-shrink-0">
+            <div class="flex items-center gap-3">
+                <button id="btnAbrirMenu" class="text-gray-600 hover:text-tema-primaria transition-colors p-1">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+                <h1 id="tituloMobile" class="text-lg font-black text-gray-800 tracking-tight truncate">Painel</h1>
+            </div>
+            <div class="flex items-center gap-2 bg-gray-50 py-1 px-2 rounded-full border border-gray-100">
+                <div class="w-6 h-6 rounded-full bg-tema-secundaria text-white flex items-center justify-center text-[10px] shadow-sm">
+                    <i class="fas fa-user-shield"></i>
                 </div>
-                <div class="bg-white px-4 py-2 rounded-full shadow-sm border border-gray-200 flex items-center">
-                    <i class="fas fa-user-circle text-tema-secundaria text-xl mr-2"></i>
-                    <span class="text-gray-700 font-medium" id="nomeAdmin">Olá, Admin</span>
-                </div>
-            </header>
+                <span id="nomeAdminMobile" class="font-bold text-gray-700 text-xs hidden sm:block">Admin</span>
+            </div>
+        </header>
 
-            <!-- SEÇÃO VISÃO GERAL -->
-            <div id="secVisaoGeral" class="secao-painel">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
-                    <div class="bg-white p-5 md:p-6 rounded-2xl shadow-sm border-l-4 border-tema-secundaria">
-                        <h3 class="text-gray-500 text-xs md:text-sm font-bold uppercase tracking-wider">Médiuns Presentes Hoje</h3>
-                        <p class="text-3xl md:text-4xl font-extrabold text-tema-texto mt-1 md:mt-2" id="totalPresentes">0</p>
+        <!-- Container Scrollável do Conteúdo -->
+        <div class="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar relative">
+            <p id="dataHojeMobile" class="md:hidden text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-4 text-right"></p>
+            
+            <!-- ========================================== -->
+            <!-- MÓDULO: SAAS MASTER -->
+            <!-- ========================================== -->
+            <div id="secMaster" class="secao-painel hidden">
+                <div class="bg-gray-900 rounded-3xl shadow-lg border border-gray-800 overflow-hidden mb-8">
+                    <div class="bg-gray-800/50 p-4 border-b border-gray-700 flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center">
+                            <i class="fas fa-plus"></i>
+                        </div>
+                        <h3 class="text-white font-bold text-base">Novo Terreiro (Cliente)</h3>
                     </div>
-                    <div class="bg-white p-5 md:p-6 rounded-2xl shadow-sm border-l-4 border-tema-primaria">
-                        <h3 class="text-gray-500 text-xs md:text-sm font-bold uppercase tracking-wider">Total Cadastrados</h3>
-                        <p class="text-3xl md:text-4xl font-extrabold text-tema-texto mt-1 md:mt-2" id="totalMediuns">0</p>
-                    </div>
-                    <div class="bg-white p-5 md:p-6 rounded-2xl shadow-sm border-l-4 border-purple-500">
-                        <h3 class="text-gray-500 text-xs md:text-sm font-bold uppercase tracking-wider">Próximo Evento</h3>
-                        <p class="text-base md:text-lg font-bold text-tema-texto mt-1 md:mt-2" id="proximaGira">Buscando...</p>
-                    </div>
-                </div>
-
-                <!-- METADE / METADE -->
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 md:p-6 flex flex-col justify-between">
-                        <div>
-                            <div class="flex items-center justify-between mb-4">
-                                <h3 class="text-base md:text-lg font-bold text-tema-texto">Lista de Presença (Hoje)</h3>
-                                <span class="text-xs bg-green-100 text-green-700 font-bold px-2.5 py-1 rounded-full">Ativos</span>
+                    <div class="p-5 md:p-6">
+                        <form id="formNovoTerreiro" class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-400 uppercase mb-2">Nome da Instituição</label>
+                                <input type="text" id="novoTerreiroNome" required class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition placeholder-gray-600" placeholder="Ex: Templo Luz e Paz">
                             </div>
-                            <div class="overflow-x-auto max-h-[380px] overflow-y-auto">
-                                <table class="w-full text-left border-collapse">
-                                    <thead>
-                                        <tr class="bg-gray-50 border-b border-gray-200">
-                                            <th class="p-3 text-xs md:text-sm font-semibold text-gray-600">MÉDIUM</th>
-                                            <th class="p-3 text-xs md:text-sm font-semibold text-gray-600 text-center">HORÁRIO CHEGADA</th>
+                            <button type="submit" id="btnSalvarTerreiro" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded-xl shadow-lg shadow-blue-900/50 transition">Cadastrar Sistema</button>
+                            <p id="msgNovoTerreiro" class="text-xs hidden"></p>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div class="p-5 border-b border-gray-100 flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-lg bg-gray-100 text-gray-600 flex items-center justify-center">
+                            <i class="fas fa-server"></i>
+                        </div>
+                        <h3 class="text-gray-800 font-bold text-base">Terreiros na Plataforma</h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-gray-50/50 text-gray-500 text-[10px] uppercase tracking-widest">
+                                    <th class="p-4 font-bold border-b border-gray-100">ID</th>
+                                    <th class="p-4 font-bold border-b border-gray-100">Nome do Terreiro</th>
+                                    <th class="p-4 font-bold border-b border-gray-100 text-center">Status</th>
+                                    <th class="p-4 font-bold border-b border-gray-100 text-center">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabelaMasterTerreiros" class="divide-y divide-gray-50">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========================================== -->
+            <!-- VISÃO GERAL -->
+            <!-- ========================================== -->
+            <div id="secVisaoGeral" class="secao-painel hidden">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-8">
+                    <div class="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 flex items-center justify-between group hover:border-blue-200 transition">
+                        <div>
+                            <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Médiuns Ativos</p>
+                            <h3 class="text-3xl font-black text-gray-800" id="totalMediuns">-</h3>
+                        </div>
+                        <div class="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
+                            <i class="fas fa-users"></i>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 flex items-center justify-between group hover:border-purple-200 transition">
+                        <div>
+                            <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Próximo Evento</p>
+                            <h3 class="text-base font-bold text-gray-800 leading-tight" id="proximaGira">Buscando...</h3>
+                        </div>
+                        <div class="w-14 h-14 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center text-2xl flex-shrink-0 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-calendar-day"></i>
+                        </div>
+                    </div>
+                    <div class="bg-tema-primaria rounded-3xl p-6 shadow-md shadow-blue-900/10 flex items-center justify-between relative overflow-hidden group">
+                        <div class="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-xl group-hover:scale-150 transition-transform duration-500"></div>
+                        <div class="relative z-10">
+                            <p class="text-xs font-bold text-blue-200 uppercase tracking-wider mb-1">Check-ins Hoje</p>
+                            <h3 class="text-4xl font-black text-white" id="totalPresentes">-</h3>
+                        </div>
+                        <div class="w-14 h-14 rounded-2xl bg-white/20 text-white flex items-center justify-center text-2xl relative z-10 backdrop-blur-sm">
+                            <i class="fas fa-check-double"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
+                    <div class="lg:col-span-2 flex flex-col space-y-6">
+                        <div class="bg-white rounded-3xl shadow-sm border border-gray-100 flex flex-col flex-1 overflow-hidden">
+                            <div class="p-5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 rounded-lg bg-green-100 text-green-600 flex items-center justify-center">
+                                        <i class="fas fa-clipboard-list"></i>
+                                    </div>
+                                    <h3 class="text-gray-800 font-bold text-base">Check-ins do Evento Atual</h3>
+                                </div>
+                            </div>
+                            <div class="flex-1 overflow-auto max-h-[400px]">
+                                <table class="w-full text-left">
+                                    <thead class="sticky top-0 bg-white shadow-sm z-10">
+                                        <tr class="text-gray-400 text-[10px] uppercase tracking-widest">
+                                            <th class="p-4 font-bold border-b border-gray-100">Médium</th>
+                                            <th class="p-4 font-bold border-b border-gray-100 text-center">Hora Check-in</th>
                                         </tr>
                                     </thead>
-                                    <tbody id="tabelaPresencas">
-                                        <tr><td colspan="2" class="p-6 text-center text-gray-500">Carregando lista...</td></tr>
+                                    <tbody id="tabelaPresencas" class="divide-y divide-gray-50 text-sm">
+                                        <tr><td colspan="2" class="p-8 text-center text-gray-400"><i class="fas fa-spinner fa-spin mr-2"></i>Carregando presença...</td></tr>
                                     </tbody>
                                 </table>
                             </div>
                         </div>
                     </div>
 
-                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 md:p-6 flex flex-col justify-between">
-                        <div>
-                            <div class="flex items-center gap-2 mb-2">
-                                <i class="fas fa-file-pdf text-red-500 text-lg"></i>
-                                <h3 class="text-base md:text-lg font-bold text-tema-texto">Relação de Presentes no Evento</h3>
+                    <div class="lg:col-span-1 flex flex-col space-y-6">
+                        <div class="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 text-center flex flex-col items-center justify-center min-h-[220px]">
+                            <div class="w-16 h-16 rounded-full bg-red-50 text-red-500 flex items-center justify-center text-2xl mb-4">
+                                <i class="fas fa-file-pdf"></i>
                             </div>
-                            <p class="text-xs text-gray-500 mb-5">Emita a relação completa de médiuns presentes em um evento (giras abertas e restritas).</p>
-
-                            <div class="space-y-4">
-                                <div>
-                                    <label class="block text-xs font-bold text-gray-600 uppercase mb-1.5">Data / Evento</label>
-                                    <select id="selectEventoRelatorio" class="w-full p-2.5 border border-gray-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-tema-primaria outline-none">
-                                        <option value="">Carregando eventos...</option>
-                                    </select>
-                                </div>
+                            <h3 class="text-gray-800 font-bold text-base mb-1">Relação de Check-in</h3>
+                            <p class="text-xs text-gray-500 mb-5">Baixe a lista de quem validou a presença no sistema nos eventos passados.</p>
+                            
+                            <div class="w-full mb-3 text-left">
+                                <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Selecione o Evento</label>
+                                <select id="selectEventoRelatorio" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-50 focus:bg-white outline-none focus:border-red-300 focus:ring-2 focus:ring-red-100 transition truncate">
+                                    <option value="">Carregando eventos...</option>
+                                </select>
                             </div>
-                        </div>
 
-                        <div class="pt-5 border-t border-gray-100 mt-5">
-                            <button id="btnBaixarPdfEvento" class="w-full bg-tema-primaria hover:opacity-90 text-white font-bold py-3 px-4 rounded-xl shadow transition flex items-center justify-center gap-2 text-sm active:scale-95">
-                                <i class="fas fa-file-download"></i> Baixar Relação de Médiuns Presentes (PDF)
+                            <button id="btnBaixarPdfEvento" class="w-full bg-gray-800 hover:bg-gray-900 text-white font-bold py-3 rounded-xl shadow-md transition-all flex items-center justify-center gap-2">
+                                Baixar Documento
                             </button>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- SEÇÃO QUADRO DE MÉDIUNS -->
+            <!-- ========================================== -->
+            <!-- QUADRO DE MÉDIUNS -->
+            <!-- ========================================== -->
             <div id="secQuadroMediuns" class="secao-painel hidden">
-                <div class="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
-                    <div>
-                        <h2 class="text-xl md:text-2xl font-bold text-gray-800">Quadro de Médiuns</h2>
-                        <p class="text-gray-500 text-xs md:text-sm mt-1">Gerencie a corrente da casa e adicione novos médiuns.</p>
-                    </div>
-                    <div class="flex flex-wrap gap-2 w-full sm:w-auto">
-                        <button id="btnImprimirMediuns" class="flex-1 sm:flex-none bg-gray-600 hover:bg-gray-700 text-white px-4 py-2.5 rounded-xl font-bold shadow transition flex items-center justify-center gap-2 text-xs md:text-sm active:scale-95">
-                            <i class="fas fa-print"></i> PDF / A4
-                        </button>
-                        <button onclick="abrirModalNovoMedium()" class="flex-1 sm:flex-none bg-tema-primaria hover:opacity-90 text-white px-4 py-2.5 rounded-xl font-bold shadow transition flex items-center justify-center gap-2 text-xs md:text-sm active:scale-95">
-                            <i class="fas fa-user-plus"></i> Novo Médium
-                        </button>
-                    </div>
-                </div>
+                <p class="text-gray-500 text-sm mb-6">Gerencie a corrente da casa e adicione novos médiuns.</p>
 
-                <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 mb-6 flex flex-col md:flex-row gap-3 md:gap-4 no-print border-t-4 border-tema-primaria">
-                    <div class="flex-1">
-                        <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Nome Completo</label>
-                        <input type="text" id="filtroNomeMedium" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-tema-primaria outline-none" placeholder="Buscar médium...">
-                    </div>
-                    <div class="w-full md:w-48">
-                        <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Grau / Função</label>
-                        <select id="filtroGrauMedium" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-tema-primaria">
-                            <option value="">Todos os Graus</option>
-                            <option value="I">I / IJ</option>
-                            <option value="B">B / BJ</option>
-                            <option value="T">T / TJ</option>
-                            <option value="SCT">SCT</option>
-                            <option value="CT">CT / Escola de CT</option>
-                            <option value="CCT">CCT / Escola de CCT</option>
-                            <option value="Dirigente">Dirigente</option>
-                        </select>
-                    </div>
-                    <div class="w-full md:w-32">
-                        <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Status</label>
-                        <select id="filtroStatusMedium" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-tema-primaria">
-                            <option value="">Todos</option>
-                            <option value="Ativo">Ativo</option>
-                            <option value="Pendente">Pendente</option>
-                        </select>
-                    </div>
-                    <div class="w-full md:w-40">
-                        <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Mês de Nasc.</label>
-                        <select id="filtroMesNascimento" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-tema-primaria">
-                            <option value="">Todos</option>
-                            <option value="01">Janeiro</option><option value="02">Fevereiro</option>
-                            <option value="03">Março</option><option value="04">Abril</option>
-                            <option value="05">Maio</option><option value="06">Junho</option>
-                            <option value="07">Julho</option><option value="08">Agosto</option>
-                            <option value="09">Setembro</option><option value="10">Outubro</option>
-                            <option value="11">Novembro</option><option value="12">Dezembro</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="flex flex-col xl:flex-row gap-6">
-                    <div id="areaImpressaoMediuns" class="flex-1 bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-                        <div class="p-4 border-b border-gray-100 bg-gray-50 no-print hidden print:block">
-                            <h3 class="font-bold text-gray-800 text-lg text-center">Corrente Mediúnica</h3>
+                <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
+                    <div class="lg:col-span-3 bg-white p-4 md:p-5 rounded-3xl shadow-sm border border-gray-100 flex flex-col sm:flex-row gap-4">
+                        <div class="flex-1">
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1.5 ml-1">Nome Completo</label>
+                            <div class="relative">
+                                <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                                <input type="text" id="filtroNomeMedium" class="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white outline-none focus:border-tema-primaria focus:ring-2 focus:ring-blue-100 transition" placeholder="Buscar médium...">
+                            </div>
                         </div>
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-left border-collapse min-w-max">
-                                <thead>
-                                    <tr class="bg-gray-100 text-gray-500 text-[10px] uppercase tracking-wider border-b border-gray-200">
+                        <div class="w-full sm:w-48">
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1.5 ml-1">Grau / Função</label>
+                            <select id="filtroGrauMedium" class="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white outline-none focus:border-tema-primaria focus:ring-2 focus:ring-blue-100 transition">
+                                <option value="">Todos os Graus</option>
+                                <option value="dirigente">Dirigente</option>
+                                <option value="cct">CCT</option>
+                                <option value="escola de cct">Escola de CCT</option>
+                                <option value="scct">SCCT</option>
+                                <option value="ct">CT</option>
+                                <option value="escola de ct">Escola de CT</option>
+                                <option value="sct">SCT</option>
+                                <option value="t">T</option>
+                                <option value="tj">TJ</option>
+                                <option value="b">B</option>
+                                <option value="bj">BJ</option>
+                                <option value="i">I</option>
+                                <option value="ij">IJ</option>
+                                <option value="mg">MG / MGA</option>
+                                <option value="mc">MC / MCA</option>
+                                <option value="md">MD / MDA</option>
+                                <option value="cantina">Cantina</option>
+                            </select>
+                        </div>
+                        <div class="w-full sm:w-40">
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1.5 ml-1">Status</label>
+                            <select id="filtroStatusMedium" class="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white outline-none focus:border-tema-primaria focus:ring-2 focus:ring-blue-100 transition">
+                                <option value="">Todos Status</option>
+                                <option value="Ativo">Ativo (Cad. Completo)</option>
+                                <option value="Pendente">Pendente</option>
+                            </select>
+                        </div>
+                        <div class="w-full sm:w-40">
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1.5 ml-1">Aniversário</label>
+                            <select id="filtroMesNascimento" class="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white outline-none focus:border-tema-primaria focus:ring-2 focus:ring-blue-100 transition">
+                                <option value="">Qualquer Mês</option>
+                                <option value="01">Janeiro</option><option value="02">Fevereiro</option>
+                                <option value="03">Março</option><option value="04">Abril</option>
+                                <option value="05">Maio</option><option value="06">Junho</option>
+                                <option value="07">Julho</option><option value="08">Agosto</option>
+                                <option value="09">Setembro</option><option value="10">Outubro</option>
+                                <option value="11">Novembro</option><option value="12">Dezembro</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="lg:col-span-1 flex gap-3 h-full">
+                        <button onclick="abrirModalNovoMedium()" class="flex-1 bg-tema-secundaria hover:opacity-90 text-white font-bold rounded-3xl shadow-sm transition flex flex-col items-center justify-center py-4 gap-2">
+                            <i class="fas fa-user-plus text-xl"></i>
+                            <span class="text-xs uppercase tracking-wide">Novo Médium</span>
+                        </button>
+                        <button id="btnImprimirMediuns" class="flex-1 bg-gray-800 hover:bg-gray-900 text-white font-bold rounded-3xl shadow-sm transition flex flex-col items-center justify-center py-4 gap-2">
+                            <i class="fas fa-print text-xl"></i>
+                            <span class="text-xs uppercase tracking-wide">PDF / A4</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 xl:grid-cols-4 gap-6">
+                    <div class="xl:col-span-3 bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
+                        <div class="overflow-x-auto flex-1">
+                            <table class="w-full text-left border-collapse">
+                                <thead class="bg-gray-50/50 sticky top-0 z-10">
+                                    <tr class="text-gray-400 text-[10px] uppercase tracking-widest border-b border-gray-100">
                                         <th class="p-4 font-bold">Nome Completo</th>
                                         <th class="p-4 font-bold text-center">Nascimento</th>
                                         <th class="p-4 font-bold">Grau / Função</th>
@@ -289,703 +384,20 @@
                                         <th class="p-4 font-bold text-center no-print">Ações</th>
                                     </tr>
                                 </thead>
-                                <tbody id="tabelaTodosMediuns" class="text-sm divide-y divide-gray-100">
-                                    <tr><td colspan="6" class="p-6 text-center text-gray-500">Buscando corrente...</td></tr>
+                                <tbody id="tabelaTodosMediuns" class="divide-y divide-gray-50 text-sm">
                                 </tbody>
                             </table>
                         </div>
                     </div>
 
-                    <div class="w-full xl:w-80 bg-white rounded-2xl shadow-sm border border-gray-200 h-fit no-print">
-                        <div class="p-4 border-b border-gray-100 bg-blue-50/50 rounded-t-2xl flex items-center justify-between">
-                            <div class="flex items-center gap-2">
-                                <i class="fas fa-gift text-blue-500"></i>
-                                <h3 class="font-bold text-blue-900 text-sm" id="tituloAniversariantesMes">Aniversariantes</h3>
-                            </div>
-                            <button id="btnImprimirAniversariantes" class="text-blue-600 hover:text-blue-800 bg-blue-100 hover:bg-blue-200 p-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1">
-                                <i class="fas fa-print"></i> PDF
-                            </button>
-                        </div>
-                        <div class="p-0">
-                            <ul id="listaAniversariantes" class="divide-y divide-gray-100 max-h-[500px] overflow-y-auto">
-                                <li class="p-4 text-center text-gray-500 text-sm">Carregando...</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- SEÇÃO AGENDA DE EVENTOS -->
-            <div id="secAgendaGiras" class="secao-painel hidden">
-                <div class="bg-white p-5 md:p-6 rounded-2xl shadow-sm border-t-4 border-purple-500 mb-6 md:mb-8">
-                    <h3 class="text-base md:text-lg font-bold text-tema-texto mb-4">Novo Evento</h3>
-                    <form id="formNovaGira" class="space-y-4">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-xs md:text-sm font-medium text-gray-700">Título do Evento</label>
-                                <input type="text" id="giraTitulo" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-xl text-sm">
-                            </div>
-                            <div>
-                                <label class="block text-xs md:text-sm font-medium text-gray-700">Arte/Imagem (Arquivo)</label>
-                                <div class="mt-1">
-                                    <input type="file" id="giraArquivo" accept="image/*" class="block w-full text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 cursor-pointer border border-gray-200 rounded-xl p-1">
+                    <div class="xl:col-span-1">
+                        <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden flex flex-col h-full max-h-[600px]">
+                            <div class="p-5 border-b border-gray-100 bg-gradient-to-br from-blue-50 to-white flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center shadow-inner">
+                                        <i class="fas fa-birthday-cake"></i>
+                                    </div>
+                                    <h3 id="tituloAniversariantesMes" class="text-gray-800 font-bold text-sm">Aniversariantes</h3>
                                 </div>
-                            </div>
-                            <div>
-                                <label class="block text-xs md:text-sm font-medium text-gray-700">Início</label>
-                                <input type="datetime-local" id="giraInicio" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-xl text-sm">
-                            </div>
-                            <div>
-                                <label class="block text-xs md:text-sm font-medium text-gray-700">Fim</label>
-                                <input type="datetime-local" id="giraFim" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-xl text-sm">
-                            </div>
-                        </div>
-                        
-                        <div class="mt-4 flex flex-col md:flex-row md:items-center gap-3 md:gap-4">
-                            <label class="flex items-center text-xs md:text-sm text-gray-700 cursor-pointer">
-                                <input type="checkbox" id="giraGeraAta" class="w-4 h-4 text-purple-600 rounded mr-2" checked>
-                                Gerar Livro de Presença (ATA) para este evento
-                            </label>
-                            <label class="flex items-center text-xs md:text-sm font-bold text-red-600 cursor-pointer">
-                                <input type="checkbox" id="giraEspecial" class="w-4 h-4 text-red-500 rounded mr-2">
-                                <i class="fas fa-lock mr-1"></i> Gira Especial / Restrita
-                            </label>
-                        </div>
-
-                        <div id="boxConvocados" class="hidden mt-4 p-4 border border-red-200 bg-red-50 rounded-xl">
-                            <p class="text-xs md:text-sm font-bold text-red-700 mb-2">Selecione os convocados para este evento:</p>
-                            <div class="flex flex-col md:flex-row gap-2 mb-3">
-                                <input type="text" id="filtroConvocadosNome" placeholder="Buscar por nome..." class="flex-1 px-3 py-2 border border-gray-300 rounded-xl text-sm outline-none">
-                                <select id="filtroConvocadosGrau" class="w-full md:w-48 px-3 py-2 border border-gray-300 rounded-xl text-sm outline-none bg-white">
-                                    <option value="">Todos os Graus</option>
-                                    <option value="i">I / IJ</option>
-                                    <option value="b">B / BJ</option>
-                                    <option value="t">T / TJ</option>
-                                    <option value="sct">SCT</option>
-                                    <option value="ct">CT / Escola de CT</option>
-                                    <option value="cct">CCT / Escola de CCT</option>
-                                    <option value="dirigente">Dirigente</option>
-                                </select>
-                            </div>
-                            <div id="listaCheckConvocados" class="grid grid-cols-2 md:grid-cols-4 gap-2 max-h-48 overflow-y-auto p-2 bg-white rounded-xl border border-gray-200 shadow-inner">
-                            </div>
-                        </div>
-
-                        <button type="submit" id="btnSalvarGira" class="w-full md:w-auto bg-purple-600 hover:bg-purple-700 active:scale-95 text-white font-bold py-2.5 px-6 rounded-xl shadow transition text-sm">
-                            Salvar Evento
-                        </button>
-                        <p id="msgGira" class="text-xs md:text-sm mt-2 hidden"></p>
-                    </form>
-                </div>
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 md:p-6">
-                    <h3 class="text-base md:text-lg font-bold text-tema-texto mb-4">Eventos Agendados</h3>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left border-collapse">
-                            <thead>
-                                <tr class="bg-gray-50 border-b border-gray-200">
-                                    <th class="p-3 text-xs md:text-sm font-semibold text-gray-600">EVENTO</th>
-                                    <th class="p-3 text-xs md:text-sm font-semibold text-gray-600">DATA / HORA</th>
-                                    <th class="p-3 text-xs md:text-sm font-semibold text-gray-600 text-center">OPÇÕES</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tabelaGirasCadastradas"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <!-- SEÇÃO LIVRO DE PRESENÇA (ATA) -->
-            <div id="secLivroAta" class="secao-painel hidden">
-                <div class="bg-white p-5 md:p-6 rounded-2xl shadow-sm border-t-4 border-indigo-500 mb-6 md:mb-8">
-                    <div class="flex justify-between items-start md:items-center mb-6 flex-col md:flex-row gap-4">
-                        <div>
-                            <h3 class="text-base md:text-lg font-bold text-tema-texto">Livro de Presença (ATAs)</h3>
-                            <p class="text-xs md:text-sm text-gray-500">Redija as atas, encerre eventos e baixe documentos oficiais.</p>
-                        </div>
-                        <div class="flex gap-2 w-full md:w-auto">
-                            <button onclick="baixarLivroAnual()" class="flex-1 md:flex-none bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-3.5 rounded-xl shadow text-xs transition">
-                                <i class="fas fa-book mr-1.5"></i> Livro Anual
-                            </button>
-                            <button onclick="arquivarAnoAnterior()" class="flex-1 md:flex-none bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-3.5 rounded-xl shadow text-xs transition">
-                                <i class="fas fa-archive mr-1.5"></i> Arquivar Ano
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left border-collapse">
-                            <thead>
-                                <tr class="bg-gray-50 border-b border-gray-200">
-                                    <th class="p-3 text-xs md:text-sm font-semibold text-gray-600">EVENTO</th>
-                                    <th class="p-3 text-xs md:text-sm font-semibold text-gray-600">DATA / HORA</th>
-                                    <th class="p-3 text-xs md:text-sm font-semibold text-gray-600 text-center">STATUS</th>
-                                    <th class="p-3 text-xs md:text-sm font-semibold text-gray-600 text-center">AÇÕES</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tabelaLivroAta">
-                                <tr><td colspan="4" class="p-6 text-center text-gray-500">Carregando atas...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <!-- SEÇÃO GRAUS E FUNÇÕES -->
-            <div id="secGrau" class="secao-painel hidden">
-                <div class="bg-white rounded-2xl shadow-sm border-t-4 border-tema-primaria p-5 md:p-6 overflow-x-auto">
-                    <p class="text-xs md:text-sm text-gray-500 mb-4">Selecione o grau e a função do médium e clique em Salvar na linha correspondente.</p>
-                    
-                    <input type="text" id="buscaMediumGrau" placeholder="🔍 Pesquisar médium..." class="w-full mb-6 px-4 py-2.5 border border-gray-300 rounded-xl shadow-sm outline-none text-base">
-
-                    <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="bg-gray-50 border-b border-gray-200">
-                                <th class="p-3 text-xs md:text-sm font-semibold text-gray-600 w-2/5">NOME COMPLETO</th>
-                                <th class="p-3 text-xs md:text-sm font-semibold text-gray-600">GRAU</th>
-                                <th class="p-3 text-xs md:text-sm font-semibold text-gray-600">FUNÇÃO</th>
-                                <th class="p-3 text-xs md:text-sm font-semibold text-gray-600 text-center w-28">AÇÃO</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tabelaGraus"></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- SEÇÃO FINANCEIRO -->
-            <div id="secFinanceiro" class="secao-painel hidden">
-                <div class="bg-white rounded-2xl shadow-sm border-t-4 border-tema-secundaria p-5 md:p-6">
-                    <div class="flex justify-between items-center mb-6 flex-wrap gap-3">
-                        <p class="text-xs md:text-sm text-gray-500">Marque o mês para registrar o pagamento. Salvamento automático.</p>
-                        <div class="flex items-center space-x-2">
-                            <label class="text-xs md:text-sm font-bold text-gray-700">Ano:</label>
-                            <select id="selectAnoFinanceiro" class="border border-gray-300 rounded-xl px-3 py-1 font-bold text-gray-800 bg-gray-50 text-sm">
-                                <option value="2026">2026</option>
-                                <option value="2027">2027</option>
-                                <option value="2028">2028</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <div class="overflow-x-auto" style="max-height: 70vh;">
-                        <table class="w-full text-center border-collapse text-xs md:text-sm">
-                            <thead class="sticky top-0 z-20 shadow-sm">
-                                <tr class="bg-gray-100 border-b border-gray-200">
-                                    <th class="py-2.5 px-3 text-left font-semibold text-gray-700 sticky left-0 bg-gray-100 z-30 min-w-[180px]">NOME COMPLETO</th>
-                                    <th class="py-2 px-1 font-semibold text-gray-600">JAN</th>
-                                    <th class="py-2 px-1 font-semibold text-gray-600">FEV</th>
-                                    <th class="py-2 px-1 font-semibold text-gray-600">MAR</th>
-                                    <th class="py-2 px-1 font-semibold text-gray-600">ABR</th>
-                                    <th class="py-2 px-1 font-semibold text-gray-600">MAI</th>
-                                    <th class="py-2 px-1 font-semibold text-gray-600">JUN</th>
-                                    <th class="py-2 px-1 font-semibold text-gray-600">JUL</th>
-                                    <th class="py-2 px-1 font-semibold text-gray-600">AGO</th>
-                                    <th class="py-2 px-1 font-semibold text-gray-600">SET</th>
-                                    <th class="py-2 px-1 font-semibold text-gray-600">OUT</th>
-                                    <th class="py-2 px-1 font-semibold text-gray-600">NOV</th>
-                                    <th class="py-2 px-1 font-semibold text-gray-600">DEZ</th>
-                                    <th class="py-2 px-2 font-semibold text-gray-600 bg-gray-200">STATUS</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tabelaFinanceiro"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <!-- SEÇÃO DOAÇÕES E CAMPANHAS -->
-            <div id="secDoacoes" class="secao-painel hidden">
-                <div class="bg-white p-5 md:p-6 rounded-2xl shadow-sm border-t-4 border-tema-secundaria mb-6 md:mb-8">
-                    <div class="flex justify-between items-center mb-2 flex-wrap gap-3">
-                        <h3 class="text-base md:text-lg font-bold text-tema-texto">
-                            <i class="fas fa-box-open mr-2 text-tema-secundaria"></i> Doações Registradas
-                        </h3>
-                        <button id="btnGerarPDF_doacoes" class="bg-gray-800 text-white text-xs md:text-sm font-bold px-3.5 py-2 rounded-xl shadow hover:bg-gray-700 transition flex items-center active:scale-95">
-                            <i class="fas fa-file-pdf mr-2 text-red-400"></i> Exportar PDF
-                        </button>
-                    </div>
-                    <p class="text-xs md:text-sm text-gray-500 mb-6">Acompanhe compromissos de doação dos médiuns e dê baixa na entrega.</p>
-                    
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left border-collapse">
-                            <thead>
-                                <tr class="bg-gray-50 border-b border-gray-200">
-                                    <th class="p-3 text-xs font-semibold text-gray-500 uppercase">MÉDIUM</th>
-                                    <th class="p-3 text-xs font-semibold text-gray-500 uppercase">ITEM</th>
-                                    <th class="p-3 text-xs font-semibold text-gray-500 uppercase text-center">QTD</th>
-                                    <th class="p-3 text-xs font-semibold text-gray-500 uppercase">DATA</th>
-                                    <th class="p-3 text-xs font-semibold text-gray-500 uppercase text-center">STATUS</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tabelaDoacoesPrometidas">
-                                <tr><td colspan="5" class="p-4 text-center text-gray-500">Buscando doações...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div class="bg-white p-5 md:p-6 rounded-2xl shadow-sm border-t-4 border-red-500 mb-6 md:mb-8">
-                    <h3 class="text-base md:text-lg font-bold text-tema-texto mb-4"><i class="fas fa-plus-circle text-red-500 mr-2"></i> Novo Item de Doação</h3>
-                    <form id="formNovoItemDoacao" class="space-y-4">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-xs md:text-sm font-medium text-gray-700">Nome do Item/Campanha *</label>
-                                <input type="text" id="doacaoNome" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-xl text-sm" placeholder="Ex: Vela de 7 dias">
-                            </div>
-                            <div>
-                                <label class="block text-xs md:text-sm font-medium text-gray-700">Valor Sugerido (Opcional)</label>
-                                <input type="number" step="0.01" id="doacaoValor" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-xl text-sm" placeholder="Ex: 15.00">
-                            </div>
-                            <div class="md:col-span-2">
-                                <label class="block text-xs md:text-sm font-medium text-gray-700">Descrição curta (Opcional)</label>
-                                <input type="text" id="doacaoDescricao" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-xl text-sm" placeholder="Ex: Para a firmeza do conga...">
-                            </div>
-                            <div class="md:col-span-2">
-                                <label class="block text-xs md:text-sm font-medium text-gray-700">Link da Imagem (Opcional)</label>
-                                <input type="url" id="doacaoImagem" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-xl text-sm" placeholder="https://...">
-                            </div>
-                        </div>
-                        <button type="submit" id="btnSalvarDoacao" class="w-full md:w-auto bg-red-500 hover:bg-red-600 text-white font-bold py-2.5 px-6 rounded-xl shadow text-sm transition">
-                            Cadastrar Item
-                        </button>
-                        <p id="msgDoacao" class="text-xs md:text-sm mt-2 hidden"></p>
-                    </form>
-                </div>
-
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 md:p-6">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-base md:text-lg font-bold text-tema-texto">Catálogo de Itens</h3>
-                    </div>
-                    <div class="overflow-x-auto" style="max-height: 400px;">
-                        <table class="w-full text-left border-collapse">
-                            <thead class="sticky top-0 bg-white shadow-sm">
-                                <tr class="bg-gray-50 border-b border-gray-200">
-                                    <th class="p-3 text-xs md:text-sm font-semibold text-gray-600">ITEM</th>
-                                    <th class="p-3 text-xs md:text-sm font-semibold text-gray-600">DESCRIÇÃO</th>
-                                    <th class="p-3 text-xs md:text-sm font-semibold text-gray-600 text-center w-24">AÇÃO</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tabelaItensDoacao">
-                                <tr><td colspan="3" class="p-4 text-center text-gray-500">Buscando itens...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <!-- SEÇÃO CONFIGURAÇÕES DA CASA (GPS, COORDENADAS MANUAIS E MAPA RESTAURADOS) -->
-            <div id="secAdministracao" class="secao-painel hidden">
-                <div class="bg-white p-5 md:p-6 rounded-2xl shadow-sm border-t-4 border-green-500 mb-6 md:mb-8">
-                    <div class="flex items-center mb-3">
-                        <div class="bg-green-100 p-3 rounded-xl mr-3 text-green-600">
-                            <i class="fas fa-map-marker-alt text-lg"></i>
-                        </div>
-                        <div>
-                            <h3 class="text-base md:text-lg font-bold text-tema-texto">Localização Sede (GPS)</h3>
-                            <p class="text-xs text-gray-500">Ponto exato para validação de check-in dos médiuns.</p>
-                        </div>
-                    </div>
-                    <p class="text-xs md:text-sm text-gray-600 mb-4">
-                        Capture as coordenadas pelo GPS do seu dispositivo ou introduza a latitude e a longitude manualmente clicando no mapa.
-                    </p>
-
-                    <!-- AÇÕES E CAMPOS DE COORDENADAS MANUAIS -->
-                    <div class="space-y-4">
-                        <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
-                            <button id="btnGravarLocalizacao" class="bg-green-500 hover:bg-green-600 active:scale-95 text-white font-bold py-2.5 px-6 rounded-xl shadow flex items-center justify-center gap-2 transition text-xs md:text-sm">
-                                <i class="fas fa-crosshairs"></i> Gravar Localização Atual (GPS)
-                            </button>
-                        </div>
-
-                        <!-- CAMPOS MANUAIS DE LATITUDE E LONGITUDE -->
-                        <div class="bg-gray-50 p-4 rounded-2xl border border-gray-200">
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-                                <div>
-                                    <label class="block text-[10px] md:text-xs font-bold text-gray-600 uppercase mb-1">Latitude</label>
-                                    <input type="text" id="inputLat" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm bg-white outline-none focus:ring-2 focus:ring-green-500" placeholder="-22.9068">
-                                </div>
-                                <div>
-                                    <label class="block text-[10px] md:text-xs font-bold text-gray-600 uppercase mb-1">Longitude</label>
-                                    <input type="text" id="inputLng" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm bg-white outline-none focus:ring-2 focus:ring-green-500" placeholder="-43.1729">
-                                </div>
-                            </div>
-                            <button id="btnSalvarLocalizacaoManual" class="w-full sm:w-auto bg-gray-800 hover:bg-gray-900 active:scale-95 text-white font-bold py-2 px-5 rounded-xl shadow transition text-xs md:text-sm flex items-center justify-center gap-2">
-                                <i class="fas fa-save"></i> Salvar Manualmente
-                            </button>
-                        </div>
-
-                        <div id="msgLocalizacao" class="hidden text-xs md:text-sm font-bold"></div>
-
-                        <!-- CONTENTOR DO MAPA LEAFLET -->
-                        <div class="mt-4">
-                            <div class="flex justify-between items-center mb-1.5">
-                                <span class="text-xs font-bold text-gray-700"><i class="fas fa-map mr-1.5 text-green-600"></i> Mapa de Localização</span>
-                                <span class="text-[10px] text-gray-500">Clique no mapa para posicionar o marcador</span>
-                            </div>
-                            <div id="mapaOverlay" class="hidden"></div>
-                            <div id="mapaLocalizacao" class="w-full h-80 md:h-96 rounded-2xl border border-gray-200 shadow-inner z-0"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-white rounded-2xl shadow-sm border-t-4 border-tema-primaria p-5 md:p-6 mb-6 md:mb-8">
-                    <h3 class="text-base md:text-lg font-bold text-tema-texto mb-2"><i class="fas fa-image mr-2 text-tema-secundaria"></i> Logo da Casa</h3>
-                    <p class="text-xs md:text-sm text-gray-500 mb-4">Imagem que compõe a identidade no menu e documentos oficiais.</p>
-
-                    <div class="flex flex-col sm:flex-row items-center sm:items-start gap-4">
-                        <div class="w-28 h-28 border-2 border-dashed border-gray-300 rounded-xl flex items-center justify-center bg-gray-50 overflow-hidden relative shrink-0">
-                            <img id="previewLogo" src="" class="hidden max-w-full max-h-full object-contain p-2">
-                            <div id="placeholderLogo" class="text-gray-400 text-center">
-                                <i class="fas fa-camera text-2xl mb-1"></i><br><span class="text-[10px]">Sem Logo</span>
-                            </div>
-                        </div>
-                        <div class="flex-1 w-full">
-                            <label class="block text-xs md:text-sm font-medium text-gray-700 mb-1.5">Nova imagem (PNG transparente recomendado)</label>
-                            <input type="file" id="uploadLogo" accept="image/*" class="block w-full text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 mb-3 cursor-pointer">
-                            <button id="btnSalvarLogo" class="w-full sm:w-auto bg-tema-primaria hover:opacity-90 text-white px-5 py-2.5 rounded-xl shadow transition text-xs md:text-sm font-bold">
-                                Salvar Imagem
-                            </button>
-                            <p id="msgLogo" class="text-xs font-bold mt-2 hidden"></p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-white rounded-2xl shadow-sm border-t-4 border-tema-secundaria p-5 md:p-6">
-                    <h3 class="text-base md:text-lg font-bold text-tema-texto mb-2"><i class="fas fa-palette mr-2 text-tema-secundaria"></i> Identidade Visual (Cores)</h3>
-                    <p class="text-xs md:text-sm text-gray-500 mb-6">Personalize as cores da interface da sua casa.</p>
-
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-                        <div class="p-3.5 border border-gray-100 rounded-xl bg-gray-50 flex justify-between items-center">
-                            <div>
-                                <h4 class="font-bold text-gray-800 text-xs md:text-sm">Cor Primária</h4>
-                                <p class="text-[10px] md:text-xs text-gray-500">Menu e cabeçalhos.</p>
-                            </div>
-                            <input type="color" id="corPrimaria" class="w-12 h-12 cursor-pointer border-0 rounded-lg bg-transparent">
-                        </div>
-
-                        <div class="p-3.5 border border-gray-100 rounded-xl bg-gray-50 flex justify-between items-center">
-                            <div>
-                                <h4 class="font-bold text-gray-800 text-xs md:text-sm">Cor Secundária</h4>
-                                <p class="text-[10px] md:text-xs text-gray-500">Ações e destaques.</p>
-                            </div>
-                            <input type="color" id="corSecundaria" class="w-12 h-12 cursor-pointer border-0 rounded-lg bg-transparent">
-                        </div>
-
-                        <div class="p-3.5 border border-gray-100 rounded-xl bg-gray-50 flex justify-between items-center">
-                            <div>
-                                <h4 class="font-bold text-gray-800 text-xs md:text-sm">Fundo</h4>
-                                <p class="text-[10px] md:text-xs text-gray-500">Fundo da aplicação.</p>
-                            </div>
-                            <input type="color" id="corFundo" class="w-12 h-12 cursor-pointer border-0 rounded-lg bg-transparent">
-                        </div>
-
-                        <div class="p-3.5 border border-gray-100 rounded-xl bg-gray-50 flex justify-between items-center">
-                            <div>
-                                <h4 class="font-bold text-gray-800 text-xs md:text-sm">Texto</h4>
-                                <p class="text-[10px] md:text-xs text-gray-500">Texto principal.</p>
-                            </div>
-                            <input type="color" id="corTexto" class="w-12 h-12 cursor-pointer border-0 rounded-lg bg-transparent">
-                        </div>
-                    </div>
-
-                    <button id="btnSalvarCores" class="w-full sm:w-auto bg-tema-primaria hover:opacity-90 text-white font-bold py-2.5 px-8 rounded-xl shadow transition text-sm">
-                        Salvar e Aplicar Cores
-                    </button>
-                    <p id="msgCores" class="text-xs md:text-sm font-bold mt-3 hidden"></p>
-                </div>
-            </div>
-
-            <!-- SEÇÃO MASTER SAAS -->
-            <div id="secMaster" class="secao-painel hidden">
-                <div class="bg-gray-900 p-5 md:p-6 rounded-2xl shadow-lg border-t-4 border-blue-500 mb-6 md:mb-8">
-                    <h3 class="text-base md:text-lg font-bold text-white mb-4"><i class="fas fa-plus-circle text-blue-400 mr-2"></i> Novo Terreiro (Cliente)</h3>
-                    <form id="formNovoTerreiro" class="space-y-4">
-                        <div>
-                            <label class="block text-xs md:text-sm font-medium text-gray-300">Nome da Instituição</label>
-                            <input type="text" id="novoTerreiroNome" required class="mt-1 block w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-xl text-white outline-none text-sm" placeholder="Ex: Templo Luz e Paz">
-                        </div>
-                        <button type="submit" id="btnSalvarTerreiro" class="bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold py-2 px-6 rounded-xl shadow text-xs md:text-sm transition">
-                            Cadastrar Sistema
-                        </button>
-                        <p id="msgNovoTerreiro" class="text-xs md:text-sm mt-2 hidden"></p>
-                    </form>
-                </div>
-
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 md:p-6">
-                    <h3 class="text-base md:text-lg font-bold text-gray-800 mb-4">Terreiros na Plataforma</h3>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left border-collapse">
-                            <thead>
-                                <tr>
-                                    <th class="p-3 text-xs md:text-sm font-semibold text-gray-600">ID</th>
-                                    <th class="p-3 text-xs md:text-sm font-semibold text-gray-600">NOME DO TERREIRO</th>
-                                    <th class="p-3 text-xs md:text-sm font-semibold text-gray-600 text-center">STATUS</th>
-                                    <th class="p-3 text-xs md:text-sm font-semibold text-gray-600 text-center">AÇÕES</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tabelaMasterTerreiros">
-                                <tr><td colspan="4" class="p-4 text-center text-gray-500">Buscando clientes...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-        </main>
-    </div>
-
-    <!-- MODAL NOVO MÉDIUM -->
-    <div id="modalNovoMedium" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-3xl shadow-xl w-full max-w-md p-6 transform transition-all">
-            <div class="flex justify-between items-center mb-4 border-b pb-2">
-                <h3 class="text-lg md:text-xl font-bold text-tema-texto"><i class="fas fa-user-plus text-tema-secundaria mr-2"></i> Novo Médium</h3>
-                <button onclick="fecharModalNovoMedium()" class="text-gray-400 hover:text-gray-600 p-1"><i class="fas fa-times text-xl"></i></button>
-            </div>
-            
-            <form id="formNovoMedium" class="space-y-4">
-                <p class="text-xs md:text-sm text-gray-600">Digite o nome do médium para gerar um ID de primeiro acesso.</p>
-                <div>
-                    <label class="block text-xs md:text-sm font-medium text-gray-700">Nome Completo</label>
-                    <input type="text" id="novoMediumNome" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-xl outline-none text-sm" placeholder="Ex: João da Silva">
-                </div>
-                
-                <p id="msgNovoMedium" class="hidden"></p>
-
-                <button type="submit" id="btnSalvarNovoMedium" class="w-full bg-tema-secundaria hover:opacity-90 active:scale-95 text-white font-bold py-3 px-4 rounded-xl shadow transition text-sm flex items-center justify-center">
-                    Cadastrar Médium
-                </button>
-            </form>
-
-            <div id="resultadoNovoMedium" class="hidden text-center py-4">
-                <div class="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <i class="fas fa-check text-2xl text-green-600"></i>
-                </div>
-                <h4 class="text-base font-bold text-gray-800 mb-1">Médium Cadastrado!</h4>
-                <p class="text-xs text-gray-600 mb-4">Credenciais para o primeiro acesso:</p>
-                
-                <div class="bg-gray-50 border border-gray-200 rounded-2xl p-4 mb-5">
-                    <p class="text-[10px] text-gray-500 uppercase font-bold mb-0.5">ID DE ACESSO</p>
-                    <p class="text-3xl font-black text-tema-primaria" id="idGeradoNovoMedium">00</p>
-                    <div class="w-full h-px bg-gray-200 my-3"></div>
-                    <p class="text-[10px] text-gray-500 uppercase font-bold mb-0.5">SENHA PADRÃO</p>
-                    <p class="text-xl font-bold text-gray-800 tracking-wider">123456</p>
-                </div>
-
-                <button onclick="fecharModalNovoMedium()" class="w-full bg-gray-800 text-white font-bold py-2.5 px-4 rounded-xl shadow text-sm">
-                    Entendi, Fechar
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL EDITAR MÉDIUM -->
-    <div id="modalEditarMedium" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-3xl shadow-xl w-full max-w-md p-6 transform transition-all max-h-[90vh] overflow-y-auto">
-            <div class="flex justify-between items-center mb-4 border-b pb-2">
-                <h3 class="text-lg md:text-xl font-bold text-tema-texto"><i class="fas fa-user-edit text-tema-secundaria mr-2"></i> Editar Médium</h3>
-                <button onclick="fecharModalEditarMedium()" class="text-gray-400 hover:text-gray-600 p-1"><i class="fas fa-times text-xl"></i></button>
-            </div>
-            
-            <form id="formEditarMedium" class="space-y-4">
-                <input type="hidden" id="editMediumId">
-                <div>
-                    <label class="block text-xs md:text-sm font-medium text-gray-700">Nome Completo</label>
-                    <input type="text" id="editMediumNome" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-xl text-sm">
-                </div>
-                <div>
-                    <label class="block text-xs md:text-sm font-medium text-gray-700">Nome Social</label>
-                    <input type="text" id="editMediumNomeSocial" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-xl text-sm">
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-xs md:text-sm font-medium text-gray-700">WhatsApp</label>
-                        <input type="tel" id="editMediumTelefone" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-xl text-sm">
-                    </div>
-                    <div>
-                        <label class="block text-xs md:text-sm font-medium text-gray-700">Nascimento</label>
-                        <input type="date" id="editMediumNascimento" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-xl text-sm">
-                    </div>
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-xs md:text-sm font-medium text-gray-700">Grau</label>
-                        <select id="editMediumGrau" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-xl bg-white text-sm">
-                            <option value="-">-</option><option value="I">I</option><option value="IJ">IJ</option>
-                            <option value="B">B</option><option value="BJ">BJ</option><option value="T">T</option>
-                            <option value="TJ">TJ</option><option value="SCT">SCT</option><option value="Escola de CT">Escola de CT</option>
-                            <option value="CT">CT</option><option value="SCCT">SCCT</option><option value="Escola de CCT">Escola de CCT</option>
-                            <option value="CCT">CCT</option><option value="Dirigente">Dirigente</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs md:text-sm font-medium text-gray-700">Função</label>
-                        <select id="editMediumFuncao" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-xl bg-white text-sm">
-                            <option value="-">-</option><option value="MG">MG</option><option value="MGA">MGA</option>
-                            <option value="MC">MC</option><option value="MCA">MCA</option><option value="MD">MD</option>
-                            <option value="MDA">MDA</option><option value="Cantina">Cantina</option><option value="Dirigente">Dirigente</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <p id="msgEditMedium" class="hidden text-xs md:text-sm mt-2 text-center font-bold"></p>
-
-                <button type="submit" id="btnSalvarEditMedium" class="w-full bg-tema-secundaria hover:opacity-90 active:scale-95 text-white font-bold py-3 px-4 rounded-xl shadow transition text-sm">
-                    Salvar Alterações
-                </button>
-            </form>
-        </div>
-    </div>
-
-    <!-- MODAL PERMISSÕES -->
-    <div id="modalPermissoes" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-3xl shadow-xl w-full max-w-md p-6 transform transition-all">
-            <div class="flex justify-between items-center mb-4 border-b pb-2">
-                <h3 class="text-lg md:text-xl font-bold text-gray-800"><i class="fas fa-key text-blue-500 mr-2"></i> Permissões de Acesso</h3>
-                <button id="btnFecharPermissoes" class="text-gray-400 hover:text-gray-600 p-1"><i class="fas fa-times text-xl"></i></button>
-            </div>
-            <p class="text-xs md:text-sm text-gray-600 mb-4">Acessos para <strong id="nomeMediumPermissao" class="text-tema-primaria"></strong>:</p>
-            
-            <input type="hidden" id="idMediumPermissao">
-            
-            <div class="space-y-2.5 mb-6 text-sm">
-                <label class="flex items-center space-x-3 cursor-pointer p-2 hover:bg-gray-50 rounded-xl">
-                    <input type="checkbox" id="chkPermVisao" class="w-4 h-4 text-tema-primaria rounded">
-                    <span>Visão Geral</span>
-                </label>
-                <label class="flex items-center space-x-3 cursor-pointer p-2 hover:bg-gray-50 rounded-xl">
-                    <input type="checkbox" id="chkPermAgenda" class="w-4 h-4 text-tema-primaria rounded">
-                    <span>Agenda de Eventos</span>
-                </label>
-                <label class="flex items-center space-x-3 cursor-pointer p-2 hover:bg-gray-50 rounded-xl">
-                    <input type="checkbox" id="chkPermAta" class="w-4 h-4 text-tema-primaria rounded">
-                    <span>Livro de Presença (ATA)</span>
-                </label>
-                <label class="flex items-center space-x-3 cursor-pointer p-2 hover:bg-gray-50 rounded-xl">
-                    <input type="checkbox" id="chkPermGrau" class="w-4 h-4 text-tema-primaria rounded">
-                    <span>Alteração de Grau</span>
-                </label>
-                <label class="flex items-center space-x-3 cursor-pointer p-2 hover:bg-gray-50 rounded-xl">
-                    <input type="checkbox" id="chkPermFinanceiro" class="w-4 h-4 text-tema-primaria rounded">
-                    <span>Financeiro</span>
-                </label>
-                <label class="flex items-center space-x-3 cursor-pointer p-2 hover:bg-gray-50 rounded-xl">
-                    <input type="checkbox" id="chkPermDoacoes" class="w-4 h-4 text-tema-primaria rounded">
-                    <span>Doações / Campanhas</span>
-                </label>
-                <label class="flex items-center space-x-3 cursor-pointer p-2 hover:bg-gray-50 rounded-xl">
-                    <input type="checkbox" id="chkPermAdmin" class="w-4 h-4 text-tema-primaria rounded">
-                    <span>Configurações da Casa</span>
-                </label>
-            </div>
-            
-            <button id="btnSalvarPermissoes" class="w-full bg-tema-primaria hover:opacity-90 active:scale-95 text-white font-bold py-3 px-4 rounded-xl shadow transition text-sm">
-                Salvar Permissões
-            </button>
-        </div>
-    </div>
-
-    <!-- MODAL ESCREVER ATA -->
-    <div id="modalEscreverAta" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-3xl shadow-xl w-full max-w-2xl p-6 transform transition-all">
-            <div class="flex justify-between items-center mb-4 border-b pb-2">
-                <h3 class="text-lg md:text-xl font-bold text-tema-texto"><i class="fas fa-pen text-indigo-500 mr-2"></i> Redigir Ata</h3>
-                <button onclick="fecharModalEscreverAta()" class="text-gray-400 hover:text-gray-600 p-1"><i class="fas fa-times text-xl"></i></button>
-            </div>
-            <form id="formEscreverAta" class="space-y-4">
-                <input type="hidden" id="ataEventoId">
-                <div>
-                    <label class="block text-xs md:text-sm font-medium text-gray-700 mb-1.5">Relatório do Evento</label>
-                    <textarea id="ataTexto" rows="8" required class="w-full px-3 py-2 border border-gray-300 rounded-xl outline-none text-sm" placeholder="Digite o histórico do trabalho..."></textarea>
-                </div>
-                <button type="submit" id="btnSalvarTextoAta" class="w-full bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold py-3 px-4 rounded-xl shadow transition text-sm">
-                    Salvar Texto da Ata
-                </button>
-                <p id="msgEscreverAta" class="hidden text-center mt-2 text-xs md:text-sm"></p>
-            </form>
-        </div>
-    </div>
-
-    <!-- MODAL IMPORTAR CSV -->
-    <div id="modalImportarCSV" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-3xl shadow-xl w-full max-w-md p-6 transform transition-all">
-            <div class="flex justify-between items-center mb-4 border-b pb-2">
-                <h3 class="text-lg md:text-xl font-bold text-gray-800"><i class="fas fa-file-csv text-blue-500 mr-2"></i> Importar Cadastros</h3>
-                <button onclick="fecharModalImportacao()" class="text-gray-400 hover:text-gray-600 p-1"><i class="fas fa-times text-xl"></i></button>
-            </div>
-            <p class="text-xs md:text-sm text-gray-600 mb-3">Importar planilha para: <strong id="nomeTerreiroImport" class="text-blue-600"></strong></p>
-            
-            <form id="formImportarCSV" class="space-y-4">
-                <input type="hidden" id="idTerreiroImport">
-                <div class="bg-blue-50 border border-blue-200 rounded-xl p-3 text-[11px] text-blue-800 leading-relaxed">
-                    <strong>Padrão do CSV:</strong> Nome Completo, Telefone, Grau, Função<br>
-                    Ex: João da Silva, 21999999999, T, MD
-                </div>
-                <div>
-                    <input type="file" id="arquivoCSV" accept=".csv" required class="block w-full text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 border border-gray-200 rounded-xl p-1.5">
-                </div>
-                <button type="submit" id="btnProcessarCSV" class="w-full bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold py-3 px-4 rounded-xl shadow transition text-sm">
-                    Processar e Importar
-                </button>
-                <p id="msgImportacao" class="hidden text-center mt-2 text-xs md:text-sm"></p>
-            </form>
-        </div>
-    </div>
-
-    <!-- MODAL EDITAR GIRA/EVENTO -->
-    <div id="modalEditarGira" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-3xl shadow-xl w-full max-w-md p-6 transform transition-all">
-            <div class="flex justify-between items-center mb-4 border-b pb-2">
-                <h3 class="text-lg md:text-xl font-bold text-tema-texto"><i class="fas fa-edit text-purple-500 mr-2"></i> Editar Evento</h3>
-                <button onclick="document.getElementById('modalEditarGira').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 p-1"><i class="fas fa-times text-xl"></i></button>
-            </div>
-            <form id="formEditarGira" class="space-y-4">
-                <input type="hidden" id="editGiraId">
-                <div>
-                    <label class="block text-xs md:text-sm font-medium text-gray-700">Título</label>
-                    <input type="text" id="editGiraTitulo" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-xl text-sm">
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-xs md:text-sm font-medium text-gray-700">Início</label>
-                        <input type="datetime-local" id="editGiraInicio" required class="mt-1 block w-full px-2 py-2 border border-gray-300 rounded-xl text-xs md:text-sm">
-                    </div>
-                    <div>
-                        <label class="block text-xs md:text-sm font-medium text-gray-700">Fim</label>
-                        <input type="datetime-local" id="editGiraFim" required class="mt-1 block w-full px-2 py-2 border border-gray-300 rounded-xl text-xs md:text-sm">
-                    </div>
-                </div>
-                <div class="flex flex-col gap-2 mt-2">
-                    <label class="flex items-center text-xs md:text-sm text-gray-700 cursor-pointer">
-                        <input type="checkbox" id="editGiraGeraAta" class="w-4 h-4 text-purple-600 rounded mr-2">
-                        Gerar Livro de Presença (ATA)
-                    </label>
-                    <label class="flex items-center text-xs md:text-sm font-bold text-red-600 cursor-pointer">
-                        <input type="checkbox" id="editGiraEspecial" class="w-4 h-4 text-red-500 rounded mr-2">
-                        <i class="fas fa-lock mr-1"></i> Gira Especial / Restrita
-                    </label>
-                </div>
-                <div id="editBoxConvocados" class="hidden mt-3 p-3 border border-red-200 bg-red-50 rounded-xl">
-                    <p class="text-xs font-bold text-red-700 mb-2">Convocados:</p>
-                    <div class="flex flex-col gap-2 mb-2">
-                        <input type="text" id="editFiltroConvocadosNome" placeholder="Buscar por nome..." class="w-full px-3 py-1.5 border border-gray-300 rounded-xl text-xs">
-                        <select id="editFiltroConvocadosGrau" class="w-full px-3 py-1.5 border border-gray-300 rounded-xl text-xs bg-white">
-                            <option value="">Todos os Graus</option><option value="i">I / IJ</option>
-                            <option value="b">B / BJ</option><option value="t">T / TJ</option>
-                            <option value="sct">SCT</option><option value="ct">CT / Escola de CT</option>
-                            <option value="cct">CCT / Escola de CCT</option><option value="dirigente">Dirigente</option>
-                        </select>
-                    </div>
-                    <div id="editListaCheckConvocados" class="grid grid-cols-2 gap-2 max-h-36 overflow-y-auto p-2 bg-white rounded-xl border border-gray-200 shadow-inner">
-                    </div>
-                </div>
-                <p id="msgEditGira" class="hidden text-xs mt-2 text-center font-bold"></p>
-                <button type="submit" id="btnSalvarEditGira" class="w-full bg-purple-600 hover:bg-purple-700 active:scale-95 text-white font-bold py-2.5 px-4 rounded-xl shadow transition text-sm">
-                    Salvar Alterações
-                </button>
-            </form>
-        </div>
-    </div>
-
-    <script src="js/supabase.js"></script>
-    <script src="js/admin.js"></script>
-</body>
-</html>
+                                <button id="btnImprimirAniversariantes" class="text-gray-400 hover:text-blue-600 transition p-1" title="Imprimir Aniversariantes">
+                                    <i class="fas fa-print">
