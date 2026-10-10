@@ -6,15 +6,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     function exibirMensagem(texto, cor = 'red') {
         if (msgErro) {
             msgErro.textContent = texto;
-            msgErro.className = `text-xs md:text-sm font-bold text-center text-${cor}-600 block my-3`;
+            msgErro.className = `text-xs md:text-sm font-bold text-center text-${cor}-600 block mt-2`;
             msgErro.classList.remove('hidden');
         } else {
             alert(texto);
         }
     }
 
-    // No fluxo desenhado, o médio só acede a esta página se passou pelo index.html com o ID e senha 123456.
-    // O ID está guardado no localStorage.
     const mediumIdLocal = localStorage.getItem('medium_id');
     if (!mediumIdLocal) {
         window.location.replace('index.html');
@@ -25,7 +23,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     let dadosMedium = null;
 
     try {
-        // Busca a ficha do médium na base de dados
         const { data: medium, error: errMed } = await supabaseClient
             .from('mediuns')
             .select('*')
@@ -33,19 +30,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             .maybeSingle();
 
         if (errMed || !medium) {
-            exibirMensagem("Ficha não encontrada. Volte ao ecrã de login e tente novamente.");
+            exibirMensagem("Ficha não encontrada. Volte ao ecrã de login.");
             return;
         }
 
-        // Bloqueio de segurança: Se o médium já tiver ativado a senha, não pode repetir o processo
-        if (medium.senha_cadastrada) {
-            window.location.replace('index.html');
+        // Se o médium já estiver com o cadastro integralmente concluído, vai para a presença
+        if (medium.cadastro_completo) {
+            window.location.replace('presenca.html');
             return;
         }
 
         dadosMedium = medium;
 
-        // Pré-preenche os campos que já existem na base de dados
         if (document.getElementById('cadNomeCompleto')) document.getElementById('cadNomeCompleto').value = medium.nome_completo || '';
         if (document.getElementById('cadNomeSocial')) document.getElementById('cadNomeSocial').value = medium.nome_social || '';
         if (document.getElementById('cadNascimento') && medium.data_nascimento) document.getElementById('cadNascimento').value = medium.data_nascimento;
@@ -70,25 +66,20 @@ document.addEventListener('DOMContentLoaded', async () => {
             const valGrau = document.getElementById('cadGrau').value;
             const valFuncao = document.getElementById('cadFuncao').value;
             const valNasc = document.getElementById('cadNascimento').value;
-            
-            // Força a PALAVRA a ser gravada e lida sempre em MAIÚSCULAS
             const valPalavra = document.getElementById('cadPalavra').value.trim().toUpperCase();
-            
             const valTelBruto = document.getElementById('cadTelefone').value;
             const valNovaSenha = document.getElementById('cadNovaSenha').value.trim();
             const valConfirmaSenha = document.getElementById('cadConfirmaSenha').value.trim();
 
-            // 1. Validação estrita do WhatsApp
             let telefoneLimpo = valTelBruto.replace(/\D/g, '');
             if (telefoneLimpo.startsWith('55') && telefoneLimpo.length >= 12) {
                 telefoneLimpo = telefoneLimpo.substring(2);
             }
 
             if (!telefoneLimpo || telefoneLimpo.length < 10) {
-                return exibirMensagem("Digite o seu WhatsApp válido com DDD (apenas números).");
+                return exibirMensagem("Digite o seu WhatsApp válido com DDD.");
             }
 
-            // 2. Validação estrita da Senha (Apenas 6 números)
             const apenasNumerosSenha = valNovaSenha.replace(/\D/g, '');
             if (apenasNumerosSenha.length !== 6 || valNovaSenha.length !== 6) {
                 return exibirMensagem("A senha deve conter exatamente 6 números.");
@@ -105,26 +96,27 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (msgErro) msgErro.classList.add('hidden');
 
             try {
-                // O email oficial do Auth passará a ser o Telefone
                 const emailAuth = `${telefoneLimpo}@terreiro.app`;
+                let novoAuthId = dadosMedium.auth_id;
 
-                // 1. Cria a conta no Supabase Auth usando o Telefone e a nova Senha de 6 dígitos
-                const { data: authData, error: errAuth } = await supabaseClient.auth.signUp({
-                    email: emailAuth,
-                    password: valNovaSenha
-                });
+                // Só tenta criar a conta Auth se ela ainda não existir
+                if (!novoAuthId) {
+                    const { data: authData, error: errAuth } = await supabaseClient.auth.signUp({
+                        email: emailAuth,
+                        password: valNovaSenha
+                    });
 
-                if (errAuth) {
-                    if (errAuth.message.includes('already registered')) {
-                        throw new Error("Este número de WhatsApp já possui acesso registado no sistema.");
+                    if (errAuth) {
+                        if (errAuth.message.includes('already registered')) {
+                            throw new Error("Este número de WhatsApp já possui acesso registado no sistema.");
+                        }
+                        throw new Error("Erro na criação do acesso: " + errAuth.message);
                     }
-                    throw new Error("Erro na criação do acesso: " + errAuth.message);
+                    novoAuthId = authData.user.id;
                 }
 
-                const novoAuthId = authData.user.id;
-
-                // 2. Atualiza a tabela mediuns com os dados preenchidos, a Palavra, e marca a senha como cadastrada[cite: 24]
-                const { error: errBd } = await supabaseClient.from('mediuns').update({
+                // CORREÇÃO: "cadastro_completo: true" foi restaurado na payload de envio
+                const updateData = {
                     nome_social: valNomeSocial,
                     telefone: telefoneLimpo,
                     data_nascimento: valNasc,
@@ -132,8 +124,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                     funcao: valFuncao,
                     palavra: valPalavra,
                     senha_cadastrada: true,
+                    cadastro_completo: true, 
                     auth_id: novoAuthId
-                }).eq('id', dadosMedium.id);
+                };
+
+                const { error: errBd } = await supabaseClient.from('mediuns').update(updateData).eq('id', dadosMedium.id);
 
                 if (errBd) {
                     if (errBd.message.includes('unique constraint')) {
@@ -142,7 +137,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     throw errBd;
                 }
 
-                // Efetua o login automático logo após criar a conta
                 const loginAutomatico = await supabaseClient.auth.signInWithPassword({
                     email: emailAuth,
                     password: valNovaSenha
@@ -150,7 +144,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 
                 if (loginAutomatico.error) throw loginAutomatico.error;
 
-                // Guarda o telefone em cache para a próxima vez
                 localStorage.setItem('telefone_acesso', telefoneLimpo);
 
                 exibirMensagem('✅ Acesso ativado com sucesso! A entrar no painel...', 'green');
