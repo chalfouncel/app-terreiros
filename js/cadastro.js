@@ -1,11 +1,15 @@
 document.addEventListener('DOMContentLoaded', async () => {
-    const form = document.getElementById('formCompletarCadastro');
-    const msg = document.getElementById('msgCadastro');
-    const btnSalvar = document.getElementById('btnSalvarCadastro');
+    const form = document.querySelector('form');
+    const msg = document.getElementById('msgCadastro') || document.createElement('p');
+    const btnSalvar = document.querySelector('button[type="submit"]');
 
-    // 1. Verifica se existe sessão autenticada
+    if (!document.getElementById('msgCadastro') && form) {
+        msg.id = 'msgCadastro';
+        form.insertBefore(msg, btnSalvar);
+    }
+
+    // 1. Verifica sessão
     const { data: { session } } = await supabaseClient.auth.getSession();
-
     if (!session) {
         localStorage.clear();
         window.location.replace('index.html');
@@ -16,52 +20,37 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     try {
         const authId = session.user.id;
-        let idNumerico = null;
+        let telefoneLogado = null;
 
+        // Recupera o telefone a partir do e-mail do Auth (ex: 21999999999@terreiro.app)[cite: 19, 20]
         if (session.user.email) {
-            const extrairId = session.user.email.split('@')[0].replace(/\D/g, '');
-            if (extrairId) idNumerico = parseInt(extrairId);
-        }
-        if (!idNumerico) {
-            const local = localStorage.getItem('medium_id');
-            if (local) idNumerico = parseInt(local);
+            telefoneLogado = session.user.email.split('@')[0];
         }
 
         let medium = null;
 
-        // Busca pela ligação auth_id
-        const { data: mAuth } = await supabaseClient
-            .from('mediuns')
-            .select('*')
-            .eq('auth_id', authId)
-            .maybeSingle();
+        // Busca por auth_id
+        const { data: mAuth } = await supabaseClient.from('mediuns').select('*').eq('auth_id', authId).maybeSingle();
 
         if (mAuth) {
             medium = mAuth;
-        } else if (idNumerico) {
-            // Busca pelo ID numérico
-            const { data: mId } = await supabaseClient
-                .from('mediuns')
-                .select('*')
-                .eq('id', idNumerico)
-                .maybeSingle();
-
-            if (mId) {
-                medium = mId;
+        } else if (telefoneLogado) {
+            // Busca por telefone
+            const { data: mTel } = await supabaseClient.from('mediuns').select('*').eq('telefone', telefoneLogado).maybeSingle();
+            if (mTel) {
+                medium = mTel;
                 await supabaseClient.from('mediuns').update({ auth_id: authId }).eq('id', medium.id);
             }
         }
 
         if (!medium) {
-            if (msg) {
-                msg.textContent = 'A sincronizar dados da ficha... se não carregar, atualize a página.';
-                msg.className = 'text-xs md:text-sm font-bold text-center text-yellow-600 block mt-2';
-                msg.classList.remove('hidden');
-            }
+            msg.textContent = 'Aguardando ficha... recarregue a página.';
+            msg.className = 'text-xs md:text-sm font-bold text-center text-yellow-600 block mt-2';
+            msg.classList.remove('hidden');
             return;
         }
 
-        if (medium.cadastro_completo === true) {
+        if (medium.cadastro_completo) {
             window.location.replace('presenca.html');
             return;
         }
@@ -69,110 +58,89 @@ document.addEventListener('DOMContentLoaded', async () => {
         mediumId = medium.id;
         localStorage.setItem('medium_id', medium.id);
 
-        if (document.getElementById('cadNomeCompleto')) {
-            document.getElementById('cadNomeCompleto').value = medium.nome_completo || '';
-        }
-        if (document.getElementById('cadNomeSocial') && medium.nome_social) {
-            document.getElementById('cadNomeSocial').value = medium.nome_social;
-        }
-        if (document.getElementById('cadTelefone') && medium.telefone) {
-            let tel = medium.telefone.replace(/\D/g, '');
-            if (tel.startsWith('55') && tel.length > 11) tel = tel.substring(2);
-            document.getElementById('cadTelefone').value = tel;
-        }
-        if (document.getElementById('cadNascimento') && medium.data_nascimento) {
-            document.getElementById('cadNascimento').value = medium.data_nascimento;
-        }
+        // Preenche campos do seu formulário legado
+        if (document.getElementById('cadNomeCompleto')) document.getElementById('cadNomeCompleto').value = medium.nome_completo || '';
+        if (document.getElementById('cadNomeSocial')) document.getElementById('cadNomeSocial').value = medium.nome_social || '';
+        if (document.getElementById('cadNascimento')) document.getElementById('cadNascimento').value = medium.data_nascimento || '';
+        
+        const telCampo = document.getElementById('cadTelefone') || document.getElementById('telefone');
+        if (telCampo) telCampo.value = medium.telefone || telefoneLogado || '';
 
     } catch (err) {
         console.error('Erro ao ler ficha:', err);
     }
 
-    // 2. Conclusão do Cadastro
+    // 2. Concluir Cadastro
     if (form) {
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
 
-            if (!mediumId) {
-                const local = localStorage.getItem('medium_id');
-                if (local) mediumId = parseInt(local);
-            }
-
-            if (!mediumId) {
-                alert('Sessão expirada. Atualize a página.');
-                return;
-            }
+            if (!mediumId) return alert('Sessão expirada. Recarregue a página.');
 
             const nomeSocial = document.getElementById('cadNomeSocial')?.value.trim() || null;
-            const telefoneRaw = document.getElementById('cadTelefone')?.value || '';
-            const dataNascimento = document.getElementById('cadNascimento')?.value || null;
-            const novaSenha = document.getElementById('cadNovaSenha')?.value || '';
-            const confirmaSenha = document.getElementById('cadConfirmaSenha')?.value || '';
+            const dataNasc = document.getElementById('cadNascimento')?.value || null;
+            
+            // Procura o campo da nova senha (Pode se chamar Palavra ou NovaSenha)
+            const inputSenha = document.getElementById('cadNovaSenha') || document.getElementById('palavra') || document.querySelector('input[type="password"]');
+            const novaSenha = inputSenha ? inputSenha.value.trim() : '';
 
-            let telefoneLimpo = telefoneRaw.replace(/\D/g, '');
-            if (telefoneLimpo.startsWith('55') && telefoneLimpo.length >= 12) {
-                telefoneLimpo = telefoneLimpo.substring(2);
-            }
+            // Procura o select do Grau e Função
+            const selGrau = document.getElementById('grau') || document.getElementById('editMediumGrau');
+            const selFuncao = document.getElementById('funcao') || document.getElementById('editMediumFuncao');
+            
+            const valGrau = selGrau ? selGrau.value : null;
+            const valFuncao = selFuncao ? selFuncao.value : null;
 
-            if (!telefoneLimpo || telefoneLimpo.length < 10 || telefoneLimpo.length > 11) {
-                msg.textContent = 'Introduza um WhatsApp válido com DDD (ex: 21999999999).';
+            if (!novaSenha || novaSenha.length < 6) {
+                msg.textContent = 'Sua Palavra (senha) precisa ter pelo menos 6 caracteres.';
                 msg.className = 'text-xs md:text-sm font-bold text-center text-red-600 block mt-2';
                 msg.classList.remove('hidden');
                 return;
             }
 
-            if (novaSenha !== confirmaSenha) {
-                msg.textContent = 'As palavras-passe não coincidem.';
-                msg.className = 'text-xs md:text-sm font-bold text-center text-red-600 block mt-2';
-                msg.classList.remove('hidden');
-                return;
+            if (btnSalvar) {
+                btnSalvar.disabled = true;
+                btnSalvar.innerHTML = 'Salvando e atualizando...';
             }
-
-            btnSalvar.disabled = true;
-            btnSalvar.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> A salvar cadastro...';
             msg.classList.add('hidden');
 
             try {
-                // Atualiza a palavra-passe no Supabase Auth
+                // Atualiza a senha no Auth do Supabase
                 const { error: erroAuth } = await supabaseClient.auth.updateUser({
                     password: novaSenha
                 });
                 if (erroAuth) throw erroAuth;
 
-                // Atualiza a ficha do médium e define cadastro_completo = true
-                const { error: erroUpdate } = await supabaseClient
-                    .from('mediuns')
-                    .update({
-                        nome_social: nomeSocial,
-                        telefone: telefoneLimpo,
-                        data_nascimento: dataNascimento,
-                        cadastro_completo: true,
-                        auth_id: session.user.id
-                    })
-                    .eq('id', mediumId);
+                // Prepara a atualização da tabela mediuns
+                const updateData = {
+                    nome_social: nomeSocial,
+                    data_nascimento: dataNasc,
+                    cadastro_completo: true
+                };
 
-                if (erroUpdate) {
-                    if (erroUpdate.message.includes('unique constraint')) {
-                        throw new Error('Este número de WhatsApp já se encontra registado.');
-                    }
-                    throw erroUpdate;
-                }
+                if (valGrau && valGrau !== '-') updateData.grau = valGrau;
+                if (valFuncao && valFuncao !== '-') updateData.funcao = valFuncao;
 
-                msg.textContent = '✅ Cadastro concluído com sucesso!';
+                const { error: erroBd } = await supabaseClient.from('mediuns').update(updateData).eq('id', mediumId);
+                if (erroBd) throw erroBd;
+
+                msg.textContent = '✅ Acesso liberado!';
                 msg.className = 'text-xs md:text-sm font-bold text-center text-green-600 block mt-2';
                 msg.classList.remove('hidden');
 
                 setTimeout(() => {
                     window.location.replace('presenca.html');
-                }, 1200);
+                }, 1000);
 
             } catch (error) {
-                console.error('Erro ao salvar:', error);
+                console.error(error);
                 msg.textContent = 'Erro: ' + error.message;
                 msg.className = 'text-xs md:text-sm font-bold text-center text-red-600 block mt-2';
                 msg.classList.remove('hidden');
-                btnSalvar.disabled = false;
-                btnSalvar.innerHTML = 'Salvar e Continuar';
+                if (btnSalvar) {
+                    btnSalvar.disabled = false;
+                    btnSalvar.innerHTML = 'Salvar e Continuar';
+                }
             }
         });
     }
