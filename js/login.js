@@ -14,12 +14,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         formLogin.addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            // CORREÇÃO CRÍTICA: O input do index.html é "login", NÃO "telefone"!
-            const campoIdentificacao = document.getElementById('login');
+            // Busca o campo de identificação aceitando tanto id="login" quanto id="telefone"
+            const campoIdentificacao = document.getElementById('login') || document.getElementById('telefone');
             const campoSenha = document.getElementById('senha');
 
             if (!campoIdentificacao || !campoSenha) {
-                alert("Erro nos campos do formulário.");
+                if (msgErro) {
+                    msgErro.textContent = 'Erro ao identificar os campos de entrada.';
+                    msgErro.classList.remove('hidden');
+                }
                 return;
             }
 
@@ -34,30 +37,39 @@ document.addEventListener('DOMContentLoaded', async () => {
                 let emailFinal = loginValor;
                 let idNumerico = null;
 
-                // Se for ID (ex: 149)
+                // Se o médium digitou apenas números (ID ou WhatsApp)
                 if (!loginValor.includes('@')) {
                     const digitos = loginValor.replace(/\D/g, '');
-                    if (!digitos) throw new Error('Digite um ID válido.');
-                    idNumerico = parseInt(digitos);
-                    emailFinal = `medium_${idNumerico}@app-terreiros.local`;
+                    if (!digitos) throw new Error('Digite uma identificação válida.');
+                    
+                    // Se for um ID numérico curto (ex: 149)
+                    if (digitos.length < 8) {
+                        idNumerico = parseInt(digitos);
+                        emailFinal = `medium_${idNumerico}@app-terreiros.local`;
+                    } else {
+                        // Se for número de WhatsApp
+                        let tel = digitos;
+                        if (tel.startsWith('55') && tel.length >= 12) tel = tel.substring(2);
+                        emailFinal = `${tel}@app-terreiros.local`;
+                    }
                 }
 
-                // 1. Tenta login direto
+                // 1. Tenta autenticação direta
                 let { data: authData, error: authError } = await supabaseClient.auth.signInWithPassword({
                     email: emailFinal,
                     password: senhaValor
                 });
 
-                // 2. Se for primeiro acesso com senha padrão 123456 e a conta ainda não existe no Auth
+                // 2. Se falhar e for primeiro acesso com senha padrão 123456
                 if (authError && idNumerico && senhaValor === '123456') {
-                    // Cadastra a conta no Auth na hora
+                    // Cadastra a conta no Auth do Supabase
                     const { data: cadData, error: cadError } = await supabaseClient.auth.signUp({
                         email: emailFinal,
                         password: '123456'
                     });
 
                     if (cadError && !cadError.message.includes('already registered')) {
-                        throw new Error("Erro ao criar credencial: " + cadError.message);
+                        throw new Error('Falha no primeiro acesso: ' + cadError.message);
                     }
 
                     // Loga imediatamente com a conta criada
@@ -80,11 +92,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
 
             } catch (err) {
-                console.error("Falha de Login:", err);
+                console.error("Falha no login:", err);
                 if (msgErro) {
                     msgErro.textContent = err.message.includes('Invalid login') 
-                        ? 'ID ou senha incorretos.' 
-                        : (err.message || 'Erro ao entrar.');
+                        ? 'Identificação ou senha incorretos.' 
+                        : (err.message || 'Erro ao entrar no sistema.');
                     msgErro.classList.remove('hidden');
                 }
             } finally {
@@ -109,7 +121,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (pAuth) {
                 perfil = pAuth;
             } else if (idBusca) {
-                // Se não achou por auth_id, busca pelo ID numérico e amarra o auth_id
+                // Se não achou por auth_id, busca pelo ID numérico e vincula
                 const { data: pId } = await supabaseClient
                     .from('mediuns')
                     .select('id, cadastro_completo, auth_id')
@@ -130,7 +142,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     window.location.replace('presenca.html');
                 }
             } else {
-                // Caso seja o usuário Master/Admin
                 window.location.replace('admin.html');
             }
         } catch (e) {
