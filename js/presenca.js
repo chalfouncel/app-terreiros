@@ -797,10 +797,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const anoRef = parseInt(selectAnoMensalidade.value);
 
                 const fileName = `${idTerreiroGlobal}/comprovante_${perfilMediumLogado.id}_${Date.now()}.${arquivo.name.split('.').pop()}`;
-                const { error: errUpload } = await supabaseClient.storage.from('public').upload(fileName, arquivo);
+                const { error: errUpload } = await supabaseClient.storage.from('comprovantes').upload(fileName, arquivo);
                 if (errUpload) throw errUpload;
 
-                const { data: { publicUrl } } = supabaseClient.storage.from('public').getPublicUrl(fileName);
+                const { data: { publicUrl } } = supabaseClient.storage.from('comprovantes').getPublicUrl(fileName);
 
                 let valorTotalCalculado = 0;
                 const detalhesJson = [];
