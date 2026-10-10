@@ -9,6 +9,9 @@ let marcadorGlobal = null;
 let circuloGlobal = null;
 let listaMediunsGlobal = []; 
 
+// Variavel global para o modal de comprovantes
+window.comprovanteAtualId = null;
+
 // ==============================================================================
 // FUNÇÃO UTILITÁRIA: COMPRESSÃO DE IMAGEM
 // ==============================================================================
@@ -156,7 +159,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         if (emModoMasterPuro) {
-            ['menuVisaoGeral', 'menuQuadroMediuns', 'menuAgendaGiras', 'menuLivroAta', 'menuGrau', 'menuFinanceiro', 'menuDoacoes', 'menuAdmin'].forEach(id => {
+            ['menuVisaoGeral', 'menuQuadroMediuns', 'menuAgendaGiras', 'menuLivroAta', 'menuGrau', 'menuFinanceiro', 'menuComprovantes', 'menuDoacoes', 'menuAdmin'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.classList.add('hidden');
             });
@@ -169,9 +172,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (!perfil.perm_agenda && document.getElementById('menuAgendaGiras')) document.getElementById('menuAgendaGiras').classList.add('hidden');
                 if (!perfil.perm_ata && document.getElementById('menuLivroAta')) document.getElementById('menuLivroAta').classList.add('hidden');
                 if (!perfil.perm_grau && document.getElementById('menuGrau')) document.getElementById('menuGrau').classList.add('hidden');
-                if (!perfil.perm_financeiro && document.getElementById('menuFinanceiro')) document.getElementById('menuFinanceiro').classList.add('hidden');
                 if (!perfil.perm_doacoes && document.getElementById('menuDoacoes')) document.getElementById('menuDoacoes').classList.add('hidden');
                 if (!perfil.perm_admin && document.getElementById('menuAdmin')) document.getElementById('menuAdmin').classList.add('hidden');
+                
+                // Financeiro afeta as duas abas
+                if (!perfil.perm_financeiro) {
+                    if (document.getElementById('menuFinanceiro')) document.getElementById('menuFinanceiro').classList.add('hidden');
+                    if (document.getElementById('menuComprovantes')) document.getElementById('menuComprovantes').classList.add('hidden');
+                }
             }
         }
 
@@ -252,6 +260,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                     document.getElementById('secFinanceiro')?.classList.remove('hidden');
                     aplicarTitulos('Controle Financeiro');
                     carregarFinanceiro();
+                } else if (menu.id === 'menuComprovantes') {
+                    document.getElementById('secComprovantes')?.classList.remove('hidden');
+                    aplicarTitulos('Validar Pagamentos');
+                    carregarValidadorPagamentos();
                 } else if (menu.id === 'menuDoacoes') {
                     document.getElementById('secDoacoes')?.classList.remove('hidden');
                     aplicarTitulos('Doações e Campanhas');
@@ -275,7 +287,107 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         // ========================================================
-        // ATIVAÇÃO DO BOTÃO SALVAR MENSALIDADES
+        // ATIVAÇÃO DOS BOTÕES DO MODAL DE COMPROVANTE
+        // ========================================================
+        const btnAprovarModal = document.getElementById('btnAprovarModal');
+        const btnRejeitarModal = document.getElementById('btnRejeitarModal');
+
+        if (btnAprovarModal) {
+            btnAprovarModal.addEventListener('click', async () => {
+                if (!window.comprovanteAtualId) return;
+                if (!confirm("Aprovar este comprovante? Os meses associados serão marcados como pagos.")) return;
+
+                const btnHtml = btnAprovarModal.innerHTML;
+                btnAprovarModal.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
+                btnAprovarModal.disabled = true;
+
+                try {
+                    const { data: comp, error: errComp } = await supabaseClient
+                        .from('comprovantes_mensalidade')
+                        .select('detalhes_pagamento')
+                        .eq('id', window.comprovanteAtualId)
+                        .eq('terreiro_id', idTerreiroGlobal)
+                        .single();
+
+                    if (errComp) throw errComp;
+
+                    let upserts = [];
+                    if (comp.detalhes_pagamento && Array.isArray(comp.detalhes_pagamento)) {
+                        comp.detalhes_pagamento.forEach(det => {
+                            if (det.meses && Array.isArray(det.meses)) {
+                                det.meses.forEach(mes => {
+                                    upserts.push({
+                                        medium_id: det.medium_id,
+                                        mes: mes,
+                                        ano: det.ano,
+                                        pago: true
+                                    });
+                                });
+                            }
+                        });
+                    }
+
+                    if (upserts.length > 0) {
+                        const { error: errUpsert } = await supabaseClient
+                            .from('financeiro')
+                            .upsert(upserts, { onConflict: 'medium_id,mes,ano' });
+                        if (errUpsert) throw errUpsert;
+                    }
+
+                    const { error: errStatus } = await supabaseClient
+                        .from('comprovantes_mensalidade')
+                        .update({ status: 'aprovado' })
+                        .eq('id', window.comprovanteAtualId)
+                        .eq('terreiro_id', idTerreiroGlobal);
+                    if (errStatus) throw errStatus;
+
+                    alert("Comprovante aprovado com sucesso! Baixas realizadas.");
+                    window.fecharModalVerComprovante();
+                    carregarValidadorPagamentos();
+
+                } catch (err) {
+                    console.error(err);
+                    alert("Erro ao aprovar comprovante: " + err.message);
+                } finally {
+                    btnAprovarModal.innerHTML = btnHtml;
+                    btnAprovarModal.disabled = false;
+                }
+            });
+        }
+
+        if (btnRejeitarModal) {
+            btnRejeitarModal.addEventListener('click', async () => {
+                if (!window.comprovanteAtualId) return;
+                if (!confirm("Rejeitar este comprovante? As mensalidades continuarão pendentes.")) return;
+
+                const btnHtml = btnRejeitarModal.innerHTML;
+                btnRejeitarModal.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Rejeitando...';
+                btnRejeitarModal.disabled = true;
+
+                try {
+                    const { error } = await supabaseClient
+                        .from('comprovantes_mensalidade')
+                        .update({ status: 'rejeitado' })
+                        .eq('id', window.comprovanteAtualId)
+                        .eq('terreiro_id', idTerreiroGlobal);
+
+                    if (error) throw error;
+                    
+                    alert("Comprovante rejeitado.");
+                    window.fecharModalVerComprovante();
+                    carregarValidadorPagamentos();
+                } catch (err) {
+                    console.error(err);
+                    alert("Erro ao rejeitar comprovante: " + err.message);
+                } finally {
+                    btnRejeitarModal.innerHTML = btnHtml;
+                    btnRejeitarModal.disabled = false;
+                }
+            });
+        }
+
+        // ========================================================
+        // ATIVAÇÃO DO BOTÃO SALVAR CONFIG MENSALIDADES
         // ========================================================
         if (document.getElementById('formConfigMensalidade')) {
             document.getElementById('formConfigMensalidade').addEventListener('submit', async (e) => {
@@ -351,7 +463,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                         return [medium, itemNome, String(d.quantidade), dataFormatada, status];
                     });
 
-                    // Ordenação Alfabética do PDF de Doações
                     dados.sort((a, b) => a[0].localeCompare(b[0], 'pt-BR'));
 
                     window.gerarPDFRelatorio('Relatório de Doações Registradas', ['Médium', 'Item', 'Qtd', 'Data', 'Status'], dados);
@@ -609,7 +720,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     linkWhats = `<a href="https://wa.me/${ddi}${numeroLimpo}" target="_blank" class="text-green-600 hover:text-green-700 hover:underline flex items-center gap-1 font-medium" title="Chamar no WhatsApp"><i class="fab fa-whatsapp text-lg"></i> ${m.telefone}</a>`;
                 }
 
-                const nomeHtml = m.nome_completo;
+                const nomeHtml = m.nome_social 
+                    ? `${m.nome_completo}<br><span class="text-[10px] text-gray-500">Social: ${m.nome_social}</span>`
+                    : m.nome_completo;
 
                 tbody.innerHTML += `
                     <tr class="hover:bg-gray-50 transition-colors group">
@@ -670,7 +783,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     dia = p[2]; mes = p[1];
                 }
 
-                const nomeExibicao = m.nome_completo.split(' ')[0] || 'Médium';
+                const nomeExibicao = m.nome_social ? m.nome_social : (m.nome_completo ? m.nome_completo.split(' ')[0] : 'Médium');
+                const badgeSocial = m.nome_social ? `<span class="bg-blue-100 text-blue-700 text-[9px] px-1.5 py-0.5 rounded ml-1 font-bold">SOCIAL</span>` : '';
 
                 ul.innerHTML += `
                     <li class="p-3 hover:bg-gray-50 flex items-center justify-between transition-colors border-l-4 border-transparent hover:border-blue-500">
@@ -679,7 +793,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 ${dia}
                             </div>
                             <div>
-                                <p class="text-sm font-bold text-gray-800 flex items-center">${nomeExibicao}</p>
+                                <p class="text-sm font-bold text-gray-800 flex items-center">${nomeExibicao} ${badgeSocial}</p>
                                 <p class="text-[10px] text-gray-500 uppercase">${m.grau || 'Médium'}</p>
                             </div>
                         </div>
@@ -838,11 +952,20 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
 
+        // ========================================================
+        // NOVO: VALIDADOR DE PAGAMENTOS (PIX MANUAL)
+        // ========================================================
+        window.carregarValidadorPagamentos = () => {
+            carregarComprovantesPendentes();
+            carregarHistoricoComprovantes();
+        };
+
         async function carregarComprovantesPendentes() {
             if (!idTerreiroGlobal) return;
-            const box = document.getElementById('boxAprovacaoComprovantes');
-            const tbody = document.getElementById('tabelaComprovantesPendentes');
-            if (!box || !tbody) return;
+            const listaCards = document.getElementById('listaComprovantesPendentes');
+            if (!listaCards) return;
+
+            listaCards.innerHTML = '<div class="col-span-full p-8 text-center text-gray-500 bg-white rounded-2xl shadow-sm border border-gray-100"><i class="fas fa-spinner fa-spin mr-2 text-xl"></i> Buscando comprovantes...</div>';
 
             try {
                 const { data: comprovantes, error } = await supabaseClient
@@ -855,73 +978,146 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (error) throw error;
 
                 if (!comprovantes || comprovantes.length === 0) {
-                    box.classList.add('hidden');
+                    listaCards.innerHTML = '<div class="col-span-full p-8 text-center text-gray-500 bg-white rounded-2xl shadow-sm border border-gray-100"><i class="fas fa-check-circle text-3xl text-green-300 mb-2 block"></i> Tudo em dia! Não há comprovantes aguardando validação.</div>';
                     return;
                 }
 
-                box.classList.remove('hidden');
-                tbody.innerHTML = '';
-
-                // Busca nomes dos remententes para exibir
                 const { data: mediuns } = await supabaseClient
                     .from('mediuns')
                     .select('auth_id, nome_completo')
                     .eq('terreiro_id', idTerreiroGlobal);
 
+                listaCards.innerHTML = '';
+
                 comprovantes.forEach(comp => {
                     const remetente = mediuns?.find(m => m.auth_id === comp.enviado_por)?.nome_completo || 'Médium Desconhecido';
                     
-                    let refHtml = '';
+                    let refTexto = '';
                     if (comp.detalhes_pagamento && Array.isArray(comp.detalhes_pagamento)) {
                         comp.detalhes_pagamento.forEach(det => {
                             if (det.meses && Array.isArray(det.meses)) {
                                 const mesesNomes = det.meses.map(m => ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][m-1]).join(', ');
-                                refHtml += `<div class="text-[10px] mb-0.5"><b class="text-yellow-900">${det.medium_nome}:</b> ${mesesNomes}/${det.ano}</div>`;
+                                refTexto += `<div class="mb-1"><span class="font-bold text-gray-700">${det.medium_nome}:</span> ${mesesNomes}/${det.ano}</div>`;
                             }
                         });
                     } else {
-                        refHtml = '<span class="text-gray-400 text-xs">Sem detalhes estruturados</span>';
+                        refTexto = '<span class="text-gray-400">Sem detalhes estruturados</span>';
                     }
 
                     const valFmt = Number(comp.valor_total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    const dataEnvio = new Date(comp.criado_em).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+
+                    const card = `
+                        <div class="bg-white p-5 rounded-2xl shadow-sm border border-yellow-200 border-t-4 hover:shadow-md transition">
+                            <div class="flex justify-between items-start mb-3">
+                                <h4 class="font-bold text-gray-800 text-sm truncate pr-2" title="${remetente}"><i class="fas fa-user-circle text-yellow-500 mr-1.5"></i> ${remetente}</h4>
+                                <span class="bg-yellow-100 text-yellow-800 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">Avaliar</span>
+                            </div>
+                            <div class="text-xs text-gray-600 mb-3 bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                                ${refTexto}
+                            </div>
+                            <div class="flex justify-between items-end mb-4">
+                                <div>
+                                    <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">Enviado em</p>
+                                    <p class="text-xs text-gray-600 font-medium">${dataEnvio}</p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">Valor Total</p>
+                                    <p class="text-lg font-black text-green-600 leading-none">${valFmt}</p>
+                                </div>
+                            </div>
+                            <button onclick="abrirModalVerComprovante('${comp.id}', '${comp.url_comprovante}', '${remetente} - ${valFmt}')" class="w-full bg-gray-800 hover:bg-gray-900 active:scale-95 text-white font-bold py-2.5 px-4 rounded-xl shadow-sm transition text-sm flex justify-center items-center gap-2">
+                                <i class="fas fa-search"></i> Analisar Comprovante
+                            </button>
+                        </div>
+                    `;
+                    listaCards.innerHTML += card;
+                });
+
+            } catch (err) {
+                console.error('Erro ao carregar comprovantes pendentes:', err);
+                listaCards.innerHTML = `<div class="col-span-full p-4 text-center text-red-500 text-sm font-bold border border-red-200 rounded-xl bg-red-50">Erro ao buscar comprovantes: ${err.message}</div>`;
+            }
+        }
+
+        async function carregarHistoricoComprovantes() {
+            if (!idTerreiroGlobal) return;
+            const tbody = document.getElementById('tabelaComprovantesHistorico');
+            if (!tbody) return;
+
+            try {
+                const { data: comprovantes, error } = await supabaseClient
+                    .from('comprovantes_mensalidade')
+                    .select('*')
+                    .eq('terreiro_id', idTerreiroGlobal)
+                    .neq('status', 'pendente')
+                    .order('data_avaliacao', { ascending: false, nullsFirst: false })
+                    .limit(20);
+
+                if (error) throw error;
+
+                if (!comprovantes || comprovantes.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-gray-500 text-xs">Nenhum histórico recente de validação.</td></tr>';
+                    return;
+                }
+
+                const { data: mediuns } = await supabaseClient.from('mediuns').select('auth_id, nome_completo').eq('terreiro_id', idTerreiroGlobal);
+
+                tbody.innerHTML = '';
+                comprovantes.forEach(comp => {
+                    const remetente = mediuns?.find(m => m.auth_id === comp.enviado_por)?.nome_completo || 'Desconhecido';
+                    const valFmt = Number(comp.valor_total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
                     
-                    let linkArquivo = '-';
-                    if (comp.url_comprovante) {
-                        const strLow = comp.url_comprovante.toLowerCase();
-                        const ehPdf = strLow.includes('.pdf');
-                        const icone = ehPdf ? 'fa-file-pdf text-red-500' : 'fa-image text-blue-500';
-                        linkArquivo = `<a href="${comp.url_comprovante}" target="_blank" class="flex flex-col items-center hover:opacity-80 transition"><i class="fas ${icone} text-xl"></i><span class="text-[10px] mt-1 underline text-gray-600 font-medium">Ver Arquivo</span></a>`;
+                    let statusBadge = '';
+                    if(comp.status === 'aprovado') statusBadge = '<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[10px] font-bold"><i class="fas fa-check mr-1"></i> Aprovado</span>';
+                    else if(comp.status === 'rejeitado') statusBadge = '<span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-[10px] font-bold"><i class="fas fa-times mr-1"></i> Rejeitado</span>';
+
+                    let refStr = 'Vários';
+                    if (comp.detalhes_pagamento && comp.detalhes_pagamento[0]) {
+                        refStr = `${comp.detalhes_pagamento[0].meses?.length || 0} mes(es)`;
                     }
 
                     tbody.innerHTML += `
-                        <tr class="border-b border-yellow-200/50 hover:bg-yellow-100/50 transition bg-white">
-                            <td class="p-3 text-sm font-medium text-yellow-900 max-w-[150px] truncate" title="${remetente}">${remetente}</td>
-                            <td class="p-3 text-xs text-yellow-800">${refHtml}</td>
-                            <td class="p-3 text-sm font-bold text-yellow-900">${valFmt}</td>
-                            <td class="p-3 text-center">${linkArquivo}</td>
-                            <td class="p-3 text-center">
-                                <div class="flex items-center justify-center gap-2">
-                                    <button onclick="aprovarComprovante('${comp.id}')" class="bg-green-500 hover:bg-green-600 active:scale-95 text-white p-2 rounded-lg shadow-sm transition flex items-center justify-center" title="Aprovar e Dar Baixa"><i class="fas fa-check"></i></button>
-                                    <button onclick="rejeitarComprovante('${comp.id}')" class="bg-red-500 hover:bg-red-600 active:scale-95 text-white p-2 rounded-lg shadow-sm transition flex items-center justify-center" title="Rejeitar Comprovante"><i class="fas fa-times"></i></button>
-                                </div>
-                            </td>
+                        <tr class="hover:bg-gray-50">
+                            <td class="p-3 text-[11px] font-medium text-gray-800 max-w-[100px] truncate" title="${remetente}">${remetente}</td>
+                            <td class="p-3 text-[11px] text-gray-500">${refStr}</td>
+                            <td class="p-3 text-[11px] font-bold text-gray-800">${valFmt}</td>
+                            <td class="p-3 text-center">${statusBadge}</td>
                         </tr>
                     `;
                 });
 
             } catch (err) {
-                console.error('Erro ao carregar comprovantes pendentes:', err);
-                if (tbody) tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-red-500 text-sm font-bold">Erro ao buscar comprovantes: ${err.message}</td></tr>`;
+                console.error(err);
             }
         }
 
-        async function carregarFinanceiro() {
-            if(!idTerreiroGlobal) return;
+        window.abrirModalVerComprovante = (id, url, subtitulo) => {
+            window.comprovanteAtualId = id;
+            document.getElementById('modalComprovanteSubtitulo').textContent = subtitulo;
+            const frame = document.getElementById('frameComprovante');
+            document.getElementById('loaderComprovante').classList.remove('hidden');
             
-            // Renderiza também as aprovações pendentes sempre que a tela atualizar
-            carregarComprovantesPendentes();
+            // Força a renderização se for PDF num mobile ou iframe genérico
+            if(url.toLowerCase().endsWith('.pdf')) {
+                frame.src = `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
+            } else {
+                frame.src = url;
+            }
+            
+            document.getElementById('modalVerComprovante').classList.remove('hidden');
+        };
 
-            const ano = parseInt(document.getElementById('selectAnoFinanceiro').value);
+        window.fecharModalVerComprovante = () => {
+            document.getElementById('modalVerComprovante').classList.add('hidden');
+            document.getElementById('frameComprovante').src = '';
+            window.comprovanteAtualId = null;
+        };
+
+        async function carregarFinanceiro(ano) {
+            if(!idTerreiroGlobal) return;
+            const anoBusca = ano || parseInt(document.getElementById('selectAnoFinanceiro').value);
+            
             const tbody = document.getElementById('tabelaFinanceiro');
             if (!tbody) return;
             tbody.innerHTML = '<tr><td colspan="14" class="p-6 text-center text-gray-500">Buscando histórico...</td></tr>';
@@ -941,7 +1137,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             const { data: pgtos } = await supabaseClient.from('financeiro')
                 .select('*')
-                .eq('ano', ano)
+                .eq('ano', anoBusca)
                 .in('medium_id', idsMediunsDesteTerreiro);
             
             tbody.innerHTML = '';
@@ -953,10 +1149,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 for (let i = 1; i <= 12; i++) {
                     const pago = meusPgtos.some(p => p.mes === i && p.pago);
-                    const passou = (ano < anoAtual) || (ano === anoAtual && i < mesAtual);
+                    const passou = (anoBusca < anoAtual) || (anoBusca === anoAtual && i < mesAtual);
                     if (passou && !pago) emDia = false;
                     const checkStr = pago ? 'checked' : '';
-                    htmlMeses += `<td class="py-1 px-1 border-b border-gray-100"><input type="checkbox" ${checkStr} class="w-4 h-4 cursor-pointer accent-tema-secundaria" onchange="salvarPagamento(${m.id}, ${i}, ${ano}, this.checked)"></td>`;
+                    htmlMeses += `<td class="py-1 px-1 border-b border-gray-100"><input type="checkbox" ${checkStr} class="w-4 h-4 cursor-pointer accent-tema-secundaria" onchange="salvarPagamento(${m.id}, ${i}, ${anoBusca}, this.checked)"></td>`;
                 }
                 const statusHtml = emDia ? '<span class="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded">Em Dia</span>' : '<span class="bg-red-100 text-red-700 text-xs font-bold px-2 py-1 rounded">Pendente</span>';
                 const nomeStr = m.nome_completo;
@@ -965,7 +1161,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
 
-        if(document.getElementById('selectAnoFinanceiro')) document.getElementById('selectAnoFinanceiro').addEventListener('change', carregarFinanceiro);
+        if(document.getElementById('selectAnoFinanceiro')) document.getElementById('selectAnoFinanceiro').addEventListener('change', (e) => carregarFinanceiro(parseInt(e.target.value)));
 
         async function carregarConfiguracoesCasa() {
             if (!idTerreiroGlobal) return;
@@ -1324,13 +1520,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         // ==========================================
-        // VÍNCULO DAS FUNÇÕES DE CARREGAMENTO AO DOM
+        // VÍNCULO DAS FUNÇÕES DE CARREGAMENTO NO ESCOPO (Se não estiverem globais)
         // ==========================================
         window.aplicarFiltrosMediuns = aplicarFiltrosMediuns;
+        window.carregarValidadorPagamentos = carregarValidadorPagamentos;
         
-        // ==========================================
-        // DISPARO SEGURO DO CLIQUE INICIAL (AGORA NO ESCOPO CERTO)
-        // ==========================================
+        // DISPARO SEGURO DO CLIQUE INICIAL
         if (emModoMasterPuro) {
             document.getElementById('menuMaster')?.click();
         } else if (perfilAdminLogado.is_admin || perfilAdminLogado.perm_visao_geral) {
@@ -1351,6 +1546,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 // ==========================================
 
 window.aplicarFiltrosMediuns = () => {}; 
+window.carregarValidadorPagamentos = () => {};
 
 window.gerarPDFRelatorio = (titulo, colunas, dados) => {
     const containerPDF = document.createElement('div');
@@ -1997,7 +2193,7 @@ window.aprovarComprovante = async (comprovanteId) => {
         if (errStatus) throw errStatus;
 
         alert("Comprovante aprovado com sucesso! Baixas realizadas.");
-        document.getElementById('menuFinanceiro')?.click();
+        if(typeof window.carregarValidadorPagamentos === 'function') window.carregarValidadorPagamentos();
 
     } catch (err) {
         console.error(err);
@@ -2018,7 +2214,7 @@ window.rejeitarComprovante = async (comprovanteId) => {
         if (error) throw error;
         
         alert("Comprovante rejeitado.");
-        document.getElementById('menuFinanceiro')?.click();
+        if(typeof window.carregarValidadorPagamentos === 'function') window.carregarValidadorPagamentos();
     } catch (err) {
         console.error(err);
         alert("Erro ao rejeitar comprovante: " + err.message);
