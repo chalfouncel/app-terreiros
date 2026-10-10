@@ -973,7 +973,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     .select('*')
                     .eq('terreiro_id', idTerreiroGlobal)
                     .eq('status', 'pendente')
-                    .order('created_at', { ascending: true }); // <--- CORRIGIDO AQUI
+                    .order('data_envio', { ascending: true }); // <--- CORRIGIDO AQUI
 
                 if (error) throw error;
 
@@ -1005,8 +1005,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
 
                     const valFmt = Number(comp.valor_total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                    // <--- CORRIGIDO AQUI EMBAIXO TAMBÉM (comp.created_at)
-                    const dataEnvio = new Date(comp.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+                    // <--- CORRIGIDO AQUI EMBAIXO TAMBÉM (comp.data_envio)
+                    const dataEnvio = new Date(comp.data_envio).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
                     const card = `
                         <div class="bg-white p-5 rounded-2xl shadow-sm border border-yellow-200 border-t-4 hover:shadow-md transition">
@@ -1052,7 +1052,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     .select('*')
                     .eq('terreiro_id', idTerreiroGlobal)
                     .neq('status', 'pendente')
-                    .order('created_at', { ascending: false }) // <--- GARANTINDO QUE USE A COLUNA CERTA AQUI TAMBÉM
+                    .order('data_envio', { ascending: false }) // <--- GARANTINDO QUE USE A COLUNA CERTA AQUI TAMBÉM
                     .limit(20);
 
                 if (error) throw error;
