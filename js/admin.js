@@ -241,7 +241,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 } else if (menu.id === 'menuLivroAta') {
                     document.getElementById('secLivroAta')?.classList.remove('hidden');
                     aplicarTitulos('Livro de Presença (ATA)');
-                    carregarLivroAta();
+                    if (typeof carregarLivroAta === 'function') carregarLivroAta();
                 } else if (menu.id === 'menuGrau') {
                     document.getElementById('secGrau')?.classList.remove('hidden');
                     aplicarTitulos('Alteração de Grau');
@@ -253,8 +253,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 } else if (menu.id === 'menuDoacoes') {
                     document.getElementById('secDoacoes')?.classList.remove('hidden');
                     aplicarTitulos('Doações e Campanhas');
-                    carregarDoacoesPrometidas();
-                    carregarDoacoesCatalogo();
+                    if (typeof carregarDoacoesPrometidas === 'function') carregarDoacoesPrometidas();
+                    if (typeof carregarDoacoesCatalogo === 'function') carregarDoacoesCatalogo();
                 } else if (menu.id === 'menuAdmin') {
                     document.getElementById('secAdministracao')?.classList.remove('hidden');
                     aplicarTitulos('Configurações da Casa');
@@ -262,7 +262,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 } else if (menu.id === 'menuMaster') {
                     document.getElementById('secMaster')?.classList.remove('hidden');
                     aplicarTitulos('Gestão da Plataforma (SaaS)');
-                    carregarGestaoPlataforma();
+                    if (typeof carregarGestaoPlataforma === 'function') carregarGestaoPlataforma();
                 }
 
                 if (window.innerWidth < 768 && sidebar && overlayMobile) {
@@ -271,20 +271,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             });
         });
-
-        if (emModoMasterPuro) {
-            document.getElementById('menuMaster')?.click();
-        } else if (perfil.is_admin || perfil.perm_visao_geral) {
-            document.getElementById('menuVisaoGeral')?.click();
-        } else {
-            if (perfil.perm_agenda) document.getElementById('menuAgendaGiras')?.click();
-            else if (perfil.perm_ata) document.getElementById('menuLivroAta')?.click();
-            else if (perfil.perm_grau) document.getElementById('menuGrau')?.click();
-            else if (perfil.perm_financeiro) document.getElementById('menuFinanceiro')?.click();
-            else if (perfil.perm_doacoes) document.getElementById('menuDoacoes')?.click();
-            else if (perfil.perm_admin) document.getElementById('menuAdmin')?.click();
-            else document.getElementById('menuQuadroMediuns')?.click(); 
-        }
 
         // ========================================================
         // ATIVAÇÃO DO BOTÃO "EXPORTAR PDF" DAS DOAÇÕES
@@ -325,11 +311,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // ==========================================
-    // VISÃO GERAL
+    // TODAS AS FUNÇÕES DE CARREGAMENTO (HOISTED)
     // ==========================================
+
     async function carregarPainelInicial() {
         if(!idTerreiroGlobal) return; 
-        
         try {
             const { count: totalMediuns } = await supabaseClient.from('mediuns')
                 .select('*', { count: 'exact', head: true })
@@ -375,7 +361,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                             arrayPresencasVisuais.push({ nome, hora });
                         });
 
-                        // Ordenação Alfabética da Tabela de Presenças Diárias
                         arrayPresencasVisuais.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
 
                         tabelaPresencas.innerHTML = ''; 
@@ -466,7 +451,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                             dadosParaPDF.push([nome, cargoExibicao, hora]);
                         });
 
-                        // Ordenação Alfabética do PDF de Presenças no Evento
                         dadosParaPDF.sort((a, b) => a[0].localeCompare(b[0], 'pt-BR'));
 
                         window.gerarPDFRelatorio(
@@ -489,11 +473,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // ==========================================
-    // QUADRO DE MÉDIUNS
-    // ==========================================
-    let listaMediunsGlobal = []; 
-
     async function carregarQuadroMediuns() {
         if(!idTerreiroGlobal) return;
         const tbody = document.getElementById('tabelaTodosMediuns');
@@ -511,7 +490,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (error) throw error;
 
             if (data) {
-                // Ordenação Alfabética por Nome Completo A-Z
                 data.sort((a, b) => (a.nome_completo || '').localeCompare(b.nome_completo || '', 'pt-BR'));
             }
 
@@ -1363,7 +1341,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ==========================================
     // LIVRO DE PRESENÇA (ATA)
     // ==========================================
-    window.carregarLivroAta = async () => {
+    async function carregarLivroAta() {
         if(!idTerreiroGlobal) return;
         const tbody = document.getElementById('tabelaLivroAta');
         if(!tbody) return;
@@ -1441,7 +1419,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (error) {
             tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-red-500">Erro: ${error.message}</td></tr>`;
         }
-    };
+    }
 
     window.abrirModalEscreverAta = async (id) => {
         try {
@@ -1691,7 +1669,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.error(error);
             alert("Não foi possível gerar a ATA: " + error.message);
         }
-    };
+    }
 
     // ==========================================
     // GRAUS E FUNÇÕES
@@ -2023,7 +2001,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ==========================================
     // DOAÇÕES (COM RESOLUÇÃO INTELIGENTE DE NOMES E EXCLUSÃO)
     // ==========================================
-    window.carregarDoacoesPrometidas = async () => {
+    async function carregarDoacoesPrometidas() {
         if (!idTerreiroGlobal) return;
         const tbody = document.getElementById('tabelaDoacoesPrometidas');
         if(tbody) tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-gray-500">Buscando...</td></tr>';
@@ -2073,7 +2051,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (error) {
             if(tbody) tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-red-500">Erro ao carregar doações.</td></tr>`;
         }
-    };
+    }
 
     window.marcarDoacao = async (id, status) => {
         const payload = { entregue: status, data_entrega: status ? new Date().toISOString() : null };
@@ -2087,7 +2065,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!error) carregarDoacoesPrometidas(); else alert('Erro ao excluir: ' + error.message);
     };
 
-    window.carregarDoacoesCatalogo = async () => {
+    async function carregarDoacoesCatalogo() {
         if (!idTerreiroGlobal) return;
         const tbody = document.getElementById('tabelaItensDoacao');
         if(!tbody) return;
@@ -2100,7 +2078,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 tbody.innerHTML += `<tr class="border-b border-gray-100 ${item.ativo ? '' : 'opacity-40'}"><td class="p-3 text-sm">${item.nome}</td><td class="p-3 text-xs text-gray-500">${item.descricao || '-'}</td><td class="p-3 text-center">${btn}</td></tr>`;
             });
         }
-    };
+    }
 
     window.alternarStatusCatalogo = async (id, status) => {
         const { error } = await supabaseClient.from('itens_doacao').update({ ativo: status }).eq('id', id).eq('terreiro_id', idTerreiroGlobal);
@@ -2110,8 +2088,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ==========================================
     // SAAS / GESTÃO E CONTEXT SWITCHER
     // ==========================================
-    window.carregarGestaoPlataforma = async () => {
-        const tbody = document.getElementById('tabelaMasterTerreiros');
+    async function carregarGestaoPlataforma() {
+        const tbody = document.getElementById('tabelaMasterTerreiros') || document.querySelector('#secMaster tbody');
         if(!tbody) return;
         tbody.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-gray-500">Carregando terreiros...</td></tr>';
         
@@ -2134,7 +2112,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             tbody.innerHTML += `<tr class="border-b border-gray-100 ${t.status_bloqueado ? 'bg-red-50' : ''}"><td class="p-3 text-sm font-mono">${t.id}</td><td class="p-3 font-bold">${t.nome}</td><td class="p-3 text-center">${statusHtml}</td><td class="p-3 text-center">${acaoHtml}</td></tr>`;
         });
-    };
+    }
 
     window.acessarTerreiroSaaS = (idTerreiro) => {
         localStorage.setItem('terreiroAtivoSaaS', idTerreiro);
@@ -2268,5 +2246,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             reader.readAsText(file);
         });
+    }
+
+    // ==========================================
+    // DISPARO SEGURO DO CLIQUE INICIAL (EVITA HOISTING BUGS)
+    // ==========================================
+    if (emModoMasterPuro) {
+        document.getElementById('menuMaster')?.click();
+    } else if (perfil.is_admin || perfil.perm_visao_geral) {
+        document.getElementById('menuVisaoGeral')?.click();
+    } else {
+        if (perfil.perm_agenda) document.getElementById('menuAgendaGiras')?.click();
+        else if (perfil.perm_ata) document.getElementById('menuLivroAta')?.click();
+        else if (perfil.perm_grau) document.getElementById('menuGrau')?.click();
+        else if (perfil.perm_financeiro) document.getElementById('menuFinanceiro')?.click();
+        else if (perfil.perm_doacoes) document.getElementById('menuDoacoes')?.click();
+        else if (perfil.perm_admin) document.getElementById('menuAdmin')?.click();
+        else document.getElementById('menuQuadroMediuns')?.click(); 
     }
 });
