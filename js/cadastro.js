@@ -3,12 +3,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const msg = document.getElementById('msgCadastro');
     const btnSalvar = document.getElementById('btnSalvarCadastro');
 
-    // 1. Verifica se existe sessão ativa
+    // 1. Verifica se existe sessão autenticada
     const { data: { session }, error: erroSessao } = await supabaseClient.auth.getSession();
 
     if (erroSessao || !session) {
         localStorage.clear();
-        window.location.href = 'index.html';
+        window.location.replace('index.html');
         return;
     }
 
@@ -27,10 +27,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (local && !isNaN(local)) idNumerico = parseInt(local);
         }
 
-        // Tenta localizar a ficha de médium
         let medium = null;
 
-        // Tentativa A: Pelo auth_id
+        // Busca pelo auth_id
         const { data: mAuth } = await supabaseClient
             .from('mediuns')
             .select('*')
@@ -40,7 +39,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (mAuth) {
             medium = mAuth;
         } else if (idNumerico) {
-            // Tentativa B: Pelo ID numérico
+            // Busca pelo ID numérico
             const { data: mId } = await supabaseClient
                 .from('mediuns')
                 .select('*')
@@ -49,7 +48,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (mId) {
                 medium = mId;
-                // Garante a vinculação sem travar
                 await supabaseClient
                     .from('mediuns')
                     .update({ auth_id: authId })
@@ -58,25 +56,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         if (!medium) {
-            // Se realmente não achar, avisa no formulário em vez de ficar em looping piscando
             if (msg) {
-                msg.textContent = 'Aguardando sincronização da sua ficha. Por favor, recarregue a página.';
-                msg.className = 'text-xs md:text-sm font-bold text-center text-yellow-600 block mt-2';
+                msg.textContent = 'Carregando sua ficha cadastral... aguarde.';
+                msg.className = 'text-xs md:text-sm font-bold text-center text-blue-600 block mt-2';
                 msg.classList.remove('hidden');
             }
             return;
         }
 
-        // Se o médium já tiver o cadastro completo, vai para a presença
+        // Se o médium já concluiu o cadastro, segue para a presença
         if (medium.cadastro_completo === true) {
-            window.location.href = 'presenca.html';
+            window.location.replace('presenca.html');
             return;
         }
 
         mediumId = medium.id;
         localStorage.setItem('medium_id', medium.id);
 
-        // Preenche campos existentes
+        // Preenche campos existentes na tela
         const elNomeComp = document.getElementById('cadNomeCompleto');
         if (elNomeComp) elNomeComp.value = medium.nome_completo || '';
 
@@ -99,7 +96,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.error('Erro ao recuperar ficha do médium:', err);
     }
 
-    // 2. Envio do Formulário para completar cadastro
+    // 2. Conclusão do Cadastro
     if (form) {
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -110,7 +107,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             if (!mediumId) {
-                alert('Sessão instável. Recarregue a página antes de continuar.');
+                alert('Erro na identificação da ficha. Recarregue a página.');
                 return;
             }
 
@@ -127,7 +124,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             if (!telefoneLimpo || telefoneLimpo.length < 10 || telefoneLimpo.length > 11) {
-                msg.textContent = 'Por favor, digite um telefone válido com DDD (ex: 21999999999).';
+                msg.textContent = 'Digite um telefone válido com DDD (ex: 21999999999).';
                 msg.className = 'text-xs md:text-sm font-bold text-center text-red-600 block mt-2';
                 msg.classList.remove('hidden');
                 return;
@@ -152,7 +149,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 if (erroAuth) throw erroAuth;
 
-                // Atualiza a ficha do médium e confirma o cadastro completo
+                // Atualiza a ficha do médium e marca cadastro_completo = true
                 const { error: erroUpdate } = await supabaseClient
                     .from('mediuns')
                     .update({
@@ -166,7 +163,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 if (erroUpdate) {
                     if (erroUpdate.message.includes('unique constraint')) {
-                        throw new Error("Este número de WhatsApp já está cadastrado em outra conta.");
+                        throw new Error("Este número de WhatsApp já está cadastrado.");
                     }
                     throw erroUpdate;
                 }
@@ -176,7 +173,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 msg.classList.remove('hidden');
 
                 setTimeout(() => {
-                    window.location.href = 'presenca.html';
+                    window.location.replace('presenca.html');
                 }, 1200);
 
             } catch (error) {
