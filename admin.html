@@ -43,6 +43,16 @@
             -webkit-tap-highlight-color: transparent;
         }
 
+        /* Ajustes Modal Comprovante (Pinch-to-Zoom e Tamanho Mobile) */
+        #modalVerComprovante .area-zoom {
+            touch-action: pan-x pan-y pinch-zoom;
+            overflow: auto;
+        }
+        #frameComprovante {
+            max-height: 60vh !important;
+            object-fit: contain;
+        }
+
         @media print {
             body * { visibility: hidden; }
             #areaImpressaoMediuns, #areaImpressaoMediuns * { visibility: visible; }
@@ -1105,7 +1115,7 @@
                 <button onclick="document.getElementById('modalVerComprovante').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 p-2 rounded-lg hover:bg-gray-200 transition"><i class="fas fa-times text-xl"></i></button>
             </div>
             
-            <div class="flex-1 overflow-auto p-4 flex justify-center items-center bg-gray-100 relative">
+            <div class="flex-1 area-zoom p-4 flex justify-center items-center bg-gray-100 relative">
                 <div id="loaderComprovante" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                     <i class="fas fa-spinner fa-spin text-4xl text-gray-400 mb-2"></i>
                     <span class="text-sm text-gray-500 font-bold">Carregando imagem...</span>
