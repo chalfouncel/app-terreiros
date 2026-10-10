@@ -1,91 +1,179 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Completar Cadastro - Templo</title>
-    
-    <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#1e3a8a">
-    <link rel="apple-touch-icon" href="https://pbjwqhfzsvdougeksztq.supabase.co/storage/v1/object/public/public-img/icone-192.png">
+document.addEventListener('DOMContentLoaded', async () => {
+    const form = document.getElementById('formCompletarCadastro');
+    const msg = document.getElementById('msgCadastro');
+    const btnSalvar = document.getElementById('btnSalvarCadastro');
 
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        :root {
-            --cor-primaria: #1e3a8a;   
-            --cor-secundaria: #16a34a; 
-            --cor-fundo: #f3f4f6;      
-            --cor-texto: #1f2937;      
+    // 1. Verifica se existe sessão autenticada
+    const { data: { session } } = await supabaseClient.auth.getSession();
+
+    if (!session) {
+        localStorage.clear();
+        window.location.replace('index.html');
+        return;
+    }
+
+    let mediumId = null;
+
+    try {
+        const authId = session.user.id;
+        let idNumerico = null;
+
+        if (session.user.email) {
+            const extrairId = session.user.email.split('@')[0].replace(/\D/g, '');
+            if (extrairId) idNumerico = parseInt(extrairId);
         }
-        
-        .bg-tema-primaria { background-color: var(--cor-primaria) !important; }
-        .text-tema-primaria { color: var(--cor-primaria) !important; }
-        .border-tema-primaria { border-color: var(--cor-primaria) !important; }
-        
-        .bg-tema-secundaria { background-color: var(--cor-secundaria) !important; }
-        .text-tema-secundaria { color: var(--cor-secundaria) !important; }
-        
-        body {
-            background-color: var(--cor-fundo);
-            color: var(--cor-texto);
-            -webkit-tap-highlight-color: transparent;
+        if (!idNumerico) {
+            const local = localStorage.getItem('medium_id');
+            if (local) idNumerico = parseInt(local);
         }
-    </style>
-</head>
-<body class="min-h-screen flex items-center justify-center p-4">
 
-    <div class="bg-white rounded-3xl shadow-xl w-full max-w-lg p-6 md:p-8 border border-gray-100">
-        <div class="text-center mb-6">
-            <div class="w-16 h-16 rounded-2xl bg-tema-primaria/10 text-tema-primaria flex items-center justify-center mx-auto mb-3 shadow-inner">
-                <i class="fas fa-id-card text-2xl"></i>
-            </div>
-            <h1 class="text-xl md:text-2xl font-black text-gray-800 tracking-tight">Ficha de Médium</h1>
-            <p class="text-xs md:text-sm text-gray-500 mt-1">Complete os seus dados e defina a sua nova palavra-passe de acesso.</p>
-        </div>
+        let medium = null;
 
-        <form id="formCompletarCadastro" class="space-y-4">
-            <div>
-                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Nome Completo *</label>
-                <input type="text" id="cadNomeCompleto" required class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-tema-primaria bg-gray-50 text-gray-700" readonly>
-            </div>
+        // Busca pela ligação auth_id
+        const { data: mAuth } = await supabaseClient
+            .from('mediuns')
+            .select('*')
+            .eq('auth_id', authId)
+            .maybeSingle();
 
-            <div>
-                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Nome Social / Como prefere ser chamado(a)</label>
-                <input type="text" id="cadNomeSocial" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-tema-primaria" placeholder="Ex: Pai Adilton">
-            </div>
+        if (mAuth) {
+            medium = mAuth;
+        } else if (idNumerico) {
+            // Busca pelo ID numérico
+            const { data: mId } = await supabaseClient
+                .from('mediuns')
+                .select('*')
+                .eq('id', idNumerico)
+                .maybeSingle();
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Data de Nascimento *</label>
-                    <input type="date" id="cadNascimento" required class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-tema-primaria">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">WhatsApp *</label>
-                    <input type="tel" id="cadTelefone" required class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-tema-primaria" placeholder="(21) 99999-9999">
-                </div>
-            </div>
+            if (mId) {
+                medium = mId;
+                await supabaseClient.from('mediuns').update({ auth_id: authId }).eq('id', medium.id);
+            }
+        }
 
-            <div class="border-t border-gray-200 pt-4 mt-3">
-                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Criar Nova Palavra-passe *</label>
-                <input type="password" id="cadNovaSenha" required minlength="6" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-tema-primaria" placeholder="Mínimo de 6 caracteres">
-            </div>
+        if (!medium) {
+            if (msg) {
+                msg.textContent = 'A sincronizar dados da ficha... se não carregar, atualize a página.';
+                msg.className = 'text-xs md:text-sm font-bold text-center text-yellow-600 block mt-2';
+                msg.classList.remove('hidden');
+            }
+            return;
+        }
 
-            <div>
-                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Confirmar Palavra-passe *</label>
-                <input type="password" id="cadConfirmaSenha" required minlength="6" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-tema-primaria" placeholder="Repita a palavra-passe">
-            </div>
+        if (medium.cadastro_completo === true) {
+            window.location.replace('presenca.html');
+            return;
+        }
 
-            <p id="msgCadastro" class="text-xs md:text-sm font-bold text-center hidden mt-2"></p>
+        mediumId = medium.id;
+        localStorage.setItem('medium_id', medium.id);
 
-            <button type="submit" id="btnSalvarCadastro" class="w-full bg-tema-secundaria hover:opacity-90 active:scale-[0.98] text-white font-bold py-3 px-4 rounded-xl shadow transition text-sm flex items-center justify-center gap-2 mt-2">
-                Salvar e Continuar
-            </button>
-        </form>
-    </div>
+        if (document.getElementById('cadNomeCompleto')) {
+            document.getElementById('cadNomeCompleto').value = medium.nome_completo || '';
+        }
+        if (document.getElementById('cadNomeSocial') && medium.nome_social) {
+            document.getElementById('cadNomeSocial').value = medium.nome_social;
+        }
+        if (document.getElementById('cadTelefone') && medium.telefone) {
+            let tel = medium.telefone.replace(/\D/g, '');
+            if (tel.startsWith('55') && tel.length > 11) tel = tel.substring(2);
+            document.getElementById('cadTelefone').value = tel;
+        }
+        if (document.getElementById('cadNascimento') && medium.data_nascimento) {
+            document.getElementById('cadNascimento').value = medium.data_nascimento;
+        }
 
-    <script src="js/supabase.js"></script>
-    <script src="js/cadastro.js"></script>
-</body>
-</html>
+    } catch (err) {
+        console.error('Erro ao ler ficha:', err);
+    }
+
+    // 2. Conclusão do Cadastro
+    if (form) {
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            if (!mediumId) {
+                const local = localStorage.getItem('medium_id');
+                if (local) mediumId = parseInt(local);
+            }
+
+            if (!mediumId) {
+                alert('Sessão expirada. Atualize a página.');
+                return;
+            }
+
+            const nomeSocial = document.getElementById('cadNomeSocial')?.value.trim() || null;
+            const telefoneRaw = document.getElementById('cadTelefone')?.value || '';
+            const dataNascimento = document.getElementById('cadNascimento')?.value || null;
+            const novaSenha = document.getElementById('cadNovaSenha')?.value || '';
+            const confirmaSenha = document.getElementById('cadConfirmaSenha')?.value || '';
+
+            let telefoneLimpo = telefoneRaw.replace(/\D/g, '');
+            if (telefoneLimpo.startsWith('55') && telefoneLimpo.length >= 12) {
+                telefoneLimpo = telefoneLimpo.substring(2);
+            }
+
+            if (!telefoneLimpo || telefoneLimpo.length < 10 || telefoneLimpo.length > 11) {
+                msg.textContent = 'Introduza um WhatsApp válido com DDD (ex: 21999999999).';
+                msg.className = 'text-xs md:text-sm font-bold text-center text-red-600 block mt-2';
+                msg.classList.remove('hidden');
+                return;
+            }
+
+            if (novaSenha !== confirmaSenha) {
+                msg.textContent = 'As palavras-passe não coincidem.';
+                msg.className = 'text-xs md:text-sm font-bold text-center text-red-600 block mt-2';
+                msg.classList.remove('hidden');
+                return;
+            }
+
+            btnSalvar.disabled = true;
+            btnSalvar.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> A salvar cadastro...';
+            msg.classList.add('hidden');
+
+            try {
+                // Atualiza a palavra-passe no Supabase Auth
+                const { error: erroAuth } = await supabaseClient.auth.updateUser({
+                    password: novaSenha
+                });
+                if (erroAuth) throw erroAuth;
+
+                // Atualiza a ficha do médium e define cadastro_completo = true
+                const { error: erroUpdate } = await supabaseClient
+                    .from('mediuns')
+                    .update({
+                        nome_social: nomeSocial,
+                        telefone: telefoneLimpo,
+                        data_nascimento: dataNascimento,
+                        cadastro_completo: true,
+                        auth_id: session.user.id
+                    })
+                    .eq('id', mediumId);
+
+                if (erroUpdate) {
+                    if (erroUpdate.message.includes('unique constraint')) {
+                        throw new Error('Este número de WhatsApp já se encontra registado.');
+                    }
+                    throw erroUpdate;
+                }
+
+                msg.textContent = '✅ Cadastro concluído com sucesso!';
+                msg.className = 'text-xs md:text-sm font-bold text-center text-green-600 block mt-2';
+                msg.classList.remove('hidden');
+
+                setTimeout(() => {
+                    window.location.replace('presenca.html');
+                }, 1200);
+
+            } catch (error) {
+                console.error('Erro ao salvar:', error);
+                msg.textContent = 'Erro: ' + error.message;
+                msg.className = 'text-xs md:text-sm font-bold text-center text-red-600 block mt-2';
+                msg.classList.remove('hidden');
+                btnSalvar.disabled = false;
+                btnSalvar.innerHTML = 'Salvar e Continuar';
+            }
+        });
+    }
+});
