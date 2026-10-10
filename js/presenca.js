@@ -8,7 +8,7 @@ let hrInicioPermitidoGlobal = null;
 let perfilMediumLogado = null;
 let configValoresGrau = {};
 let terreiroConfigMensalidade = {};
-let carrinhoMensalidadesState = []; // [{mediumId, mediumNome, grau, valorUnitario, meses: [1, 2...]}]
+let carrinhoMensalidadesState = []; 
 
 document.addEventListener('DOMContentLoaded', async () => {
     
@@ -504,12 +504,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function abrirModalMensalidade() {
         if (!modalMensalidade) return;
         
-        // Configura chave PIX na tela
         if (chavePixMensalidade && terreiroConfigMensalidade) {
             chavePixMensalidade.textContent = terreiroConfigMensalidade.chave_pix_manual || 'Chave PIX não configurada';
         }
 
-        // Popula anos (Ano anterior, atual e próximo)
         if (selectAnoMensalidade) {
             const anoCorrente = new Date().getFullYear();
             selectAnoMensalidade.innerHTML = `
@@ -519,7 +517,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             `;
         }
 
-        // Reseta estado do carrinho com o médium logado
         carrinhoMensalidadesState = [{
             mediumId: perfilMediumLogado.id,
             mediumNome: perfilMediumLogado.nome_completo,
@@ -564,7 +561,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         const anoSelecionado = parseInt(selectAnoMensalidade.value);
 
-        // Busca pagamentos já efetuados no ano para todos os médiuns do carrinho
         const idsNoCarrinho = carrinhoMensalidadesState.map(c => c.mediumId);
         const { data: pgtosFeitos } = await supabaseClient.from('financeiro')
             .select('medium_id, mes, pago')
@@ -630,7 +626,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         recalcularTotalCarrinho();
     }
 
-    // Delegação de clique para os checkboxes de meses gerados dinamicamente
     if (containerCarrinhoMensalidades) {
         containerCarrinhoMensalidades.addEventListener('change', (e) => {
             const chk = e.target.closest('.chk-mes-carrinho');
@@ -651,7 +646,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 carrinhoMensalidadesState[indexCarrinho].mesesSelecionados = carrinhoMensalidadesState[indexCarrinho].mesesSelecionados.filter(m => m !== mesNum);
             }
 
-            atualizarCarrinhoRender(); // Re-renderiza para atualizar as cores dos botões
+            atualizarCarrinhoRender(); 
         });
     }
 
@@ -660,7 +655,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         await atualizarCarrinhoRender();
     };
 
-    function recalcularTotalCarrinho() {
+    function recalcalcularTotalCarrinho() {
         let totalGeral = 0;
         let totalMesesSelecionados = 0;
 
@@ -689,7 +684,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // Adicionar outro médium ao carrinho
     if (btnAdicionarOutroMedium && boxBuscaOutroMedium) {
         btnAdicionarOutroMedium.addEventListener('click', () => {
             boxBuscaOutroMedium.classList.toggle('hidden');
@@ -711,7 +705,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 .select('id, nome_completo, grau')
                 .eq('terreiro_id', idTerreiroGlobal)
                 .neq('nome_completo', 'Administrador Sistema')
-                .ilike('nome_completo', `%${termo%}`)
+                .ilike('nome_completo', `%${termo}%`)
                 .limit(5);
 
             if (!resultadoBuscaOutroMedium) return;
@@ -719,7 +713,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (medEncontrados && medEncontrados.length > 0) {
                 medEncontrados.forEach(m => {
-                    // Verifica se já está no carrinho
                     const jaExiste = carrinhoMensalidadesState.some(c => c.mediumId === m.id);
                     if (jaExiste) return;
 
@@ -751,7 +744,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // FINALIZAR E ENVIAR COMPROVATIVO
     if (btnFinalizarMensalidade) {
         btnFinalizarMensalidade.addEventListener('click', async () => {
             if (!arquivoComprovanteMensalidade || arquivoComprovanteMensalidade.files.length === 0) {
@@ -771,14 +763,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const arquivo = arquivoComprovanteMensalidade.files[0];
                 const anoRef = parseInt(selectAnoMensalidade.value);
 
-                // Upload do comprovativo para o Storage do Supabase (bucket public)
                 const fileName = `${idTerreiroGlobal}/comprovante_${perfilMediumLogado.id}_${Date.now()}.${arquivo.name.split('.').pop()}`;
                 const { error: errUpload } = await supabaseClient.storage.from('public').upload(fileName, arquivo);
                 if (errUpload) throw errUpload;
 
                 const { data: { publicUrl } } = supabaseClient.storage.from('public').getPublicUrl(fileName);
 
-                // Monta o array JSON de detalhes
                 let valorTotalCalculado = 0;
                 const detalhesJson = [];
 
@@ -798,7 +788,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 if (detalhesJson.length === 0) throw new Error("Nenhum mês selecionado.");
 
-                // Insere na tabela comprovantes_mensalidade
                 const { error: errIns } = await supabaseClient.from('comprovantes_mensalidade').insert([{
                     terreiro_id: idTerreiroGlobal,
                     enviado_por: session.user.id,
@@ -839,4 +828,166 @@ document.addEventListener('DOMContentLoaded', async () => {
 // ====================================================================
 // GPS DO CHECK-IN
 // ====================================================================
-// ... (manteve-se inalterado o bloco de GPS e cálculo de distância abaixo)
+
+const btnCheckin = document.getElementById('btnCheckin');
+const modalPermissaoGPS = document.getElementById('modalPermissaoGPS');
+const gpsEstadoPrompt = document.getElementById('gpsEstadoPrompt');
+const gpsEstadoNegado = document.getElementById('gpsEstadoNegado');
+const btnEntendiGps = document.getElementById('btnEntendiGps');
+const btnFecharModalGps = document.getElementById('btnFecharModalGps');
+
+function mostrarModalGPS(estado) {
+    if (modalPermissaoGPS) {
+        modalPermissaoGPS.classList.remove('hidden');
+        gpsEstadoPrompt.classList.add('hidden');
+        gpsEstadoNegado.classList.add('hidden');
+        
+        if (estado === 'prompt') gpsEstadoPrompt.classList.remove('hidden');
+        if (estado === 'denied') gpsEstadoNegado.classList.remove('hidden');
+
+        setTimeout(() => {
+            modalPermissaoGPS.querySelector('div').classList.remove('scale-95');
+            modalPermissaoGPS.querySelector('div').classList.add('scale-100');
+        }, 10);
+    }
+}
+
+function executarCheckinGPS() {
+    const msg = document.getElementById('msgCheckin');
+    btnCheckin.disabled = true;
+    btnCheckin.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> A ler sinal de GPS...';
+    
+    if (msg) msg.classList.add('hidden');
+    if (modalPermissaoGPS) modalPermissaoGPS.classList.add('hidden');
+
+    navigator.geolocation.getCurrentPosition(async (posicao) => {
+        const latUsuario = posicao.coords.latitude;
+        const lonUsuario = posicao.coords.longitude;
+        const precisaoAparelho = posicao.coords.accuracy || 0; 
+
+        const distanciaBruta = calcularDistancia(latUsuario, lonUsuario, coordsTerreiro.lat, coordsTerreiro.lng);
+        
+        const margemTolerancia = Math.min(precisaoAparelho / 2, 15);
+        const distanciaEfetiva = Math.max(0, distanciaBruta - margemTolerancia);
+
+        if (distanciaEfetiva > 30) {
+            const distanciaExibida = Math.round(distanciaBruta);
+            const metrosRestantes = Math.round(distanciaBruta - 30);
+            if (msg) { 
+                msg.innerHTML = `Está a <strong>${distanciaExibida} metros</strong> do terreiro.<br>Aproxime-se mais cerca de <strong>${metrosRestantes}m</strong> para confirmar. (Limite: 30m)`; 
+                msg.className = "mt-3 text-xs md:text-sm font-semibold text-red-500 block text-center leading-relaxed"; 
+                msg.classList.remove('hidden'); 
+            }
+            restaurarBotao(btnCheckin); 
+            return;
+        }
+
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        btnCheckin.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> A registar presença...';
+
+        const { error } = await supabaseClient.from('presencas').insert([{ 
+            evento_id: idGiraGlobal, 
+            usuario_id: session.user.id, 
+            data_hora_checkin: new Date().toISOString(),
+            localizacao_valida: true,
+            distancia_metros: Math.round(distanciaBruta)
+        }]);
+
+        if (error) {
+            if (msg) { 
+                msg.textContent = "Erro ao registar: " + error.message; 
+                msg.className = "mt-3 text-xs md:text-sm font-bold text-red-500 block text-center"; 
+                msg.classList.remove('hidden'); 
+            }
+            restaurarBotao(btnCheckin);
+        } else {
+            const areaPonto = document.getElementById('areaBaterPonto');
+            const areaSucesso = document.getElementById('areaSucesso');
+            const horaFeito = document.getElementById('horaCheckinFeito');
+            if (areaPonto) areaPonto.classList.add('hidden');
+            if (areaSucesso) areaSucesso.classList.remove('hidden');
+            if (horaFeito) horaFeito.textContent = new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+        }
+    }, (err) => {
+        if (msg) { 
+            msg.textContent = "Não foi possível obter a sua localização. Ative a localização de alta precisão do dispositivo."; 
+            msg.className = "mt-3 text-xs md:text-sm font-bold text-red-500 block text-center"; 
+            msg.classList.remove('hidden'); 
+        }
+        restaurarBotao(btnCheckin);
+    }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
+}
+
+if (btnCheckin) {
+    btnCheckin.addEventListener('click', async () => {
+        const msg = document.getElementById('msgCheckin');
+        
+        const agoraClick = new Date();
+        if (hrInicioPermitidoGlobal && agoraClick < hrInicioPermitidoGlobal) {
+            if (msg) { msg.textContent = "O evento ainda não iniciou. Aguarde o horário permitido."; msg.className = "mt-3 text-xs md:text-sm font-bold text-red-500 block text-center"; msg.classList.remove('hidden'); }
+            return;
+        }
+        if (hrFimGiraGlobal && agoraClick > hrFimGiraGlobal) {
+            if (msg) { msg.textContent = "Este evento já se encontra encerrado."; msg.className = "mt-3 text-xs md:text-sm font-bold text-red-500 block text-center"; msg.classList.remove('hidden'); }
+            return;
+        }
+
+        if (!coordsTerreiro || !coordsTerreiro.lat) {
+            if (msg) { msg.textContent = "A localização do terreiro ainda não foi configurada pela direção."; msg.className = "mt-3 text-xs md:text-sm font-bold text-red-500 block text-center"; msg.classList.remove('hidden'); }
+            return;
+        }
+
+        if (!navigator.geolocation) {
+            if (msg) { msg.textContent = "O seu navegador não possui suporte a GPS."; msg.className = "mt-3 text-xs md:text-sm font-bold text-red-500 block text-center"; msg.classList.remove('hidden'); }
+            return;
+        }
+
+        if (navigator.permissions && navigator.permissions.query) {
+            try {
+                const permissao = await navigator.permissions.query({ name: 'geolocation' });
+                
+                if (permissao.state === 'granted') {
+                    executarCheckinGPS();
+                } else if (permissao.state === 'prompt') {
+                    mostrarModalGPS('prompt');
+                } else if (permissao.state === 'denied') {
+                    mostrarModalGPS('denied');
+                }
+            } catch (e) {
+                executarCheckinGPS();
+            }
+        } else {
+            executarCheckinGPS();
+        }
+    });
+}
+
+if (btnEntendiGps) {
+    btnEntendiGps.addEventListener('click', () => {
+        executarCheckinGPS();
+    });
+}
+
+if (btnFecharModalGps) {
+    btnFecharModalGps.addEventListener('click', () => {
+        modalPermissaoGPS.classList.add('hidden');
+        restaurarBotao(btnCheckin);
+    });
+}
+
+function restaurarBotao(btn) { 
+    if (btn) { 
+        btn.disabled = false; 
+        btn.innerHTML = '<i class="fas fa-map-marker-alt mr-2"></i> Confirmar Presença'; 
+    } 
+}
+
+function calcularDistancia(lat1, lon1, lat2, lon2) {
+    const R = 6371e3;
+    const p1 = lat1 * Math.PI/180;
+    const p2 = lat2 * Math.PI/180;
+    const dp = (lat2-lat1) * Math.PI/180;
+    const dl = (lon2-lon1) * Math.PI/180;
+    const a = Math.sin(dp/2) * Math.sin(dp/2) + Math.cos(p1) * Math.cos(p2) * Math.sin(dl/2) * Math.sin(dl/2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+}
