@@ -1357,11 +1357,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                             const conf = configVals?.find(c => c.grau === g);
                             const valor = conf ? conf.valor : '0.00';
                             containerGraus.innerHTML += `
-                                <div class="flex flex-col bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
-                                    <label class="text-[10px] font-black text-gray-500 uppercase mb-1 truncate">${g}</label>
-                                    <div class="flex items-center">
-                                        <span class="text-xs font-bold text-gray-800 mr-1">R$</span>
-                                        <input type="number" step="0.01" min="0" data-grau="${g}" value="${valor}" class="input-valor-grau w-full px-2 py-1 text-sm border-b-2 border-gray-100 outline-none focus:border-tema-secundaria bg-transparent text-gray-700 font-medium">
+                                <div class="flex flex-row items-center justify-between bg-white px-3 py-2 rounded-xl border border-gray-200 shadow-sm hover:border-gray-300 transition">
+                                    <label class="text-[14px] font-bold text-gray-800 uppercase tracking-wide truncate mr-2" title="${g}">${g}</label>
+                                    <div class="flex items-center shrink-0">
+                                        <span class="text-xs font-bold text-gray-500 mr-1.5">R$</span>
+                                        <input type="number" step="0.01" min="0" data-grau="${g}" value="${valor}" class="input-valor-grau w-20 px-2 py-1 text-xs font-bold font-mono border border-gray-200 rounded-lg outline-none focus:border-tema-secundaria focus:ring-1 focus:ring-tema-secundaria bg-gray-50 focus:bg-white text-gray-800 text-right">
                                     </div>
                                 </div>
                             `;
