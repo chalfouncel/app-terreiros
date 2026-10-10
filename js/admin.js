@@ -503,7 +503,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             const { data, error } = await supabaseClient
                 .from('mediuns')
-                .select('id, nome_completo, nome_social, data_nascimento, grau, funcao, telefone, cadastro_completo, is_admin, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin, perm_visao_geral, perm_ata, status_ativo')
+                .select('id, nome_completo, nome_social, data_nascimento, grau, funcao, telefone, palavra, cadastro_completo, is_admin, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin, perm_visao_geral, perm_ata, status_ativo')
                 .eq('terreiro_id', idTerreiroGlobal)
                 .neq('nome_completo', 'Administrador Sistema')
                 .order('nome_completo');
@@ -791,13 +791,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
                 const nomeStr = m.nome_completo;
                 const whats = m.telefone || '-';
-                return [nomeStr, dataNasc, m.grau || '-', m.funcao || '-', whats];
+                const palavra = m.palavra || '-';
+                return [nomeStr, dataNasc, m.grau || '-', m.funcao || '-', whats, palavra];
             });
             
             // Ordenação Alfabética do PDF do Quadro Oficial
             dados.sort((a, b) => a[0].localeCompare(b[0], 'pt-BR'));
             
-            window.gerarPDFRelatorio('Quadro Oficial de Médiuns', ['Nome Completo', 'Nascimento', 'Grau', 'Função', 'WhatsApp'], dados);
+            window.gerarPDFRelatorio('Quadro Oficial de Médiuns', ['Nome Completo', 'Nascimento', 'Grau', 'Função', 'WhatsApp', 'Palavra'], dados);
             setTimeout(() => { btn.innerHTML = originalHtml; btn.disabled = false; }, 2000);
         });
 
