@@ -1115,14 +1115,27 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.abrirModalVerComprovante = (id, url, subtitulo) => {
             window.comprovanteAtualId = id;
             document.getElementById('modalComprovanteSubtitulo').textContent = subtitulo;
+            
             const frame = document.getElementById('frameComprovante');
+            const img = document.getElementById('imgComprovante');
+            
             document.getElementById('loaderComprovante').classList.remove('hidden');
             
-            // Força a renderização se for PDF num mobile ou iframe genérico
-            if(url.toLowerCase().endsWith('.pdf')) {
+            // Reseta a visualização
+            frame.classList.add('hidden');
+            img.classList.add('hidden');
+            img.classList.add('object-contain', 'max-w-full', 'max-h-full', 'cursor-zoom-in');
+            img.classList.remove('cursor-zoom-out');
+            
+            // Verifica se é imagem ou PDF
+            const isPDF = url.toLowerCase().includes('.pdf');
+            
+            if(isPDF) {
                 frame.src = `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
+                frame.classList.remove('hidden');
             } else {
-                frame.src = url;
+                img.src = url;
+                img.classList.remove('hidden');
             }
             
             document.getElementById('modalVerComprovante').classList.remove('hidden');
@@ -1131,8 +1144,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.fecharModalVerComprovante = () => {
             document.getElementById('modalVerComprovante').classList.add('hidden');
             document.getElementById('frameComprovante').src = '';
+            document.getElementById('imgComprovante').src = '';
             window.comprovanteAtualId = null;
-        };
+        };;
 
         async function carregarFinanceiro(ano) {
             if(!idTerreiroGlobal) return;
