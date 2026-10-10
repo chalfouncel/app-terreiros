@@ -1,191 +1,126 @@
-// 1. LIGA A CONEXÃO COM O BANCO DE DADOS
-// Usamos as variáveis supabaseUrl e supabaseKey que já estão na memória do seu site!
-const db = window.supabase.createClient(supabaseUrl, supabaseKey);
-
-// 1.5. BOTÃO PARA ALTERNAR TECLADO (MODO ADMIN / ALFANUMÉRICO)
-const btnModoMaster = document.getElementById('btnModoMaster');
-const inputId = document.getElementById('identificacao');
-const inputSenha = document.getElementById('senha');
-let modoMasterAtivo = false;
-
-if (btnModoMaster) {
-    btnModoMaster.addEventListener('click', () => {
-        modoMasterAtivo = !modoMasterAtivo;
-        if (modoMasterAtivo) {
-            // Libera digitação de e-mail e letras
-            inputId.type = 'email';
-            inputId.removeAttribute('inputmode');
-            inputId.removeAttribute('pattern');
-            inputId.placeholder = 'E-mail do Administrador';
-            
-            inputSenha.removeAttribute('inputmode');
-            inputSenha.removeAttribute('pattern');
-            
-            btnModoMaster.textContent = 'Voltar para Acesso Médium';
-            btnModoMaster.classList.replace('text-blue-600', 'text-gray-500');
-        } else {
-            // Trava de volta no modo numérico para os médiuns
-            inputId.type = 'tel';
-            inputId.setAttribute('inputmode', 'numeric');
-            inputId.setAttribute('pattern', '[0-9]*');
-            inputId.placeholder = 'ID (1º Acesso) ou WhatsApp';
-            
-            inputSenha.setAttribute('inputmode', 'numeric');
-            inputSenha.setAttribute('pattern', '[0-9]*');
-            
-            btnModoMaster.textContent = 'Acesso Admin';
-            btnModoMaster.classList.replace('text-gray-500', 'text-blue-600');
-        }
-    });
-}
-
-// 2. O CÓDIGO DO FORMULÁRIO 
-document.querySelector('form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    const identificacao = document.getElementById('identificacao').value.trim();
-    const senha = document.getElementById('senha').value;
-    
-    const btnSubmit = document.querySelector('button[type="submit"]');
-    // CORREÇÃO: Usando o ID exato que está no HTML
+document.addEventListener('DOMContentLoaded', async () => {
+    const formLogin = document.getElementById('formLogin');
     const msgErro = document.getElementById('msgErro');
-    
-    if(msgErro) {
-        msgErro.style.display = 'none';
-        msgErro.classList.add('hidden');
+    const btnEntrar = document.getElementById('btnEntrar');
+
+    // 1. Verifica se já existe sessão ativa ao carregar
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (session) {
+        await rotearUsuarioLogado(session.user.id);
+        return;
     }
-    btnSubmit.innerHTML = 'Processando...';
-    btnSubmit.disabled = true;
 
-    try {
-        // >>> MATADOR DE SESSÕES FANTASMAS <<<
-        // Se você estava logado antes (como admin, etc), isso força o navegador a esquecer
-        // antes de processar o novo login ou ID.
-        await db.auth.signOut();
-        localStorage.removeItem('novo_acesso_id');
-        localStorage.removeItem('novo_acesso_nome');
-
-        // REGRA 1: É O PRIMEIRO ACESSO? (Testa se digitaram um ID numérico curto)
-        const isId = /^\d+$/.test(identificacao) && identificacao.length < 5;
-
-        if (isId) {
-            if (senha !== '123456') {
-                throw new Error('Para o primeiro acesso, use a senha padrão: 123456');
-            }
-
-            // NOVA FORMA: Bate na Função (RPC) que burla o RLS para checar o ID
-            const { data: medium, error: dbError } = await db.rpc('validar_primeiro_acesso', {
-                id_buscado: parseInt(identificacao)
-            });
-
-            if (dbError || !medium) {
-                throw new Error('ID não encontrado no sistema. Procure a administração.');
-            }
-
-            // >>> TRAVA DE INATIVIDADE <<<
-            if (medium.status_ativo === false) {
-                throw new Error('Seu acesso ao sistema está inativo. Por favor, entre em contato com a Administração da Casa.');
-            }
-
-            // >>> SUPER TRAVA DE SEGURANÇA <<<
-            if (medium.auth_id || medium.cadastro_completo || medium.senha_cadastrada) {
-                throw new Error('Seu cadastro já está ativo! Feche este aviso e faça o login normal usando seu Nome ou Telefone e a sua Nova Senha.');
-            }
-
-            // SUCESSO DO PRIMEIRO ACESSO! Salva os dados na memória para a próxima tela
-            localStorage.setItem('novo_acesso_id', medium.id);
-            localStorage.setItem('novo_acesso_nome', medium.nome_completo);
+    if (formLogin) {
+        formLogin.addEventListener('submit', async (e) => {
+            e.preventDefault();
             
-            // Joga para a tela de completar o cadastro
-            window.location.href = 'cadastro.html'; 
-            return; 
-        }
+            const loginInput = document.getElementById('login').value.trim();
+            const senhaInput = document.getElementById('senha').value.trim();
 
-        let emailParaLogin = "";
+            btnEntrar.disabled = true;
+            btnEntrar.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Entrando...';
+            if (msgErro) msgErro.classList.add('hidden');
 
-        // REGRA ESPECIAL: É UM E-MAIL DIRETO? (Para o Admin)
-        if (identificacao.includes('@')) {
-            emailParaLogin = identificacao;
-        } else {
-            // REGRA 2: ACESSO NORMAL (NOME OU TELEFONE + NOVA SENHA)
-            let telefoneParaLogin = "";
-            
-            // Verifica se tem letras (se digitou o Nome em vez do WhatsApp)
-            const contemLetras = /[a-zA-Z]/.test(identificacao);
+            try {
+                let emailLogin = loginInput;
+                let idNumerico = null;
 
-            if (contemLetras) {
-                // Busca o telefone desse médium pelo nome no banco
-                const { data: mediumData, error: errMedium } = await db
-                    .from('mediuns')
-                    .select('telefone')
-                    .ilike('nome_completo', `%${identificacao}%`)
-                    .limit(1)
-                    .single();
-
-                if (errMedium || !mediumData || !mediumData.telefone) {
-                    throw new Error('Médium não encontrado. Tente digitar o nome mais completo ou use o número do seu WhatsApp.');
+                // Identifica se é ID numérico (ex: 149)
+                if (!loginInput.includes('@')) {
+                    idNumerico = parseInt(loginInput.replace(/\D/g, ''));
+                    emailLogin = `${idNumerico}@app-terreiros.local`;
                 }
-                telefoneParaLogin = mediumData.telefone.replace(/\D/g, '');
-            } else {
-                // Se digitou o número direto, só tira os parênteses e traços
-                telefoneParaLogin = identificacao.replace(/\D/g, ''); 
-                if (telefoneParaLogin.length < 10) {
-                    throw new Error('Digite seu ID (1º acesso) ou seu Telefone com DDD completo.');
+
+                // Tenta login direto
+                let { data, error } = await supabaseClient.auth.signInWithPassword({
+                    email: emailLogin,
+                    password: senhaInput
+                });
+
+                // Se falhou e for o primeiro acesso com a senha padrão 123456[cite: 14]
+                if (error && idNumerico && senhaInput === '123456') {
+                    // Cria a credencial no Auth com auto-confirmação
+                    const { data: signUpData, error: signUpError } = await supabaseClient.auth.signUp({
+                        email: emailLogin,
+                        password: '123456'
+                    });
+
+                    if (!signUpError && signUpData.user) {
+                        data = { user: signUpData.user };
+                        error = null;
+                    } else if (signUpError && signUpError.message.includes('already registered')) {
+                        throw new Error('ID ou senha incorretos.');
+                    } else if (signUpError) {
+                        throw signUpError;
+                    }
                 }
+
+                if (error) throw error;
+
+                if (data && data.user) {
+                    localStorage.setItem('auth_user_id', data.user.id);
+                    if (idNumerico) {
+                        localStorage.setItem('medium_id', idNumerico);
+                    }
+                    await rotearUsuarioLogado(data.user.id, idNumerico);
+                }
+
+            } catch (err) {
+                console.error("Erro no login:", err);
+                if (msgErro) {
+                    msgErro.textContent = err.message.includes('Invalid login') 
+                        ? 'ID ou senha incorretos.' 
+                        : (err.message || 'Erro ao realizar login.');
+                    msgErro.classList.remove('hidden');
+                }
+            } finally {
+                btnEntrar.disabled = false;
+                btnEntrar.innerHTML = 'Entrar no Sistema';
             }
-            
-            // Monta o email fantasma debaixo dos panos para o Supabase validar
-            emailParaLogin = `${telefoneParaLogin}@terreiro.app`;
-        }
-
-        if (!senha) {
-            throw new Error('A senha é obrigatória.');
-        }
-
-        // Tenta logar usando o 'db'
-        const { data, error } = await db.auth.signInWithPassword({
-            email: emailParaLogin,
-            password: senha,
         });
+    }
 
-        if (error) {
-            throw new Error('Identificação ou senha incorretos.');
-        }
+    async function rotearUsuarioLogado(authId, idNumericoForcado = null) {
+        try {
+            let idBusca = idNumericoForcado || localStorage.getItem('medium_id');
 
-        // >>> TRAVA DE INATIVIDADE PÓS-LOGIN <<<
-        if (data && data.user) {
-            const { data: perfilData } = await db
+            // 1. Busca pelo auth_id
+            let { data: perfil } = await supabaseClient
                 .from('mediuns')
-                .select('status_ativo')
-                .eq('auth_id', data.user.id)
-                .limit(1)
-                .single();
+                .select('id, cadastro_completo, auth_id, is_admin, is_master')
+                .eq('auth_id', authId)
+                .maybeSingle();
 
-            if (perfilData && perfilData.status_ativo === false) {
-                await db.auth.signOut();
-                throw new Error('Seu acesso ao sistema está inativo. Por favor, entre em contato com a Administração da Casa.');
+            // 2. Se não achou por auth_id, busca por ID numérico e vincula
+            if (!perfil && idBusca) {
+                const { data: perfilPorId } = await supabaseClient
+                    .from('mediuns')
+                    .select('id, cadastro_completo, auth_id, is_admin, is_master')
+                    .eq('id', parseInt(idBusca))
+                    .maybeSingle();
+
+                if (perfilPorId) {
+                    perfil = perfilPorId;
+                    await supabaseClient
+                        .from('mediuns')
+                        .update({ auth_id: authId })
+                        .eq('id', perfil.id);
+                }
             }
-        }
 
-        // LOGIN FEITO COM SUCESSO! Decide pra onde mandar:
-        if (identificacao.includes('@')) {
-            // Se logou com e-mail, é Administrador/Master
-            window.location.href = 'admin.html';
-        } else {
-            // Se logou com ID, Nome ou Telefone, é Médium
-            window.location.href = 'presenca.html'; 
+            if (perfil) {
+                localStorage.setItem('medium_id', perfil.id);
+                if (perfil.cadastro_completo === false) {
+                    window.location.replace('cadastro.html');
+                } else {
+                    window.location.replace('presenca.html');
+                }
+            } else {
+                window.location.replace('admin.html');
+            }
+        } catch (e) {
+            console.error("Erro ao rotear:", e);
+            window.location.replace('cadastro.html');
         }
-
-    } catch (erro) {
-        if (msgErro) {
-            msgErro.textContent = erro.message;
-            msgErro.style.display = 'block';
-            msgErro.classList.remove('hidden');
-        } else {
-            alert(erro.message); 
-        }
-    } finally {
-        btnSubmit.innerHTML = 'Entrar no Sistema';
-        btnSubmit.disabled = false;
     }
 });
