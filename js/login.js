@@ -22,7 +22,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const inputs = formLogin ? Array.from(formLogin.querySelectorAll('input')).filter(i => i.type !== 'hidden' && i.type !== 'submit') : [];
     
     // Configuração do Botão "Acesso Admin"
-    // Procura qualquer elemento na tela que tenha o texto "Acesso Admin"
     const elementosTexto = Array.from(document.querySelectorAll('a, span, p, button, div'));
     const btnAcessoAdmin = elementosTexto.find(el => el.textContent.trim().toLowerCase() === 'acesso admin');
     
@@ -32,7 +31,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const inputIdentificacao = inputs[0];
         const inputSenha = inputs[1];
 
-        // Torna o botão clicável caso não seja um button/a nativo
+        // Torna o botão clicável caso não seja um button nativo
         btnAcessoAdmin.style.cursor = 'pointer';
 
         btnAcessoAdmin.addEventListener('click', (e) => {
@@ -40,6 +39,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             modoAdminAtivo = !modoAdminAtivo;
 
             if (modoAdminAtivo) {
+                // Remove as amarras numéricas do HTML para permitir E-mail
+                inputIdentificacao.removeAttribute('pattern');
+                inputSenha.removeAttribute('pattern');
+
                 // Vira o teclado para Alfanumérico/E-mail
                 inputIdentificacao.type = 'email';
                 inputIdentificacao.inputMode = 'email';
@@ -49,13 +52,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                 inputSenha.inputMode = 'text'; // Teclado completo para a senha
                 
                 btnAcessoAdmin.textContent = 'Acesso Médium';
-                btnAcessoAdmin.classList.add('text-red-600'); // Destaque visual opcional
+                btnAcessoAdmin.classList.add('text-red-600');
             } else {
                 // Volta o teclado para Numérico (Médium)
+                inputIdentificacao.setAttribute('pattern', '[0-9]*');
                 inputIdentificacao.type = 'tel';
                 inputIdentificacao.inputMode = 'numeric';
                 inputIdentificacao.placeholder = 'ID (1º Acesso) ou WhatsApp';
                 
+                inputSenha.setAttribute('pattern', '[0-9]*');
                 inputSenha.type = 'password';
                 inputSenha.inputMode = 'numeric';
                 
@@ -66,6 +71,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (formLogin) {
+        // Desativa validações nativas (balões de erro do navegador) para controlar no JS
+        formLogin.setAttribute('novalidate', 'true');
+
         formLogin.addEventListener('submit', async (e) => {
             e.preventDefault();
 
