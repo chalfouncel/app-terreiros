@@ -2,94 +2,84 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Completar Cadastro - Terreiro</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Completar Cadastro - Templo</title>
+    
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#1e3a8a">
+    <link rel="apple-touch-icon" href="https://pbjwqhfzsvdougeksztq.supabase.co/storage/v1/object/public/public-img/icone-192.png">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --cor-primaria: #1e3a8a;   
+            --cor-secundaria: #16a34a; 
+            --cor-fundo: #f3f4f6;      
+            --cor-texto: #1f2937;      
+        }
+        
+        .bg-tema-primaria { background-color: var(--cor-primaria) !important; }
+        .text-tema-primaria { color: var(--cor-primaria) !important; }
+        .border-tema-primaria { border-color: var(--cor-primaria) !important; }
+        
+        .bg-tema-secundaria { background-color: var(--cor-secundaria) !important; }
+        .text-tema-secundaria { color: var(--cor-secundaria) !important; }
+        
+        body {
+            background-color: var(--cor-fundo);
+            color: var(--cor-texto);
+            -webkit-tap-highlight-color: transparent;
+        }
+    </style>
 </head>
-<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+<body class="min-h-screen flex items-center justify-center p-4">
 
-    <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-md border-t-4 border-green-600">
+    <div class="bg-white rounded-3xl shadow-xl w-full max-w-lg p-6 md:p-8 border border-gray-100">
         <div class="text-center mb-6">
-            <h2 class="text-2xl font-bold text-gray-800">Ficha de Médium</h2>
-            <p class="text-gray-500 text-sm mt-1">Complete seus dados para acessar a plataforma.</p>
+            <div class="w-16 h-16 rounded-2xl bg-tema-primaria/10 text-tema-primaria flex items-center justify-center mx-auto mb-3 shadow-inner">
+                <i class="fas fa-id-card text-2xl"></i>
+            </div>
+            <h1 class="text-xl md:text-2xl font-black text-gray-800 tracking-tight">Ficha de Médium</h1>
+            <p class="text-xs md:text-sm text-gray-500 mt-1">Complete os seus dados e defina a sua nova palavra-passe de acesso.</p>
         </div>
 
-        <form id="formCadastro" class="space-y-4">
-            
+        <form id="formCompletarCadastro" class="space-y-4">
             <div>
-                <label class="block text-sm font-medium text-gray-700">Nome completo *</label>
-                <input type="text" id="nomeCompleto" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500">
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium text-gray-700">Nome social</label>
-                <input type="text" id="nomeSocial" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500">
-            </div>
-
-            <div class="grid grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Grau *</label>
-                    <select id="grau" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 bg-white">
-                        <option value="" disabled selected>Selecione...</option>
-                        <option value="-">-</option>
-                        <option value="I">I</option>
-                        <option value="IJ">IJ</option>
-                        <option value="B">B</option>
-                        <option value="BJ">BJ</option>
-                        <option value="T">T</option>
-                        <option value="TJ">TJ</option>
-                        <option value="SCT">SCT</option>
-                        <option value="Escola de CT">Escola de CT</option>
-                        <option value="CT">CT</option>
-                        <option value="SCCT">SCCT</option>
-                        <option value="Escola de CCT">Escola de CCT</option>
-                        <option value="CCT">CCT</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Função</label>
-                    <select id="funcao" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 bg-white">
-                        <option value="" disabled selected>Selecione...</option>
-                        <option value="-">-</option>
-                        <option value="MG">MG</option>
-                        <option value="MGA">MGA</option>
-                        <option value="MC">MC</option>
-                        <option value="MCA">MCA</option>
-                        <option value="MD">MD</option>
-                        <option value="MDA">MDA</option>
-                        <option value="Cantina">Cantina</option>
-                        <option value="Dirigente">Dirigente</option>
-                    </select>
-                </div>
+                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Nome Completo *</label>
+                <input type="text" id="cadNomeCompleto" required class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-tema-primaria bg-gray-50 text-gray-700" readonly>
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-gray-700">Palavra *</label>
-                <input type="text" id="palavra" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 uppercase placeholder-gray-400" placeholder="EX: PROTEÇÃO">
+                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Nome Social / Como prefere ser chamado(a)</label>
+                <input type="text" id="cadNomeSocial" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-tema-primaria" placeholder="Ex: Pai Adilton">
             </div>
 
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700">Data de nascimento *</label>
-                    <input type="tel" id="dataNascimento" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500" placeholder="DD/MM/AAAA" maxlength="10">
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Data de Nascimento *</label>
+                    <input type="date" id="cadNascimento" required class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-tema-primaria">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700">Telefone (WhatsApp) *</label>
-                    <input type="tel" id="telefone" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500" placeholder="(21) 99999-9999" maxlength="15">
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">WhatsApp *</label>
+                    <input type="tel" id="cadTelefone" required class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-tema-primaria" placeholder="(21) 99999-9999">
                 </div>
             </div>
 
-            <div id="containerSenha" class="hidden pt-2 border-t border-gray-100 mt-4">
-                <label class="block text-sm font-medium text-gray-700">Crie sua Nova Senha (Apenas Números) *</label>
-                <!-- inputmode="numeric" força o teclado numérico. style com disc mascara a senha -->
-                <input type="text" inputmode="numeric" id="novaSenha" style="-webkit-text-security: disc; text-security: disc;" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500" placeholder="Mínimo de 6 números" pattern="[0-9]*">
-                <p class="text-xs text-gray-500 mt-1">Esta será sua senha para os próximos acessos. Use apenas números.</p>
+            <div class="border-t border-gray-200 pt-4 mt-3">
+                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Criar Nova Palavra-passe *</label>
+                <input type="password" id="cadNovaSenha" required minlength="6" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-tema-primaria" placeholder="Mínimo de 6 caracteres">
             </div>
 
-            <div id="msgErro" class="text-red-600 text-sm hidden"></div>
+            <div>
+                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Confirmar Palavra-passe *</label>
+                <input type="password" id="cadConfirmaSenha" required minlength="6" class="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-tema-primaria" placeholder="Repita a palavra-passe">
+            </div>
 
-            <button type="submit" id="btnSalvar" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 mt-4">
+            <p id="msgCadastro" class="text-xs md:text-sm font-bold text-center hidden mt-2"></p>
+
+            <button type="submit" id="btnSalvarCadastro" class="w-full bg-tema-secundaria hover:opacity-90 active:scale-[0.98] text-white font-bold py-3 px-4 rounded-xl shadow transition text-sm flex items-center justify-center gap-2 mt-2">
                 Salvar e Continuar
             </button>
         </form>
