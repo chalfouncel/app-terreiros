@@ -670,7 +670,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         await atualizarCarrinhoRender();
     };
 
-    function recalcalcularTotalCarrinho() {
+    // FUNÇÃO CORRIGIDA: Nome correto agora (recalcularTotalCarrinho)
+    function recalcularTotalCarrinho() {
         let totalGeral = 0;
         let totalMesesSelecionados = 0;
 
@@ -755,6 +756,23 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
             } else {
                 resultadoBuscaOutroMedium.innerHTML = '<li class="p-2 text-center text-gray-400 text-xs">Nenhum médium encontrado.</li>';
+            }
+        });
+    }
+
+    // BOTÃO PARA COPIAR A CHAVE PIX DA MENSALIDADE
+    if (btnCopiarPixMensalidade) {
+        btnCopiarPixMensalidade.addEventListener('click', () => {
+            if(chavePixMensalidade) {
+                navigator.clipboard.writeText(chavePixMensalidade.innerText).then(() => {
+                    const originalHTML = btnCopiarPixMensalidade.innerHTML;
+                    btnCopiarPixMensalidade.innerHTML = '<i class="fas fa-check mr-2 text-white"></i> Chave Copiada!';
+                    btnCopiarPixMensalidade.classList.replace('bg-gray-800', 'bg-green-600');
+                    setTimeout(() => {
+                        btnCopiarPixMensalidade.innerHTML = originalHTML;
+                        btnCopiarPixMensalidade.classList.replace('bg-green-600', 'bg-gray-800');
+                    }, 2000);
+                });
             }
         });
     }
