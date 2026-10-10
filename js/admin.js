@@ -838,8 +838,89 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
 
+        async function carregarComprovantesPendentes() {
+            if (!idTerreiroGlobal) return;
+            const box = document.getElementById('boxAprovacaoComprovantes');
+            const tbody = document.getElementById('tabelaComprovantesPendentes');
+            if (!box || !tbody) return;
+
+            try {
+                const { data: comprovantes, error } = await supabaseClient
+                    .from('comprovantes_mensalidade')
+                    .select('*')
+                    .eq('terreiro_id', idTerreiroGlobal)
+                    .eq('status', 'pendente')
+                    .order('criado_em', { ascending: true });
+
+                if (error) throw error;
+
+                if (!comprovantes || comprovantes.length === 0) {
+                    box.classList.add('hidden');
+                    return;
+                }
+
+                box.classList.remove('hidden');
+                tbody.innerHTML = '';
+
+                // Busca nomes dos remententes para exibir
+                const { data: mediuns } = await supabaseClient
+                    .from('mediuns')
+                    .select('auth_id, nome_completo')
+                    .eq('terreiro_id', idTerreiroGlobal);
+
+                comprovantes.forEach(comp => {
+                    const remetente = mediuns?.find(m => m.auth_id === comp.enviado_por)?.nome_completo || 'Médium Desconhecido';
+                    
+                    let refHtml = '';
+                    if (comp.detalhes_pagamento && Array.isArray(comp.detalhes_pagamento)) {
+                        comp.detalhes_pagamento.forEach(det => {
+                            if (det.meses && Array.isArray(det.meses)) {
+                                const mesesNomes = det.meses.map(m => ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][m-1]).join(', ');
+                                refHtml += `<div class="text-[10px] mb-0.5"><b class="text-yellow-900">${det.medium_nome}:</b> ${mesesNomes}/${det.ano}</div>`;
+                            }
+                        });
+                    } else {
+                        refHtml = '<span class="text-gray-400 text-xs">Sem detalhes estruturados</span>';
+                    }
+
+                    const valFmt = Number(comp.valor_total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    
+                    let linkArquivo = '-';
+                    if (comp.url_comprovante) {
+                        const strLow = comp.url_comprovante.toLowerCase();
+                        const ehPdf = strLow.includes('.pdf');
+                        const icone = ehPdf ? 'fa-file-pdf text-red-500' : 'fa-image text-blue-500';
+                        linkArquivo = `<a href="${comp.url_comprovante}" target="_blank" class="flex flex-col items-center hover:opacity-80 transition"><i class="fas ${icone} text-xl"></i><span class="text-[10px] mt-1 underline text-gray-600 font-medium">Ver Arquivo</span></a>`;
+                    }
+
+                    tbody.innerHTML += `
+                        <tr class="border-b border-yellow-200/50 hover:bg-yellow-100/50 transition bg-white">
+                            <td class="p-3 text-sm font-medium text-yellow-900 max-w-[150px] truncate" title="${remetente}">${remetente}</td>
+                            <td class="p-3 text-xs text-yellow-800">${refHtml}</td>
+                            <td class="p-3 text-sm font-bold text-yellow-900">${valFmt}</td>
+                            <td class="p-3 text-center">${linkArquivo}</td>
+                            <td class="p-3 text-center">
+                                <div class="flex items-center justify-center gap-2">
+                                    <button onclick="aprovarComprovante('${comp.id}')" class="bg-green-500 hover:bg-green-600 active:scale-95 text-white p-2 rounded-lg shadow-sm transition flex items-center justify-center" title="Aprovar e Dar Baixa"><i class="fas fa-check"></i></button>
+                                    <button onclick="rejeitarComprovante('${comp.id}')" class="bg-red-500 hover:bg-red-600 active:scale-95 text-white p-2 rounded-lg shadow-sm transition flex items-center justify-center" title="Rejeitar Comprovante"><i class="fas fa-times"></i></button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                });
+
+            } catch (err) {
+                console.error('Erro ao carregar comprovantes pendentes:', err);
+                if (tbody) tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-red-500 text-sm font-bold">Erro ao buscar comprovantes: ${err.message}</td></tr>`;
+            }
+        }
+
         async function carregarFinanceiro() {
             if(!idTerreiroGlobal) return;
+            
+            // Renderiza também as aprovações pendentes sempre que a tela atualizar
+            carregarComprovantesPendentes();
+
             const ano = parseInt(document.getElementById('selectAnoFinanceiro').value);
             const tbody = document.getElementById('tabelaFinanceiro');
             if (!tbody) return;
@@ -1870,6 +1951,78 @@ window.salvarPagamento = async (mediumId, mes, ano, status) => {
 
     const { error } = await supabaseClient.from('financeiro').upsert({ medium_id: mediumId, mes: mes, ano: ano, pago: status }, { onConflict: 'medium_id,mes,ano' });
     if(error) { alert('Erro: ' + error.message); document.getElementById('menuFinanceiro')?.click(); }
+};
+
+window.aprovarComprovante = async (comprovanteId) => {
+    if (!confirm("Aprovar este comprovante? Os meses associados serão marcados como pagos e o documento será arquivado.")) return;
+
+    try {
+        const { data: comp, error: errComp } = await supabaseClient
+            .from('comprovantes_mensalidade')
+            .select('detalhes_pagamento')
+            .eq('id', comprovanteId)
+            .eq('terreiro_id', idTerreiroGlobal)
+            .single();
+
+        if (errComp) throw errComp;
+
+        let upserts = [];
+        if (comp.detalhes_pagamento && Array.isArray(comp.detalhes_pagamento)) {
+            comp.detalhes_pagamento.forEach(det => {
+                if (det.meses && Array.isArray(det.meses)) {
+                    det.meses.forEach(mes => {
+                        upserts.push({
+                            medium_id: det.medium_id,
+                            mes: mes,
+                            ano: det.ano,
+                            pago: true
+                        });
+                    });
+                }
+            });
+        }
+
+        if (upserts.length > 0) {
+            const { error: errUpsert } = await supabaseClient
+                .from('financeiro')
+                .upsert(upserts, { onConflict: 'medium_id,mes,ano' });
+            if (errUpsert) throw errUpsert;
+        }
+
+        const { error: errStatus } = await supabaseClient
+            .from('comprovantes_mensalidade')
+            .update({ status: 'aprovado' })
+            .eq('id', comprovanteId)
+            .eq('terreiro_id', idTerreiroGlobal);
+        if (errStatus) throw errStatus;
+
+        alert("Comprovante aprovado com sucesso! Baixas realizadas.");
+        document.getElementById('menuFinanceiro')?.click();
+
+    } catch (err) {
+        console.error(err);
+        alert("Erro ao aprovar comprovante: " + err.message);
+    }
+};
+
+window.rejeitarComprovante = async (comprovanteId) => {
+    if (!confirm("Rejeitar este comprovante? As mensalidades continuarão pendentes.")) return;
+
+    try {
+        const { error } = await supabaseClient
+            .from('comprovantes_mensalidade')
+            .update({ status: 'rejeitado' })
+            .eq('id', comprovanteId)
+            .eq('terreiro_id', idTerreiroGlobal);
+
+        if (error) throw error;
+        
+        alert("Comprovante rejeitado.");
+        document.getElementById('menuFinanceiro')?.click();
+    } catch (err) {
+        console.error(err);
+        alert("Erro ao rejeitar comprovante: " + err.message);
+    }
 };
 
 window.marcarDoacao = async (id, status) => {
