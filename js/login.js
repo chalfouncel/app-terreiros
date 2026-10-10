@@ -11,10 +11,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // 1. Limpa a cache de sessões mortas ao abrir o login
+    // Se já estiver logado, redireciona
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (session) {
-        await rotearParaPainel(session.user.id);
+        window.location.replace('presenca.html');
         return;
     }
 
@@ -22,19 +22,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         formLogin.addEventListener('submit', async (e) => {
             e.preventDefault();
 
-            // CAPTURA BLINDADA: Pega os dois primeiros inputs visíveis da tela, não importa o ID que tenham
             const inputs = Array.from(formLogin.querySelectorAll('input')).filter(i => i.type !== 'hidden' && i.type !== 'submit');
-            
-            if (inputs.length < 2) {
-                return exibirErro("Erro estrutural: Campos de preenchimento não encontrados na tela.");
-            }
+            if (inputs.length < 2) return exibirErro("Erro: Campos de login não encontrados.");
 
-            const campoIdentValor = inputs[0].value.trim();
+            const campoIdentValor = inputs[0].value.replace(/\D/g, ''); // Apenas números
             const campoSenhaValor = inputs[1].value.trim();
 
-            if (!campoIdentValor || !campoSenhaValor) {
-                return exibirErro("Preencha a Identificação e a Senha.");
-            }
+            if (!campoIdentValor || !campoSenhaValor) return exibirErro("Preencha a Identificação e a Senha.");
 
             const btnEntrar = formLogin.querySelector('button[type="submit"]');
             if (btnEntrar) {
@@ -44,75 +38,53 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (msgErro) msgErro.classList.add('hidden');
 
             try {
-                let idBusca = null;
-                let emailLogin = null;
-                let telefoneAcesso = null;
+                // REGRA 1: PRIMEIRO ACESSO (ID + Senha 123456)
+                if (campoIdentValor.length < 8) {
+                    const idNumerico = parseInt(campoIdentValor);
 
-                const loginLimpo = campoIdentValor.replace(/\D/g, ''); // Deixa apenas os números
-                if (!loginLimpo) throw new Error("Identificação inválida. Digite apenas números.");
+                    if (campoSenhaValor !== '123456') {
+                        throw new Error("Senha incorreta para primeiro acesso. Utilize a senha padrão 123456.");
+                    }
 
-                // REGRA: Se tiver menos de 8 dígitos, é o primeiro acesso (ID do médium)
-                if (loginLimpo.length < 8) {
-                    idBusca = parseInt(loginLimpo);
-                    
-                    // Busca o telefone na tabela do banco
+                    // Procura o médium no banco pela coluna correta (senha_cadastrada)
                     const { data: ficha, error: errFicha } = await supabaseClient
                         .from('mediuns')
-                        .select('telefone, cadastro_completo')
-                        .eq('id', idBusca)
+                        .select('id, senha_cadastrada')
+                        .eq('id', idNumerico)
                         .maybeSingle();
 
-                    if (!ficha) throw new Error("ID não encontrado. Fale com a Administração.");
-                    if (!ficha.telefone) throw new Error("O seu cadastro não possui telefone. Peça ao Admin para o adicionar primeiro.");
+                    if (errFicha || !ficha) throw new Error("ID não encontrado. Fale com a Administração.");
 
-                    telefoneAcesso = ficha.telefone.replace(/\D/g, '');
-                    emailLogin = `${telefoneAcesso}@terreiro.app`;
+                    if (ficha.senha_cadastrada) {
+                        throw new Error("Este cadastro já foi ativado! Faça login com o seu telefone e a senha (Palavra) criada.");
+                    }
+
+                    // SUCESSO NO 1º ACESSO -> Salva o ID na memória e vai para o cadastro SEM login
+                    localStorage.setItem('medium_id', ficha.id);
+                    window.location.replace('cadastro.html');
+                    return;
 
                 } else {
-                    // REGRA: Login normal através do telefone
-                    telefoneAcesso = loginLimpo;
-                    if (telefoneAcesso.startsWith('55') && telefoneAcesso.length >= 12) {
-                        telefoneAcesso = telefoneAcesso.substring(2);
+                    // REGRA 2: LOGIN NORMAL (Telefone + Nova Senha)
+                    let telefoneLimpo = campoIdentValor;
+                    if (telefoneLimpo.startsWith('55') && telefoneLimpo.length >= 12) {
+                        telefoneLimpo = telefoneLimpo.substring(2);
                     }
-                    emailLogin = `${telefoneAcesso}@terreiro.app`;
-                }
 
-                // 1. Tenta o login principal
-                let { data: authData, error: authError } = await supabaseClient.auth.signInWithPassword({
-                    email: emailLogin,
-                    password: campoSenhaValor
-                });
+                    const emailLogin = `${telefoneLimpo}@terreiro.app`;
 
-                // 2. Se falhar, e a senha for a padrão 123456, tentamos criar o acesso na hora
-                if (authError && idBusca && campoSenhaValor === '123456') {
-                    const { error: erroCriacao } = await supabaseClient.auth.signUp({
+                    const { data, error } = await supabaseClient.auth.signInWithPassword({
                         email: emailLogin,
-                        password: '123456'
+                        password: campoSenhaValor
                     });
-                    
-                    if (erroCriacao && !erroCriacao.message.includes('already registered')) {
-                        throw new Error("Erro ao criar credencial de acesso: " + erroCriacao.message);
-                    }
-                    
-                    const reLogin = await supabaseClient.auth.signInWithPassword({
-                        email: emailLogin,
-                        password: '123456'
-                    });
-                    if (reLogin.error) throw reLogin.error;
-                    authData = reLogin.data;
-                    authError = null;
+
+                    if (error) throw new Error("Identificação ou senha incorretos.");
+
+                    // Sucesso: Salva o telefone e vai para o sistema
+                    localStorage.setItem('telefone_acesso', telefoneLimpo);
+                    window.location.replace('presenca.html');
                 }
-
-                if (authError) throw new Error("Identificação ou senha incorretos.");
-
-                // Sucesso: Salva o ID na cache
-                if (idBusca) localStorage.setItem('medium_id', idBusca);
-                localStorage.setItem('telefone_acesso', telefoneAcesso);
-                
-                await rotearParaPainel(authData.user.id, telefoneAcesso);
-
             } catch (err) {
-                console.error(err);
                 exibirErro(err.message);
             } finally {
                 if (btnEntrar) {
@@ -121,32 +93,5 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             }
         });
-    }
-
-    async function rotearParaPainel(authId, telefone = null) {
-        try {
-            let { data: perfil } = await supabaseClient.from('mediuns').select('id, cadastro_completo').eq('auth_id', authId).maybeSingle();
-
-            if (!perfil && telefone) {
-                const { data: pTel } = await supabaseClient.from('mediuns').select('id, cadastro_completo').eq('telefone', telefone).maybeSingle();
-                if (pTel) {
-                    perfil = pTel;
-                    await supabaseClient.from('mediuns').update({ auth_id: authId }).eq('id', perfil.id);
-                }
-            }
-
-            if (perfil) {
-                localStorage.setItem('medium_id', perfil.id);
-                if (perfil.cadastro_completo) {
-                    window.location.replace('presenca.html');
-                } else {
-                    window.location.replace('cadastro.html');
-                }
-            } else {
-                window.location.replace('admin.html');
-            }
-        } catch(e) {
-            window.location.replace('cadastro.html');
-        }
     }
 });
