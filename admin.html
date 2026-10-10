@@ -637,188 +637,198 @@
                 </div>
             </div>
 
-            <!-- SEÇÃO CONFIGURAÇÕES DA CASA -->
-            <div id="secAdministracao" class="secao-painel hidden">
-                <div class="bg-white p-5 md:p-6 rounded-2xl shadow-sm border-t-4 border-green-500 mb-6 md:mb-8">
-                    <div class="flex items-center mb-3">
-                        <div class="bg-green-100 p-3 rounded-xl mr-3 text-green-600">
-                            <i class="fas fa-map-marker-alt text-lg"></i>
+            <!-- SEÇÃO CONFIGURAÇÕES DA CASA (OTIMIZADA) -->
+            <div id="secAdministracao" class="secao-painel hidden space-y-6">
+
+                <!-- 1. BLOCO LOCALIZAÇÃO (MAPA NA ESQUERDA + COORDENADAS NA DIREITA) -->
+                <div class="bg-white p-5 md:p-6 rounded-2xl shadow-sm border-t-4 border-green-500">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-green-100 p-2.5 rounded-xl mr-3 text-green-600">
+                            <i class="fas fa-map-marker-alt text-base"></i>
                         </div>
                         <div>
                             <h3 class="text-base md:text-lg font-bold text-tema-texto">Localização Sede (GPS)</h3>
                             <p class="text-xs text-gray-500">Ponto exato para validação de check-in dos médiuns.</p>
                         </div>
                     </div>
-                    <p class="text-xs md:text-sm text-gray-600 mb-4">
-                        Capture as coordenadas pelo GPS do seu dispositivo ou introduza a latitude e a longitude manualmente clicando no mapa.
-                    </p>
 
-                    <!-- AÇÕES E CAMPOS DE COORDENADAS MANUAIS -->
-                    <div class="space-y-4">
-                        <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
-                            <button id="btnGravarLocalizacao" class="bg-green-500 hover:bg-green-600 active:scale-95 text-white font-bold py-2.5 px-6 rounded-xl shadow flex items-center justify-center gap-2 transition text-xs md:text-sm">
-                                <i class="fas fa-crosshairs"></i> Gravar Localização Atual (GPS)
-                            </button>
-                        </div>
-
-                        <!-- CAMPOS MANUAIS DE LATITUDE E LONGITUDE -->
-                        <div class="bg-gray-50 p-4 rounded-2xl border border-gray-200">
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-                                <div>
-                                    <label class="block text-[10px] md:text-xs font-bold text-gray-600 uppercase mb-1">Latitude</label>
-                                    <input type="text" id="inputLat" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm bg-white outline-none focus:ring-2 focus:ring-green-500" placeholder="-22.9068">
-                                </div>
-                                <div>
-                                    <label class="block text-[10px] md:text-xs font-bold text-gray-600 uppercase mb-1">Longitude</label>
-                                    <input type="text" id="inputLng" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm bg-white outline-none focus:ring-2 focus:ring-green-500" placeholder="-43.1729">
-                                </div>
-                            </div>
-                            <button id="btnSalvarLocalizacaoManual" class="w-full sm:w-auto bg-gray-800 hover:bg-gray-900 active:scale-95 text-white font-bold py-2 px-5 rounded-xl shadow transition text-xs md:text-sm flex items-center justify-center gap-2">
-                                <i class="fas fa-save"></i> Salvar Manualmente
-                            </button>
-                        </div>
-
-                        <div id="msgLocalizacao" class="hidden text-xs md:text-sm font-bold"></div>
-
-                        <!-- CONTENTOR DO MAPA LEAFLET -->
-                        <div class="mt-4">
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+                        <!-- Lado Esquerdo: Mapa Pequeno -->
+                        <div class="lg:col-span-5 flex flex-col">
                             <div class="flex justify-between items-center mb-1.5">
                                 <span class="text-xs font-bold text-gray-700"><i class="fas fa-map mr-1.5 text-green-600"></i> Mapa de Localização</span>
-                                <span class="text-[10px] text-gray-500">Clique no mapa para posicionar o marcador</span>
+                                <span class="text-[10px] text-gray-400">Clique para reposicionar</span>
                             </div>
                             <div id="mapaOverlay" class="hidden"></div>
-                            <div id="mapaLocalizacao" class="w-full h-80 md:h-96 rounded-2xl border border-gray-200 shadow-inner z-0"></div>
+                            <div id="mapaLocalizacao" class="w-full h-56 lg:h-full min-h-[220px] rounded-2xl border border-gray-200 shadow-inner z-0"></div>
+                        </div>
+
+                        <!-- Lado Direito: Ações e Coordenadas -->
+                        <div class="lg:col-span-7 flex flex-col justify-between space-y-3">
+                            <div>
+                                <p class="text-xs text-gray-600 mb-3 leading-relaxed">
+                                    Capture as coordenadas pelo GPS do seu dispositivo ou introduza a latitude e longitude manualmente clicando no mapa.
+                                </p>
+
+                                <button id="btnGravarLocalizacao" class="bg-green-500 hover:bg-green-600 active:scale-95 text-white font-bold py-2.5 px-5 rounded-xl shadow flex items-center justify-center gap-2 transition text-xs mb-3">
+                                    <i class="fas fa-crosshairs"></i> Gravar Localização Atual (GPS)
+                                </button>
+
+                                <div class="bg-gray-50 p-3.5 rounded-2xl border border-gray-200">
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                                        <div>
+                                            <label class="block text-[10px] md:text-xs font-bold text-gray-600 uppercase mb-1">Latitude</label>
+                                            <input type="text" id="inputLat" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs font-mono bg-white outline-none focus:ring-2 focus:ring-green-500" placeholder="-22.9068">
+                                        </div>
+                                        <div>
+                                            <label class="block text-[10px] md:text-xs font-bold text-gray-600 uppercase mb-1">Longitude</label>
+                                            <input type="text" id="inputLng" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs font-mono bg-white outline-none focus:ring-2 focus:ring-green-500" placeholder="-43.1729">
+                                        </div>
+                                    </div>
+                                    <button id="btnSalvarLocalizacaoManual" class="w-full sm:w-auto bg-gray-800 hover:bg-gray-900 active:scale-95 text-white font-bold py-2 px-5 rounded-xl shadow transition text-xs flex items-center justify-center gap-2">
+                                        <i class="fas fa-save"></i> Salvar Manualmente
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div id="msgLocalizacao" class="hidden text-xs font-bold"></div>
                         </div>
                     </div>
                 </div>
 
-                <div class="bg-white rounded-2xl shadow-sm border-t-4 border-tema-primaria p-5 md:p-6 mb-6 md:mb-8">
-                    <h3 class="text-base md:text-lg font-bold text-tema-texto mb-2"><i class="fas fa-image mr-2 text-tema-secundaria"></i> Logo da Casa</h3>
-                    <p class="text-xs md:text-sm text-gray-500 mb-4">Imagem que compõe a identidade no menu e documentos oficiais.</p>
-
-                    <div class="flex flex-col sm:flex-row items-center sm:items-start gap-4">
-                        <div class="w-28 h-28 border-2 border-dashed border-gray-300 rounded-xl flex items-center justify-center bg-gray-50 overflow-hidden relative shrink-0">
-                            <img id="previewLogo" src="" class="hidden max-w-full max-h-full object-contain p-2">
-                            <div id="placeholderLogo" class="text-gray-400 text-center">
-                                <i class="fas fa-camera text-2xl mb-1"></i><br><span class="text-[10px]">Sem Logo</span>
-                            </div>
-                        </div>
-                        <div class="flex-1 w-full">
-                            <label class="block text-xs md:text-sm font-medium text-gray-700 mb-1.5">Nova imagem (PNG transparente recomendado)</label>
-                            <input type="file" id="uploadLogo" accept="image/*" class="block w-full text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 mb-3 cursor-pointer">
-                            <button id="btnSalvarLogo" class="w-full sm:w-auto bg-tema-primaria hover:opacity-90 text-white px-5 py-2.5 rounded-xl shadow transition text-xs md:text-sm font-bold">
-                                Salvar Imagem
-                            </button>
-                            <p id="msgLogo" class="text-xs font-bold mt-2 hidden"></p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-white rounded-2xl shadow-sm border-t-4 border-tema-secundaria p-5 md:p-6 mb-6">
-                    <h3 class="text-base md:text-lg font-bold text-tema-texto mb-2"><i class="fas fa-palette mr-2 text-tema-secundaria"></i> Identidade Visual (Cores)</h3>
-                    <p class="text-xs md:text-sm text-gray-500 mb-6">Personalize as cores da interface da sua casa.</p>
-
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-                        <div class="p-3.5 border border-gray-100 rounded-xl bg-gray-50 flex justify-between items-center">
-                            <div>
-                                <h4 class="font-bold text-gray-800 text-xs md:text-sm">Cor Primária</h4>
-                                <p class="text-[10px] md:text-xs text-gray-500">Menu e cabeçalhos.</p>
-                            </div>
-                            <input type="color" id="corPrimaria" class="w-12 h-12 cursor-pointer border-0 rounded-lg bg-transparent">
-                        </div>
-
-                        <div class="p-3.5 border border-gray-100 rounded-xl bg-gray-50 flex justify-between items-center">
-                            <div>
-                                <h4 class="font-bold text-gray-800 text-xs md:text-sm">Cor Secundária</h4>
-                                <p class="text-[10px] md:text-xs text-gray-500">Ações e destaques.</p>
-                            </div>
-                            <input type="color" id="corSecundaria" class="w-12 h-12 cursor-pointer border-0 rounded-lg bg-transparent">
-                        </div>
-
-                        <div class="p-3.5 border border-gray-100 rounded-xl bg-gray-50 flex justify-between items-center">
-                            <div>
-                                <h4 class="font-bold text-gray-800 text-xs md:text-sm">Fundo</h4>
-                                <p class="text-[10px] md:text-xs text-gray-500">Fundo da aplicação.</p>
-                            </div>
-                            <input type="color" id="corFundo" class="w-12 h-12 cursor-pointer border-0 rounded-lg bg-transparent">
-                        </div>
-
-                        <div class="p-3.5 border border-gray-100 rounded-xl bg-gray-50 flex justify-between items-center">
-                            <div>
-                                <h4 class="font-bold text-gray-800 text-xs md:text-sm">Texto</h4>
-                                <p class="text-[10px] md:text-xs text-gray-500">Texto principal.</p>
-                            </div>
-                            <input type="color" id="corTexto" class="w-12 h-12 cursor-pointer border-0 rounded-lg bg-transparent">
-                        </div>
-                    </div>
-
-                    <button id="btnSalvarCores" class="w-full sm:w-auto bg-tema-primaria hover:opacity-90 text-white font-bold py-2.5 px-8 rounded-xl shadow transition text-sm">
-                        Salvar e Aplicar Cores
-                    </button>
-                    <p id="msgCores" class="text-xs md:text-sm font-bold mt-3 hidden"></p>
-                </div>
-
-                <!-- NOVO MÓDULO: CONFIGURAÇÕES DE MENSALIDADE -->
-                <div id="boxConfigMensalidade" class="bg-white rounded-3xl shadow-xl p-6 md:p-8 mt-8 border-l-4 border-tema-secundaria hidden">
-                    <div class="flex items-center gap-3 mb-2">
-                        <div class="w-10 h-10 rounded-full bg-green-100 text-green-600 flex items-center justify-center text-xl shadow-inner">
+                <!-- 2. BLOCO MENSALIDADES E TESOURARIA / VALORES POR GRAU (DIVIDIDO MEIO A MEIO) -->
+                <div id="boxConfigMensalidade" class="bg-white rounded-2xl shadow-sm p-5 md:p-6 border-t-4 border-tema-secundaria">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-9 h-9 rounded-full bg-green-100 text-green-600 flex items-center justify-center text-lg shadow-inner">
                             <i class="fas fa-hand-holding-usd"></i>
                         </div>
-                        <h3 class="text-xl font-black text-gray-800 tracking-tight">Mensalidades e Tesouraria</h3>
-                    </div>
-                    <p class="text-sm text-gray-500 mb-6 ml-13">Configure a forma de recebimento e os valores por grau da sua corrente.</p>
-                    
-                    <form id="formConfigMensalidade" class="space-y-6">
-                        <!-- Seleção de Gateway -->
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-2xl border border-gray-200">
-                            <label class="flex items-start space-x-3 cursor-pointer p-3 border border-green-200 rounded-xl bg-white shadow-sm hover:shadow transition">
-                                <input type="radio" name="gatewayPagamento" value="manual" class="mt-1 w-5 h-5 text-green-600 focus:ring-green-500" checked>
-                                <div>
-                                    <p class="font-bold text-gray-800 text-sm">PIX Manual + Comprovante</p>
-                                    <p class="text-xs text-gray-500 mt-1">Custo Zero. O médium anexa a foto do PIX e a tesouraria aprova.</p>
-                                </div>
-                            </label>
-                            
-                            <label class="flex items-start space-x-3 cursor-not-allowed p-3 border border-gray-200 rounded-xl bg-gray-50 opacity-60 relative" title="Em fase de integração">
-                                <div class="absolute top-2 right-2 bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded uppercase">Em Breve</div>
-                                <input type="radio" name="gatewayPagamento" value="asaas" class="mt-1 w-5 h-5 text-blue-600 focus:ring-blue-500" disabled>
-                                <div>
-                                    <p class="font-bold text-gray-800 text-sm">Asaas (Automático)</p>
-                                    <p class="text-xs text-gray-500 mt-1">Geração de QR Code dinâmico e baixa automática no sistema.</p>
-                                </div>
-                            </label>
-                        </div>
-
-                        <!-- Chaves PIX / API -->
-                        <div id="boxChavePix" class="space-y-2 bg-green-50 p-4 rounded-xl border border-green-100">
-                            <label class="block text-sm font-bold text-green-800"><i class="fab fa-pix mr-1"></i> Sua Chave PIX (Para receber as transferências)</label>
-                            <input type="text" id="chavePixManual" class="w-full px-4 py-2.5 border border-green-300 rounded-xl outline-none focus:ring-2 focus:ring-green-500 bg-white" placeholder="Ex: 12.345.678/0001-99 ou celular">
-                        </div>
-                        
-                        <div id="boxChaveAsaas" class="space-y-2 hidden bg-blue-50 p-4 rounded-xl border border-blue-100">
-                            <label class="block text-sm font-bold text-blue-800"><i class="fas fa-key mr-1"></i> API Key do Asaas</label>
-                            <input type="text" id="asaasApiKey" class="w-full px-4 py-2.5 border border-blue-300 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Ex: $aact_Y7... ">
-                        </div>
-
-                        <hr class="border-gray-200">
-
-                        <!-- Valores por Grau -->
                         <div>
-                            <h4 class="text-sm font-bold text-gray-800 mb-3"><i class="fas fa-sliders-h mr-2 text-gray-400"></i>Definição de Valores Mensais por Grau</h4>
-                            <div id="listaValoresGrau" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                                <!-- Gerado via JavaScript -->
-                                <p class="text-xs text-gray-400">A carregar graus...</p>
+                            <h3 class="text-base md:text-lg font-bold text-gray-800">Mensalidades e Tesouraria</h3>
+                            <p class="text-xs text-gray-500">Configure a forma de recebimento e os valores por grau da corrente.</p>
+                        </div>
+                    </div>
+                    
+                    <form id="formConfigMensalidade">
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                            
+                            <!-- Metade Esquerda: Gateways e Chaves PIX -->
+                            <div class="space-y-4">
+                                <div class="space-y-2.5">
+                                    <label class="flex items-start space-x-3 cursor-pointer p-3 border-2 border-green-500 rounded-xl bg-green-50/30 transition">
+                                        <input type="radio" name="gatewayPagamento" value="manual" class="mt-1 w-4 h-4 text-green-600 focus:ring-green-500" checked>
+                                        <div>
+                                            <p class="font-bold text-gray-800 text-xs md:text-sm">PIX Manual + Comprovante</p>
+                                            <p class="text-[11px] text-gray-500 mt-0.5">Custo Zero. O médium anexa a foto do PIX e a tesouraria aprova.</p>
+                                        </div>
+                                    </label>
+                                    
+                                    <label class="flex items-start space-x-3 cursor-not-allowed p-3 border border-gray-200 rounded-xl bg-gray-50 opacity-60 relative" title="Em fase de integração">
+                                        <div class="absolute top-2 right-2 bg-blue-100 text-blue-800 text-[10px] font-bold px-1.5 py-0.5 rounded uppercase">Em Breve</div>
+                                        <input type="radio" name="gatewayPagamento" value="asaas" class="mt-1 w-4 h-4 text-blue-600 focus:ring-blue-500" disabled>
+                                        <div>
+                                            <p class="font-bold text-gray-800 text-xs md:text-sm">Asaas (Automático)</p>
+                                            <p class="text-[11px] text-gray-500 mt-0.5">Geração de QR Code dinâmico e baixa automática no sistema.</p>
+                                        </div>
+                                    </label>
+                                </div>
+
+                                <div id="boxChavePix" class="space-y-1.5 bg-green-50/60 p-3.5 rounded-xl border border-green-200">
+                                    <label class="block text-xs font-bold text-green-900"><i class="fab fa-pix mr-1 text-green-600"></i> Sua Chave PIX (Para receber as transferências)</label>
+                                    <input type="text" id="chavePixManual" class="w-full px-3 py-2 border border-green-300 rounded-xl outline-none focus:ring-2 focus:ring-green-500 bg-white text-xs font-mono" placeholder="Ex: 12.345.678/0001-99 ou celular">
+                                </div>
+                                
+                                <div id="boxChaveAsaas" class="space-y-1.5 hidden bg-blue-50/60 p-3.5 rounded-xl border border-blue-200">
+                                    <label class="block text-xs font-bold text-blue-900"><i class="fas fa-key mr-1"></i> API Key do Asaas</label>
+                                    <input type="text" id="asaasApiKey" class="w-full px-3 py-2 border border-blue-300 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 bg-white text-xs font-mono" placeholder="Ex: $aact_Y7... ">
+                                </div>
+                            </div>
+
+                            <!-- Metade Direita: Definição de Valores Mensais por Grau -->
+                            <div class="bg-gray-50 p-4 rounded-2xl border border-gray-200 flex flex-col justify-between">
+                                <div>
+                                    <div class="flex items-center justify-between mb-2 pb-2 border-b border-gray-200">
+                                        <h4 class="text-xs md:text-sm font-bold text-gray-800 flex items-center">
+                                            <i class="fas fa-sliders-h mr-2 text-green-600"></i> Definição de Valores Mensais por Grau
+                                        </h4>
+                                        <span class="text-[11px] text-gray-400">Valores em R$</span>
+                                    </div>
+                                    
+                                    <!-- Container com scroll interno para eliminar o scroll vertical geral -->
+                                    <div id="listaValoresGrau" class="grid grid-cols-2 gap-2 max-h-[290px] overflow-y-auto pr-1">
+                                        <!-- Gerado via JavaScript -->
+                                        <p class="text-xs text-gray-400 col-span-2">A carregar graus...</p>
+                                    </div>
+                                </div>
+
+                                <div class="pt-3 border-t border-gray-200 mt-3 flex items-center justify-between">
+                                    <p id="msgConfigMensalidade" class="text-xs font-bold hidden"></p>
+                                    <button type="submit" id="btnSalvarConfigMensalidade" class="ml-auto bg-tema-secundaria hover:opacity-90 text-white font-bold py-2.5 px-6 rounded-xl shadow transition text-xs flex items-center justify-center gap-2 active:scale-95">
+                                        <i class="fas fa-save"></i> Salvar Tesouraria
+                                    </button>
+                                </div>
+                            </div>
+
+                        </div>
+                    </form>
+                </div>
+
+                <!-- 3. BLOCO VISUAL (LOGO + IDENTIDADE VISUAL EM 2 COLUNAS) -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Logo da Casa -->
+                    <div class="bg-white rounded-2xl shadow-sm border-t-4 border-tema-primaria p-5 md:p-6">
+                        <h3 class="text-base font-bold text-tema-texto mb-1"><i class="fas fa-image mr-2 text-tema-secundaria"></i> Logo da Casa</h3>
+                        <p class="text-xs text-gray-500 mb-4">Imagem do menu e documentos oficiais.</p>
+
+                        <div class="flex flex-col sm:flex-row items-center gap-4">
+                            <div class="w-24 h-24 border-2 border-dashed border-gray-300 rounded-xl flex items-center justify-center bg-gray-50 overflow-hidden relative shrink-0">
+                                <img id="previewLogo" src="" class="hidden max-w-full max-h-full object-contain p-2">
+                                <div id="placeholderLogo" class="text-gray-400 text-center">
+                                    <i class="fas fa-camera text-xl mb-1"></i><br><span class="text-[9px]">Sem Logo</span>
+                                </div>
+                            </div>
+                            <div class="flex-1 w-full space-y-2">
+                                <input type="file" id="uploadLogo" accept="image/*" class="block w-full text-xs text-gray-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 cursor-pointer">
+                                <button id="btnSalvarLogo" class="w-full sm:w-auto bg-tema-primaria hover:opacity-90 text-white px-4 py-2 rounded-xl shadow transition text-xs font-bold">
+                                    Salvar Imagem
+                                </button>
+                                <p id="msgLogo" class="text-xs font-bold mt-1 hidden"></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Identidade Visual (Cores) -->
+                    <div class="bg-white rounded-2xl shadow-sm border-t-4 border-tema-secundaria p-5 md:p-6 flex flex-col justify-between">
+                        <div>
+                            <h3 class="text-base font-bold text-tema-texto mb-1"><i class="fas fa-palette mr-2 text-tema-secundaria"></i> Identidade Visual (Cores)</h3>
+                            <p class="text-xs text-gray-500 mb-4">Cores de cabeçalho, ações, texto e fundo.</p>
+
+                            <div class="grid grid-cols-2 gap-3 mb-4">
+                                <div class="p-2.5 border border-gray-100 rounded-xl bg-gray-50 flex justify-between items-center">
+                                    <span class="font-bold text-gray-800 text-xs">Primária</span>
+                                    <input type="color" id="corPrimaria" class="w-8 h-8 cursor-pointer border-0 rounded-lg bg-transparent">
+                                </div>
+                                <div class="p-2.5 border border-gray-100 rounded-xl bg-gray-50 flex justify-between items-center">
+                                    <span class="font-bold text-gray-800 text-xs">Secundária</span>
+                                    <input type="color" id="corSecundaria" class="w-8 h-8 cursor-pointer border-0 rounded-lg bg-transparent">
+                                </div>
+                                <div class="p-2.5 border border-gray-100 rounded-xl bg-gray-50 flex justify-between items-center">
+                                    <span class="font-bold text-gray-800 text-xs">Fundo</span>
+                                    <input type="color" id="corFundo" class="w-8 h-8 cursor-pointer border-0 rounded-lg bg-transparent">
+                                </div>
+                                <div class="p-2.5 border border-gray-100 rounded-xl bg-gray-50 flex justify-between items-center">
+                                    <span class="font-bold text-gray-800 text-xs">Texto</span>
+                                    <input type="color" id="corTexto" class="w-8 h-8 cursor-pointer border-0 rounded-lg bg-transparent">
+                                </div>
                             </div>
                         </div>
 
-                        <p id="msgConfigMensalidade" class="text-sm font-bold hidden"></p>
-
-                        <div class="flex justify-end pt-2">
-                            <button type="submit" id="btnSalvarConfigMensalidade" class="bg-tema-secundaria hover:opacity-90 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition w-full md:w-auto flex items-center justify-center gap-2">
-                                <i class="fas fa-save"></i> Salvar Tesouraria
+                        <div class="flex items-center justify-between pt-1">
+                            <p id="msgCores" class="text-xs font-bold hidden"></p>
+                            <button id="btnSalvarCores" class="ml-auto w-full sm:w-auto bg-tema-primaria hover:opacity-90 text-white font-bold py-2 px-5 rounded-xl shadow transition text-xs">
+                                Salvar Cores
                             </button>
                         </div>
-                    </form>
+                    </div>
                 </div>
 
             </div>
