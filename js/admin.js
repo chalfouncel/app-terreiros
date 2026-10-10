@@ -66,7 +66,6 @@ function comprimirImagem(file, maxWidth = 1200, maxHeight = 1200, quality = 0.82
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // ESCOPO SEGURO PARA A VARIÁVEL DE CARREGAMENTO INICIAL
     let emModoMasterPuro = false;
     let terreiroSaaSForcado = null;
 
@@ -175,7 +174,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (!perfil.perm_doacoes && document.getElementById('menuDoacoes')) document.getElementById('menuDoacoes').classList.add('hidden');
                 if (!perfil.perm_admin && document.getElementById('menuAdmin')) document.getElementById('menuAdmin').classList.add('hidden');
                 
-                // Financeiro afeta as duas abas
                 if (!perfil.perm_financeiro) {
                     if (document.getElementById('menuFinanceiro')) document.getElementById('menuFinanceiro').classList.add('hidden');
                     if (document.getElementById('menuComprovantes')) document.getElementById('menuComprovantes').classList.add('hidden');
@@ -287,6 +285,80 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         // ========================================================
+        // CADASTRO DE NOVO MÉDIUM (GERAÇÃO DE ID E SENHA PADRÃO)
+        // ========================================================
+        const formNovoMedium = document.getElementById('formNovoMedium');
+        if (formNovoMedium) {
+            formNovoMedium.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const btn = document.getElementById('btnSalvarNovoMedium');
+                const msg = document.getElementById('msgNovoMedium');
+                const resultado = document.getElementById('resultadoNovoMedium');
+                const inputNome = document.getElementById('novoMediumNome');
+                const nomeCompleto = inputNome ? inputNome.value.trim() : '';
+
+                if (!nomeCompleto) return;
+                if (!idTerreiroGlobal) {
+                    alert('Erro: ID do terreiro não identificado.');
+                    return;
+                }
+
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Cadastrando...';
+                if (msg) msg.classList.add('hidden');
+
+                try {
+                    const { data: listaExistente, error: errBusca } = await supabaseClient
+                        .from('mediuns')
+                        .select('id')
+                        .eq('terreiro_id', idTerreiroGlobal)
+                        .order('id', { ascending: false })
+                        .limit(1);
+
+                    if (errBusca) throw errBusca;
+
+                    const proximoId = (listaExistente && listaExistente.length > 0) ? (listaExistente[0].id + 1) : 1;
+
+                    const novoRegistro = {
+                        id: proximoId,
+                        terreiro_id: idTerreiroGlobal,
+                        nome_completo: nomeCompleto,
+                        cadastro_completo: false,
+                        status_ativo: true,
+                        is_admin: false,
+                        isento_mensalidade: false
+                    };
+
+                    const { error: errInsert } = await supabaseClient
+                        .from('mediuns')
+                        .insert([novoRegistro]);
+
+                    if (errInsert) throw errInsert;
+
+                    formNovoMedium.classList.add('hidden');
+                    if (resultado) {
+                        const elId = document.getElementById('idGeradoNovoMedium');
+                        if (elId) elId.textContent = String(proximoId).padStart(2, '0');
+                        resultado.classList.remove('hidden');
+                    }
+
+                    carregarQuadroMediuns();
+
+                } catch (err) {
+                    console.error('Erro ao cadastrar novo médium:', err);
+                    if (msg) {
+                        msg.textContent = 'Erro ao cadastrar: ' + err.message;
+                        msg.className = 'text-xs text-red-600 block mt-2 font-bold';
+                        msg.classList.remove('hidden');
+                    }
+                } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = 'Cadastrar Médium';
+                }
+            });
+        }
+
+        // ========================================================
         // ATIVAÇÃO DOS BOTÕES DO MODAL DE COMPROVANTE
         // ========================================================
         const btnAprovarModal = document.getElementById('btnAprovarModal');
@@ -322,7 +394,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                                         ano: det.ano,
                                         pago: true,
                                         isento: false,
-                                        origem: 'pix_sistema' // <- REGISTRA A ORIGEM DO PIX
+                                        origem: 'pix_sistema'
                                     });
                                 });
                             }
@@ -738,6 +810,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
 
+        // ========================================================
+        // ANIVERSARIANTES (SEM O BADGE "SOCIAL")
+        // ========================================================
         function renderizarAniversariantes(lista) {
             const ul = document.getElementById('listaAniversariantes');
             const titulo = document.getElementById('tituloAniversariantesMes');
@@ -785,8 +860,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     dia = p[2]; mes = p[1];
                 }
 
+                // Exibe nome social se houver, ou primeiro nome, SEM badge "SOCIAL"
                 const nomeExibicao = m.nome_social ? m.nome_social : (m.nome_completo ? m.nome_completo.split(' ')[0] : 'Médium');
-                const badgeSocial = m.nome_social ? `<span class="bg-blue-100 text-blue-700 text-[9px] px-1.5 py-0.5 rounded ml-1 font-bold">SOCIAL</span>` : '';
 
                 ul.innerHTML += `
                     <li class="p-3 hover:bg-gray-50 flex items-center justify-between transition-colors border-l-4 border-transparent hover:border-blue-500">
@@ -795,7 +870,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 ${dia}
                             </div>
                             <div>
-                                <p class="text-sm font-bold text-gray-800 flex items-center">${nomeExibicao} ${badgeSocial}</p>
+                                <p class="text-sm font-bold text-gray-800">${nomeExibicao}</p>
                                 <p class="text-[10px] text-gray-500 uppercase">${m.grau || 'Médium'}</p>
                             </div>
                         </div>
@@ -804,6 +879,67 @@ document.addEventListener('DOMContentLoaded', async () => {
                 `;
             });
         }
+
+        // ========================================================
+        // FILTROS DO QUADRO DE MÉDIUNS
+        // ========================================================
+        window.aplicarFiltrosMediuns = () => {
+            const inputNome = document.getElementById('filtroNomeMedium');
+            const selectGrau = document.getElementById('filtroGrauMedium');
+            const selectStatus = document.getElementById('filtroStatusMedium');
+            const selectMes = document.getElementById('filtroMesNascimento');
+
+            const termoNome = (inputNome ? inputNome.value : '').toLowerCase().trim();
+            const termoGrau = (selectGrau ? selectGrau.value : '').toUpperCase();
+            const termoStatus = selectStatus ? selectStatus.value : '';
+            const termoMes = selectMes ? selectMes.value : '';
+
+            const filtrados = (listaMediunsGlobal || []).filter(m => {
+                // Filtro por Nome ou Nome Social
+                const nomeCompleto = (m.nome_completo || '').toLowerCase();
+                const nomeSocial = (m.nome_social || '').toLowerCase();
+                const bateNome = !termoNome || nomeCompleto.includes(termoNome) || nomeSocial.includes(termoNome);
+
+                // Filtro por Grau / Função
+                let bateGrau = true;
+                if (termoGrau) {
+                    const grauM = (m.grau || '').toUpperCase();
+                    const funcM = (m.funcao || '').toUpperCase();
+                    if (termoGrau === 'I') bateGrau = grauM.includes('I') || funcM.includes('I');
+                    else if (termoGrau === 'B') bateGrau = grauM.includes('B') || funcM.includes('B');
+                    else if (termoGrau === 'T') bateGrau = grauM.includes('T') || funcM.includes('T');
+                    else if (termoGrau === 'SCT') bateGrau = grauM.includes('SCT');
+                    else if (termoGrau === 'CT') bateGrau = grauM.includes('CT');
+                    else if (termoGrau === 'CCT') bateGrau = grauM.includes('CCT');
+                    else if (termoGrau === 'DIRIGENTE') bateGrau = grauM.includes('DIRIGENTE') || funcM.includes('DIRIGENTE');
+                    else bateGrau = grauM.includes(termoGrau) || funcM.includes(termoGrau);
+                }
+
+                // Filtro por Status
+                let bateStatus = true;
+                if (termoStatus === 'Ativo') {
+                    bateStatus = m.status_ativo !== false && m.cadastro_completo === true;
+                } else if (termoStatus === 'Pendente') {
+                    bateStatus = m.status_ativo !== false && !m.cadastro_completo;
+                }
+
+                // Filtro por Mês de Nascimento
+                let bateMes = true;
+                if (termoMes && m.data_nascimento) {
+                    let mesNasc = '';
+                    if (m.data_nascimento.includes('-')) mesNasc = m.data_nascimento.split('-')[1];
+                    else if (m.data_nascimento.includes('/')) mesNasc = m.data_nascimento.split('/')[1];
+                    bateMes = mesNasc === termoMes;
+                } else if (termoMes && !m.data_nascimento) {
+                    bateMes = false;
+                }
+
+                return bateNome && bateGrau && bateStatus && bateMes;
+            });
+
+            window.mediunsFiltrados = filtrados;
+            renderizarTabelaMediuns(filtrados);
+        };
 
         async function carregarAgenda() {
             if(!idTerreiroGlobal) return;
@@ -955,14 +1091,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         // ========================================================
-        // NOVO: VALIDADOR DE PAGAMENTOS (PIX MANUAL)
+        // VALIDADOR DE PAGAMENTOS (PIX MANUAL)
         // ========================================================
         window.carregarValidadorPagamentos = () => {
             carregarComprovantesPendentes();
             carregarHistoricoComprovantes();
         };
 
-       async function carregarComprovantesPendentes() {
+        async function carregarComprovantesPendentes() {
             if (!idTerreiroGlobal) return;
             const listaCards = document.getElementById('listaComprovantesPendentes');
             if (!listaCards) return;
@@ -1122,18 +1258,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             loader.classList.remove('hidden');
             
-            // Esconde ambos inicialmente
             if(frame) frame.classList.add('hidden');
             if(img) img.classList.add('hidden');
             
-            // Se for PDF, usa o Iframe
             if(url.toLowerCase().endsWith('.pdf')) {
                 if(frame) {
                     frame.src = `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
                     frame.classList.remove('hidden');
                 }
             } else {
-                // Se for Imagem, usa a tag IMG (que permite o zoom corretamente)
                 if(img) {
                     img.src = url;
                     img.classList.remove('hidden');
@@ -1168,7 +1301,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if(dashboard) dashboard.innerHTML = '<div class="col-span-full p-6 text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>A calcular métricas...</div>';
             
             const { data: todosMediuns } = await supabaseClient.from('mediuns')
-                .select('id, nome_completo, nome_social, isento_mensalidade, grau, funcao') 
+                .select('id, nome_completo, nome_social, isento_mensalidade, grau, funcao')
                 .eq('terreiro_id', idTerreiroGlobal)
                 .neq('nome_completo', 'Administrador Sistema')
                 .order('nome_completo');
@@ -1265,8 +1398,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const btnIsentarAno = `<button onclick="isentarAnoTodo(${m.id}, ${anoBusca})" title="Isentar ano todo (Automático)" class="ml-2 text-purple-400 hover:text-purple-600 active:scale-90 transition p-1"><i class="fas fa-magic"></i></button>`;
                 const statusHtml = emDia ? '<span class="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded">Em Dia</span>' : '<span class="bg-red-100 text-red-700 text-xs font-bold px-2 py-1 rounded">Pendente</span>';
                 tbody.innerHTML += `<tr class="hover:bg-gray-50"><td class="py-2 px-3 border-b border-gray-100 text-left font-medium text-gray-800 text-xs max-w-[220px]"><div class="flex items-center justify-between"><span class="truncate" title="${m.nome_completo}">${m.nome_completo}</span>${btnIsentarAno}</div></td>${htmlMeses}<td class="py-2 px-2 border-b border-gray-100 bg-gray-50">${statusHtml}</td></tr>`;
+            });
 
-                });
             if(dashboard) {
                 dashboard.innerHTML = '';
                 const nomesMeses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
@@ -1656,12 +1789,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
 
-        // ==========================================
-        // VÍNCULO DAS FUNÇÕES DE CARREGAMENTO NO ESCOPO (Se não estiverem globais)
-        // ==========================================
-        window.aplicarFiltrosMediuns = aplicarFiltrosMediuns;
-        window.carregarValidadorPagamentos = carregarValidadorPagamentos;
-        
         // DISPARO SEGURO DO CLIQUE INICIAL
         if (emModoMasterPuro) {
             document.getElementById('menuMaster')?.click();
@@ -1679,12 +1806,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // ==========================================
-// FUNÇÕES VINCULADAS AO OBJETO WINDOW (ACIONADAS POR ONCLICK DO HTML)
+// FUNÇÕES GLOBAIS E RELATÓRIOS
 // ==========================================
-
-window.aplicarFiltrosMediuns = () => {}; 
-window.carregarValidadorPagamentos = () => {};
-
 window.gerarPDFRelatorio = (titulo, colunas, dados) => {
     const containerPDF = document.createElement('div');
     containerPDF.style.padding = '20px 30px';
@@ -1817,7 +1940,7 @@ setTimeout(() => {
             if (m.data_nascimento) {
                 if (m.data_nascimento.includes('-')) {
                     const p = m.data_nascimento.split('-');
-                    if(p.length === 3) diaMes = `${p[2]}/${p[1]}`;
+                    if(p.length === 3) dataMes = `${p[2]}/${p[1]}`;
                 } else {
                     const dataNasc = m.data_nascimento;
                     if(dataNasc.includes('/')) diaMes = dataNasc.substring(0, 5);
@@ -2330,7 +2453,7 @@ window.aprovarComprovante = async (comprovanteId) => {
                             ano: det.ano,
                             pago: true,
                             isento: false,
-                            origem: 'pix_sistema' // <- REGISTRA A ORIGEM DO PIX NA FUNÇÃO SOLTA TB
+                            origem: 'pix_sistema'
                         });
                     });
                 }
