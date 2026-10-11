@@ -9,12 +9,8 @@ let marcadorGlobal = null;
 let circuloGlobal = null;
 let listaMediunsGlobal = []; 
 
-// Variavel global para o modal de comprovantes
 window.comprovanteAtualId = null;
 
-// ==============================================================================
-// FUNÇÃO UTILITÁRIA: COMPRESSÃO DE IMAGEM
-// ==============================================================================
 function comprimirImagem(file, maxWidth = 1200, maxHeight = 1200, quality = 0.82) {
     return new Promise((resolve) => {
         if (!file || !file.type || !file.type.match(/image.*/)) {
@@ -216,7 +212,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
 
-        // CARREGA OS MÉDIUNS IMEDIATAMENTE PARA ALIMENTAR CONVOCADOS DA AGENDA E FILTROS
         if (idTerreiroGlobal) {
             const { data: listaBase } = await supabaseClient
                 .from('mediuns')
@@ -295,9 +290,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         });
 
-        // ========================================================
-        // CADASTRO DE NOVO EVENTO / GIRA (AGENDA)
-        // ========================================================
         const formNovaGira = document.getElementById('formNovaGira');
         if (formNovaGira) {
             formNovaGira.addEventListener('submit', async (e) => {
@@ -324,7 +316,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 try {
                     let imagemUrl = null;
 
-                    // Upload do cartaz/imagem se selecionado
                     if (fileInput && fileInput.files && fileInput.files.length > 0) {
                         const arquivoOriginal = fileInput.files[0];
                         const arquivoComprimido = await comprimirImagem(arquivoOriginal, 1200, 1200, 0.85);
@@ -337,7 +328,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                         }
                     }
 
-                    // Lista de convocados selecionados (se for especial/restrita)
                     const convocados = especial ? (window['selecionados_listaCheckConvocados'] || []) : [];
 
                     const novoEvento = {
@@ -385,9 +375,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
 
-        // ========================================================
-        // EDIÇÃO DE EVENTO / GIRA (AGENDA)
-        // ========================================================
         const formEditarGira = document.getElementById('formEditarGira');
         if (formEditarGira) {
             formEditarGira.addEventListener('submit', async (e) => {
@@ -431,9 +418,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
 
-        // ========================================================
-        // REDIGIR TEXTO DA ATA
-        // ========================================================
         const formEscreverAta = document.getElementById('formEscreverAta');
         if (formEscreverAta) {
             formEscreverAta.addEventListener('submit', async (e) => {
@@ -477,9 +461,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
 
-        // ========================================================
-        // CADASTRO DE NOVO MÉDIUM (GERAÇÃO DE ID E SENHA PADRÃO)
-        // ========================================================
         const formNovoMedium = document.getElementById('formNovoMedium');
         if (formNovoMedium) {
             formNovoMedium.addEventListener('submit', async (e) => {
@@ -551,9 +532,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
 
-        // ========================================================
-        // MODAL EDITAR MÉDIUM
-        // ========================================================
         const formEditarMedium = document.getElementById('formEditarMedium');
         if (formEditarMedium) {
             formEditarMedium.addEventListener('submit', async (e) => {
@@ -604,9 +582,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
 
-        // ========================================================
-        // MODAL PERMISSÕES DE ACESSO (SALVAR E FECHAR)
-        // ========================================================
         const btnSalvarPermissoes = document.getElementById('btnSalvarPermissoes');
         if (btnSalvarPermissoes) {
             btnSalvarPermissoes.addEventListener('click', async () => {
@@ -656,9 +631,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
 
-        // ========================================================
-        // ATIVAÇÃO DOS BOTÕES DO MODAL DE COMPROVANTE
-        // ========================================================
         const btnAprovarModal = document.getElementById('btnAprovarModal');
         const btnRejeitarModal = document.getElementById('btnRejeitarModal');
 
@@ -758,9 +730,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
 
-       // ========================================================
-        // ATIVAÇÃO DO BOTÃO SALVAR CONFIG MENSALIDADES (COM SUPORTE AO ASAAS AUTOMÁTICO)
-        // ========================================================
         if (document.getElementById('formConfigMensalidade')) {
             document.getElementById('formConfigMensalidade').addEventListener('submit', async (e) => {
                 e.preventDefault();
@@ -778,7 +747,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const chavePix = document.getElementById('chavePixManual') ? document.getElementById('chavePixManual').value.trim() : '';
                     const asaasKey = document.getElementById('asaasApiKey') ? document.getElementById('asaasApiKey').value.trim() : '';
                     
-                    // Se o administrador selecionou o Asaas Automático, chama a Edge Function para garantir a criação da subconta (Wallet ID)
                     if (gateway === 'asaas') {
                         btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Criando subconta no Asaas...';
                         const { data: resSubconta, error: errSubconta } = await supabaseClient.functions.invoke('asaas-criar-subconta', {
@@ -826,9 +794,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
 
-        // ========================================================
-        // ATIVAÇÃO DO BOTÃO "EXPORTAR PDF" DAS DOAÇÕES
-        // ========================================================
         setTimeout(() => {
             const btnPDFDoacoes = document.getElementById('btnGerarPDF_doacoes');
             if (btnPDFDoacoes) {
@@ -858,10 +823,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
             }
         }, 800);
-
-        // ==========================================
-        // TODAS AS FUNÇÕES DE CARREGAMENTO NO ESCOPO
-        // ==========================================
 
         async function carregarPainelInicial() {
             if(!idTerreiroGlobal) return; 
@@ -1125,9 +1086,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
 
-        // ========================================================
-        // ANIVERSARIANTES (SEM O BADGE "SOCIAL")
-        // ========================================================
         function renderizarAniversariantes(lista) {
             const ul = document.getElementById('listaAniversariantes');
             const titulo = document.getElementById('tituloAniversariantesMes');
@@ -1194,9 +1152,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
 
-        // ========================================================
-        // FILTROS DO QUADRO DE MÉDIUNS
-        // ========================================================
         window.aplicarFiltrosMediuns = () => {
             const inputNome = document.getElementById('filtroNomeMedium');
             const selectGrau = document.getElementById('filtroGrauMedium');
@@ -1400,9 +1355,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
 
-        // ========================================================
-        // VALIDADOR DE PAGAMENTOS (PIX MANUAL)
-        // ========================================================
         window.carregarValidadorPagamentos = () => {
             carregarComprovantesPendentes();
             carregarHistoricoComprovantes();
@@ -1746,7 +1698,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (!idTerreiroGlobal) return;
             const { data } = await supabaseClient.from('terreiros').select('logo_url, cor_primaria, cor_secundaria, cor_fundo, cor_texto, latitude, longitude, modulo_mensalidade_ativo, gateway_pagamento, chave_pix_manual, asaas_api_key, email, cpf_cnpj, phone, postal_code, address, address_number, company_type, asaas_wallet_id').eq('id', idTerreiroGlobal).single();
             if (data) {
-                // Preenche os campos cadastrais do Asaas/Compliance
                 if (document.getElementById('inputTerreiroEmail')) document.getElementById('inputTerreiroEmail').value = data.email || '';
                 if (document.getElementById('inputTerreiroCpfCnpj')) document.getElementById('inputTerreiroCpfCnpj').value = data.cpf_cnpj || '';
                 if (document.getElementById('inputTerreiroPhone')) document.getElementById('inputTerreiroPhone').value = data.phone || '';
@@ -1804,42 +1755,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                     
                     if(document.getElementById('chavePixManual')) document.getElementById('chavePixManual').value = data.chave_pix_manual || '';
-                    
-                    const { data: configVals } = await supabaseClient.from('config_mensalidades').select('*').eq('terreiro_id', idTerreiroGlobal);
-                    const containerGraus = document.getElementById('listaValoresGrau');
-                    if(containerGraus) {
-                        containerGraus.innerHTML = '';
-                        const grausBase = ['I', 'IJ', 'B', 'BJ', 'T', 'TJ', 'SCT', 'Escola de CT', 'CT', 'SCCT', 'Escola de CCT', 'CCT', 'Dirigente', 'Outros'];
-                        grausBase.forEach(g => {
-                            const conf = configVals?.find(c => c.grau === g);
-                            const valor = conf ? conf.valor : '0.00';
-                            containerGraus.innerHTML += `
-                                <div class="flex flex-row items-center justify-between bg-white px-3 py-2 rounded-xl border border-gray-200 shadow-sm hover:border-gray-300 transition">
-                                    <label class="text-[14px] font-bold text-gray-800 uppercase tracking-wide truncate mr-2" title="${g}">${g}</label>
-                                    <div class="flex items-center shrink-0">
-                                        <span class="text-xs font-bold text-gray-500 mr-1.5">R$</span>
-                                        <input type="number" step="0.01" min="0" data-grau="${g}" value="${valor}" class="input-valor-grau w-20 px-2 py-1 text-xs font-bold font-mono border border-gray-200 rounded-lg outline-none focus:border-tema-secundaria focus:ring-1 focus:ring-tema-secundaria bg-gray-50 focus:bg-white text-gray-800 text-right">
-                                    </div>
-                                </div>
-                            `;
-                        });
-                    }
-                } else {
-                    document.getElementById('boxConfigMensalidade')?.classList.add('hidden');
-                }
-            }
-        }
-                    
-                    if(data.gateway_pagamento === 'asaas') {
-                         document.getElementById('boxChavePix')?.classList.add('hidden');
-                         document.getElementById('boxChaveAsaas')?.classList.remove('hidden');
-                    } else {
-                         document.getElementById('boxChavePix')?.classList.remove('hidden');
-                         document.getElementById('boxChaveAsaas')?.classList.add('hidden');
-                    }
-                    
-                    if(document.getElementById('chavePixManual')) document.getElementById('chavePixManual').value = data.chave_pix_manual || '';
-                    if(document.getElementById('asaasApiKey')) document.getElementById('asaasApiKey').value = data.asaas_api_key || '';
                     
                     const { data: configVals } = await supabaseClient.from('config_mensalidades').select('*').eq('terreiro_id', idTerreiroGlobal);
                     const containerGraus = document.getElementById('listaValoresGrau');
@@ -2143,7 +2058,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
 
-        // DISPARO SEGURO DO CLIQUE INICIAL
         if (emModoMasterPuro) {
             document.getElementById('menuMaster')?.click();
         } else if (perfilAdminLogado.is_admin || perfilAdminLogado.perm_visao_geral) {
@@ -2157,11 +2071,118 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (error) {
         console.error('Erro de inicialização:', error);
     }
+
+    const formMasterFin = document.getElementById('formMasterFinanceiro');
+    if (formMasterFin) {
+        formMasterFin.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const idT = document.getElementById('idTerreiroFinanceiroMaster').value;
+            const btn = document.getElementById('btnSalvarFinanceiroMaster');
+            const msg = document.getElementById('msgFinanceiroMaster');
+            
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
+            
+            const payload = {
+                mensalidade_saas: parseFloat(document.getElementById('inputMensalidadeSaas').value) || 0,
+                taxa_plataforma_percentual: parseFloat(document.getElementById('inputTaxaPercentual').value) || 0,
+                taxa_plataforma_fixa: parseFloat(document.getElementById('inputTaxaFixa').value) || 0,
+                asaas_wallet_id: document.getElementById('inputAsaasWalletId').value.trim()
+            };
+
+            const { error } = await supabaseClient.from('terreiros').update(payload).eq('id', idT);
+            
+            btn.disabled = false;
+            btn.innerHTML = 'Salvar Regras de Cobrança';
+            
+            if (error) {
+                msg.textContent = 'Erro: ' + error.message;
+                msg.className = 'text-red-600 text-xs mt-2 text-center font-bold block';
+                msg.classList.remove('hidden');
+            } else {
+                msg.innerHTML = '<i class="fas fa-check"></i> Salvo com sucesso!';
+                msg.className = 'text-green-600 text-xs mt-2 text-center font-bold block';
+                msg.classList.remove('hidden');
+                setTimeout(() => document.getElementById('modalMasterFinanceiro').classList.add('hidden'), 1500);
+            }
+        });
+    }
+
+    const formDadosCadastrais = document.getElementById('formDadosCadastraisTerreiro');
+    if (formDadosCadastrais) {
+        formDadosCadastrais.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const msg = document.getElementById('msgDadosCadastrais');
+            const btn = formDadosCadastrais.querySelector('button[type="submit"]');
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Salvando...';
+            if (msg) msg.classList.add('hidden');
+
+            try {
+                const payload = {
+                    email: document.getElementById('inputTerreiroEmail').value.trim(),
+                    cpf_cnpj: document.getElementById('inputTerreiroCpfCnpj').value.trim(),
+                    phone: document.getElementById('inputTerreiroPhone').value.trim(),
+                    postal_code: document.getElementById('inputTerreiroPostalCode').value.trim(),
+                    address: document.getElementById('inputTerreiroAddress').value.trim(),
+                    address_number: document.getElementById('inputTerreiroAddressNumber').value.trim(),
+                    company_type: document.getElementById('inputTerreiroCompanyType').value
+                };
+
+                const { error } = await supabaseClient
+                    .from('terreiros')
+                    .update(payload)
+                    .eq('id', idTerreiroGlobal);
+
+                if (error) throw error;
+
+                if (msg) {
+                    msg.textContent = 'Dados cadastrais salvos com sucesso!';
+                    msg.className = 'text-xs font-bold text-green-600 block';
+                    msg.classList.remove('hidden');
+                    setTimeout(() => msg.classList.add('hidden'), 4000);
+                }
+            } catch (err) {
+                if (msg) {
+                    msg.textContent = 'Erro ao salvar: ' + err.message;
+                    msg.className = 'text-xs font-bold text-red-600 block';
+                    msg.classList.remove('hidden');
+                }
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-save"></i> Salvar Dados Cadastrais';
+            }
+        });
+    }
+
+    const btnCriarSubcontaAsaas = document.getElementById('btnCriarSubcontaAsaas');
+    if (btnCriarSubcontaAsaas) {
+        btnCriarSubcontaAsaas.addEventListener('click', async () => {
+            const btn = btnCriarSubcontaAsaas;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Sincronizando com Asaas...';
+
+            try {
+                const { data, error } = await supabaseClient.functions.invoke('asaas-criar-subconta', {
+                    body: { terreiroId: idTerreiroGlobal }
+                });
+
+                if (error) throw error;
+                if (data && data.error) throw new Error(data.error);
+
+                alert('Subconta do Asaas criada e sincronizada com sucesso! Wallet ID: ' + data.walletId);
+            } catch (err) {
+                console.error('Erro na sincronização Asaas:', err);
+                alert('Erro ao criar subconta: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-sync-alt"></i> Sincronizar / Criar Subconta Asaas';
+            }
+        });
+    }
 });
 
-// ==========================================
-// FUNÇÕES GLOBAIS E RELATÓRIOS
-// ==========================================
 window.gerarPDFRelatorio = (titulo, colunas, dados) => {
     const containerPDF = document.createElement('div');
     containerPDF.style.padding = '20px 30px';
@@ -2388,13 +2409,9 @@ window.abrirModalPermissoes = (id, nome, permsString) => {
     document.getElementById('modalPermissoes').classList.remove('hidden');
 };
 
-// ========================================================
-// RENDERIZAÇÃO DOS CHECKBOXES DE CONVOCADOS
-// ========================================================
 window.renderizarCheckboxesConvocados = (containerId, listaSelecionadosIniciais = []) => {
     window['selecionados_' + containerId] = Array.isArray(listaSelecionadosIniciais) ? [...listaSelecionadosIniciais].map(String) : [];
     
-    // Se a lista de médiuns ainda não foi carregada, busca direto do banco
     if (!listaMediunsGlobal || listaMediunsGlobal.length === 0) {
         supabaseClient.from('mediuns')
             .select('id, auth_id, nome_completo, nome_social, grau, funcao')
@@ -2934,15 +2951,13 @@ window.abrirModalImportacao = (idTerreiro, nomeTerreiro) => {
     document.getElementById('nomeTerreiroImport').textContent = nomeTerreiro;
     document.getElementById('msgImportacao')?.classList.add('hidden');
     if (document.getElementById('formImportarCSV')) document.getElementById('formImportarCSV').reset();
-    document.getElementById('modalImportarCSV')?.classList.remove('hidden');
+    document.getElementById('modalImportarCSV')?.classList.add('hidden');
 };
 
 window.fecharModalImportacao = () => {
     document.getElementById('modalImportarCSV')?.classList.add('hidden');
 };
-// ========================================================
-// CONFIGURAÇÕES FINANCEIRAS MASTER (ASAAS)
-// ========================================================
+
 window.abrirModalFinanceiroMaster = async (idTerreiro, nomeTerreiro) => {
     document.getElementById('idTerreiroFinanceiroMaster').value = idTerreiro;
     document.getElementById('nomeTerreiroFinanceiroMaster').textContent = nomeTerreiro;
@@ -2961,118 +2976,3 @@ window.abrirModalFinanceiroMaster = async (idTerreiro, nomeTerreiro) => {
     
     document.getElementById('modalMasterFinanceiro').classList.remove('hidden');
 };
-
-document.addEventListener('DOMContentLoaded', () => {
-    const formMasterFin = document.getElementById('formMasterFinanceiro');
-    if (formMasterFin) {
-        formMasterFin.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const idT = document.getElementById('idTerreiroFinanceiroMaster').value;
-            const btn = document.getElementById('btnSalvarFinanceiroMaster');
-            const msg = document.getElementById('msgFinanceiroMaster');
-            
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
-            
-            const payload = {
-                mensalidade_saas: parseFloat(document.getElementById('inputMensalidadeSaas').value) || 0,
-                taxa_plataforma_percentual: parseFloat(document.getElementById('inputTaxaPercentual').value) || 0,
-                taxa_plataforma_fixa: parseFloat(document.getElementById('inputTaxaFixa').value) || 0,
-                asaas_wallet_id: document.getElementById('inputAsaasWalletId').value.trim()
-            };
-
-            const { error } = await supabaseClient.from('terreiros').update(payload).eq('id', idT);
-            
-            btn.disabled = false;
-            btn.innerHTML = 'Salvar Regras de Cobrança';
-            
-            if (error) {
-                msg.textContent = 'Erro: ' + error.message;
-                msg.className = 'text-red-600 text-xs mt-2 text-center font-bold block';
-                msg.classList.remove('hidden');
-            } else {
-                msg.innerHTML = '<i class="fas fa-check"></i> Salvo com sucesso!';
-                msg.className = 'text-green-600 text-xs mt-2 text-center font-bold block';
-                msg.classList.remove('hidden');
-                setTimeout(() => document.getElementById('modalMasterFinanceiro').classList.add('hidden'), 1500);
-            }
-        });
-    }
-// ========================================================
-// SALVAR DADOS CADASTRAIS & CRIAR/SINCRONIZAR SUBCONTA ASAAS
-// ========================================================
-document.addEventListener('DOMContentLoaded', () => {
-    const formDadosCadastrais = document.getElementById('formDadosCadastraisTerreiro');
-    if (formDadosCadastrais) {
-        formDadosCadastrais.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const msg = document.getElementById('msgDadosCadastrais');
-            const btn = formDadosCadastrais.querySelector('button[type="submit"]');
-
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Salvando...';
-            if (msg) msg.classList.add('hidden');
-
-            try {
-                const payload = {
-                    email: document.getElementById('inputTerreiroEmail').value.trim(),
-                    cpf_cnpj: document.getElementById('inputTerreiroCpfCnpj').value.trim(),
-                    phone: document.getElementById('inputTerreiroPhone').value.trim(),
-                    postal_code: document.getElementById('inputTerreiroPostalCode').value.trim(),
-                    address: document.getElementById('inputTerreiroAddress').value.trim(),
-                    address_number: document.getElementById('inputTerreiroAddressNumber').value.trim(),
-                    company_type: document.getElementById('inputTerreiroCompanyType').value
-                };
-
-                const { error } = await supabaseClient
-                    .from('terreiros')
-                    .update(payload)
-                    .eq('id', idTerreiroGlobal);
-
-                if (error) throw error;
-
-                if (msg) {
-                    msg.textContent = 'Dados cadastrais salvos com sucesso!';
-                    msg.className = 'text-xs font-bold text-green-600 block';
-                    msg.classList.remove('hidden');
-                    setTimeout(() => msg.classList.add('hidden'), 4000);
-                }
-            } catch (err) {
-                if (msg) {
-                    msg.textContent = 'Erro ao salvar: ' + err.message;
-                    msg.className = 'text-xs font-bold text-red-600 block';
-                    msg.classList.remove('hidden');
-                }
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-save"></i> Salvar Dados Cadastrais';
-            }
-        });
-    }
-
-    const btnCriarSubcontaAsaas = document.getElementById('btnCriarSubcontaAsaas');
-    if (btnCriarSubcontaAsaas) {
-        btnCriarSubcontaAsaas.addEventListener('click', async () => {
-            const btn = btnCriarSubcontaAsaas;
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Sincronizando com Asaas...';
-
-            try {
-                const { data, error } = await supabaseClient.functions.invoke('asaas-criar-subconta', {
-                    body: { terreiroId: idTerreiroGlobal }
-                });
-
-                if (error) throw error;
-                if (data && data.error) throw new Error(data.error);
-
-                alert('Subconta do Asaas criada e sincronizada com sucesso! Wallet ID: ' + data.walletId);
-            } catch (err) {
-                console.error('Erro na sincronização Asaas:', err);
-                alert('Erro ao criar subconta: ' + err.message);
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-sync-alt"></i> Sincronizar / Criar Subconta Asaas';
-            }
-        });
-    }
-});
