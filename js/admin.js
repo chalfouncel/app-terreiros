@@ -2075,7 +2075,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const statusMensalidade = t.modulo_mensalidade_ativo ? 'bg-amber-500 text-white hover:bg-amber-600' : 'bg-gray-200 text-gray-500 hover:bg-gray-300';
                 const btnMensalidade = `<button onclick="alternarModuloMensalidade('${t.id}', ${!t.modulo_mensalidade_ativo})" class="text-xs py-1 px-3 rounded shadow ml-2 transition ${statusMensalidade}" title="Habilitar/Desabilitar Módulo Tesouraria"><i class="fas fa-hand-holding-usd"></i></button>`;
 
-                const acaoHtml = `<div class="flex justify-center items-center">${btnAcessar}${btnBloqueio}${btnImportar}${btnMensalidade}</div>`;
+                const btnConfigFin = `<button onclick="abrirModalFinanceiroMaster('${t.id}', '${t.nome.replace(/'/g, "\\'")}')" class="text-xs bg-green-600 hover:bg-green-700 text-white py-1 px-3 rounded shadow ml-2" title="Regras Financeiras Asaas"><i class="fas fa-hand-holding-usd"></i></button>`;
+                const acaoHtml = `<div class="flex justify-center items-center">${btnAcessar}${btnBloqueio}${btnImportar}${btnMensalidade}${btnConfigFin}</div>`;
                 
                 tbody.innerHTML += `<tr class="border-b border-gray-100 ${t.status_bloqueado ? 'bg-red-50' : ''}"><td class="p-3 text-sm font-mono text-gray-500 truncate max-w-[120px]" title="${t.id}">${t.id.substring(0,8)}...</td><td class="p-3 font-bold text-gray-800">${t.nome}</td><td class="p-3 text-center">${statusHtml}</td><td class="p-3 text-center">${acaoHtml}</td></tr>`;
             });
@@ -2878,3 +2879,62 @@ window.abrirModalImportacao = (idTerreiro, nomeTerreiro) => {
 window.fecharModalImportacao = () => {
     document.getElementById('modalImportarCSV')?.classList.add('hidden');
 };
+// ========================================================
+// CONFIGURAÇÕES FINANCEIRAS MASTER (ASAAS)
+// ========================================================
+window.abrirModalFinanceiroMaster = async (idTerreiro, nomeTerreiro) => {
+    document.getElementById('idTerreiroFinanceiroMaster').value = idTerreiro;
+    document.getElementById('nomeTerreiroFinanceiroMaster').textContent = nomeTerreiro;
+    document.getElementById('msgFinanceiroMaster').classList.add('hidden');
+    
+    const { data } = await supabaseClient.from('terreiros')
+        .select('mensalidade_saas, taxa_plataforma_percentual, taxa_plataforma_fixa, asaas_wallet_id')
+        .eq('id', idTerreiro).single();
+    
+    if (data) {
+        document.getElementById('inputMensalidadeSaas').value = data.mensalidade_saas || 0;
+        document.getElementById('inputTaxaPercentual').value = data.taxa_plataforma_percentual || 0;
+        document.getElementById('inputTaxaFixa').value = data.taxa_plataforma_fixa || 0;
+        document.getElementById('inputAsaasWalletId').value = data.asaas_wallet_id || '';
+    }
+    
+    document.getElementById('modalMasterFinanceiro').classList.remove('hidden');
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    const formMasterFin = document.getElementById('formMasterFinanceiro');
+    if (formMasterFin) {
+        formMasterFin.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const idT = document.getElementById('idTerreiroFinanceiroMaster').value;
+            const btn = document.getElementById('btnSalvarFinanceiroMaster');
+            const msg = document.getElementById('msgFinanceiroMaster');
+            
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
+            
+            const payload = {
+                mensalidade_saas: parseFloat(document.getElementById('inputMensalidadeSaas').value) || 0,
+                taxa_plataforma_percentual: parseFloat(document.getElementById('inputTaxaPercentual').value) || 0,
+                taxa_plataforma_fixa: parseFloat(document.getElementById('inputTaxaFixa').value) || 0,
+                asaas_wallet_id: document.getElementById('inputAsaasWalletId').value.trim()
+            };
+
+            const { error } = await supabaseClient.from('terreiros').update(payload).eq('id', idT);
+            
+            btn.disabled = false;
+            btn.innerHTML = 'Salvar Regras de Cobrança';
+            
+            if (error) {
+                msg.textContent = 'Erro: ' + error.message;
+                msg.className = 'text-red-600 text-xs mt-2 text-center font-bold block';
+                msg.classList.remove('hidden');
+            } else {
+                msg.innerHTML = '<i class="fas fa-check"></i> Salvo com sucesso!';
+                msg.className = 'text-green-600 text-xs mt-2 text-center font-bold block';
+                msg.classList.remove('hidden');
+                setTimeout(() => document.getElementById('modalMasterFinanceiro').classList.add('hidden'), 1500);
+            }
+        });
+    }
+});
