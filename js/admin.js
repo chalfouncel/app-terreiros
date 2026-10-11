@@ -1606,7 +1606,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
 
             if(!mediuns || mediuns.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="14" class="p-6 text-center text-gray-500">Nenhum médium registado.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="14" class="p-6 text-center text-gray-500">Nenhum médium registrado.</td></tr>';
                 if(dashboard) dashboard.innerHTML = '';
                 return;
             }
