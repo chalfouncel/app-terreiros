@@ -688,7 +688,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const TARIFA_BANCARIA = 2.99;
                 const totalComTaxa = totalGeral + TARIFA_BANCARIA;
 
-                valorPendenteParaPix = totalComTaxa;
+                valorPendenteParaPix = totalGeral;
 
                 if (valorTotalMensalidade) valorTotalMensalidade.textContent = totalComTaxa.toFixed(2).replace('.', ',');
 
