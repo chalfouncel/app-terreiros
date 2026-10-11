@@ -2147,18 +2147,29 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (msg) msg.classList.add('hidden');
 
             try {
-                const payload = {
-            email: document.getElementById('inputTerreiroEmail').value.trim(),
-            cpf_cnpj: document.getElementById('inputTerreiroCpfCnpj').value.trim(),
-            dirigente_id: document.getElementById('selectDirigenteCompliance').value ? parseInt(document.getElementById('selectDirigenteCompliance').value) : null,
-            phone: document.getElementById('inputTerreiroPhone').value.trim(),
-            postal_code: document.getElementById('inputTerreiroPostalCode').value.trim(),
-            address: document.getElementById('inputTerreiroAddress').value.trim(),
-            address_number: document.getElementById('inputTerreiroAddressNumber').value.trim(),
-            company_type: document.getElementById('inputTerreiroCompanyType').value,
-            tipo_chave_pix_repasse: document.getElementById('tipoChavePixRepasse')?.value || 'CPF',
-            chave_pix_repasse: document.getElementById('chavePixRepasse')?.value.trim() || ''
-        };
+            const cpfBruto = document.getElementById('inputTerreiroCpfCnpj').value || '';
+            const elChavePix = document.getElementById('chavePixRepasse');
+            const elTipoChave = document.getElementById('tipoChavePixRepasse');
+            
+            const chaveBruta = elChavePix ? elChavePix.value : '';
+            const tipoChave = elTipoChave ? elTipoChave.value : 'CPF';
+            
+            // Limpa formatação (remove pontos e traços) que causam bloqueio na base de dados
+            const cpfLimpo = cpfBruto.replace(/\D/g, ''); 
+            const chaveLimpa = (tipoChave === 'CPF' || tipoChave === 'CNPJ') ? chaveBruta.replace(/\D/g, '') : chaveBruta.trim();
+
+            const payload = {
+                email: document.getElementById('inputTerreiroEmail').value.trim(),
+                cpf_cnpj: cpfLimpo,
+                dirigente_id: document.getElementById('selectDirigenteCompliance').value ? parseInt(document.getElementById('selectDirigenteCompliance').value) : null,
+                phone: document.getElementById('inputTerreiroPhone').value.trim(),
+                postal_code: document.getElementById('inputTerreiroPostalCode').value.trim(),
+                address: document.getElementById('inputTerreiroAddress').value.trim(),
+                address_number: document.getElementById('inputTerreiroAddressNumber').value.trim(),
+                company_type: document.getElementById('inputTerreiroCompanyType').value,
+                tipo_chave_pix_repasse: tipoChave,
+                chave_pix_repasse: chaveLimpa
+            };
                 const { error } = await supabaseClient
                     .from('terreiros')
                     .update(payload)
