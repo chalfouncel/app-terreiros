@@ -1725,6 +1725,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (document.getElementById('inputTerreiroAddress')) document.getElementById('inputTerreiroAddress').value = data.address || '';
                 if (document.getElementById('inputTerreiroAddressNumber')) document.getElementById('inputTerreiroAddressNumber').value = data.address_number || '';
                 if (document.getElementById('inputTerreiroCompanyType')) document.getElementById('inputTerreiroCompanyType').value = data.company_type || 'ASSOCIATION';
+                if (document.getElementById('tipoChavePixRepasse')) document.getElementById('tipoChavePixRepasse').value = data.tipo_chave_pix_repasse || 'CPF';
+                if (document.getElementById('chavePixRepasse')) document.getElementById('chavePixRepasse').value = data.chave_pix_repasse || '';
 
                 if(data.logo_url) {
                     const prev = document.getElementById('previewLogo');
@@ -2141,16 +2143,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             try {
                 const payload = {
-                    email: document.getElementById('inputTerreiroEmail').value.trim(),
-                    cpf_cnpj: document.getElementById('inputTerreiroCpfCnpj').value.trim(),
-                    dirigente_id: document.getElementById('selectDirigenteCompliance').value ? parseInt(document.getElementById('selectDirigenteCompliance').value) : null,
-                    phone: document.getElementById('inputTerreiroPhone').value.trim(),
-                    postal_code: document.getElementById('inputTerreiroPostalCode').value.trim(),
-                    address: document.getElementById('inputTerreiroAddress').value.trim(),
-                    address_number: document.getElementById('inputTerreiroAddressNumber').value.trim(),
-                    company_type: document.getElementById('inputTerreiroCompanyType').value
-                };
-
+            email: document.getElementById('inputTerreiroEmail').value.trim(),
+            cpf_cnpj: document.getElementById('inputTerreiroCpfCnpj').value.trim(),
+            dirigente_id: document.getElementById('selectDirigenteCompliance').value ? parseInt(document.getElementById('selectDirigenteCompliance').value) : null,
+            phone: document.getElementById('inputTerreiroPhone').value.trim(),
+            postal_code: document.getElementById('inputTerreiroPostalCode').value.trim(),
+            address: document.getElementById('inputTerreiroAddress').value.trim(),
+            address_number: document.getElementById('inputTerreiroAddressNumber').value.trim(),
+            company_type: document.getElementById('inputTerreiroCompanyType').value,
+            tipo_chave_pix_repasse: document.getElementById('tipoChavePixRepasse')?.value || 'CPF',
+            chave_pix_repasse: document.getElementById('chavePixRepasse')?.value.trim() || ''
+        };
                 const { error } = await supabaseClient
                     .from('terreiros')
                     .update(payload)
