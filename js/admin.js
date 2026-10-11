@@ -1640,9 +1640,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                     } else if (isIsento) {
                         checkedStr = 'checked'; corCheck = 'accent-color: #a855f7;'; 
                         titleStr = 'Isento (Botão direito p/ desfazer)';
+                    } else if (pago && origem === 'asaas') {
+                        checkedStr = 'checked'; disabledStr = 'disabled'; 
+                        corCheck = 'accent-color: #3b82f6; opacity: 0.8; cursor: not-allowed;'; 
+                        titleStr = 'Pago via Asaas Automático (Irreversível)';
                     } else if (pago && origem === 'pix_sistema') {
-                        checkedStr = 'checked'; corCheck = 'accent-color: #3b82f6;'; 
-                        titleStr = 'Pago via PIX (Sistema)';
+                        checkedStr = 'checked'; disabledStr = 'disabled'; 
+                        corCheck = 'accent-color: #3b82f6; opacity: 0.8; cursor: not-allowed;'; 
+                        titleStr = 'Pago via PIX Asaas (Irreversível)';
                     } else if (pago) {
                         checkedStr = 'checked'; corCheck = 'accent-color: #16a34a;'; 
                         titleStr = 'Pago (Manual)';
@@ -1651,8 +1656,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
 
                     htmlMeses += `<td class="py-1 px-1 border-b border-gray-100">
-                        <input type="checkbox" ${checkedStr} ${disabledStr} style="${corCheck}" title="${titleStr}" class="w-4 h-4 cursor-pointer" 
-                        onchange="salvarPagamento(${m.id}, ${i}, ${anoBusca}, this.checked)"
+                        <input type="checkbox" data-origem="${origem}" ${checkedStr} ${disabledStr} style="${corCheck}" title="${titleStr}" class="w-4 h-4 cursor-pointer" 
+                        onchange="salvarPagamento(${m.id}, ${i}, ${anoBusca}, this.checked, this)"
                         oncontextmenu="toggleIsentoMes(event, ${m.id}, ${i}, ${anoBusca}, ${isAntesDoIngresso})">
                     </td>`;
                 }
@@ -2827,7 +2832,15 @@ window.isentarAnoTodo = async (mediumId, ano) => {
     document.getElementById('menuFinanceiro')?.click();
 };
 
-window.salvarPagamento = async (mediumId, mes, ano, status) => {
+window.salvarPagamento = async (mediumId, mes, ano, status, elementoCheckbox) => {
+    const origem = elementoCheckbox ? elementoCheckbox.getAttribute('data-origem') : null;
+    
+    if (origem === 'asaas' || origem === 'pix_sistema') {
+        alert("Atenção: Não é permitido desmarcar manualmente um pagamento que foi liquidado automaticamente pelo Asaas.");
+        if (elementoCheckbox) elementoCheckbox.checked = true;
+        return; 
+    }
+
     const { error } = await supabaseClient.from('financeiro').upsert({ 
         medium_id: mediumId, mes: mes, ano: ano, pago: status, isento: false, origem: 'manual' 
     }, { onConflict: 'medium_id,mes,ano' });
