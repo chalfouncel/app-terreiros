@@ -359,6 +359,58 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         // ========================================================
+        // MODAL PERMISSÕES DE ACESSO (SALVAR E FECHAR)
+        // ========================================================
+        const btnSalvarPermissoes = document.getElementById('btnSalvarPermissoes');
+        if (btnSalvarPermissoes) {
+            btnSalvarPermissoes.addEventListener('click', async () => {
+                const idMedium = document.getElementById('idMediumPermissao').value;
+                if (!idMedium) return;
+
+                const btnHtml = btnSalvarPermissoes.innerHTML;
+                btnSalvarPermissoes.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Salvando...';
+                btnSalvarPermissoes.disabled = true;
+
+                const payload = {
+                    perm_visao_geral: document.getElementById('chkPermVisao')?.checked || false,
+                    perm_agenda: document.getElementById('chkPermAgenda')?.checked || false,
+                    perm_ata: document.getElementById('chkPermAta')?.checked || false,
+                    perm_grau: document.getElementById('chkPermGrau')?.checked || false,
+                    perm_financeiro: document.getElementById('chkPermFinanceiro')?.checked || false,
+                    perm_doacoes: document.getElementById('chkPermDoacoes')?.checked || false,
+                    perm_admin: document.getElementById('chkPermAdmin')?.checked || false
+                };
+
+                try {
+                    const { error } = await supabaseClient
+                        .from('mediuns')
+                        .update(payload)
+                        .eq('id', idMedium)
+                        .eq('terreiro_id', idTerreiroGlobal);
+
+                    if (error) throw error;
+
+                    document.getElementById('modalPermissoes').classList.add('hidden');
+                    alert('Permissões atualizadas com sucesso!');
+                    carregarQuadroMediuns();
+                } catch (err) {
+                    console.error('Erro ao salvar permissões:', err);
+                    alert('Erro ao salvar permissões: ' + err.message);
+                } finally {
+                    btnSalvarPermissoes.innerHTML = btnHtml;
+                    btnSalvarPermissoes.disabled = false;
+                }
+            });
+        }
+
+        const btnFecharPermissoes = document.getElementById('btnFecharPermissoes');
+        if (btnFecharPermissoes) {
+            btnFecharPermissoes.addEventListener('click', () => {
+                document.getElementById('modalPermissoes').classList.add('hidden');
+            });
+        }
+
+        // ========================================================
         // ATIVAÇÃO DOS BOTÕES DO MODAL DE COMPROVANTE
         // ========================================================
         const btnAprovarModal = document.getElementById('btnAprovarModal');
@@ -860,7 +912,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     dia = p[2]; mes = p[1];
                 }
 
-                // Exibe nome social se houver, ou primeiro nome, SEM badge "SOCIAL"
                 const nomeExibicao = m.nome_social ? m.nome_social : (m.nome_completo ? m.nome_completo.split(' ')[0] : 'Médium');
 
                 ul.innerHTML += `
@@ -895,12 +946,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             const termoMes = selectMes ? selectMes.value : '';
 
             const filtrados = (listaMediunsGlobal || []).filter(m => {
-                // Filtro por Nome ou Nome Social
                 const nomeCompleto = (m.nome_completo || '').toLowerCase();
                 const nomeSocial = (m.nome_social || '').toLowerCase();
                 const bateNome = !termoNome || nomeCompleto.includes(termoNome) || nomeSocial.includes(termoNome);
 
-                // Filtro por Grau / Função
                 let bateGrau = true;
                 if (termoGrau) {
                     const grauM = (m.grau || '').toUpperCase();
@@ -915,7 +964,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     else bateGrau = grauM.includes(termoGrau) || funcM.includes(termoGrau);
                 }
 
-                // Filtro por Status
                 let bateStatus = true;
                 if (termoStatus === 'Ativo') {
                     bateStatus = m.status_ativo !== false && m.cadastro_completo === true;
@@ -923,7 +971,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     bateStatus = m.status_ativo !== false && !m.cadastro_completo;
                 }
 
-                // Filtro por Mês de Nascimento
                 let bateMes = true;
                 if (termoMes && m.data_nascimento) {
                     let mesNasc = '';
@@ -1306,7 +1353,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 .neq('nome_completo', 'Administrador Sistema')
                 .order('nome_completo');
 
-            // Exclui exclusivamente quem for Dirigente E estiver marcado como isento
             const mediuns = (todosMediuns || []).filter(m => {
                 const ehDirigente = (m.grau === 'Dirigente' || m.funcao === 'Dirigente');
                 const estaIsento = m.isento_mensalidade === true;
@@ -1940,7 +1986,7 @@ setTimeout(() => {
             if (m.data_nascimento) {
                 if (m.data_nascimento.includes('-')) {
                     const p = m.data_nascimento.split('-');
-                    if(p.length === 3) dataMes = `${p[2]}/${p[1]}`;
+                    if(p.length === 3) diaMes = `${p[2]}/${p[1]}`;
                 } else {
                     const dataNasc = m.data_nascimento;
                     if(dataNasc.includes('/')) diaMes = dataNasc.substring(0, 5);
