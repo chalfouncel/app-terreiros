@@ -81,7 +81,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Bloqueio se o médium estiver inativo
         if (perfil.status_ativo === false || perfil.status_ativo === 'false') {
-            alert("O seu acesso ao sistema está inativo. Por favor, entre em contacto com a Administração da Casa.");
+            alert("O seu acesso ao sistema está inativo. Por favor, entre em contato com a Administração da Casa.");
             await supabaseClient.auth.signOut();
             localStorage.clear();
             window.location.href = 'index.html';
