@@ -1720,7 +1720,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             }
 
-            const { data } = await supabaseClient.from('terreiros').select('logo_url, cor_primaria, cor_secundaria, cor_fundo, cor_texto, latitude, longitude, modulo_mensalidade_ativo, gateway_pagamento, chave_pix_manual, asaas_api_key, email, cpf_cnpj, phone, postal_code, address, address_number, company_type, asaas_wallet_id, dirigente_id').eq('id', idTerreiroGlobal).single();
+            const { data } = await supabaseClient.from('terreiros').select('logo_url, cor_primaria, cor_secundaria, cor_fundo, cor_texto, latitude, longitude, modulo_mensalidade_ativo, gateway_pagamento, chave_pix_manual, asaas_api_key, email, cpf_cnpj, phone, postal_code, address, address_number, company_type, asaas_wallet_id, dirigente_id, tipo_chave_pix_repasse, chave_pix_repasse').eq('id', idTerreiroGlobal).single();
             if (data) {
                 if (document.getElementById('inputTerreiroEmail')) document.getElementById('inputTerreiroEmail').value = data.email || '';
                 if (document.getElementById('inputTerreiroCpfCnpj')) document.getElementById('inputTerreiroCpfCnpj').value = data.cpf_cnpj || '';
