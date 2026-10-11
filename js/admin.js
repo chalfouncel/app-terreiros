@@ -216,6 +216,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
 
+        // CARREGA OS MÉDIUNS IMEDIATAMENTE PARA ALIMENTAR CONVOCADOS DA AGENDA E FILTROS
+        if (idTerreiroGlobal) {
+            const { data: listaBase } = await supabaseClient
+                .from('mediuns')
+                .select('id, auth_id, nome_completo, nome_social, grau, funcao, data_nascimento, telefone, palavra, cadastro_completo, status_ativo')
+                .eq('terreiro_id', idTerreiroGlobal)
+                .neq('nome_completo', 'Administrador Sistema')
+                .order('nome_completo');
+            listaMediunsGlobal = listaBase || [];
+        }
+
         const menus = document.querySelectorAll('.menu-item');
         const secoes = document.querySelectorAll('.secao-painel');
 
@@ -283,6 +294,186 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             });
         });
+
+        // ========================================================
+        // CADASTRO DE NOVO EVENTO / GIRA (AGENDA)
+        // ========================================================
+        const formNovaGira = document.getElementById('formNovaGira');
+        if (formNovaGira) {
+            formNovaGira.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const btn = document.getElementById('btnSalvarGira');
+                const msg = document.getElementById('msgGira');
+                
+                const titulo = document.getElementById('giraTitulo').value.trim();
+                const inicio = document.getElementById('giraInicio').value;
+                const fim = document.getElementById('giraFim').value;
+                const geraAta = document.getElementById('giraGeraAta')?.checked || false;
+                const especial = document.getElementById('giraEspecial')?.checked || false;
+                const fileInput = document.getElementById('giraArquivo');
+
+                if (!titulo || !inicio || !fim) {
+                    alert('Preencha os campos obrigatórios do evento.');
+                    return;
+                }
+
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Salvando Evento...';
+                if (msg) msg.classList.add('hidden');
+
+                try {
+                    let imagemUrl = null;
+
+                    // Upload do cartaz/imagem se selecionado
+                    if (fileInput && fileInput.files && fileInput.files.length > 0) {
+                        const arquivoOriginal = fileInput.files[0];
+                        const arquivoComprimido = await comprimirImagem(arquivoOriginal, 1200, 1200, 0.85);
+                        const nomeArquivo = `gira_${idTerreiroGlobal}_${Date.now()}.${arquivoComprimido.name.split('.').pop()}`;
+                        
+                        const { error: errUp } = await supabaseClient.storage.from('logos').upload(nomeArquivo, arquivoComprimido);
+                        if (!errUp) {
+                            const { data: urlData } = supabaseClient.storage.from('logos').getPublicUrl(nomeArquivo);
+                            imagemUrl = urlData.publicUrl;
+                        }
+                    }
+
+                    // Lista de convocados selecionados (se for especial/restrita)
+                    const convocados = especial ? (window['selecionados_listaCheckConvocados'] || []) : [];
+
+                    const novoEvento = {
+                        terreiro_id: idTerreiroGlobal,
+                        titulo: titulo,
+                        data_hora_inicio: inicio,
+                        data_hora_fim: fim,
+                        gera_ata: geraAta,
+                        especial: especial,
+                        convocados: convocados,
+                        imagem_url: imagemUrl
+                    };
+
+                    const { error: errInsert } = await supabaseClient
+                        .from('agenda')
+                        .insert([novoEvento]);
+
+                    if (errInsert) throw errInsert;
+
+                    formNovaGira.reset();
+                    window['selecionados_listaCheckConvocados'] = [];
+                    document.getElementById('boxConvocados')?.classList.add('hidden');
+
+                    if (msg) {
+                        msg.textContent = 'Evento cadastrado com sucesso!';
+                        msg.className = 'text-xs md:text-sm font-bold mt-2 text-green-600 block';
+                        msg.classList.remove('hidden');
+                        setTimeout(() => msg.classList.add('hidden'), 4000);
+                    }
+
+                    carregarAgenda();
+
+                } catch (err) {
+                    console.error('Erro ao salvar evento:', err);
+                    if (msg) {
+                        msg.textContent = 'Erro ao salvar: ' + err.message;
+                        msg.className = 'text-xs md:text-sm font-bold mt-2 text-red-600 block';
+                        msg.classList.remove('hidden');
+                    }
+                } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = 'Salvar Evento';
+                }
+            });
+        }
+
+        // ========================================================
+        // EDIÇÃO DE EVENTO / GIRA (AGENDA)
+        // ========================================================
+        const formEditarGira = document.getElementById('formEditarGira');
+        if (formEditarGira) {
+            formEditarGira.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const id = document.getElementById('editGiraId').value;
+                const titulo = document.getElementById('editGiraTitulo').value.trim();
+                const inicio = document.getElementById('editGiraInicio').value;
+                const fim = document.getElementById('editGiraFim').value;
+                const geraAta = document.getElementById('editGiraGeraAta')?.checked || false;
+                const especial = document.getElementById('editGiraEspecial')?.checked || false;
+                const convocados = especial ? (window['selecionados_editListaCheckConvocados'] || []) : [];
+
+                const btn = document.getElementById('btnSalvarEditGira');
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Salvando...';
+
+                try {
+                    const { error } = await supabaseClient.from('agenda')
+                        .update({
+                            titulo,
+                            data_hora_inicio: inicio,
+                            data_hora_fim: fim,
+                            gera_ata: geraAta,
+                            especial: especial,
+                            convocados: convocados
+                        })
+                        .eq('id', id)
+                        .eq('terreiro_id', idTerreiroGlobal);
+
+                    if (error) throw error;
+
+                    window.fecharModalEditarGira();
+                    carregarAgenda();
+                } catch (err) {
+                    alert('Erro ao atualizar: ' + err.message);
+                } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = 'Salvar Alterações';
+                }
+            });
+        }
+
+        // ========================================================
+        // REDIGIR TEXTO DA ATA
+        // ========================================================
+        const formEscreverAta = document.getElementById('formEscreverAta');
+        if (formEscreverAta) {
+            formEscreverAta.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const id = document.getElementById('ataEventoId').value;
+                const texto = document.getElementById('ataTexto').value;
+                const btn = document.getElementById('btnSalvarTextoAta');
+                const msg = document.getElementById('msgEscreverAta');
+
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Gravando...';
+
+                try {
+                    const { error } = await supabaseClient
+                        .from('agenda')
+                        .update({ texto_ata: texto })
+                        .eq('id', id)
+                        .eq('terreiro_id', idTerreiroGlobal);
+
+                    if (error) throw error;
+
+                    if (msg) {
+                        msg.textContent = 'Texto da Ata salvo com sucesso!';
+                        msg.className = 'text-center mt-2 text-xs md:text-sm font-bold text-green-600 block';
+                        msg.classList.remove('hidden');
+                        setTimeout(() => {
+                            window.fecharModalEscreverAta();
+                            if (typeof window.carregarLivroAta === 'function') window.carregarLivroAta();
+                        }, 1200);
+                    }
+                } catch (err) {
+                    if (msg) {
+                        msg.textContent = 'Erro ao salvar: ' + err.message;
+                        msg.className = 'text-center mt-2 text-xs md:text-sm font-bold text-red-600 block';
+                        msg.classList.remove('hidden');
+                    }
+                } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = 'Salvar Texto da Ata';
+                }
+            });
+        }
 
         // ========================================================
         // CADASTRO DE NOVO MÉDIUM (GERAÇÃO DE ID E SENHA PADRÃO)
@@ -354,6 +545,59 @@ document.addEventListener('DOMContentLoaded', async () => {
                 } finally {
                     btn.disabled = false;
                     btn.innerHTML = 'Cadastrar Médium';
+                }
+            });
+        }
+
+        // ========================================================
+        // MODAL EDITAR MÉDIUM
+        // ========================================================
+        const formEditarMedium = document.getElementById('formEditarMedium');
+        if (formEditarMedium) {
+            formEditarMedium.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const id = document.getElementById('editMediumId').value;
+                const nomeCompleto = document.getElementById('editMediumNome').value.trim();
+                const nomeSocial = document.getElementById('editMediumNomeSocial').value.trim();
+                const telefone = document.getElementById('editMediumTelefone').value.trim();
+                const nascimento = document.getElementById('editMediumNascimento').value;
+                const grau = document.getElementById('editMediumGrau').value;
+                const funcao = document.getElementById('editMediumFuncao').value;
+
+                const btn = document.getElementById('btnSalvarEditMedium');
+                const msg = document.getElementById('msgEditMedium');
+
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Salvando...';
+                if (msg) msg.classList.add('hidden');
+
+                try {
+                    const { error } = await supabaseClient
+                        .from('mediuns')
+                        .update({
+                            nome_completo: nomeCompleto,
+                            nome_social: nomeSocial,
+                            telefone: telefone,
+                            data_nascimento: nascimento || null,
+                            grau: grau,
+                            funcao: funcao
+                        })
+                        .eq('id', id)
+                        .eq('terreiro_id', idTerreiroGlobal);
+
+                    if (error) throw error;
+
+                    window.fecharModalEditarMedium();
+                    carregarQuadroMediuns();
+                } catch (err) {
+                    if (msg) {
+                        msg.textContent = 'Erro ao salvar: ' + err.message;
+                        msg.className = 'text-xs text-red-600 block mt-2 font-bold text-center';
+                        msg.classList.remove('hidden');
+                    }
+                } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = 'Salvar Alterações';
                 }
             });
         }
@@ -2080,39 +2324,63 @@ window.abrirModalPermissoes = (id, nome, permsString) => {
     document.getElementById('modalPermissoes').classList.remove('hidden');
 };
 
+// ========================================================
+// RENDERIZAÇÃO DOS CHECKBOXES DE CONVOCADOS
+// ========================================================
+window.renderizarCheckboxesConvocados = (containerId, listaSelecionadosIniciais = []) => {
+    window['selecionados_' + containerId] = Array.isArray(listaSelecionadosIniciais) ? [...listaSelecionadosIniciais].map(String) : [];
+    
+    // Se a lista de médiuns ainda não foi carregada, busca direto do banco
+    if (!listaMediunsGlobal || listaMediunsGlobal.length === 0) {
+        supabaseClient.from('mediuns')
+            .select('id, auth_id, nome_completo, nome_social, grau, funcao')
+            .eq('terreiro_id', idTerreiroGlobal)
+            .neq('nome_completo', 'Administrador Sistema')
+            .order('nome_completo')
+            .then(({ data }) => {
+                listaMediunsGlobal = data || [];
+                window.filtrarConvocados(containerId, containerId === 'editListaCheckConvocados' ? 'editFiltroConvocadosNome' : 'filtroConvocadosNome', containerId === 'editListaCheckConvocados' ? 'editFiltroConvocadosGrau' : 'filtroConvocadosGrau');
+            });
+    } else {
+        window.filtrarConvocados(containerId, containerId === 'editListaCheckConvocados' ? 'editFiltroConvocadosNome' : 'filtroConvocadosNome', containerId === 'editListaCheckConvocados' ? 'editFiltroConvocadosGrau' : 'filtroConvocadosGrau');
+    }
+};
+
 document.addEventListener('change', (e) => {
     if(e.target.id === 'giraEspecial') {
         const box = document.getElementById('boxConvocados');
         if(e.target.checked) {
             box?.classList.remove('hidden');
-            if(typeof renderizarCheckboxesConvocados === 'function') renderizarCheckboxesConvocados('listaCheckConvocados', []);
+            window.renderizarCheckboxesConvocados('listaCheckConvocados', []);
         } else box?.classList.add('hidden');
     }
     if(e.target.id === 'editGiraEspecial') {
         const box = document.getElementById('editBoxConvocados');
         if(e.target.checked) {
             box?.classList.remove('hidden');
+            window.renderizarCheckboxesConvocados('editListaCheckConvocados', []);
         } else box?.classList.add('hidden');
     }
 });
 
 window.atualizarSelecao = (containerId, checkbox) => {
     let arr = window['selecionados_' + containerId] || [];
+    const val = String(checkbox.value);
     if(checkbox.checked) {
-        if(!arr.includes(checkbox.value)) arr.push(checkbox.value);
+        if(!arr.includes(val)) arr.push(val);
     } else {
-        arr = arr.filter(v => v !== checkbox.value);
+        arr = arr.filter(v => v !== val);
     }
     window['selecionados_' + containerId] = arr;
 };
 
 window.filtrarConvocados = (containerId, inputNomeId, selectGrauId) => {
-    const termoNome = (document.getElementById(inputNomeId)?.value || '').toLowerCase();
-    const termoGrau = (document.getElementById(selectGrauId)?.value || '').toLowerCase();
+    const termoNome = (document.getElementById(inputNomeId)?.value || '').toLowerCase().trim();
+    const termoGrau = (document.getElementById(selectGrauId)?.value || '').toLowerCase().trim();
     
     const filtrados = (listaMediunsGlobal || []).filter(m => {
-        const nomeStr = (m.nome_social ? m.nome_social : m.nome_completo).toLowerCase();
-        const passaNome = nomeStr.includes(termoNome);
+        const nomeStr = (m.nome_social ? m.nome_social : (m.nome_completo || '')).toLowerCase();
+        const passaNome = !termoNome || nomeStr.includes(termoNome) || (m.nome_completo || '').toLowerCase().includes(termoNome);
         
         let passaGrau = true;
         if (termoGrau !== '') {
@@ -2130,14 +2398,14 @@ window.filtrarConvocados = (containerId, inputNomeId, selectGrauId) => {
     const selecionados = window['selecionados_' + containerId] || [];
 
     if(filtrados.length === 0) {
-        html = '<span class="text-xs text-gray-500 col-span-2 md:col-span-4">Nenhum médium encontrado.</span>';
+        html = '<span class="text-xs text-gray-500 col-span-2 md:col-span-4 p-2">Nenhum médium encontrado.</span>';
     } else {
         filtrados.forEach(m => {
             const idStr = String(m.id);
             const isChecked = selecionados.includes(idStr) ? 'checked' : '';
             const nomeExibicao = m.nome_social ? m.nome_social : m.nome_completo;
             html += `
-                <label class="flex items-center space-x-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-50 p-1 rounded" title="Grau: ${m.grau || '-'} / Função: ${m.funcao || '-'}">
+                <label class="flex items-center space-x-2 text-xs md:text-sm text-gray-700 cursor-pointer hover:bg-gray-50 p-1 rounded" title="Grau: ${m.grau || '-'} / Função: ${m.funcao || '-'}">
                     <input type="checkbox" value="${m.id}" class="chk-convocado rounded text-red-500 focus:ring-red-500" ${isChecked} onchange="atualizarSelecao('${containerId}', this)">
                     <span class="truncate">${nomeExibicao}</span>
                 </label>
@@ -2194,10 +2462,11 @@ window.abrirModalEditarGira = async (id) => {
     const boxEspecial = document.getElementById('editBoxConvocados');
     if (chkEspecial && boxEspecial) {
         chkEspecial.checked = data.especial || false;
-        if (data.especial) boxEspecial.classList.remove('hidden');
-        else boxEspecial.classList.add('hidden');
-        if(typeof renderizarCheckboxesConvocados === 'function') {
-            renderizarCheckboxesConvocados('editListaCheckConvocados', data.convocados || []);
+        if (data.especial) {
+            boxEspecial.classList.remove('hidden');
+            window.renderizarCheckboxesConvocados('editListaCheckConvocados', data.convocados || []);
+        } else {
+            boxEspecial.classList.add('hidden');
         }
     }
 
