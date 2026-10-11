@@ -1800,12 +1800,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             }
         }
-                } else {
-                    document.getElementById('boxConfigMensalidade')?.classList.add('hidden');
-                }
-            }
-        }
-
+                
         function iniciarMapa(lat, lng, zoomLvl) {
             const mapEl = document.getElementById('mapaLocalizacao');
             const overlay = document.getElementById('mapaOverlay');
