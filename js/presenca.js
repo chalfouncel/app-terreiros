@@ -682,23 +682,28 @@ document.addEventListener('DOMContentLoaded', async () => {
             totalGeral += qtd * item.valorUnitario;
         });
 
-        // ATUALIZA A VARIÁVEL PARA O GERADOR DE PIX:
-        valorPendenteParaPix = totalGeral;
-
-        if (valorTotalMensalidade) valorTotalMensalidade.textContent = totalGeral.toFixed(2).replace('.', ',');
-
         if (totalMesesSelecionados > 0) {
             // Verifica o gateway escolhido pelo Terreiro para mostrar a interface correta
             if (terreiroConfigMensalidade && terreiroConfigMensalidade.gateway_pagamento === 'asaas') {
+                const TARIFA_BANCARIA = 2.99;
+                const totalComTaxa = totalGeral + TARIFA_BANCARIA;
+
+                valorPendenteParaPix = totalComTaxa;
+
+                if (valorTotalMensalidade) valorTotalMensalidade.textContent = totalComTaxa.toFixed(2).replace('.', ',');
+
                 if (boxPagamentoManual) boxPagamentoManual.classList.add('hidden');
                 if (btnFinalizarMensalidade) {
                     btnFinalizarMensalidade.disabled = false;
                     btnFinalizarMensalidade.classList.remove('opacity-50', 'cursor-not-allowed', 'bg-tema-secundaria', 'hover:bg-green-700');
                     btnFinalizarMensalidade.classList.add('bg-blue-600', 'hover:bg-blue-700');
-                    btnFinalizarMensalidade.innerHTML = `<i class="fas fa-bolt mr-2"></i> Pagar R$ ${totalGeral.toFixed(2).replace('.', ',')} (PIX / Cartão)`;
+                    btnFinalizarMensalidade.innerHTML = `<i class="fas fa-bolt mr-2"></i> Pagar R$ ${totalComTaxa.toFixed(2).replace('.', ',')} (+ R$ 2,99 taxa bancária)`;
                 }
             } else {
                 // Modo PIX Manual
+                valorPendenteParaPix = totalGeral;
+                if (valorTotalMensalidade) valorTotalMensalidade.textContent = totalGeral.toFixed(2).replace('.', ',');
+
                 if (boxPagamentoManual) boxPagamentoManual.classList.remove('hidden');
                 if (btnFinalizarMensalidade) {
                     btnFinalizarMensalidade.disabled = false;
@@ -708,6 +713,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             }
         } else {
+            valorPendenteParaPix = 0;
+            if (valorTotalMensalidade) valorTotalMensalidade.textContent = "0,00";
+
             if (boxPagamentoManual) boxPagamentoManual.classList.add('hidden');
             if (btnFinalizarMensalidade) {
                 btnFinalizarMensalidade.disabled = true;
