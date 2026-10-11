@@ -2999,79 +2999,78 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 // ========================================================
-        // SALVAR DADOS CADASTRAIS & CRIAR/SINCRONIZAR SUBCONTA ASAAS
-        // ========================================================
-        const formDadosCadastrais = document.getElementById('formDadosCadastraisTerreiro');
-        if (formDadosCadastrais) {
-            formDadosCadastrais.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const msg = document.getElementById('msgDadosCadastrais');
-                const btn = formDadosCadastrais.querySelector('button[type="submit"]');
+// SALVAR DADOS CADASTRAIS & CRIAR/SINCRONIZAR SUBCONTA ASAAS
+// ========================================================
+const formDadosCadastrais = document.getElementById('formDadosCadastraisTerreiro');
+if (formDadosCadastrais) {
+    formDadosCadastrais.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const msg = document.getElementById('msgDadosCadastrais');
+        const btn = formDadosCadastrais.querySelector('button[type="submit"]');
 
-                btn.disabled = true;
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Salvando...';
-                if (msg) msg.classList.add('hidden');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Salvando...';
+        if (msg) msg.classList.add('hidden');
 
-                try {
-                    const payload = {
-                        email: document.getElementById('inputTerreiroEmail').value.trim(),
-                        cpf_cnpj: document.getElementById('inputTerreiroCpfCnpj').value.trim(),
-                        phone: document.getElementById('inputTerreiroPhone').value.trim(),
-                        postal_code: document.getElementById('inputTerreiroPostalCode').value.trim(),
-                        address: document.getElementById('inputTerreiroAddress').value.trim(),
-                        address_number: document.getElementById('inputTerreiroAddressNumber').value.trim(),
-                        company_type: document.getElementById('inputTerreiroCompanyType').value
-                    };
+        try {
+            const payload = {
+                email: document.getElementById('inputTerreiroEmail').value.trim(),
+                cpf_cnpj: document.getElementById('inputTerreiroCpfCnpj').value.trim(),
+                phone: document.getElementById('inputTerreiroPhone').value.trim(),
+                postal_code: document.getElementById('inputTerreiroPostalCode').value.trim(),
+                address: document.getElementById('inputTerreiroAddress').value.trim(),
+                address_number: document.getElementById('inputTerreiroAddressNumber').value.trim(),
+                company_type: document.getElementById('inputTerreiroCompanyType').value
+            };
 
-                    const { error } = await supabaseClient
-                        .from('terreiros')
-                        .update(payload)
-                        .eq('id', idTerreiroGlobal);
+            const { error } = await supabaseClient
+                .from('terreiros')
+                .update(payload)
+                .eq('id', idTerreiroGlobal);
 
-                    if (error) throw error;
+            if (error) throw error;
 
-                    if (msg) {
-                        msg.textContent = 'Dados cadastrais salvos com sucesso!';
-                        msg.className = 'text-xs font-bold text-green-600 block';
-                        msg.classList.remove('hidden');
-                        setTimeout(() => msg.classList.add('hidden'), 4000);
-                    }
-                } catch (err) {
-                    if (msg) {
-                        msg.textContent = 'Erro ao salvar: ' + err.message;
-                        msg.className = 'text-xs font-bold text-red-600 block';
-                        msg.classList.remove('hidden');
-                    }
-                } finally {
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="fas fa-save"></i> Salvar Dados Cadastrais';
-                }
-            });
+            if (msg) {
+                msg.textContent = 'Dados cadastrais salvos com sucesso!';
+                msg.className = 'text-xs font-bold text-green-600 block';
+                msg.classList.remove('hidden');
+                setTimeout(() => msg.classList.add('hidden'), 4000);
+            }
+        } catch (err) {
+            if (msg) {
+                msg.textContent = 'Erro ao salvar: ' + err.message;
+                msg.className = 'text-xs font-bold text-red-600 block';
+                msg.classList.remove('hidden');
+            }
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-save"></i> Salvar Dados Cadastrais';
         }
+    });
+}
 
-        const btnCriarSubcontaAsaas = document.getElementById('btnCriarSubcontaAsaas');
-        if (btnCriarSubcontaAsaas) {
-            btnCriarSubcontaAsaas.addEventListener('click', async () => {
-                const btn = btnCriarSubcontaAsaas;
-                btn.disabled = true;
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Sincronizando com Asaas...';
+const btnCriarSubcontaAsaas = document.getElementById('btnCriarSubcontaAsaas');
+if (btnCriarSubcontaAsaas) {
+    btnCriarSubcontaAsaas.addEventListener('click', async () => {
+        const btn = btnCriarSubcontaAsaas;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Sincronizando com Asaas...';
 
-                try {
-                    const { data, error } = await supabaseClient.functions.invoke('asaas-criar-subconta', {
-                        body: { terreiroId: idTerreiroGlobal }
-                    });
-
-                    if (error) throw error;
-                    if (data && data.error) throw new Error(data.error);
-
-                    alert('Subconta do Asaas criada e sincronizada com sucesso! Wallet ID: ' + data.walletId);
-                } catch (err) {
-                    console.error('Erro na sincronização Asaas:', err);
-                    alert('Erro ao criar subconta: ' + err.message);
-                } finally {
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="fas fa-sync-alt"></i> Sincronizar / Criar Subconta Asaas';
-                }
+        try {
+            const { data, error } = await supabaseClient.functions.invoke('asaas-criar-subconta', {
+                body: { terreiroId: idTerreiroGlobal }
             });
+
+            if (error) throw error;
+            if (data && data.error) throw new Error(data.error);
+
+            alert('Subconta do Asaas criada e sincronizada com sucesso! Wallet ID: ' + data.walletId);
+        } catch (err) {
+            console.error('Erro na sincronização Asaas:', err);
+            alert('Erro ao criar subconta: ' + err.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-sync-alt"></i> Sincronizar / Criar Subconta Asaas';
         }
-});
+    });
+}
