@@ -758,8 +758,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
 
-        // ========================================================
-        // ATIVAÇÃO DO BOTÃO SALVAR CONFIG MENSALIDADES
+       // ========================================================
+        // ATIVAÇÃO DO BOTÃO SALVAR CONFIG MENSALIDADES (COM SUPORTE AO ASAAS AUTOMÁTICO)
         // ========================================================
         if (document.getElementById('formConfigMensalidade')) {
             document.getElementById('formConfigMensalidade').addEventListener('submit', async (e) => {
@@ -767,7 +767,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const btn = document.getElementById('btnSalvarConfigMensalidade');
                 const msg = document.getElementById('msgConfigMensalidade');
                 
-                btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Salvando...';
+                btn.disabled = true; 
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Salvando configurações...';
+                if (msg) msg.classList.add('hidden');
                 
                 try {
                     let gateway = 'manual';
@@ -776,9 +778,23 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const chavePix = document.getElementById('chavePixManual') ? document.getElementById('chavePixManual').value.trim() : '';
                     const asaasKey = document.getElementById('asaasApiKey') ? document.getElementById('asaasApiKey').value.trim() : '';
                     
+                    // Se o administrador selecionou o Asaas Automático, chama a Edge Function para garantir a criação da subconta (Wallet ID)
+                    if (gateway === 'asaas') {
+                        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Criando subconta no Asaas...';
+                        const { data: resSubconta, error: errSubconta } = await supabaseClient.functions.invoke('asaas-criar-subconta', {
+                            body: { terreiroId: idTerreiroGlobal }
+                        });
+                        
+                        if (errSubconta) throw errSubconta;
+                        if (resSubconta && resSubconta.error) throw new Error(resSubconta.error);
+                    }
+                    
                     const { error: errT } = await supabaseClient.from('terreiros').update({
-                        gateway_pagamento: gateway, chave_pix_manual: chavePix, asaas_api_key: asaasKey
+                        gateway_pagamento: gateway, 
+                        chave_pix_manual: chavePix, 
+                        asaas_api_key: asaasKey
                     }).eq('id', idTerreiroGlobal);
+                    
                     if (errT) throw errT;
                     
                     const inputs = document.querySelectorAll('.input-valor-grau');
@@ -792,7 +808,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                     
                     if (msg) {
-                        msg.innerHTML = '<i class="fas fa-check-circle mr-1"></i> Configurações salvas!';
+                        msg.innerHTML = '<i class="fas fa-check-circle mr-1"></i> Configurações e subconta Asaas salvas com sucesso!';
                         msg.className = 'text-sm text-green-600 block mb-4 border border-green-200 bg-green-50 p-2 rounded';
                         msg.classList.remove('hidden');
                         setTimeout(() => msg.classList.add('hidden'), 5000);
@@ -800,11 +816,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 } catch(error) {
                     if (msg) {
                         msg.textContent = '❌ Erro: ' + error.message;
-                        msg.className = 'text-sm text-red-600 block mb-4';
+                        msg.className = 'text-sm text-red-600 block mb-4 border border-red-200 bg-red-50 p-2 rounded';
                         msg.classList.remove('hidden');
                     }
                 } finally {
-                    btn.disabled = false; btn.innerHTML = '<i class="fas fa-save"></i> Salvar Tesouraria';
+                    btn.disabled = false; 
+                    btn.innerHTML = '<i class="fas fa-save"></i> Salvar Tesouraria';
                 }
             });
         }
