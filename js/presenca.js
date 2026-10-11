@@ -1000,22 +1000,34 @@ async function chamarEdgeFunctionAsaas(valorTotal, mesesArray) {
         btnOriginal.disabled = true;
     }
     
-    // Log para fins de debug nesta fase
-    console.log(`(Simulação) Chamando Supabase Edge Function... \nEnviando: CPF ${perfilMediumLogado.cpf}, Valor: R$ ${valorTotal}`);
-    
-    // ==========================================
-    // AQUI ENTRARÁ O FETCH PARA A EDGE FUNCTION 
-    // NO PRÓXIMO PASSO
-    // ==========================================
-    
-    // Simular o tempo de resposta
-    setTimeout(() => {
-        alert("O seu CPF já se encontra guardado no sistema!\n\nNo Passo 2, este botão abrirá diretamente a página oficial de checkout do Asaas (via Edge Function) para pagar a mensalidade.");
+    try {
+        const { data, error } = await supabaseClient.functions.invoke('asaas-gerar-cobranca', {
+            body: {
+                mediumId: perfilMediumLogado.id,
+                terreiroId: idTerreiroGlobal,
+                valorTotal: valorTotal,
+                mesesSelecionados: mesesArray
+            }
+        });
+
+        if (error) throw error;
+
+        if (data && data.invoiceUrl) {
+            window.open(data.invoiceUrl, '_blank');
+            fecharModalMensalidade();
+        } else {
+            throw new Error("O servidor não retornou o link de pagamento.");
+        }
+
+    } catch (err) {
+        console.error("Erro no pagamento Asaas:", err);
+        alert("Erro ao gerar link de pagamento: " + (err.message || err));
+    } finally {
         if (btnOriginal) {
             btnOriginal.innerHTML = `<i class="fas fa-bolt mr-2"></i> Pagar R$ ${valorTotal.toFixed(2).replace('.', ',')} (PIX / Cartão)`;
             btnOriginal.disabled = false;
         }
-    }, 1500);
+    }
 }
 
 
