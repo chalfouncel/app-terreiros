@@ -343,6 +343,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const novoEvento = {
                         terreiro_id: idTerreiroGlobal,
                         titulo: titulo,
+                        tipo: especial ? 'especial' : 'normal',
                         data_hora_inicio: inicio,
                         data_hora_fim: fim,
                         gera_ata: geraAta,
@@ -407,6 +408,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const { error } = await supabaseClient.from('agenda')
                         .update({
                             titulo,
+                            tipo: especial ? 'especial' : 'normal',
                             data_hora_inicio: inicio,
                             data_hora_fim: fim,
                             gera_ata: geraAta,
