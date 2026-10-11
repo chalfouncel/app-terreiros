@@ -1,3 +1,4 @@
+<!-- VERSÃO: ASAAS_STEP_2 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -722,9 +723,9 @@
                                         </div>
                                     </label>
                                     
-                                    <label class="flex items-start space-x-3 cursor-not-allowed p-3 border border-gray-200 rounded-xl bg-gray-50 opacity-60 relative" title="Em fase de integração">
-                                        <div class="absolute top-2 right-2 bg-blue-100 text-blue-800 text-[10px] font-bold px-1.5 py-0.5 rounded uppercase">Em Breve</div>
-                                        <input type="radio" name="gatewayPagamento" value="asaas" class="mt-1 w-4 h-4 text-blue-600 focus:ring-blue-500" disabled>
+                                    <label class="flex items-start space-x-3 cursor-pointer p-3 border border-gray-200 rounded-xl bg-gray-50 transition relative">
+                                        <div class="absolute top-2 right-2 bg-blue-100 text-blue-800 text-[10px] font-bold px-1.5 py-0.5 rounded uppercase">Novo</div>
+                                        <input type="radio" name="gatewayPagamento" value="asaas" class="mt-1 w-4 h-4 text-blue-600 focus:ring-blue-500">
                                         <div>
                                             <p class="font-bold text-gray-800 text-xs md:text-sm">Asaas (Automático)</p>
                                             <p class="text-[11px] text-gray-500 mt-0.5">Geração de QR Code dinâmico e baixa automática no sistema.</p>
@@ -738,8 +739,7 @@
                                 </div>
                                 
                                 <div id="boxChaveAsaas" class="space-y-1.5 hidden bg-blue-50/60 p-3.5 rounded-xl border border-blue-200">
-                                    <label class="block text-xs font-bold text-blue-900"><i class="fas fa-key mr-1"></i> API Key do Asaas</label>
-                                    <input type="text" id="asaasApiKey" class="w-full px-3 py-2 border border-blue-300 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 bg-white text-xs font-mono" placeholder="Ex: $aact_Y7... ">
+                                    <p class="text-xs text-blue-800 font-bold mb-2"><i class="fas fa-info-circle mr-1"></i> A integração Asaas agora é gerida automaticamente pela plataforma (SaaS Master).</p>
                                 </div>
                             </div>
 
@@ -1154,6 +1154,47 @@
                     <i class="fas fa-check"></i> Aprovar Baixa
                 </button>
             </div>
+        </div>
+    </div>
+
+    <!-- MODAL CONFIGURAÇÃO FINANCEIRA MASTER (SAAS) -->
+    <div id="modalMasterFinanceiro" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-3xl shadow-xl w-full max-w-md p-6 transform transition-all">
+            <div class="flex justify-between items-center mb-4 border-b pb-2">
+                <h3 class="text-lg md:text-xl font-bold text-gray-800"><i class="fas fa-hand-holding-usd text-green-500 mr-2"></i> Financeiro Cliente</h3>
+                <button onclick="document.getElementById('modalMasterFinanceiro').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 p-1"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            <p class="text-xs md:text-sm text-gray-600 mb-3">Configurar taxas e split para: <strong id="nomeTerreiroFinanceiroMaster" class="text-blue-600"></strong></p>
+            
+            <form id="formMasterFinanceiro" class="space-y-4">
+                <input type="hidden" id="idTerreiroFinanceiroMaster">
+                
+                <div class="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1">Mensalidade SaaS (R$)</label>
+                        <input type="number" step="0.01" id="inputMensalidadeSaas" class="w-full px-3 py-2 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-green-500 text-sm">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 mb-1">Taxa Split (%)</label>
+                            <input type="number" step="0.01" id="inputTaxaPercentual" class="w-full px-3 py-2 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-green-500 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 mb-1">Taxa Split (R$ Fixo)</label>
+                            <input type="number" step="0.01" id="inputTaxaFixa" class="w-full px-3 py-2 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-green-500 text-sm">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1">Asaas Wallet ID (Subconta)</label>
+                        <input type="text" id="inputAsaasWalletId" placeholder="Ex: 504b281c-..." class="w-full px-3 py-2 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-green-500 text-sm font-mono text-gray-500">
+                    </div>
+                </div>
+                
+                <button type="submit" id="btnSalvarFinanceiroMaster" class="w-full bg-green-600 hover:bg-green-700 active:scale-95 text-white font-bold py-3 px-4 rounded-xl shadow transition text-sm">
+                    Salvar Regras de Cobrança
+                </button>
+                <p id="msgFinanceiroMaster" class="hidden text-center mt-2 text-xs md:text-sm"></p>
+            </form>
         </div>
     </div>
 
