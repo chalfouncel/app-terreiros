@@ -1022,7 +1022,8 @@ async function chamarEdgeFunctionAsaas(valorTotal, mesesArray) {
 
         if (data && data.invoiceUrl) {
             window.open(data.invoiceUrl, '_blank');
-            fecharModalMensalidade();
+            const modalM = document.getElementById('modalMensalidade');
+            if (modalM) modalM.classList.add('hidden');
         } else {
             throw new Error("O servidor não retornou o link de pagamento.");
         }
