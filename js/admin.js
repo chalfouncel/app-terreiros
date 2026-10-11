@@ -1694,12 +1694,32 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if(document.getElementById('selectAnoFinanceiro')) document.getElementById('selectAnoFinanceiro').addEventListener('change', (e) => carregarFinanceiro(parseInt(e.target.value)));
 
-        async function carregarConfiguracoesCasa() {
+       async function carregarConfiguracoesCasa() {
             if (!idTerreiroGlobal) return;
-            const { data } = await supabaseClient.from('terreiros').select('logo_url, cor_primaria, cor_secundaria, cor_fundo, cor_texto, latitude, longitude, modulo_mensalidade_ativo, gateway_pagamento, chave_pix_manual, asaas_api_key, email, cpf_cnpj, phone, postal_code, address, address_number, company_type, asaas_wallet_id').eq('id', idTerreiroGlobal).single();
+            
+            // Carrega os dirigentes no select de compliance
+            const selectDirigente = document.getElementById('selectDirigenteCompliance');
+            if (selectDirigente) {
+                const { data: listaMediuns } = await supabaseClient
+                    .from('mediuns')
+                    .select('id, nome_completo, grau, funcao')
+                    .eq('terreiro_id', idTerreiroGlobal)
+                    .order('nome_completo');
+
+                selectDirigente.innerHTML = '<option value="">Selecione o dirigente...</option>';
+                if (listaMediuns) {
+                    listaMediuns.forEach(m => {
+                        const cargo = [m.grau, m.funcao].filter(Boolean).join(' / ') || 'Médium';
+                        selectDirigente.innerHTML += `<option value="${m.id}">${m.nome_completo} (${cargo})</option>`;
+                    });
+                }
+            }
+
+            const { data } = await supabaseClient.from('terreiros').select('logo_url, cor_primaria, cor_secundaria, cor_fundo, cor_texto, latitude, longitude, modulo_mensalidade_ativo, gateway_pagamento, chave_pix_manual, asaas_api_key, email, cpf_cnpj, phone, postal_code, address, address_number, company_type, asaas_wallet_id, dirigente_id').eq('id', idTerreiroGlobal).single();
             if (data) {
                 if (document.getElementById('inputTerreiroEmail')) document.getElementById('inputTerreiroEmail').value = data.email || '';
                 if (document.getElementById('inputTerreiroCpfCnpj')) document.getElementById('inputTerreiroCpfCnpj').value = data.cpf_cnpj || '';
+                if (document.getElementById('selectDirigenteCompliance')) document.getElementById('selectDirigenteCompliance').value = data.dirigente_id || '';
                 if (document.getElementById('inputTerreiroPhone')) document.getElementById('inputTerreiroPhone').value = data.phone || '';
                 if (document.getElementById('inputTerreiroPostalCode')) document.getElementById('inputTerreiroPostalCode').value = data.postal_code || '';
                 if (document.getElementById('inputTerreiroAddress')) document.getElementById('inputTerreiroAddress').value = data.address || '';
@@ -1775,6 +1795,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                             `;
                         });
                     }
+                } else {
+                    document.getElementById('boxConfigMensalidade')?.classList.add('hidden');
+                }
+            }
+        }
                 } else {
                     document.getElementById('boxConfigMensalidade')?.classList.add('hidden');
                 }
@@ -2123,6 +2148,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const payload = {
                     email: document.getElementById('inputTerreiroEmail').value.trim(),
                     cpf_cnpj: document.getElementById('inputTerreiroCpfCnpj').value.trim(),
+                    dirigente_id: document.getElementById('selectDirigenteCompliance').value ? parseInt(document.getElementById('selectDirigenteCompliance').value) : null,
                     phone: document.getElementById('inputTerreiroPhone').value.trim(),
                     postal_code: document.getElementById('inputTerreiroPostalCode').value.trim(),
                     address: document.getElementById('inputTerreiroAddress').value.trim(),
