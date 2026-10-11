@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             .maybeSingle();
 
         if (errMed || !medium) {
-            exibirMensagem("Ficha não encontrada. Volte ao ecrã de login.");
+            exibirMensagem("Ficha não encontrada. Volte à tela de login.");
             return;
         }
 
