@@ -1,3 +1,4 @@
+// VERSÃO: ASAAS_STEP_1
 let idTerreiroGlobal = null;
 let idGiraGlobal = null;
 let coordsTerreiro = null;
@@ -9,7 +10,7 @@ let perfilMediumLogado = null;
 let configValoresGrau = {};
 let terreiroConfigMensalidade = {};
 let carrinhoMensalidadesState = []; 
-let valorPendenteParaPix = 0; // Nova variável para o PIX Copia e Cola
+let valorPendenteParaPix = 0; 
 
 document.addEventListener('DOMContentLoaded', async () => {
     
@@ -81,7 +82,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Bloqueio se o médium estiver inativo
         if (perfil.status_ativo === false || perfil.status_ativo === 'false') {
-            alert("O seu acesso ao sistema está inativo. Por favor, entre em contato com a Administração da Casa.");
+            alert("O seu acesso ao sistema está inativo. Por favor, entre em contacto com a Administração da Casa.");
             await supabaseClient.auth.signOut();
             localStorage.clear();
             window.location.href = 'index.html';
@@ -687,17 +688,32 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (valorTotalMensalidade) valorTotalMensalidade.textContent = totalGeral.toFixed(2).replace('.', ',');
 
         if (totalMesesSelecionados > 0) {
-            if (boxPagamentoManual) boxPagamentoManual.classList.remove('hidden');
-            if (btnFinalizarMensalidade) {
-                btnFinalizarMensalidade.disabled = false;
-                btnFinalizarMensalidade.classList.remove('opacity-50', 'cursor-not-allowed');
-                btnFinalizarMensalidade.innerHTML = `<i class="fas fa-check-circle mr-2"></i> Enviar Comprovante (R$ ${totalGeral.toFixed(2).replace('.', ',')})`;
+            // Verifica o gateway escolhido pelo Terreiro para mostrar a interface correta
+            if (terreiroConfigMensalidade && terreiroConfigMensalidade.gateway_pagamento === 'asaas') {
+                if (boxPagamentoManual) boxPagamentoManual.classList.add('hidden');
+                if (btnFinalizarMensalidade) {
+                    btnFinalizarMensalidade.disabled = false;
+                    btnFinalizarMensalidade.classList.remove('opacity-50', 'cursor-not-allowed', 'bg-tema-secundaria', 'hover:bg-green-700');
+                    btnFinalizarMensalidade.classList.add('bg-blue-600', 'hover:bg-blue-700');
+                    btnFinalizarMensalidade.innerHTML = `<i class="fas fa-bolt mr-2"></i> Pagar R$ ${totalGeral.toFixed(2).replace('.', ',')} (PIX / Cartão)`;
+                }
+            } else {
+                // Modo PIX Manual
+                if (boxPagamentoManual) boxPagamentoManual.classList.remove('hidden');
+                if (btnFinalizarMensalidade) {
+                    btnFinalizarMensalidade.disabled = false;
+                    btnFinalizarMensalidade.classList.remove('opacity-50', 'cursor-not-allowed', 'bg-blue-600', 'hover:bg-blue-700');
+                    btnFinalizarMensalidade.classList.add('bg-tema-secundaria', 'hover:bg-green-700');
+                    btnFinalizarMensalidade.innerHTML = `<i class="fas fa-check-circle mr-2"></i> Enviar Comprovante (R$ ${totalGeral.toFixed(2).replace('.', ',')})`;
+                }
             }
         } else {
             if (boxPagamentoManual) boxPagamentoManual.classList.add('hidden');
             if (btnFinalizarMensalidade) {
                 btnFinalizarMensalidade.disabled = true;
                 btnFinalizarMensalidade.classList.add('opacity-50', 'cursor-not-allowed');
+                btnFinalizarMensalidade.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                btnFinalizarMensalidade.classList.add('bg-tema-secundaria', 'hover:bg-green-700');
                 btnFinalizarMensalidade.innerHTML = 'Selecionar Meses';
             }
         }
@@ -829,8 +845,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    // BOTÃO FINAL DE MENSALIDADE: GESTÃO DO CLIQUE (MANUAL OU ASAAS)
     if (btnFinalizarMensalidade) {
         btnFinalizarMensalidade.addEventListener('click', async () => {
+            
+            // FLUXO 1: ASAAS
+            if (terreiroConfigMensalidade && terreiroConfigMensalidade.gateway_pagamento === 'asaas') {
+                iniciarCheckoutAsaas(valorPendenteParaPix, carrinhoMensalidadesState);
+                return;
+            }
+
+            // FLUXO 2: MANUAL
             if (!arquivoComprovanteMensalidade || arquivoComprovanteMensalidade.files.length === 0) {
                 if (msgErroMensalidade) {
                     msgErroMensalidade.textContent = "Por favor, anexe a foto ou PDF do comprovante do PIX antes de enviar.";
@@ -848,7 +873,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const arquivo = arquivoComprovanteMensalidade.files[0];
                 const anoRef = parseInt(selectAnoMensalidade.value);
 
-                // CORREÇÃO AQUI: Mudando o bucket de 'public' para 'comprovantes'
+                // Upload para o bucket 'comprovantes'
                 const fileName = `${idTerreiroGlobal}/comprovante_${perfilMediumLogado.id}_${Date.now()}.${arquivo.name.split('.').pop()}`;
                 const { error: errUpload } = await supabaseClient.storage.from('comprovantes').upload(fileName, arquivo);
                 if (errUpload) throw errUpload;
@@ -910,6 +935,89 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 });
+
+// ====================================================================
+// FLUXO DE PAGAMENTO AUTOMÁTICO (ASAAS) COM CAPTURA DE CPF
+// ====================================================================
+const modalSolicitarCPF = document.getElementById('modalSolicitarCPF');
+const formSalvarCPF = document.getElementById('formSalvarCPF');
+const inputCpfAsaas = document.getElementById('inputCpfAsaas');
+const btnSalvarCpfAsaas = document.getElementById('btnSalvarCpfAsaas');
+
+// Esta função será chamada quando o médium clicar em "Pagar com Asaas"
+async function iniciarCheckoutAsaas(valorTotal, mesesArray) {
+    // 1. Verifica se o médium já tem CPF salvo no banco (via perfil carregado)
+    if (!perfilMediumLogado.cpf || perfilMediumLogado.cpf.trim() === '') {
+        // Abre o modal pedindo o CPF
+        if (modalSolicitarCPF) {
+            modalSolicitarCPF.classList.remove('hidden');
+            setTimeout(() => modalSolicitarCPF.querySelector('div').classList.replace('scale-95', 'scale-100'), 10);
+            
+            // Atrela a geração do pagamento ao submit do form
+            if (formSalvarCPF) {
+                formSalvarCPF.onsubmit = async (e) => {
+                    e.preventDefault();
+                    const cpfDigitado = inputCpfAsaas.value.replace(/\D/g, '');
+                    if (cpfDigitado.length !== 11) return alert("CPF inválido.");
+                    
+                    if (btnSalvarCpfAsaas) {
+                        btnSalvarCpfAsaas.disabled = true;
+                        btnSalvarCpfAsaas.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
+                    }
+                    
+                    // Salva no Supabase
+                    const { error } = await supabaseClient.from('mediuns').update({ cpf: cpfDigitado }).eq('id', perfilMediumLogado.id);
+                    if (error) {
+                        alert("Erro ao salvar CPF: " + error.message);
+                        if (btnSalvarCpfAsaas) {
+                            btnSalvarCpfAsaas.disabled = false;
+                            btnSalvarCpfAsaas.innerHTML = '<i class="fas fa-check"></i> Salvar e Gerar Pagamento';
+                        }
+                        return;
+                    }
+                    
+                    // Atualiza a memória local e fecha o modal
+                    perfilMediumLogado.cpf = cpfDigitado;
+                    modalSolicitarCPF.classList.add('hidden');
+                    if (btnSalvarCpfAsaas) btnSalvarCpfAsaas.disabled = false;
+                    
+                    // Continua com a geração
+                    chamarEdgeFunctionAsaas(valorTotal, mesesArray);
+                };
+            }
+        }
+    } else {
+        // Já tem CPF, vai direto para a cobrança
+        chamarEdgeFunctionAsaas(valorTotal, mesesArray);
+    }
+}
+
+// Stub (Esqueleto) da chamada para a Edge Function que criaremos no próximo passo
+async function chamarEdgeFunctionAsaas(valorTotal, mesesArray) {
+    const btnOriginal = document.getElementById('btnFinalizarMensalidade');
+    if (btnOriginal) {
+        btnOriginal.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> A Gerar Link Seguro...';
+        btnOriginal.disabled = true;
+    }
+    
+    // Log para fins de debug nesta fase
+    console.log(`(Simulação) Chamando Supabase Edge Function... \nEnviando: CPF ${perfilMediumLogado.cpf}, Valor: R$ ${valorTotal}`);
+    
+    // ==========================================
+    // AQUI ENTRARÁ O FETCH PARA A EDGE FUNCTION 
+    // NO PRÓXIMO PASSO
+    // ==========================================
+    
+    // Simular o tempo de resposta
+    setTimeout(() => {
+        alert("O seu CPF já se encontra guardado no sistema!\n\nNo Passo 2, este botão abrirá diretamente a página oficial de checkout do Asaas (via Edge Function) para pagar a mensalidade.");
+        if (btnOriginal) {
+            btnOriginal.innerHTML = `<i class="fas fa-bolt mr-2"></i> Pagar R$ ${valorTotal.toFixed(2).replace('.', ',')} (PIX / Cartão)`;
+            btnOriginal.disabled = false;
+        }
+    }, 1500);
+}
+
 
 // ====================================================================
 // GPS DO CHECK-IN COM VERIFICAÇÃO DE PERMISSÃO E TRAVA DE 30 METROS
