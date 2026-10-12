@@ -142,7 +142,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 carregarItensDoacao();
 
-                // INICIALIZA O MÓDULO DE MENSALIDADES SE ATIVO
+                /// INICIALIZA O MÓDULO DE MENSALIDADES SE ATIVO
                 if (terreiro.modulo_mensalidade_ativo === true) {
                     const btnMensalidade = document.getElementById('btnAbrirMensalidade');
                     const btnMensalidadeSucesso = document.getElementById('btnAbrirMensalidadeSucesso');
@@ -150,6 +150,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     if (btnMensalidadeSucesso) btnMensalidadeSucesso.classList.replace('hidden', 'flex');
                     
                     carregarConfigValoresGrau();
+
+                    // Verifica se tem mensalidade vencida (dia 1) para piscar o botão
+                    verificarPendenciaMensalidade(perfil.id);
                 }
             }
         } else {
@@ -1206,4 +1209,88 @@ function calcularDistancia(lat1, lon1, lat2, lon2) {
     const R = 6371e3, p1 = lat1 * Math.PI/180, p2 = lat2 * Math.PI/180, dp = (lat2-lat1) * Math.PI/180, dl = (lon2-lon1) * Math.PI/180;
     const a = Math.sin(dp/2) * Math.sin(dp/2) + Math.cos(p1) * Math.cos(p2) * Math.sin(dl/2) * Math.sin(dl/2);
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+}
+// ====================================================================
+// VERIFICAÇÃO DE MENSALIDADE VENCIDA (REGRA: DIA 1) + ESTILO PISCANTE
+// ====================================================================
+// Injeta a animação CSS automaticamente na página
+if (!document.getElementById('styleAlertaMensalidade')) {
+    const styleAlerta = document.createElement('style');
+    styleAlerta.id = 'styleAlertaMensalidade';
+    styleAlerta.innerHTML = `
+        @keyframes pulsarAlertaMensalidade {
+            0%, 100% {
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7);
+            }
+            50% {
+                transform: scale(1.03);
+                box-shadow: 0 0 14px 6px rgba(220, 38, 38, 0.6);
+            }
+        }
+        .alerta-mensalidade-pendente {
+            animation: pulsarAlertaMensalidade 1.3s infinite !important;
+            background-color: #dc2626 !important;
+            color: #ffffff !important;
+            border-color: #b91c1c !important;
+        }
+    `;
+    document.head.appendChild(styleAlerta);
+}
+
+async function verificarPendenciaMensalidade(mediumId) {
+    try {
+        const hoje = new Date();
+        const anoAtual = hoje.getFullYear();
+        const mesAtual = hoje.getMonth() + 1; // 1 a 12 (dia 1 já considera o mês corrente como devido)
+
+        // Busca pagamentos e isenções do médium no ano corrente
+        const { data: registros, error } = await supabaseClient
+            .from('financeiro')
+            .select('mes, pago, isento')
+            .eq('medium_id', mediumId)
+            .eq('ano', anoAtual);
+
+        if (error) throw error;
+
+        // Mapeia meses que estão quitados ou isentos
+        const quitadosOuIsentos = new Set();
+        if (registros) {
+            registros.forEach(r => {
+                if (r.pago === true || r.isento === true) {
+                    quitadosOuIsentos.add(r.mes);
+                }
+            });
+        }
+
+        // Se houver qualquer mês em aberto até o mês atual, está pendente
+        let temMensalidadeVencida = false;
+        for (let m = 1; m <= mesAtual; m++) {
+            if (!quitadosOuIsentos.has(m)) {
+                temMensalidadeVencida = true;
+                break;
+            }
+        }
+
+        const botoes = [
+            document.getElementById('btnAbrirMensalidade'),
+            document.getElementById('btnAbrirMensalidadeSucesso')
+        ];
+
+        botoes.forEach(btn => {
+            if (!btn) return;
+            if (temMensalidadeVencida) {
+                btn.classList.add('alerta-mensalidade-pendente');
+                const spanTexto = btn.querySelector('span');
+                if (spanTexto) {
+                    spanTexto.textContent = 'Mensalidade Pendente';
+                }
+            } else {
+                btn.classList.remove('alerta-mensalidade-pendente');
+            }
+        });
+
+    } catch (err) {
+        console.error('Erro ao verificar pendência de mensalidade:', err);
+    }
 }
