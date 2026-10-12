@@ -2313,8 +2313,8 @@ window.gerarPDFRelatorio = (titulo, colunas, dados) => {
     
     dados.forEach((linha, i) => {
         const bg = i % 2 === 0 ? '#ffffff' : '#f9fafb';
-        html += `<tr style="background-color: ${bg};">
-                    ${linha.map(celula => `<td style="padding: 3px 4px; border: 1px solid #ddd; color: #222; border-bottom: 1px solid #eee;">${celula}</td>`).join('')}
+        html += `<tr style="background-color: ${bg}; page-break-inside: avoid;">
+                    ${linha.map(celula => `<td style="padding: 3px 4px; border: 1px solid #ddd; color: #222; border-bottom: 1px solid #eee; overflow-wrap: break-word;">${celula}</td>`).join('')}
                  </tr>`;
     });
     
@@ -2777,8 +2777,8 @@ window.gerarPDF_ATA = async (eventoId) => {
                 }
 
                 trs += `
-                    <tr style="${estiloLinha}">
-                        <td style="border-bottom: ${borderStyle}; padding: 6px 4px;">${nomeFinal}</td>
+                    <tr style="${estiloLinha} page-break-inside: avoid;">
+                        <td style="border-bottom: ${borderStyle}; padding: 6px 4px; overflow-wrap: break-word;">${nomeFinal}</td>
                         <td style="border-bottom: ${borderStyle}; padding: 6px 4px; text-align: center;">${grauExibicao}</td>
                         <td style="border-bottom: ${borderStyle}; padding: 6px 4px; text-align: right;">${horaCheckin}</td>
                     </tr>
