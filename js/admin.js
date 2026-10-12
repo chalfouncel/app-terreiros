@@ -2413,6 +2413,59 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
 });
+
+    const formNovoTerreiro = document.getElementById('formNovoTerreiro');
+    if (formNovoTerreiro) {
+        formNovoTerreiro.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const inputNome = document.getElementById('novoTerreiroNome');
+            const btn = document.getElementById('btnSalvarTerreiro');
+            const msg = document.getElementById('msgNovoTerreiro');
+
+            const nome = (inputNome ? inputNome.value : '').trim();
+            if (!nome) return;
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i> Cadastrando...';
+            if (msg) msg.classList.add('hidden');
+
+            try {
+                const { error } = await supabaseClient
+                    .from('terreiros')
+                    .insert([{ 
+                        nome: nome,
+                        modulo_mensalidade_ativo: false,
+                        status_bloqueado: false
+                    }]);
+
+                if (error) throw error;
+
+                if (inputNome) inputNome.value = '';
+
+                if (msg) {
+                    msg.innerHTML = '<i class="fas fa-check-circle mr-1"></i> Terreiro cadastrado com sucesso!';
+                    msg.className = 'text-xs font-bold text-emerald-600 block mt-2 text-center';
+                    msg.classList.remove('hidden');
+                    setTimeout(() => msg.classList.add('hidden'), 4000);
+                }
+
+                if (typeof carregarGestaoPlataforma === 'function') {
+                    carregarGestaoPlataforma();
+                }
+            } catch (err) {
+                if (msg) {
+                    msg.innerHTML = '<i class="fas fa-exclamation-triangle mr-1"></i> Erro: ' + err.message;
+                    msg.className = 'text-xs font-bold text-red-600 block mt-2 text-center';
+                    msg.classList.remove('hidden');
+                }
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-plus"></i> Cadastrar Terreiro';
+            }
+        });
+    }
+
+});
 window.gerarPDFRelatorio = (titulo, colunas, dados) => {
     const containerPDF = document.createElement('div');
     containerPDF.style.padding = '20px 30px';
@@ -2442,10 +2495,19 @@ window.gerarPDFRelatorio = (titulo, colunas, dados) => {
                 <td style="width: 20%;"></td>
             </tr>
         </table>
-        <table style="width: 100%; border-collapse: collapse; font-size: 11px; position: relative; z-index: 1;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 10px; position: relative; z-index: 1; table-layout: fixed;">
             <thead>
                 <tr style="background-color: #f3f4f6;">
-                    ${colunas.map(c => `<th style="padding: 6px 4px; border: 1px solid #ddd; text-align: left; font-weight: bold; color: #555;">${c}</th>`).join('')}
+                    ${colunas.map((c, index) => {
+                        let largura = 'auto';
+                        if (index === 0) largura = '30%'; // Nome
+                        else if (index === 1) largura = '15%'; // Nascimento
+                        else if (index === 2) largura = '12%'; // Grau
+                        else if (index === 3) largura = '12%'; // Função
+                        else if (index === 4) largura = '18%'; // WhatsApp
+                        else if (index === 5) largura = '13%'; // Palavra
+                        return `<th style="padding: 6px 4px; border: 1px solid #ddd; text-align: left; font-weight: bold; color: #555; width: ${largura}; word-break: break-word;">${c}</th>`;
+                    }).join('')}
                 </tr>
             </thead>
             <tbody>
@@ -2454,7 +2516,7 @@ window.gerarPDFRelatorio = (titulo, colunas, dados) => {
     dados.forEach((linha, i) => {
         const bg = i % 2 === 0 ? '#ffffff' : '#f9fafb';
         html += `<tr style="background-color: ${bg}; page-break-inside: avoid;">
-                    ${linha.map(celula => `<td style="padding: 3px 4px; border: 1px solid #ddd; color: #222; border-bottom: 1px solid #eee; overflow-wrap: break-word;">${celula}</td>`).join('')}
+                    ${linha.map(celula => `<td style="padding: 5px 4px; border: 1px solid #ddd; color: #222; border-bottom: 1px solid #eee; word-break: break-word; vertical-align: top;">${celula}</td>`).join('')}
                  </tr>`;
     });
     
