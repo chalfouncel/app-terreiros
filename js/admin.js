@@ -1636,7 +1636,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             
             const { data: todosMediuns } = await supabaseClient.from('mediuns')
-                .select('id, nome_completo, nome_social, isento_mensalidade, grau, funcao')
+                .select('id, nome_completo, nome_social, isento_mensalidade, grau, funcao, created_at')
                 .eq('terreiro_id', idTerreiroGlobal)
                 .neq('nome_completo', 'Administrador Sistema')
                 .order('nome_completo');
@@ -2416,67 +2416,110 @@ document.addEventListener('DOMContentLoaded', async () => {
     
 window.gerarPDFRelatorio = (titulo, colunas, dados) => {
     const containerPDF = document.createElement('div');
-    containerPDF.style.padding = '20px 30px';
+    containerPDF.style.width = '190mm';
+    containerPDF.style.margin = '0 auto';
     containerPDF.style.fontFamily = 'Arial, sans-serif';
     containerPDF.style.color = '#333';
     containerPDF.style.position = 'relative';
 
     let watermark = '';
     if (logoTerreiroGlobal) {
-        watermark = `<div style="position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); opacity: 0.08; z-index: -1; pointer-events: none;">
-                        <img src="${logoTerreiroGlobal}" style="width: 400px; max-width: 80%;">
+        watermark = `<div style="position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); opacity: 0.06; z-index: 0; pointer-events: none;">
+                        <img src="${logoTerreiroGlobal}" style="width: 350px; max-width: 80%;">
                      </div>`;
     }
 
-    let html = `
-        ${watermark}
-        <table style="width: 100%; margin-bottom: 15px; border-bottom: 2px solid #16a34a; padding-bottom: 10px;">
-            <tr>
-                <td style="width: 20%; text-align: left; vertical-align: middle;">
-                    ${logoTerreiroGlobal ? `<img src="${logoTerreiroGlobal}" style="max-height: 70px; max-width: 100px; object-fit: contain;">` : ''}
-                </td>
-                <td style="width: 60%; text-align: center; vertical-align: middle;">
-                    <h2 style="margin: 0; color: #1e3a8a; font-size: 20px; text-transform: uppercase;">${nomeTerreiroGlobal || 'Templo'}</h2>
-                    <h3 style="margin: 4px 0 0 0; color: #444; font-size: 16px;">${titulo}</h3>
-                    <p style="margin: 4px 0 0 0; color: #666; font-size: 11px;">Emitido em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</p>
-                </td>
-                <td style="width: 20%;"></td>
-            </tr>
-        </table>
-        <table style="width: 100%; border-collapse: collapse; font-size: 10px; position: relative; z-index: 1; table-layout: fixed;">
-            <thead>
-                <tr style="background-color: #f3f4f6;">
-                    ${colunas.map((c, index) => {
-                        let largura = 'auto';
-                        if (index === 0) largura = '30%'; // Nome
-                        else if (index === 1) largura = '15%'; // Nascimento
-                        else if (index === 2) largura = '12%'; // Grau
-                        else if (index === 3) largura = '12%'; // Função
-                        else if (index === 4) largura = '18%'; // WhatsApp
-                        else if (index === 5) largura = '13%'; // Palavra
-                        return `<th style="padding: 6px 4px; border: 1px solid #ddd; text-align: left; font-weight: bold; color: #555; width: ${largura}; word-break: break-word;">${c}</th>`;
-                    }).join('')}
-                </tr>
-            </thead>
-            <tbody>
+    // Define larguras balanceadas de acordo com as colunas recebidas
+    const totalCols = colunas.length;
+    const obterLargura = (index) => {
+        if (totalCols === 6) { // Quadro Oficial de Médiuns
+            const w = ['34%', '13%', '9%', '13%', '15%', '16%'];
+            return w[index] || 'auto';
+        }
+        if (totalCols === 3) { // Relação de Presença ou Aniversariantes
+            const w = ['40%', '35%', '25%'];
+            return w[index] || 'auto';
+        }
+        return `${Math.floor(100 / totalCols)}%`;
+    };
+
+    const obterAlinhamento = (index) => {
+        if (totalCols === 6 && (index === 1 || index === 2 || index === 4)) return 'text-align: center;';
+        if (totalCols === 3 && index === 2) return 'text-align: center;';
+        return 'text-align: left;';
+    };
+
+    const estiloCSS = `
+        <style>
+            * { box-sizing: border-box !important; }
+            table.tabela-pdf { width: 100%; border-collapse: collapse; table-layout: fixed; }
+            table.tabela-pdf thead { display: table-header-group !important; }
+            table.tabela-pdf tr { page-break-inside: avoid !important; break-inside: avoid !important; }
+            table.tabela-pdf th {
+                background-color: #f1f5f9;
+                color: #334155;
+                font-size: 8pt;
+                font-weight: bold;
+                border: 1px solid #cbd5e1;
+                padding: 6px 4px;
+                text-transform: uppercase;
+            }
+            table.tabela-pdf td {
+                border: 1px solid #e2e8f0;
+                padding: 5px 4px;
+                font-size: 8pt;
+                color: #1e293b;
+                word-wrap: break-word;
+                overflow-wrap: break-word;
+                vertical-align: middle;
+            }
+        </style>
     `;
-    
+
+    let html = `
+        ${estiloCSS}
+        ${watermark}
+        <div style="position: relative; z-index: 1;">
+            <table style="width: 100%; margin-bottom: 15px; border-bottom: 2px solid #2563eb; padding-bottom: 10px;">
+                <tr>
+                    <td style="width: 20%; text-align: left; vertical-align: middle; border: none;">
+                        ${logoTerreiroGlobal ? `<img src="${logoTerreiroGlobal}" style="max-height: 65px; max-width: 90px; object-fit: contain;">` : ''}
+                    </td>
+                    <td style="width: 60%; text-align: center; vertical-align: middle; border: none;">
+                        <h2 style="margin: 0; color: #1e3a8a; font-size: 16px; font-weight: bold; text-transform: uppercase;">${nomeTerreiroGlobal || 'Templo'}</h2>
+                        <h3 style="margin: 4px 0 0 0; color: #475569; font-size: 13px;">${titulo}</h3>
+                        <p style="margin: 4px 0 0 0; color: #64748b; font-size: 9px;">Emitido em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} | Total: ${dados.length}</p>
+                    </td>
+                    <td style="width: 20%; border: none;"></td>
+                </tr>
+            </table>
+
+            <table class="tabela-pdf">
+                <thead>
+                    <tr>
+                        ${colunas.map((c, index) => `<th style="width: ${obterLargura(index)}; ${obterAlinhamento(index)}">${c}</th>`).join('')}
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
     dados.forEach((linha, i) => {
-        const bg = i % 2 === 0 ? '#ffffff' : '#f9fafb';
-        html += `<tr style="background-color: ${bg}; page-break-inside: avoid;">
-                    ${linha.map(celula => `<td style="padding: 5px 4px; border: 1px solid #ddd; color: #222; border-bottom: 1px solid #eee; word-break: break-word; vertical-align: top;">${celula}</td>`).join('')}
+        const bg = i % 2 === 0 ? '#ffffff' : '#f8fafc';
+        html += `<tr style="background-color: ${bg};">
+                    ${linha.map((celula, idx) => `<td style="${obterAlinhamento(idx)}">${celula || '-'}</td>`).join('')}
                  </tr>`;
     });
-    
-    html += `</tbody></table>`;
+
+    html += `</tbody></table></div>`;
     containerPDF.innerHTML = html;
 
     const opt = {
-        margin:       10,
+        margin:       [12, 10, 12, 10],
         filename:     `${titulo.replace(/\s+/g, '_')}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true },
-        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        html2canvas:  { scale: 2, useCORS: true, letterRendering: true, windowWidth: 800 },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
     };
 
     html2pdf().set(opt).from(containerPDF).save();
@@ -3216,7 +3259,7 @@ window.abrirModalImportacao = (idTerreiro, nomeTerreiro) => {
     document.getElementById('nomeTerreiroImport').textContent = nomeTerreiro;
     document.getElementById('msgImportacao')?.classList.add('hidden');
     if (document.getElementById('formImportarCSV')) document.getElementById('formImportarCSV').reset();
-    document.getElementById('modalImportarCSV')?.classList.add('hidden');
+    document.getElementById('modalImportarCSV')?.classList.remove('hidden');
 };
 
 window.fecharModalImportacao = () => {
