@@ -746,8 +746,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     
                     const chavePix = document.getElementById('chavePixManual') ? document.getElementById('chavePixManual').value.trim() : '';
                     const asaasKey = document.getElementById('asaasApiKey') ? document.getElementById('asaasApiKey').value.trim() : '';
-                    
-                                      
+                                                          
                     const { error: errT } = await supabaseClient.from('terreiros').update({
                         gateway_pagamento: gateway, 
                         chave_pix_manual: chavePix, 
