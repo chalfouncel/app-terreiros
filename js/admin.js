@@ -2606,10 +2606,18 @@ window.gerarPDFRelatorio = (titulo, colunas, dados) => {
     html2pdf().set(opt).from(containerPDF).save();
 };
 setTimeout(() => {
-    document.getElementById('filtroNomeMedium')?.addEventListener('input', window.aplicarFiltrosMediuns);
-    document.getElementById('filtroGrauMedium')?.addEventListener('change', window.aplicarFiltrosMediuns);
-    document.getElementById('filtroStatusMedium')?.addEventListener('change', window.aplicarFiltrosMediuns);
-    document.getElementById('filtroMesNascimento')?.addEventListener('change', window.aplicarFiltrosMediuns);
+    const elNome = document.getElementById('filtroNomeMedium');
+    const elGrau = document.getElementById('filtroGrauMedium');
+    const elStatus = document.getElementById('filtroStatusMedium');
+    const elMes = document.getElementById('filtroMesNascimento');
+
+    if (elNome) {
+        elNome.addEventListener('input', () => window.aplicarFiltrosMediuns());
+        elNome.addEventListener('keyup', () => window.aplicarFiltrosMediuns());
+    }
+    if (elGrau) elGrau.addEventListener('change', () => window.aplicarFiltrosMediuns());
+    if (elStatus) elStatus.addEventListener('change', () => window.aplicarFiltrosMediuns());
+    if (elMes) elMes.addEventListener('change', () => window.aplicarFiltrosMediuns());
     
     document.getElementById('filtroConvocadosNome')?.addEventListener('input', () => window.filtrarConvocados('listaCheckConvocados', 'filtroConvocadosNome', 'filtroConvocadosGrau'));
     document.getElementById('filtroConvocadosGrau')?.addEventListener('change', () => window.filtrarConvocados('listaCheckConvocados', 'filtroConvocadosNome', 'filtroConvocadosGrau'));
