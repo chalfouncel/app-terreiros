@@ -2852,12 +2852,29 @@ window.salvarPagamento = async (mediumId, mes, ano, status, elementoCheckbox) =>
         return; 
     }
 
-    const { error } = await supabaseClient.from('financeiro').upsert({ 
-        medium_id: mediumId, mes: mes, ano: ano, pago: status, isento: false, origem: 'manual' 
-    }, { onConflict: 'medium_id,mes,ano' });
-    
-    if(error) alert('Erro: ' + error.message); 
-    document.getElementById('menuFinanceiro')?.click(); 
+    // Feedback visual imediato na cor do checkbox
+    if (elementoCheckbox) {
+        if (status) {
+            elementoCheckbox.style.accentColor = '#16a34a';
+            elementoCheckbox.title = 'Pago (Manual)';
+        } else {
+            elementoCheckbox.style.accentColor = '';
+            elementoCheckbox.title = 'Pendente (Esq. Pagar | Dir. Isentar)';
+        }
+    }
+
+    try {
+        // Salva direto no Supabase em segundo plano, sem refresh
+        const { error } = await supabaseClient.from('financeiro').upsert({ 
+            medium_id: mediumId, mes: mes, ano: ano, pago: status, isento: false, origem: 'manual' 
+        }, { onConflict: 'medium_id,mes,ano' });
+        
+        if (error) throw error;
+    } catch (err) {
+        alert('Erro ao salvar pagamento: ' + err.message);
+        // Se der falha de conexão, desfaz o clique
+        if (elementoCheckbox) elementoCheckbox.checked = !status;
+    }
 };
 
 window.toggleIsentoMes = async (event, mediumId, mes, ano, bloqueado) => {
