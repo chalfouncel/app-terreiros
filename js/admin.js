@@ -1222,10 +1222,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.mediunsFiltrados = filtrados;
     renderizarTabelaMediuns(filtrados);
 };
-
-    window.mediunsFiltrados = filtrados;
-    renderizarTabelaMediuns(filtrados);
-};
         async function carregarAgenda() {
             if(!idTerreiroGlobal) return;
             const tbody = document.getElementById('tabelaGirasCadastradas');
