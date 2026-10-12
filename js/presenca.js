@@ -1001,44 +1001,70 @@ async function iniciarCheckoutAsaas(valorTotal, mesesArray) {
 }
 
 // Stub (Esqueleto) da chamada para a Edge Function que criaremos no próximo passo
-async function chamarEdgeFunctionAsaas(valorTotal, mesesArray) {
-    const btnOriginal = document.getElementById('btnFinalizarMensalidade');
-    if (btnOriginal) {
-        btnOriginal.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> A Gerar Link Seguro...';
-        btnOriginal.disabled = true;
-    }
-    
-    try {
-        const { data, error } = await supabaseClient.functions.invoke('asaas-gerar-cobranca', {
-            body: {
-                mediumId: perfilMediumLogado.id,
-                terreiroId: idTerreiroGlobal,
-                valorTotal: valorTotal,
-                mesesSelecionados: mesesArray
-            }
-        });
-
-        if (error) throw error;
-
-        if (data && data.invoiceUrl) {
-            window.open(data.invoiceUrl, '_blank');
-            const modalM = document.getElementById('modalMensalidade');
-            if (modalM) modalM.classList.add('hidden');
-        } else {
-            throw new Error("O servidor não retornou o link de pagamento.");
-        }
-
-    } catch (err) {
-        console.error("Erro no pagamento Asaas:", err);
-        alert("Erro ao gerar link de pagamento: " + (err.message || err));
-    } finally {
+async function chamarEdgeFunctionAsaas(valorTotal, carrinhoArray) {
+        const btnOriginal = document.getElementById('btnFinalizarMensalidade');
+        const valorComTaxa = valorTotal + 2.99;
+        
         if (btnOriginal) {
-            btnOriginal.innerHTML = `<i class="fas fa-bolt mr-2"></i> Pagar R$ ${valorTotal.toFixed(2).replace('.', ',')} (PIX / Cartão)`;
-            btnOriginal.disabled = false;
+            btnOriginal.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> A Gerar Link Seguro...';
+            btnOriginal.disabled = true;
+        }
+        
+        try {
+            const selectAno = document.getElementById('selectAnoMensalidade');
+            const anoRef = selectAno ? parseInt(selectAno.value) : new Date().getFullYear();
+
+            // Monta a relação correta de CADA médium presente no carrinho
+            const detalhesArray = [];
+            carrinhoArray.forEach(item => {
+                if (item.mesesSelecionados && item.mesesSelecionados.length > 0) {
+                    const subtotalItem = item.mesesSelecionados.length * item.valorUnitario;
+                    detalhesArray.push({
+                        medium_id: item.mediumId,
+                        medium_nome: item.mediumNome,
+                        ano: anoRef,
+                        meses: item.mesesSelecionados,
+                        subtotal: subtotalItem
+                    });
+                }
+            });
+
+            if (detalhesArray.length === 0) {
+                throw new Error("Nenhum mês selecionado no carrinho.");
+            }
+
+            // Chama a Edge Function passando os dados detalhados
+            const { data, error } = await supabaseClient.functions.invoke('asaas-gerar-cobranca', {
+                body: {
+                    mediumId: perfilMediumLogado.id,
+                    terreiroId: idTerreiroGlobal,
+                    valorTotal: valorComTaxa,
+                    valorMensalidades: valorTotal,
+                    taxaBancaria: 2.99,
+                    detalhesPagamento: detalhesArray
+                }
+            });
+
+            if (error) throw error;
+
+            if (data && data.invoiceUrl) {
+                window.open(data.invoiceUrl, '_blank');
+                const modalM = document.getElementById('modalMensalidade');
+                if (modalM) modalM.classList.add('hidden');
+            } else {
+                throw new Error("O servidor não retornou o link de pagamento.");
+            }
+
+        } catch (err) {
+            console.error("Erro no pagamento Asaas:", err);
+            alert("Erro ao gerar link de pagamento: " + (err.message || err));
+        } finally {
+            if (btnOriginal) {
+                btnOriginal.innerHTML = `<i class="fas fa-bolt mr-2"></i> Pagar R$ ${valorTotal.toFixed(2).replace('.', ',')} (+ 2,99) = R$ ${valorComTaxa.toFixed(2).replace('.', ',')}`;
+                btnOriginal.disabled = false;
+            }
         }
     }
-}
-
 
 // ====================================================================
 // GPS DO CHECK-IN COM VERIFICAÇÃO DE PERMISSÃO E TRAVA DE 30 METROS
