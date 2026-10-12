@@ -1156,7 +1156,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
 
-        indow.aplicarFiltrosMediuns = () => {
+        window.aplicarFiltrosMediuns = () => {
     const nomeFiltro = (document.getElementById('filtroNomeMedium')?.value || '').trim().toLowerCase();
     const grauFiltro = (document.getElementById('filtroGrauMedium')?.value || '').trim().toUpperCase();
     const statusFiltro = (document.getElementById('filtroStatusMedium')?.value || '').trim().toLowerCase();
