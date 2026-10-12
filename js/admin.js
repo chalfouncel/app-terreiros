@@ -1,3 +1,4 @@
+const w = window;
 let idTerreiroGlobal = null; 
 let mediunsGrauCache = []; 
 let perfilAdminLogado = null; 
@@ -1009,8 +1010,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
 
                 listaMediunsGlobal = data || [];
-                window.mediunsFiltrados = listaMediunsGlobal;
-                renderizarTabelaMediuns(listaMediunsGlobal);
+                window.aplicarFiltrosMediuns();
                 renderizarAniversariantes(listaMediunsGlobal);
                 
             } catch (err) {
@@ -1172,51 +1172,42 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
 
-        // 2. Filtro por Grau / Função (normalizado e exato para siglas)
+        // 2. Filtro por Grau / Função
         if (grauFiltro && grauFiltro !== 'TODOS' && grauFiltro !== 'TODOS OS GRAUS') {
-            const grauMedium = (m.grau_funcao || m.grau || '').trim().toUpperCase();
-            if (!grauMedium) return false;
+            const grau = (m.grau || '').trim().toUpperCase();
+            const funcao = (m.funcao || '').trim().toUpperCase();
+            const cargoCompleto = `${grau} ${funcao}`.trim();
 
-            // Se for sigla exata (I, B, T, SCT, CT, CCT, DIRIGENTE)
             if (['I', 'B', 'T', 'SCT', 'CT', 'CCT', 'DIRIGENTE'].includes(grauFiltro)) {
-                if (grauMedium !== grauFiltro && !grauMedium.startsWith(grauFiltro + ' ') && !grauMedium.endsWith(' ' + grauFiltro)) {
-                    return false;
-                }
+                const bateGrau = grau === grauFiltro || grau.split(' ').includes(grauFiltro);
+                const bateFuncao = funcao === grauFiltro || funcao.split(' ').includes(grauFiltro);
+                if (!bateGrau && !bateFuncao) return false;
             } else {
-                if (!grauMedium.includes(grauFiltro)) return false;
+                if (!cargoCompleto.includes(grauFiltro)) return false;
             }
         }
 
-        // 3. Filtro por Status (compatível com 'ativo', 'pendente', 'inativo', booleanos true/false)
+        // 3. Filtro por Status (baseado nas colunas reais: status_ativo e cadastro_completo)
         if (statusFiltro && statusFiltro !== 'todos') {
-            let statusMedium = '';
-            
-            if (m.status !== undefined && m.status !== null) {
-                statusMedium = String(m.status).trim().toLowerCase();
-            } else if (m.ativo !== undefined && m.ativo !== null) {
-                statusMedium = (m.ativo === true || m.ativo === 'true' || m.ativo === 1) ? 'ativo' : 'inativo';
+            let statusMedium = 'pendente';
+            if (m.status_ativo === false) {
+                statusMedium = 'inativo';
+            } else if (m.cadastro_completo) {
+                statusMedium = 'ativo';
             }
 
-            if (statusFiltro === 'ativo') {
-                if (statusMedium !== 'ativo' && statusMedium !== 'true' && statusMedium !== '1') return false;
-            } else if (statusFiltro === 'pendente') {
-                if (statusMedium !== 'pendente') return false;
-            } else if (statusFiltro === 'inativo') {
-                if (statusMedium !== 'inativo' && statusMedium !== 'false' && statusMedium !== '0') return false;
-            }
+            if (statusMedium !== statusFiltro) return false;
         }
 
-        // 4. Filtro por Mês de Nascimento (YYYY-MM-DD ou DD/MM/YYYY)
+        // 4. Filtro por Mês de Nascimento
         if (mesFiltro && mesFiltro !== 'todos') {
-            const dataNasc = m.data_nascimento || m.nascimento || '';
+            const dataNasc = m.data_nascimento || '';
             if (!dataNasc) return false;
 
             let mesMedium = '';
             if (dataNasc.includes('-')) {
-                // Formato ISO: YYYY-MM-DD
                 mesMedium = dataNasc.split('-')[1];
             } else if (dataNasc.includes('/')) {
-                // Formato BR: DD/MM/YYYY
                 mesMedium = dataNasc.split('/')[1];
             }
 
@@ -1227,6 +1218,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         return true;
     });
+
+    window.mediunsFiltrados = filtrados;
+    renderizarTabelaMediuns(filtrados);
+};
 
     window.mediunsFiltrados = filtrados;
     renderizarTabelaMediuns(filtrados);
