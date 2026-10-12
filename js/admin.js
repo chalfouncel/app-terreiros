@@ -2416,61 +2416,38 @@ document.addEventListener('DOMContentLoaded', async () => {
     
 window.gerarPDFRelatorio = (titulo, colunas, dados) => {
     const containerPDF = document.createElement('div');
-    containerPDF.style.width = '190mm';
-    containerPDF.style.margin = '0 auto';
+    containerPDF.style.padding = '10px';
     containerPDF.style.fontFamily = 'Arial, sans-serif';
     containerPDF.style.color = '#333';
     containerPDF.style.position = 'relative';
 
     let watermark = '';
     if (logoTerreiroGlobal) {
-        watermark = `<div style="position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); opacity: 0.06; z-index: 0; pointer-events: none;">
-                        <img src="${logoTerreiroGlobal}" style="width: 350px; max-width: 80%;">
+        watermark = `<div style="position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); opacity: 0.05; z-index: 0; pointer-events: none;">
+                        <img src="${logoTerreiroGlobal}" style="width: 320px; max-width: 80%;">
                      </div>`;
     }
 
-    // Define larguras balanceadas de acordo com as colunas recebidas
     const totalCols = colunas.length;
-    const obterLargura = (index) => {
-        if (totalCols === 6) { // Quadro Oficial de Médiuns
-            const w = ['34%', '13%', '9%', '13%', '15%', '16%'];
-            return w[index] || 'auto';
-        }
-        if (totalCols === 3) { // Relação de Presença ou Aniversariantes
-            const w = ['40%', '35%', '25%'];
-            return w[index] || 'auto';
-        }
-        return `${Math.floor(100 / totalCols)}%`;
-    };
-
-    const obterAlinhamento = (index) => {
-        if (totalCols === 6 && (index === 1 || index === 2 || index === 4)) return 'text-align: center;';
-        if (totalCols === 3 && index === 2) return 'text-align: center;';
-        return 'text-align: left;';
-    };
+    const larguraPadrao = `${(100 / totalCols).toFixed(2)}%`;
 
     const estiloCSS = `
         <style>
-            * { box-sizing: border-box !important; }
-            table.tabela-pdf { width: 100%; border-collapse: collapse; table-layout: fixed; }
-            table.tabela-pdf thead { display: table-header-group !important; }
-            table.tabela-pdf tr { page-break-inside: avoid !important; break-inside: avoid !important; }
+            table.tabela-pdf { width: 100%; border-collapse: collapse; font-size: 8.5pt; }
+            table.tabela-pdf thead { display: table-header-group; }
+            table.tabela-pdf tr { page-break-inside: avoid; }
             table.tabela-pdf th {
                 background-color: #f1f5f9;
-                color: #334155;
-                font-size: 8pt;
+                color: #1e293b;
                 font-weight: bold;
                 border: 1px solid #cbd5e1;
                 padding: 6px 4px;
-                text-transform: uppercase;
+                text-align: left;
             }
             table.tabela-pdf td {
                 border: 1px solid #e2e8f0;
                 padding: 5px 4px;
-                font-size: 8pt;
-                color: #1e293b;
-                word-wrap: break-word;
-                overflow-wrap: break-word;
+                color: #334155;
                 vertical-align: middle;
             }
         </style>
@@ -2480,24 +2457,22 @@ window.gerarPDFRelatorio = (titulo, colunas, dados) => {
         ${estiloCSS}
         ${watermark}
         <div style="position: relative; z-index: 1;">
-            <table style="width: 100%; margin-bottom: 15px; border-bottom: 2px solid #2563eb; padding-bottom: 10px;">
-                <tr>
-                    <td style="width: 20%; text-align: left; vertical-align: middle; border: none;">
-                        ${logoTerreiroGlobal ? `<img src="${logoTerreiroGlobal}" style="max-height: 65px; max-width: 90px; object-fit: contain;">` : ''}
-                    </td>
-                    <td style="width: 60%; text-align: center; vertical-align: middle; border: none;">
-                        <h2 style="margin: 0; color: #1e3a8a; font-size: 16px; font-weight: bold; text-transform: uppercase;">${nomeTerreiroGlobal || 'Templo'}</h2>
-                        <h3 style="margin: 4px 0 0 0; color: #475569; font-size: 13px;">${titulo}</h3>
-                        <p style="margin: 4px 0 0 0; color: #64748b; font-size: 9px;">Emitido em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} | Total: ${dados.length}</p>
-                    </td>
-                    <td style="width: 20%; border: none;"></td>
-                </tr>
-            </table>
+            <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #2563eb; padding-bottom: 8px; margin-bottom: 12px;">
+                <div style="width: 70px;">
+                    ${logoTerreiroGlobal ? `<img src="${logoTerreiroGlobal}" style="max-height: 50px; max-width: 70px; object-fit: contain;">` : ''}
+                </div>
+                <div style="text-align: center; flex: 1;">
+                    <h2 style="margin: 0; color: #1e3a8a; font-size: 14pt; text-transform: uppercase;">${nomeTerreiroGlobal || 'Templo'}</h2>
+                    <h3 style="margin: 3px 0 0 0; color: #475569; font-size: 11pt;">${titulo}</h3>
+                    <p style="margin: 3px 0 0 0; color: #64748b; font-size: 8pt;">Emitido em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} | Total: ${dados.length}</p>
+                </div>
+                <div style="width: 70px;"></div>
+            </div>
 
             <table class="tabela-pdf">
                 <thead>
                     <tr>
-                        ${colunas.map((c, index) => `<th style="width: ${obterLargura(index)}; ${obterAlinhamento(index)}">${c}</th>`).join('')}
+                        ${colunas.map(c => `<th style="width: ${larguraPadrao};">${c}</th>`).join('')}
                     </tr>
                 </thead>
                 <tbody>
@@ -2506,7 +2481,7 @@ window.gerarPDFRelatorio = (titulo, colunas, dados) => {
     dados.forEach((linha, i) => {
         const bg = i % 2 === 0 ? '#ffffff' : '#f8fafc';
         html += `<tr style="background-color: ${bg};">
-                    ${linha.map((celula, idx) => `<td style="${obterAlinhamento(idx)}">${celula || '-'}</td>`).join('')}
+                    ${linha.map(celula => `<td>${celula || '-'}</td>`).join('')}
                  </tr>`;
     });
 
@@ -2514,17 +2489,15 @@ window.gerarPDFRelatorio = (titulo, colunas, dados) => {
     containerPDF.innerHTML = html;
 
     const opt = {
-        margin:       [12, 10, 12, 10],
+        margin:       [10, 10, 10, 10],
         filename:     `${titulo.replace(/\s+/g, '_')}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true, letterRendering: true, windowWidth: 800 },
-        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
+        html2canvas:  { scale: 2, useCORS: true },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
     html2pdf().set(opt).from(containerPDF).save();
 };
-
 setTimeout(() => {
     document.getElementById('filtroNomeMedium')?.addEventListener('input', window.aplicarFiltrosMediuns);
     document.getElementById('filtroGrauMedium')?.addEventListener('change', window.aplicarFiltrosMediuns);
