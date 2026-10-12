@@ -2415,85 +2415,180 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
     
 window.gerarPDFRelatorio = (titulo, colunas, dados) => {
-    const containerPDF = document.createElement('div');
-    containerPDF.style.padding = '10px';
-    containerPDF.style.fontFamily = 'Arial, sans-serif';
-    containerPDF.style.color = '#333';
-    containerPDF.style.position = 'relative';
-
-    let watermark = '';
-    if (logoTerreiroGlobal) {
-        watermark = `<div style="position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); opacity: 0.05; z-index: 0; pointer-events: none;">
-                        <img src="${logoTerreiroGlobal}" style="width: 320px; max-width: 80%;">
-                     </div>`;
+    if (!dados || dados.length === 0) {
+        alert('Não há dados para gerar o relatório.');
+        return;
     }
 
+    // 1. TAMANHO DE FONTE E ESPAÇAMENTO AUTOAJUSTÁVEIS
     const totalCols = colunas.length;
-    const larguraPadrao = `${(100 / totalCols).toFixed(2)}%`;
+    let fontSize = '9pt';
+    let cellPadding = '5px 6px';
+    let headerFontSize = '9.5pt';
 
-    const estiloCSS = `
-        <style>
-            table.tabela-pdf { width: 100%; border-collapse: collapse; font-size: 8.5pt; }
-            table.tabela-pdf thead { display: table-header-group; }
-            table.tabela-pdf tr { page-break-inside: avoid; }
-            table.tabela-pdf th {
-                background-color: #f1f5f9;
-                color: #1e293b;
-                font-weight: bold;
-                border: 1px solid #cbd5e1;
-                padding: 6px 4px;
-                text-align: left;
-            }
-            table.tabela-pdf td {
-                border: 1px solid #e2e8f0;
-                padding: 5px 4px;
-                color: #334155;
-                vertical-align: middle;
-            }
-        </style>
+    if (totalCols >= 6) {
+        fontSize = '7.5pt';
+        headerFontSize = '8pt';
+        cellPadding = '4px 3px';
+    } else if (totalCols >= 4) {
+        fontSize = '8.2pt';
+        headerFontSize = '8.7pt';
+        cellPadding = '4px 5px';
+    } else {
+        fontSize = '9.5pt';
+        headerFontSize = '10pt';
+        cellPadding = '6px 8px';
+    }
+
+    const watermarkHtml = logoTerreiroGlobal
+        ? `<div style="position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); opacity: 0.05; z-index: 0; pointer-events: none;">
+             <img src="${logoTerreiroGlobal}" style="width: 320px; max-width: 80%;">
+           </div>`
+        : '';
+
+    const theadHtml = `
+        <thead>
+            <tr>
+                ${colunas.map(c => `
+                    <th style="background-color: #f1f5f9; color: #1e293b; font-weight: bold; border: 1px solid #cbd5e1; padding: ${cellPadding}; text-align: left; font-size: ${headerFontSize};">
+                        ${c}
+                    </th>
+                `).join('')}
+            </tr>
+        </thead>
     `;
 
-    let html = `
-        ${estiloCSS}
-        ${watermark}
-        <div style="position: relative; z-index: 1;">
-            <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #2563eb; padding-bottom: 8px; margin-bottom: 12px;">
-                <div style="width: 70px;">
-                    ${logoTerreiroGlobal ? `<img src="${logoTerreiroGlobal}" style="max-height: 50px; max-width: 70px; object-fit: contain;">` : ''}
-                </div>
-                <div style="text-align: center; flex: 1;">
-                    <h2 style="margin: 0; color: #1e3a8a; font-size: 14pt; text-transform: uppercase;">${nomeTerreiroGlobal || 'Templo'}</h2>
-                    <h3 style="margin: 3px 0 0 0; color: #475569; font-size: 11pt;">${titulo}</h3>
-                    <p style="margin: 3px 0 0 0; color: #64748b; font-size: 8pt;">Emitido em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} | Total: ${dados.length}</p>
-                </div>
-                <div style="width: 70px;"></div>
-            </div>
-
-            <table class="tabela-pdf">
-                <thead>
-                    <tr>
-                        ${colunas.map(c => `<th style="width: ${larguraPadrao};">${c}</th>`).join('')}
-                    </tr>
-                </thead>
-                <tbody>
+    // 2. PRÉ-CÁLCULO E MEDIÇÃO EM CONTAINER OCULTO (718px ≈ 190mm úteis do A4)
+    const stage = document.createElement('div');
+    stage.style.cssText = 'position: absolute; left: -9999px; top: 0; width: 718px; font-family: Arial, sans-serif; visibility: hidden;';
+    
+    stage.innerHTML = `
+        <div id="test-header" style="padding-bottom: 8px; margin-bottom: 12px; border-bottom: 2px solid #2563eb;">
+            <div style="height: 55px;"></div>
+        </div>
+        <table id="test-table" style="width: 100%; border-collapse: collapse; table-layout: auto;">
+            ${theadHtml}
+            <tbody>
+                ${dados.map(linha => `
+                    <tr>${linha.map(celula => `<td style="padding: ${cellPadding}; font-size: ${fontSize}; border: 1px solid #e2e8f0; word-break: break-word;">${celula || '-'}</td>`).join('')}</tr>
+                `).join('')}
+            </tbody>
+        </table>
     `;
+    document.body.appendChild(stage);
 
-    dados.forEach((linha, i) => {
-        const bg = i % 2 === 0 ? '#ffffff' : '#f8fafc';
-        html += `<tr style="background-color: ${bg};">
-                    ${linha.map(celula => `<td>${celula || '-'}</td>`).join('')}
-                 </tr>`;
+    const alturaHeaderPag1 = stage.querySelector('#test-header').offsetHeight + 20;
+    const alturaThead = stage.querySelector('thead').offsetHeight;
+    const linhasElements = stage.querySelectorAll('tbody tr');
+    const alturasLinhas = Array.from(linhasElements).map(tr => tr.offsetHeight);
+    document.body.removeChild(stage);
+
+    // 3. SEPARAÇÃO DAS LINHAS EM PÁGINAS SEM CORTAR NENHUMA
+    // Altura útil do A4 retrato com margem 10mm ≈ 1045px. Usamos 980px como teto de segurança.
+    const ALTURA_MAX_PAG1 = 980 - alturaHeaderPag1 - alturaThead;
+    const ALTURA_MAX_OUTRAS = 980 - 45 - alturaThead; // 45px para cabeçalho de continuação
+
+    const paginas = [];
+    let linhasPaginaAtual = [];
+    let alturaAcumulada = 0;
+    let limiteAtual = ALTURA_MAX_PAG1;
+
+    dados.forEach((linha, idx) => {
+        const alturaLinha = alturasLinhas[idx] || 25;
+
+        // Se a linha for cair em cima da margem inferior, joga para a próxima página
+        if (alturaAcumulada + alturaLinha > limiteAtual && linhasPaginaAtual.length > 0) {
+            paginas.push(linhasPaginaAtual);
+            linhasPaginaAtual = [linha];
+            limiteAtual = ALTURA_MAX_OUTRAS;
+            alturaAcumulada = alturaLinha;
+        } else {
+            linhasPaginaAtual.push(linha);
+            alturaAcumulada += alturaLinha;
+        }
     });
 
-    html += `</tbody></table></div>`;
-    containerPDF.innerHTML = html;
+    if (linhasPaginaAtual.length > 0) {
+        paginas.push(linhasPaginaAtual);
+    }
+
+    // 4. CONSTRUÇÃO DO HTML FINAL PAGINADO
+    const containerPDF = document.createElement('div');
+    containerPDF.style.cssText = 'width: 718px; font-family: Arial, sans-serif; color: #333;';
+
+    const dataAtual = `${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+
+    let htmlFinal = '';
+
+    paginas.forEach((grupoLinhas, numPag) => {
+        const ehPrimeira = numPag === 0;
+        const pageBreak = ehPrimeira ? '' : 'page-break-before: always;';
+
+        htmlFinal += `
+            <div class="pagina-relatorio" style="position: relative; ${pageBreak} padding: 4px 0;">
+                ${watermarkHtml}
+                <div style="position: relative; z-index: 1;">
+        `;
+
+        if (ehPrimeira) {
+            htmlFinal += `
+                <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #2563eb; padding-bottom: 8px; margin-bottom: 12px;">
+                    <div style="width: 70px;">
+                        ${logoTerreiroGlobal ? `<img src="${logoTerreiroGlobal}" style="max-height: 50px; max-width: 70px; object-fit: contain;">` : ''}
+                    </div>
+                    <div style="text-align: center; flex: 1;">
+                        <h2 style="margin: 0; color: #1e3a8a; font-size: 13pt; text-transform: uppercase;">${nomeTerreiroGlobal || 'Templo'}</h2>
+                        <h3 style="margin: 3px 0 0 0; color: #475569; font-size: 10.5pt;">${titulo}</h3>
+                        <p style="margin: 3px 0 0 0; color: #64748b; font-size: 7.5pt;">Emitido em: ${dataAtual} | Registros: ${dados.length}</p>
+                    </div>
+                    <div style="width: 70px; text-align: right; font-size: 8pt; color: #94a3b8;">Pág. 1/${paginas.length}</div>
+                </div>
+            `;
+        } else {
+            htmlFinal += `
+                <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #cbd5e1; padding-bottom: 6px; margin-bottom: 10px;">
+                    <span style="font-size: 8pt; color: #475569; font-weight: bold;">${nomeTerreiroGlobal || 'Templo'} — ${titulo} (Continuação)</span>
+                    <span style="font-size: 8pt; color: #94a3b8;">Pág. ${numPag + 1}/${paginas.length}</span>
+                </div>
+            `;
+        }
+
+        htmlFinal += `
+            <table style="width: 100%; border-collapse: collapse; table-layout: auto;">
+                ${theadHtml}
+                <tbody>
+        `;
+
+        grupoLinhas.forEach((linha, i) => {
+            const bg = i % 2 === 0 ? '#ffffff' : '#f8fafc';
+            htmlFinal += `
+                <tr style="background-color: ${bg};">
+                    ${linha.map(celula => `
+                        <td style="border: 1px solid #e2e8f0; padding: ${cellPadding}; color: #334155; font-size: ${fontSize}; vertical-align: middle; word-break: break-word;">
+                            ${celula || '-'}
+                        </td>
+                    `).join('')}
+                </tr>
+            `;
+        });
+
+        htmlFinal += `
+                </tbody>
+            </table>
+            </div>
+            </div>
+        `;
+    });
+
+    containerPDF.innerHTML = htmlFinal;
 
     const opt = {
         margin:       [10, 10, 10, 10],
         filename:     `${titulo.replace(/\s+/g, '_')}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
         html2canvas:  { scale: 2, useCORS: true },
-        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak:    { mode: ['css', 'legacy'] }
     };
 
     html2pdf().set(opt).from(containerPDF).save();
