@@ -1156,60 +1156,81 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
 
-        window.aplicarFiltrosMediuns = () => {
-            const inputNome = document.getElementById('filtroNomeMedium');
-            const selectGrau = document.getElementById('filtroGrauMedium');
-            const selectStatus = document.getElementById('filtroStatusMedium');
-            const selectMes = document.getElementById('filtroMesNascimento');
+        indow.aplicarFiltrosMediuns = () => {
+    const nomeFiltro = (document.getElementById('filtroNomeMedium')?.value || '').trim().toLowerCase();
+    const grauFiltro = (document.getElementById('filtroGrauMedium')?.value || '').trim().toUpperCase();
+    const statusFiltro = (document.getElementById('filtroStatusMedium')?.value || '').trim().toLowerCase();
+    const mesFiltro = (document.getElementById('filtroMesNascimento')?.value || '').trim();
 
-            const termoNome = (inputNome ? inputNome.value : '').toLowerCase().trim();
-            const termoGrau = (selectGrau ? selectGrau.value : '').toUpperCase();
-            const termoStatus = selectStatus ? selectStatus.value : '';
-            const termoMes = selectMes ? selectMes.value : '';
+    const filtrados = (listaMediunsGlobal || []).filter(m => {
+        // 1. Filtro por Nome Completo ou Social
+        if (nomeFiltro) {
+            const nomeComp = (m.nome_completo || '').toLowerCase();
+            const nomeSoc = (m.nome_social || '').toLowerCase();
+            if (!nomeComp.includes(nomeFiltro) && !nomeSoc.includes(nomeFiltro)) {
+                return false;
+            }
+        }
 
-            const filtrados = (listaMediunsGlobal || []).filter(m => {
-                const nomeCompleto = (m.nome_completo || '').toLowerCase();
-                const nomeSocial = (m.nome_social || '').toLowerCase();
-                const bateNome = !termoNome || nomeCompleto.includes(termoNome) || nomeSocial.includes(termoNome);
+        // 2. Filtro por Grau / Função (normalizado e exato para siglas)
+        if (grauFiltro && grauFiltro !== 'TODOS' && grauFiltro !== 'TODOS OS GRAUS') {
+            const grauMedium = (m.grau_funcao || m.grau || '').trim().toUpperCase();
+            if (!grauMedium) return false;
 
-                let bateGrau = true;
-                if (termoGrau) {
-                    const grauM = (m.grau || '').toUpperCase();
-                    const funcM = (m.funcao || '').toUpperCase();
-                    if (termoGrau === 'I') bateGrau = grauM.includes('I') || funcM.includes('I');
-                    else if (termoGrau === 'B') bateGrau = grauM.includes('B') || funcM.includes('B');
-                    else if (termoGrau === 'T') bateGrau = grauM.includes('T') || funcM.includes('T');
-                    else if (termoGrau === 'SCT') bateGrau = grauM.includes('SCT');
-                    else if (termoGrau === 'CT') bateGrau = grauM.includes('CT');
-                    else if (termoGrau === 'CCT') bateGrau = grauM.includes('CCT');
-                    else if (termoGrau === 'DIRIGENTE') bateGrau = grauM.includes('DIRIGENTE') || funcM.includes('DIRIGENTE');
-                    else bateGrau = grauM.includes(termoGrau) || funcM.includes(termoGrau);
+            // Se for sigla exata (I, B, T, SCT, CT, CCT, DIRIGENTE)
+            if (['I', 'B', 'T', 'SCT', 'CT', 'CCT', 'DIRIGENTE'].includes(grauFiltro)) {
+                if (grauMedium !== grauFiltro && !grauMedium.startsWith(grauFiltro + ' ') && !grauMedium.endsWith(' ' + grauFiltro)) {
+                    return false;
                 }
+            } else {
+                if (!grauMedium.includes(grauFiltro)) return false;
+            }
+        }
 
-                let bateStatus = true;
-                if (termoStatus === 'Ativo') {
-                    bateStatus = m.status_ativo !== false && m.cadastro_completo === true;
-                } else if (termoStatus === 'Pendente') {
-                    bateStatus = m.status_ativo !== false && !m.cadastro_completo;
-                }
+        // 3. Filtro por Status (compatível com 'ativo', 'pendente', 'inativo', booleanos true/false)
+        if (statusFiltro && statusFiltro !== 'todos') {
+            let statusMedium = '';
+            
+            if (m.status !== undefined && m.status !== null) {
+                statusMedium = String(m.status).trim().toLowerCase();
+            } else if (m.ativo !== undefined && m.ativo !== null) {
+                statusMedium = (m.ativo === true || m.ativo === 'true' || m.ativo === 1) ? 'ativo' : 'inativo';
+            }
 
-                let bateMes = true;
-                if (termoMes && m.data_nascimento) {
-                    let mesNasc = '';
-                    if (m.data_nascimento.includes('-')) mesNasc = m.data_nascimento.split('-')[1];
-                    else if (m.data_nascimento.includes('/')) mesNasc = m.data_nascimento.split('/')[1];
-                    bateMes = mesNasc === termoMes;
-                } else if (termoMes && !m.data_nascimento) {
-                    bateMes = false;
-                }
+            if (statusFiltro === 'ativo') {
+                if (statusMedium !== 'ativo' && statusMedium !== 'true' && statusMedium !== '1') return false;
+            } else if (statusFiltro === 'pendente') {
+                if (statusMedium !== 'pendente') return false;
+            } else if (statusFiltro === 'inativo') {
+                if (statusMedium !== 'inativo' && statusMedium !== 'false' && statusMedium !== '0') return false;
+            }
+        }
 
-                return bateNome && bateGrau && bateStatus && bateMes;
-            });
+        // 4. Filtro por Mês de Nascimento (YYYY-MM-DD ou DD/MM/YYYY)
+        if (mesFiltro && mesFiltro !== 'todos') {
+            const dataNasc = m.data_nascimento || m.nascimento || '';
+            if (!dataNasc) return false;
 
-            window.mediunsFiltrados = filtrados;
-            renderizarTabelaMediuns(filtrados);
-        };
+            let mesMedium = '';
+            if (dataNasc.includes('-')) {
+                // Formato ISO: YYYY-MM-DD
+                mesMedium = dataNasc.split('-')[1];
+            } else if (dataNasc.includes('/')) {
+                // Formato BR: DD/MM/YYYY
+                mesMedium = dataNasc.split('/')[1];
+            }
 
+            if (parseInt(mesMedium, 10) !== parseInt(mesFiltro, 10)) {
+                return false;
+            }
+        }
+
+        return true;
+    });
+
+    window.mediunsFiltrados = filtrados;
+    renderizarTabelaMediuns(filtrados);
+};
         async function carregarAgenda() {
             if(!idTerreiroGlobal) return;
             const tbody = document.getElementById('tabelaGirasCadastradas');
