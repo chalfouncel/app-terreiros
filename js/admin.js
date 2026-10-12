@@ -2354,16 +2354,65 @@ document.addEventListener('DOMContentLoaded', async () => {
                     msg.className = 'text-xs font-bold text-red-600 block';
                     msg.classList.remove('hidden');
                 }
-            } finally {
+             } finally {
                 btn.disabled = false;
                 btn.innerHTML = '<i class="fas fa-save"></i> Salvar Dados Cadastrais';
             }
         });
     }
 
-    
-});
+    const formNovoTerreiro = document.getElementById('formNovoTerreiro');
+    if (formNovoTerreiro) {
+        formNovoTerreiro.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const inputNome = document.getElementById('novoTerreiroNome');
+            const btn = document.getElementById('btnSalvarTerreiro');
+            const msg = document.getElementById('msgNovoTerreiro');
 
+            const nome = (inputNome ? inputNome.value : '').trim();
+            if (!nome) return;
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i> Cadastrando...';
+            if (msg) msg.classList.add('hidden');
+
+            try {
+                const { error } = await supabaseClient
+                    .from('terreiros')
+                    .insert([{ 
+                        nome: nome,
+                        modulo_mensalidade_ativo: false,
+                        status_bloqueado: false
+                    }]);
+
+                if (error) throw error;
+
+                if (inputNome) inputNome.value = '';
+
+                if (msg) {
+                    msg.innerHTML = '<i class="fas fa-check-circle mr-1"></i> Terreiro cadastrado com sucesso!';
+                    msg.className = 'text-xs font-bold text-emerald-600 block mt-2 text-center';
+                    msg.classList.remove('hidden');
+                    setTimeout(() => msg.classList.add('hidden'), 4000);
+                }
+
+                if (typeof carregarGestaoPlataforma === 'function') {
+                    carregarGestaoPlataforma();
+                }
+            } catch (err) {
+                if (msg) {
+                    msg.innerHTML = '<i class="fas fa-exclamation-triangle mr-1"></i> Erro: ' + err.message;
+                    msg.className = 'text-xs font-bold text-red-600 block mt-2 text-center';
+                    msg.classList.remove('hidden');
+                }
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-plus"></i> Cadastrar Terreiro';
+            }
+        });
+    }
+
+});
 window.gerarPDFRelatorio = (titulo, colunas, dados) => {
     const containerPDF = document.createElement('div');
     containerPDF.style.padding = '20px 30px';
