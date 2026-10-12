@@ -988,8 +988,22 @@ document.addEventListener('DOMContentLoaded', async () => {
             if(!idTerreiroGlobal) return;
             const tbody = document.getElementById('tabelaTodosMediuns');
             if (!tbody) return;
-            tbody.innerHTML = '<tr><td colspan="6" class="text-center p-8 text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>Buscando corrente...</td></tr>';
-
+            
+            // Loading Skeleton Moderno
+            let skeletonHtml = '';
+            for(let i=0; i<5; i++) {
+                skeletonHtml += `
+                    <tr class="animate-pulse border-b border-gray-100">
+                        <td class="p-4"><div class="h-4 bg-gray-200 rounded w-3/4 mb-2"></div><div class="h-2 bg-gray-100 rounded w-1/2"></div></td>
+                        <td class="p-4"><div class="h-4 bg-gray-200 rounded w-full"></div></td>
+                        <td class="p-4"><div class="h-4 bg-gray-200 rounded w-2/3"></div></td>
+                        <td class="p-4"><div class="h-4 bg-gray-200 rounded w-full"></div></td>
+                        <td class="p-4 text-center"><div class="h-6 bg-gray-200 rounded-full w-16 mx-auto"></div></td>
+                        <td class="p-4 text-center"><div class="flex justify-center gap-3"><div class="h-6 w-6 bg-gray-200 rounded-full"></div><div class="h-6 w-6 bg-gray-200 rounded-full"></div><div class="h-6 w-6 bg-gray-200 rounded-full"></div></div></td>
+                    </tr>
+                `;
+            }
+            tbody.innerHTML = skeletonHtml;
             try {
                 const { data, error } = await supabaseClient
                     .from('mediuns')
@@ -1365,9 +1379,36 @@ document.addEventListener('DOMContentLoaded', async () => {
             const listaCards = document.getElementById('listaComprovantesPendentes');
             if (!listaCards) return;
 
-            listaCards.innerHTML = '<div class="col-span-full p-8 text-center text-gray-500 bg-white rounded-2xl shadow-sm border border-gray-100"><i class="fas fa-spinner fa-spin mr-2 text-xl"></i> Buscando comprovantes...</div>';
+        // Loading Skeleton para os Cards de Comprovantes
+        let skeletonCards = '';
+        for(let i=0; i<3; i++) {
+            skeletonCards += `
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-200 animate-pulse">
+                    <div class="flex justify-between items-start mb-3">
+                        <div class="h-4 bg-gray-200 rounded w-2/3"></div>
+                        <div class="h-4 bg-gray-200 rounded-full w-12"></div>
+                    </div>
+                    <div class="mb-3 bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                        <div class="h-3 bg-gray-200 rounded w-full mb-2"></div>
+                        <div class="h-3 bg-gray-200 rounded w-4/5"></div>
+                    </div>
+                    <div class="flex justify-between items-end mb-4">
+                        <div class="space-y-1">
+                            <div class="h-2 bg-gray-200 rounded w-16"></div>
+                            <div class="h-3 bg-gray-200 rounded w-24"></div>
+                        </div>
+                        <div class="space-y-1 text-right flex flex-col items-end">
+                            <div class="h-2 bg-gray-200 rounded w-16"></div>
+                            <div class="h-5 bg-gray-200 rounded w-20"></div>
+                        </div>
+                    </div>
+                    <div class="w-full h-10 bg-gray-200 rounded-xl"></div>
+                </div>
+            `;
+        }
+        listaCards.innerHTML = skeletonCards;
 
-            try {
+        try {
                 const { data: comprovantes, error } = await supabaseClient
                     .from('comprovantes_mensalidade')
                     .select('*')
@@ -1559,8 +1600,50 @@ document.addEventListener('DOMContentLoaded', async () => {
             const dashboard = document.getElementById('cardsMesesFinanceiro');
             if (!tbody) return;
             
-            tbody.innerHTML = '<tr><td colspan="14" class="p-6 text-center text-gray-500">A procurar histórico...</td></tr>';
-            if(dashboard) dashboard.innerHTML = '<div class="col-span-full p-6 text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>A calcular métricas...</div>';
+            // Skeleton Tabela Financeira (Híbrido Mobile/Desktop)
+            let skeletonFin = '';
+            for(let i=0; i<4; i++) {
+                skeletonFin += `
+                    <tr class="animate-pulse border-b border-gray-200 md:border-gray-100 flex flex-col md:table-row p-4 md:p-0 mb-4 md:mb-0 bg-white md:bg-transparent rounded-2xl md:rounded-none shadow-sm md:shadow-none">
+                        <td class="py-2 px-3 block md:table-cell w-full md:max-w-[220px]">
+                            <div class="flex justify-between items-center w-full">
+                                <div class="h-4 bg-gray-200 rounded w-3/4"></div>
+                                <div class="h-6 w-6 bg-gray-200 rounded-full md:hidden"></div>
+                            </div>
+                            <div class="grid grid-cols-4 sm:grid-cols-6 gap-2 mt-4 md:hidden">
+                                <div class="h-10 bg-gray-200 rounded-lg w-full"></div><div class="h-10 bg-gray-200 rounded-lg w-full"></div>
+                                <div class="h-10 bg-gray-200 rounded-lg w-full"></div><div class="h-10 bg-gray-200 rounded-lg w-full"></div>
+                            </div>
+                        </td>
+                        <td class="hidden md:table-cell px-1"><div class="h-4 w-4 bg-gray-200 rounded mx-auto"></div></td><td class="hidden md:table-cell px-1"><div class="h-4 w-4 bg-gray-200 rounded mx-auto"></div></td>
+                        <td class="hidden md:table-cell px-1"><div class="h-4 w-4 bg-gray-200 rounded mx-auto"></div></td><td class="hidden md:table-cell px-1"><div class="h-4 w-4 bg-gray-200 rounded mx-auto"></div></td>
+                        <td class="hidden md:table-cell px-1"><div class="h-4 w-4 bg-gray-200 rounded mx-auto"></div></td><td class="hidden md:table-cell px-1"><div class="h-4 w-4 bg-gray-200 rounded mx-auto"></div></td>
+                        <td class="hidden md:table-cell px-1"><div class="h-4 w-4 bg-gray-200 rounded mx-auto"></div></td><td class="hidden md:table-cell px-1"><div class="h-4 w-4 bg-gray-200 rounded mx-auto"></div></td>
+                        <td class="hidden md:table-cell px-1"><div class="h-4 w-4 bg-gray-200 rounded mx-auto"></div></td><td class="hidden md:table-cell px-1"><div class="h-4 w-4 bg-gray-200 rounded mx-auto"></div></td>
+                        <td class="hidden md:table-cell px-1"><div class="h-4 w-4 bg-gray-200 rounded mx-auto"></div></td><td class="hidden md:table-cell px-1"><div class="h-4 w-4 bg-gray-200 rounded mx-auto"></div></td>
+                        <td class="hidden md:table-cell px-2"><div class="h-5 bg-gray-200 rounded-full w-12 mx-auto"></div></td>
+                    </tr>
+                `;
+            }
+            tbody.innerHTML = skeletonFin;
+            
+            // Skeleton Dashboard Financeiro
+            if(dashboard) {
+                let skeletonDash = '';
+                for(let i=0; i<6; i++) {
+                    skeletonDash += `
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-3 animate-pulse">
+                            <div class="h-3 bg-gray-200 rounded w-1/3 mb-2 border-b pb-1"></div>
+                            <div class="h-2 bg-gray-200 rounded w-1/2 mb-1"></div>
+                            <div class="h-5 bg-gray-200 rounded w-3/4 mb-3"></div>
+                            <div class="flex justify-between items-center mb-1"><div class="h-2 bg-gray-200 rounded w-1/3"></div><div class="h-2 bg-gray-200 rounded w-1/4"></div></div>
+                            <div class="w-full bg-gray-100 rounded-full h-1.5 mb-2"></div>
+                            <div class="flex justify-between items-center"><div class="h-2 bg-gray-200 rounded w-1/3"></div><div class="h-2 bg-gray-200 rounded w-1/4"></div></div>
+                        </div>
+                    `;
+                }
+                dashboard.innerHTML = skeletonDash;
+            }
             
             const { data: todosMediuns } = await supabaseClient.from('mediuns')
                 .select('id, nome_completo, nome_social, isento_mensalidade, grau, funcao')
