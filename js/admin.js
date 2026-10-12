@@ -1641,12 +1641,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                         checkedStr = 'checked'; corCheck = 'accent-color: #a855f7;'; 
                         titleStr = 'Isento (Botão direito p/ desfazer)';
                     } else if (pago && origem === 'asaas') {
-                        checkedStr = 'checked'; disabledStr = 'disabled'; 
-                        corCheck = 'accent-color: #16a34a; opacity: 1; cursor: not-allowed;'; 
+                        checkedStr = 'checked'; disabledStr = 'onclick="return false;"'; 
+                        corCheck = 'accent-color: #16a34a; cursor: not-allowed;'; 
                         titleStr = 'Pago via Asaas Automático (Irreversível)';
                     } else if (pago && origem === 'pix_sistema') {
-                        checkedStr = 'checked'; disabledStr = 'disabled'; 
-                        corCheck = 'accent-color: #16a34a; opacity: 1; cursor: not-allowed;'; 
+                        checkedStr = 'checked'; disabledStr = 'onclick="return false;"'; 
+                        corCheck = 'accent-color: #16a34a; cursor: not-allowed;'; 
                         titleStr = 'Pago via PIX Asaas (Irreversível)';
                     } else if (pago) {
                         checkedStr = 'checked'; corCheck = 'accent-color: #16a34a;'; 
