@@ -2130,32 +2130,124 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         };
 
-        async function carregarGestaoPlataforma() {
-            const tbody = document.getElementById('tabelaMasterTerreiros') || document.querySelector('#secMaster tbody');
-            if(!tbody) return;
-            tbody.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-gray-500">Carregando terreiros...</td></tr>';
-            
-            const { data, error } = await supabaseClient.from('terreiros').select('*').order('id', { ascending: true });
-            if (error) { tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-red-500">Erro: ${error.message}</td></tr>`; return; }
+        let cacheTerreirosSaaS = [];
 
-            tbody.innerHTML = '';
-            data.forEach(t => {
-                const statusHtml = t.status_bloqueado ? '<span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded font-bold">Bloqueado</span>' : '<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded font-bold">Ativo</span>';
-                
-                const btnAcessar = `<button onclick="acessarTerreiroSaaS('${t.id}')" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white py-1 px-3 rounded shadow mr-2"><i class="fas fa-sign-in-alt"></i></button>`;
-                const btnBloqueio = t.status_bloqueado 
-                    ? `<button onclick="alternarBloqueioTerreiro('${t.id}', false)" class="text-xs bg-gray-800 text-white py-1 px-3 rounded shadow"><i class="fas fa-lock-open"></i></button>` 
-                    : `<button onclick="alternarBloqueioTerreiro('${t.id}', true)" class="text-xs bg-red-600 text-white py-1 px-3 rounded shadow"><i class="fas fa-lock"></i></button>`;
-                const btnImportar = `<button onclick="abrirModalImportacao('${t.id}', '${t.nome.replace(/'/g, "\\'")}')" class="text-xs bg-blue-600 hover:bg-blue-700 text-white py-1 px-3 rounded shadow ml-2"><i class="fas fa-file-csv"></i></button>`;
-                
-                const statusMensalidade = t.modulo_mensalidade_ativo ? 'bg-amber-500 text-white hover:bg-amber-600' : 'bg-gray-200 text-gray-500 hover:bg-gray-300';
-                const btnMensalidade = `<button onclick="alternarModuloMensalidade('${t.id}', ${!t.modulo_mensalidade_ativo})" class="text-xs py-1 px-3 rounded shadow ml-2 transition ${statusMensalidade}" title="Habilitar/Desabilitar Módulo Tesouraria"><i class="fas fa-hand-holding-usd"></i></button>`;
+        function renderizarCardsTerreirosSaaS(lista) {
+            const container = document.getElementById('gridMasterTerreiros');
+            if (!container) return;
 
-                const btnConfigFin = `<button onclick="abrirModalFinanceiroMaster('${t.id}', '${t.nome.replace(/'/g, "\\'")}')" class="text-xs bg-green-600 hover:bg-green-700 text-white py-1 px-3 rounded shadow ml-2" title="Regras Financeiras Asaas"><i class="fas fa-hand-holding-usd"></i></button>`;
-                const acaoHtml = `<div class="flex justify-center items-center">${btnAcessar}${btnBloqueio}${btnImportar}${btnMensalidade}${btnConfigFin}</div>`;
-                
-                tbody.innerHTML += `<tr class="border-b border-gray-100 ${t.status_bloqueado ? 'bg-red-50' : ''}"><td class="p-3 text-sm font-mono text-gray-500 truncate max-w-[120px]" title="${t.id}">${t.id.substring(0,8)}...</td><td class="p-3 font-bold text-gray-800">${t.nome}</td><td class="p-3 text-center">${statusHtml}</td><td class="p-3 text-center">${acaoHtml}</td></tr>`;
+            if (lista.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-full bg-white p-8 rounded-2xl border border-dashed border-gray-200 text-center text-gray-400">
+                        <i class="fas fa-search text-3xl mb-2 block text-gray-300"></i>
+                        <span class="text-sm">Nenhum terreiro encontrado.</span>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = '';
+            lista.forEach(t => {
+                const bloqueado = !!t.status_bloqueado;
+                const tesourariaAtiva = !!t.modulo_mensalidade_ativo;
+                const nomeEscapado = (t.nome || '').replace(/'/g, "\\'");
+
+                const statusBadge = bloqueado
+                    ? `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700"><span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> Bloqueado</span>`
+                    : `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Ativo</span>`;
+
+                const tesourariaBadge = tesourariaAtiva
+                    ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200" title="Módulo Financeiro Habilitado"><i class="fas fa-coins text-amber-500"></i> Tesouraria On</span>`
+                    : `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-gray-100 text-gray-500" title="Módulo Financeiro Desabilitado"><i class="fas fa-coins text-gray-400"></i> Tesouraria Off</span>`;
+
+                const btnBloqueio = bloqueado
+                    ? `<button onclick="alternarBloqueioTerreiro('${t.id}', false)" class="flex-1 py-2 px-2.5 bg-gray-900 hover:bg-black text-white text-xs font-bold rounded-lg shadow-sm transition flex items-center justify-center gap-1.5" title="Desbloquear acesso"><i class="fas fa-lock-open text-emerald-400"></i> Desbloquear</button>`
+                    : `<button onclick="alternarBloqueioTerreiro('${t.id}', true)" class="flex-1 py-2 px-2.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs font-bold rounded-lg transition flex items-center justify-center gap-1.5" title="Bloquear acesso à plataforma"><i class="fas fa-lock"></i> Bloquear</button>`;
+
+                const btnMensalidade = `<button onclick="alternarModuloMensalidade('${t.id}', ${!tesourariaAtiva})" class="p-2 border border-gray-200 hover:border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition" title="${tesourariaAtiva ? 'Desativar Módulo Financeiro' : 'Ativar Módulo Financeiro'}"><i class="fas fa-hand-holding-usd ${tesourariaAtiva ? 'text-amber-500' : 'text-gray-400'}"></i></button>`;
+
+                const logoOuIniciais = t.logo_url
+                    ? `<img src="${t.logo_url}" class="w-11 h-11 rounded-xl object-cover border border-gray-200 bg-white shadow-sm flex-shrink-0" alt="Logo">`
+                    : `<div class="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white font-black text-base flex items-center justify-center shadow-sm flex-shrink-0">${(t.nome || 'T').substring(0, 2).toUpperCase()}</div>`;
+
+                container.innerHTML += `
+                    <div class="bg-white rounded-2xl border ${bloqueado ? 'border-red-200 bg-red-50/20' : 'border-gray-200'} p-5 shadow-sm hover:shadow-md transition flex flex-col justify-between">
+                        <div>
+                            <!-- Topo do Card -->
+                            <div class="flex items-start justify-between gap-3 mb-3">
+                                <div class="flex items-center gap-3 min-w-0">
+                                    ${logoOuIniciais}
+                                    <div class="min-w-0">
+                                        <h4 class="font-bold text-gray-900 text-base leading-snug truncate" title="${t.nome}">${t.nome}</h4>
+                                        <div class="flex items-center gap-1.5 mt-0.5">
+                                            <span class="text-[11px] font-mono text-gray-400 font-semibold truncate" title="${t.id}">ID: ${String(t.id).substring(0, 8)}...</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flex-shrink-0">
+                                    ${statusBadge}
+                                </div>
+                            </div>
+
+                            <!-- Badges de Status e Funcionalidades -->
+                            <div class="flex flex-wrap items-center gap-2 mb-4 pt-2 border-t border-gray-100">
+                                ${tesourariaBadge}
+                                ${t.asaas_wallet_id ? '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200"><i class="fas fa-wallet text-blue-500"></i> Split Configurado</span>' : ''}
+                            </div>
+                        </div>
+
+                        <!-- Ações do Card -->
+                        <div class="pt-3 border-t border-gray-100 flex flex-col gap-2">
+                            <!-- Botão Principal: Acesso Suporte -->
+                            <button onclick="acessarTerreiroSaaS('${t.id}')" class="w-full py-2.5 px-3 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold rounded-xl text-xs shadow-sm transition flex items-center justify-center gap-2">
+                                <i class="fas fa-sign-in-alt"></i> Acessar Painel (Suporte)
+                            </button>
+
+                            <!-- Botões de Gestão Rápida -->
+                            <div class="flex items-center gap-2">
+                                ${btnBloqueio}
+                                <button onclick="abrirModalFinanceiroMaster('${t.id}', '${nomeEscapado}')" class="p-2 border border-gray-200 hover:border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition" title="Configurações de Taxas e Split Asaas"><i class="fas fa-cog text-blue-600"></i></button>
+                                <button onclick="abrirModalImportacao('${t.id}', '${nomeEscapado}')" class="p-2 border border-gray-200 hover:border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition" title="Importar Médiuns via CSV"><i class="fas fa-file-csv text-emerald-600"></i></button>
+                                ${btnMensalidade}
+                            </div>
+                        </div>
+                    </div>
+                `;
             });
+        }
+
+        async function carregarGestaoPlataforma() {
+            const container = document.getElementById('gridMasterTerreiros');
+            if (!container) return;
+
+            container.innerHTML = `
+                <div class="col-span-full p-8 text-center text-gray-400 bg-white rounded-2xl border border-gray-100 shadow-sm">
+                    <i class="fas fa-spinner fa-spin text-xl text-blue-600 mr-2"></i> Carregando terreiros da plataforma...
+                </div>
+            `;
+
+            const { data, error } = await supabaseClient.from('terreiros').select('*').order('id', { ascending: true });
+            if (error) {
+                container.innerHTML = `<div class="col-span-full p-4 text-center text-red-500 font-bold bg-white rounded-xl border border-red-200">Erro: ${error.message}</div>`;
+                return;
+            }
+
+            cacheTerreirosSaaS = data || [];
+            renderizarCardsTerreirosSaaS(cacheTerreirosSaaS);
+
+            const inputBusca = document.getElementById('filtroBuscaTerreiroSaaS');
+            if (inputBusca && !inputBusca.dataset.listenerAtivo) {
+                inputBusca.dataset.listenerAtivo = 'true';
+                inputBusca.addEventListener('input', (e) => {
+                    const termo = (e.target.value || '').toLowerCase().trim();
+                    const filtrados = cacheTerreirosSaaS.filter(t => {
+                        const nome = (t.nome || '').toLowerCase();
+                        const id = String(t.id || '').toLowerCase();
+                        return nome.includes(termo) || id.includes(termo);
+                    });
+                    renderizarCardsTerreirosSaaS(filtrados);
+                });
+            }
         }
 
         if (emModoMasterPuro) {
