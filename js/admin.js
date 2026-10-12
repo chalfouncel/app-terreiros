@@ -747,16 +747,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const chavePix = document.getElementById('chavePixManual') ? document.getElementById('chavePixManual').value.trim() : '';
                     const asaasKey = document.getElementById('asaasApiKey') ? document.getElementById('asaasApiKey').value.trim() : '';
                     
-                    if (gateway === 'asaas') {
-                        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Criando subconta no Asaas...';
-                        const { data: resSubconta, error: errSubconta } = await supabaseClient.functions.invoke('asaas-criar-subconta', {
-                            body: { terreiroId: idTerreiroGlobal }
-                        });
-                        
-                        if (errSubconta) throw errSubconta;
-                        if (resSubconta && resSubconta.error) throw new Error(resSubconta.error);
-                    }
-                    
+                                      
                     const { error: errT } = await supabaseClient.from('terreiros').update({
                         gateway_pagamento: gateway, 
                         chave_pix_manual: chavePix, 
@@ -2279,31 +2270,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    const btnCriarSubcontaAsaas = document.getElementById('btnCriarSubcontaAsaas');
-    if (btnCriarSubcontaAsaas) {
-        btnCriarSubcontaAsaas.addEventListener('click', async () => {
-            const btn = btnCriarSubcontaAsaas;
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Sincronizando com Asaas...';
-
-            try {
-                const { data, error } = await supabaseClient.functions.invoke('asaas-criar-subconta', {
-                    body: { terreiroId: idTerreiroGlobal }
-                });
-
-                if (error) throw error;
-                if (data && data.error) throw new Error(data.error);
-
-                alert('Subconta do Asaas criada e sincronizada com sucesso! Wallet ID: ' + data.walletId);
-            } catch (err) {
-                console.error('Erro na sincronização Asaas:', err);
-                alert('Erro ao criar subconta: ' + err.message);
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-sync-alt"></i> Sincronizar / Criar Subconta Asaas';
-            }
-        });
-    }
+    
 });
 
 window.gerarPDFRelatorio = (titulo, colunas, dados) => {
