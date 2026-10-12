@@ -95,7 +95,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if(overlayMobile) overlayMobile.addEventListener('click', toggleMenu);
 
         const { data: { session } } = await supabaseClient.auth.getSession();
-        if (!session) return window.location.replace('index.html');
+        if (!session) return w.location.replace('index.html');
 
         const btnSair = document.getElementById('btnSair');
         if (btnSair) {
@@ -103,7 +103,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 btnSair.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Saindo...';
                 await supabaseClient.auth.signOut(); 
                 localStorage.clear(); 
-                window.location.replace('index.html'); 
+                w.location.replace('index.html'); 
             });
         }
 
@@ -120,7 +120,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (!temAcessoPainel) {
             alert('Acesso negado. Não possui permissão para aceder ao Painel de Gestão.');
-            return window.location.replace('presenca.html');
+            return w.location.replace('presenca.html');
         }
         
         if (perfil.is_master) {
@@ -283,7 +283,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     if (typeof carregarGestaoPlataforma === 'function') carregarGestaoPlataforma();
                 }
 
-                if (window.innerWidth < 768 && sidebar && overlayMobile) {
+                if (w.innerWidth < 768 && sidebar && overlayMobile) {
                     sidebar.classList.add('-translate-x-full');
                     overlayMobile.classList.add('hidden');
                 }
@@ -328,7 +328,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         }
                     }
 
-                    const convocados = especial ? (window['selecionados_listaCheckConvocados'] || []) : [];
+                    const convocados = especial ? (w['selecionados_listaCheckConvocados'] || []) : [];
 
                     const novoEvento = {
                         terreiro_id: idTerreiroGlobal,
@@ -349,7 +349,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     if (errInsert) throw errInsert;
 
                     formNovaGira.reset();
-                    window['selecionados_listaCheckConvocados'] = [];
+                    w['selecionados_listaCheckConvocados'] = [];
                     document.getElementById('boxConvocados')?.classList.add('hidden');
 
                     if (msg) {
@@ -385,7 +385,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const fim = document.getElementById('editGiraFim').value;
                 const geraAta = document.getElementById('editGiraGeraAta')?.checked || false;
                 const especial = document.getElementById('editGiraEspecial')?.checked || false;
-                const convocados = especial ? (window['selecionados_editListaCheckConvocados'] || []) : [];
+                const convocados = especial ? (w['selecionados_editListaCheckConvocados'] || []) : [];
 
                 const btn = document.getElementById('btnSalvarEditGira');
                 btn.disabled = true;
@@ -407,7 +407,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                     if (error) throw error;
 
-                    window.fecharModalEditarGira();
+                    w.fecharModalEditarGira();
                     carregarAgenda();
                 } catch (err) {
                     alert('Erro ao atualizar: ' + err.message);
@@ -444,8 +444,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                         msg.className = 'text-center mt-2 text-xs md:text-sm font-bold text-green-600 block';
                         msg.classList.remove('hidden');
                         setTimeout(() => {
-                            window.fecharModalEscreverAta();
-                            if (typeof window.carregarLivroAta === 'function') window.carregarLivroAta();
+                            w.fecharModalEscreverAta();
+                            if (typeof w.carregarLivroAta === 'function') w.carregarLivroAta();
                         }, 1200);
                     }
                 } catch (err) {
@@ -567,7 +567,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                     if (error) throw error;
 
-                    window.fecharModalEditarMedium();
+                    w.fecharModalEditarMedium();
                     carregarQuadroMediuns();
                 } catch (err) {
                     if (msg) {
@@ -636,7 +636,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (btnAprovarModal) {
             btnAprovarModal.addEventListener('click', async () => {
-                if (!window.comprovanteAtualId) return;
+                if (!w.comprovanteAtualId) return;
                 if (!confirm("Aprovar este comprovante? Os meses associados serão marcados como pagos.")) return;
 
                 const btnHtml = btnAprovarModal.innerHTML;
@@ -647,7 +647,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const { data: comp, error: errComp } = await supabaseClient
                         .from('comprovantes_mensalidade')
                         .select('detalhes_pagamento')
-                        .eq('id', window.comprovanteAtualId)
+                        .eq('id', w.comprovanteAtualId)
                         .eq('terreiro_id', idTerreiroGlobal)
                         .single();
 
