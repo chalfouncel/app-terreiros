@@ -1,3 +1,4 @@
+const w = window;
 let idTerreiroGlobal = null; 
 let mediunsGrauCache = []; 
 let perfilAdminLogado = null; 
