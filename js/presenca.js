@@ -923,6 +923,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 alert("✅ Comprovante enviado com sucesso para a Tesouraria! A administração fará a validação em breve.");
                 fecharModalMensalidade();
+                verificarPendenciaMensalidade(perfilMediumLogado.id);
 
             } catch (error) {
                 console.error(error);
