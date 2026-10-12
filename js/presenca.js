@@ -267,21 +267,47 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (horaFeito) horaFeito.textContent = new Date(presencas[0].data_hora_checkin).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
             } else {
                 const btnPonto = document.getElementById('btnCheckin');
-                const btnAgora = new Date();
                 
-                if (btnPonto) {
+                function atualizarStatusBotaoPonto() {
+                    if (!btnPonto) return;
+                    const btnAgora = new Date();
+                    
                     if (btnAgora < hrInicioPermitidoGlobal) {
                         btnPonto.disabled = true;
-                        btnPonto.innerHTML = '<i class="fas fa-lock"></i> Libera 90 min antes';
-                        btnPonto.classList.add('opacity-60', 'cursor-not-allowed', 'bg-gray-500');
-                        btnPonto.classList.remove('bg-tema-secundaria', 'hover:opacity-90');
+                        const diffMs = hrInicioPermitidoGlobal - btnAgora;
+                        const diffMins = Math.ceil(diffMs / 60000);
+                        
+                        let textoTempo = '';
+                        if (diffMins > 60) {
+                            const horas = Math.floor(diffMins / 60);
+                            const minRest = diffMins % 60;
+                            textoTempo = `em ${horas}h ${minRest}m`;
+                        } else {
+                            textoTempo = `em ${diffMins} min`;
+                        }
+
+                        btnPonto.innerHTML = `<i class="fas fa-lock"></i> Libera ${textoTempo}`;
+                        btnPonto.classList.add('opacity-70', 'cursor-not-allowed', 'bg-gray-500');
+                        btnPonto.classList.remove('bg-tema-primaria', 'hover:opacity-90', 'active:scale-95');
+                        
+                        // Atualiza a cada minuto se estiver aguardando
+                        setTimeout(atualizarStatusBotaoPonto, 60000);
+                        
                     } else if (btnAgora > hrFimGiraGlobal) {
                         btnPonto.disabled = true;
                         btnPonto.innerHTML = '<i class="fas fa-times-circle"></i> Gira Encerrada';
-                        btnPonto.classList.add('opacity-60', 'cursor-not-allowed', 'bg-gray-500');
-                        btnPonto.classList.remove('bg-tema-secundaria', 'hover:opacity-90');
+                        btnPonto.classList.add('opacity-70', 'cursor-not-allowed', 'bg-gray-500');
+                        btnPonto.classList.remove('bg-tema-primaria', 'hover:opacity-90', 'active:scale-95');
+                    } else {
+                        // Liberado
+                        btnPonto.disabled = false;
+                        btnPonto.innerHTML = '<i class="fas fa-map-marker-alt"></i> Confirmar Presença';
+                        btnPonto.classList.remove('opacity-70', 'cursor-not-allowed', 'bg-gray-500');
+                        btnPonto.classList.add('bg-tema-primaria', 'hover:opacity-90', 'active:scale-95');
                     }
                 }
+                
+                atualizarStatusBotaoPonto();
             }
         } else {
             if (divComGira) divComGira.classList.add('hidden');
