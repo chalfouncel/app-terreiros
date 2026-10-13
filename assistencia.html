@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Recepção - Presença Assistência</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --cor-primaria: #1e3a8a;
+            --cor-secundaria: #16a34a;
+            --cor-fundo: #f3f4f6;
+            --cor-texto: #1f2937;
+        }
+        body { background-color: var(--cor-fundo); color: var(--cor-texto); }
+        .bg-tema-primaria { background-color: var(--cor-primaria) !important; }
+        .text-tema-primaria { color: var(--cor-primaria) !important; }
+        .border-tema-primaria { border-color: var(--cor-primaria) !important; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-4">
+
+    <!-- Topo: Identificação do Terreiro -->
+    <div class="w-full max-w-md flex flex-col items-center mb-6 text-center">
+        <img id="logoTerreiro" src="" class="hidden max-h-24 mb-3 object-contain drop-shadow-md rounded-xl">
+        <h1 id="nomeTerreiro" class="text-2xl font-black text-tema-primaria drop-shadow-sm">Carregando...</h1>
+        <p class="text-xs text-gray-500 mt-1 uppercase tracking-wider font-semibold">Registro de Presença • Assistência</p>
+    </div>
+
+    <!-- Container Principal -->
+    <main class="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden border-t-4 border-tema-primaria p-6 md:p-8">
+        
+        <!-- Estado 1: Carregando -->
+        <div id="estadoCarregando" class="text-center py-8">
+            <i class="fas fa-spinner fa-spin text-3xl text-tema-primaria mb-3"></i>
+            <p class="text-sm text-gray-600 font-medium">Localizando sessão ativa...</p>
+        </div>
+
+        <!-- Estado 2: Sem Gira Aberta -->
+        <div id="estadoSemGira" class="hidden text-center py-6">
+            <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3 text-gray-400">
+                <i class="fas fa-calendar-times text-2xl"></i>
+            </div>
+            <h2 class="text-lg font-bold text-gray-800">Recepção Fechada</h2>
+            <p class="text-xs md:text-sm text-gray-500 mt-2">
+                Não há nenhuma sessão com check-in aberto neste momento.<br>Aguarde o início do trabalho espiritual.
+            </p>
+        </div>
+
+        <!-- Estado 3: Formulário de Presença -->
+        <div id="estadoComGira" class="hidden">
+            <div class="bg-gray-50 border border-gray-200 rounded-2xl p-4 mb-5 text-center">
+                <span class="bg-green-100 text-green-800 text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider">Sessão em Andamento</span>
+                <h2 id="tituloGira" class="text-lg font-black text-gray-800 mt-1.5 leading-snug">Nome da Gira</h2>
+                <p id="horarioGira" class="text-xs text-gray-500 mt-0.5"><i class="far fa-clock mr-1"></i> --:-- às --:--</p>
+            </div>
+
+            <form id="formAssistencia" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Seu Nome Completo *</label>
+                    <input type="text" id="nomeVisitante" required class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-tema-primaria outline-none text-sm transition" placeholder="Ex: Maria Pereira da Silva">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">WhatsApp (Opcional)</label>
+                    <input type="tel" id="telVisitante" class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-tema-primaria outline-none text-sm transition" placeholder="(21) 99999-9999">
+                </div>
+
+                <label class="flex items-center space-x-2.5 text-xs text-gray-700 cursor-pointer pt-1 select-none">
+                    <input type="checkbox" id="chkPrimeiraVez" class="w-4 h-4 rounded text-tema-primaria focus:ring-tema-primaria border-gray-300">
+                    <span class="font-medium">É a minha primeira vez nesta Casa</span>
+                </label>
+
+                <p id="msgErro" class="hidden text-xs font-bold text-red-600 text-center"></p>
+
+                <button type="submit" id="btnConfirmar" class="w-full bg-tema-primaria hover:opacity-90 active:scale-95 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg transition text-sm flex items-center justify-center gap-2 mt-4">
+                    <i class="fas fa-check-circle"></i> Confirmar Presença
+                </button>
+            </form>
+        </div>
+
+        <!-- Estado 4: Sucesso -->
+        <div id="estadoSucesso" class="hidden text-center py-6">
+            <div class="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
+                <i class="fas fa-check text-4xl"></i>
+            </div>
+            <h3 class="text-xl font-black text-gray-800">Presença Registrada!</h3>
+            <p class="text-xs text-gray-500 mt-2">
+                Seja bem-vindo(a)! Sua chegada foi anotada às <span id="horaConfirmada" class="font-bold text-gray-800">--:--</span>.
+            </p>
+            <p class="text-xs text-gray-400 mt-4">Que os Guias abençoem sua visita e tragam paz aos seus caminhos.</p>
+        </div>
+
+    </main>
+
+    <script src="js/supabase.js"></script>
+    <script src="js/assistencia.js"></script>
+</body>
+</html>
