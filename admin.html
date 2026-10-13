@@ -498,6 +498,28 @@
                         <p class="text-xs md:text-sm text-gray-500"><i class="fas fa-info-circle mr-1"></i> Marque o mês para registar o pagamento. Meses em cinza indicam período anterior ao ingresso do médium.</p>
                     </div>
                     
+                    <!-- BARRA DE FILTROS DO FINANCEIRO -->
+                    <div class="bg-gray-50 p-4 rounded-2xl border border-gray-200 mb-6 flex flex-col md:flex-row gap-3 md:gap-4 no-print">
+                        <div class="flex-1">
+                            <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Nome do Médium</label>
+                            <input type="text" id="filtroNomeFinanceiro" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-tema-secundaria outline-none bg-white" placeholder="Buscar médium...">
+                        </div>
+                        <div class="w-full md:w-48">
+                            <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Grau / Função</label>
+                            <select id="filtroGrauFinanceiro" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-tema-secundaria bg-white">
+                                <option value="">Todos os Graus</option>
+                            </select>
+                        </div>
+                        <div class="w-full md:w-40">
+                            <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Situação</label>
+                            <select id="filtroStatusFinanceiro" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-tema-secundaria bg-white">
+                                <option value="todos">Todos</option>
+                                <option value="em_dia">Em Dia</option>
+                                <option value="pendente">Pendente</option>
+                            </select>
+                        </div>
+                    </div>
+                    
                     <div class="overflow-x-auto" style="max-height: 70vh;">
                         <table class="w-full text-center border-collapse text-xs md:text-sm">
                             <thead class="sticky top-0 z-20 shadow-sm">
