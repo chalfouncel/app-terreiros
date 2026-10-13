@@ -534,6 +534,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                     if (resultado) {
                         const elId = document.getElementById('idGeradoNovoMedium');
                         if (elId) elId.textContent = String(proximoId).padStart(2, '0');
+                        
+                        // Injeta o nome do médium recém-cadastrado no modal de sucesso
+                        const tituloSucesso = resultado.querySelector('h4');
+                        if (tituloSucesso) tituloSucesso.innerHTML = `Médium Cadastrado!<br><span class="text-sm font-normal text-gray-500">${nomeCompleto}</span>`;
+                        
                         resultado.classList.remove('hidden');
                     }
 
