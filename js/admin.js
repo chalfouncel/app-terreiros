@@ -2729,7 +2729,7 @@ window.fecharModalNovoMedium = () => {
     document.getElementById('menuQuadroMediuns')?.click();
 };
 
-window.abrirModalEditarMedium = (id) => {
+window.abrirModalEditarMedium = async (id) => {
     const medium = listaMediunsGlobal.find(m => m.id === id);
     if (!medium) return alert("Médium não encontrado.");
 
@@ -2743,6 +2743,46 @@ window.abrirModalEditarMedium = (id) => {
 
     document.getElementById('msgEditMedium')?.classList.add('hidden');
     document.getElementById('modalEditarMedium')?.classList.remove('hidden');
+
+    // Carregamento dos familiares vinculados
+    const boxFam = document.getElementById('editMediumFamiliares');
+    if (boxFam) {
+        boxFam.innerHTML = '<span class="text-gray-400"><i class="fas fa-spinner fa-spin mr-1"></i> Buscando familiares...</span>';
+        try {
+            const { data: vinculos, error } = await supabaseClient
+                .from('vinculos_familiares')
+                .select('*')
+                .or(`solicitante_id.eq.${id},familiar_id.eq.${id}`)
+                .eq('status', 'aprovado');
+
+            if (error) throw error;
+
+            if (!vinculos || vinculos.length === 0) {
+                boxFam.innerHTML = '<span class="text-gray-400">Nenhum familiar vinculado.</span>';
+                return;
+            }
+
+            const idsFamiliares = vinculos.map(v => v.solicitante_id === id ? v.familiar_id : v.solicitante_id);
+            const parentes = listaMediunsGlobal.filter(m => idsFamiliares.includes(m.id));
+
+            if (parentes.length === 0) {
+                boxFam.innerHTML = '<span class="text-gray-400">Nenhum familiar encontrado na lista.</span>';
+            } else {
+                boxFam.innerHTML = `
+                    <ul class="space-y-1">
+                        ${parentes.map(p => `
+                            <li class="flex justify-between items-center py-1 border-b border-gray-100 last:border-0">
+                                <span><strong>${p.nome_completo}</strong> <span class="text-gray-400">(${p.grau || '-'})</span></span>
+                                <span class="bg-green-100 text-green-700 text-[10px] font-bold px-1.5 py-0.5 rounded">Ativo</span>
+                            </li>
+                        `).join('')}
+                    </ul>
+                `;
+            }
+        } catch (err) {
+            boxFam.innerHTML = `<span class="text-red-500">Erro ao carregar: ${err.message}</span>`;
+        }
+    }
 };
 
 window.fecharModalEditarMedium = () => {
