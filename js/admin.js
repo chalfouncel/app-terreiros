@@ -1701,7 +1701,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 arrecadado: 0, totalMediuns: 0, adimplentes: 0, inadimplentes: 0
             }));
             
-            tbody.innerHTML = '';
+            window.cacheLinhasFinanceiro = [];
             const mesAtual = new Date().getMonth() + 1; 
             const anoAtual = new Date().getFullYear();
 
@@ -1766,9 +1766,30 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
                 const btnIsentarAno = `<button onclick="isentarAnoTodo(${m.id}, ${anoBusca})" title="Isentar ano todo (Automático)" class="ml-2 text-purple-400 hover:text-purple-600 active:scale-90 transition p-1"><i class="fas fa-magic"></i></button>`;
                 const statusHtml = emDia ? '<span class="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded">Em Dia</span>' : '<span class="bg-red-100 text-red-700 text-xs font-bold px-2 py-1 rounded">Pendente</span>';
-                tbody.innerHTML += `<tr class="hover:bg-gray-50"><td class="py-2 px-3 border-b border-gray-100 text-left font-medium text-gray-800 text-xs max-w-[220px]"><div class="flex items-center justify-between"><span class="truncate" title="${m.nome_completo}">${m.nome_completo}</span>${btnIsentarAno}</div></td>${htmlMeses}<td class="py-2 px-2 border-b border-gray-100 bg-gray-50">${statusHtml}</td></tr>`;
+                const trHtml = `<tr class="hover:bg-gray-50"><td class="py-2 px-3 border-b border-gray-100 text-left font-medium text-gray-800 text-xs max-w-[220px]"><div class="flex items-center justify-between"><span class="truncate" title="${m.nome_completo}">${m.nome_completo}</span>${btnIsentarAno}</div></td>${htmlMeses}<td class="py-2 px-2 border-b border-gray-100 bg-gray-50">${statusHtml}</td></tr>`;
+
+                window.cacheLinhasFinanceiro.push({
+                    id: m.id,
+                    nome_completo: m.nome_completo || '',
+                    nome_social: m.nome_social || '',
+                    grau: m.grau || '',
+                    funcao: m.funcao || '',
+                    emDia: emDia,
+                    html: trHtml
+                });
             });
 
+            // Popula os graus no seletor de filtro do financeiro
+            const selGrauFin = document.getElementById('filtroGrauFinanceiro');
+            if (selGrauFin) {
+                const valAtual = selGrauFin.value;
+                selGrauFin.innerHTML = '<option value="">Todos os Graus</option>' + 
+                    grausAtuaisTerreiro.map(g => `<option value="${g}" ${g === valAtual ? 'selected' : ''}>${g}</option>`).join('');
+            }
+
+            // Renderiza os dados filtrados
+            window.aplicarFiltrosFinanceiro();
+            
             if(dashboard) {
                 dashboard.innerHTML = '';
                 const nomesMeses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
@@ -1801,6 +1822,55 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         if(document.getElementById('selectAnoFinanceiro')) document.getElementById('selectAnoFinanceiro').addEventListener('change', (e) => carregarFinanceiro(parseInt(e.target.value)));
+        window.aplicarFiltrosFinanceiro = () => {
+            const tbody = document.getElementById('tabelaFinanceiro');
+            if (!tbody || !window.cacheLinhasFinanceiro) return;
+
+            const nomeFiltro = (document.getElementById('filtroNomeFinanceiro')?.value || '').trim().toLowerCase();
+            const grauFiltro = (document.getElementById('filtroGrauFinanceiro')?.value || '').trim().toUpperCase();
+            const statusFiltro = (document.getElementById('filtroStatusFinanceiro')?.value || '').trim().toLowerCase();
+
+            const filtrados = window.cacheLinhasFinanceiro.filter(item => {
+                if (nomeFiltro) {
+                    const nComp = item.nome_completo.toLowerCase();
+                    const nSoc = item.nome_social.toLowerCase();
+                    if (!nComp.includes(nomeFiltro) && !nSoc.includes(nomeFiltro)) return false;
+                }
+
+                if (grauFiltro) {
+                    const g = item.grau.toUpperCase();
+                    const f = item.funcao.toUpperCase();
+                    if (g !== grauFiltro && f !== grauFiltro) return false;
+                }
+
+                if (statusFiltro === 'em_dia' && !item.emDia) return false;
+                if (statusFiltro === 'pendente' && item.emDia) return false;
+
+                return true;
+            });
+
+            if (filtrados.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="14" class="p-6 text-center text-gray-500 font-medium">Nenhum médium encontrado com estes filtros.</td></tr>';
+            } else {
+                tbody.innerHTML = filtrados.map(f => f.html).join('');
+            }
+        };
+
+        const fNomeFin = document.getElementById('filtroNomeFinanceiro');
+        const fGrauFin = document.getElementById('filtroGrauFinanceiro');
+        const fStatusFin = document.getElementById('filtroStatusFinanceiro');
+        if (fNomeFin && !fNomeFin.dataset.bound) {
+            fNomeFin.dataset.bound = 'true';
+            fNomeFin.addEventListener('input', () => window.aplicarFiltrosFinanceiro());
+        }
+        if (fGrauFin && !fGrauFin.dataset.bound) {
+            fGrauFin.dataset.bound = 'true';
+            fGrauFin.addEventListener('change', () => window.aplicarFiltrosFinanceiro());
+        }
+        if (fStatusFin && !fStatusFin.dataset.bound) {
+            fStatusFin.dataset.bound = 'true';
+            fStatusFin.addEventListener('change', () => window.aplicarFiltrosFinanceiro());
+        }
 
        async function carregarConfiguracoesCasa() {
             if (!idTerreiroGlobal) return;
