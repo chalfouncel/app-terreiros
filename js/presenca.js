@@ -1640,9 +1640,30 @@ if (!document.getElementById('styleAlertaMensalidade')) {
 
 async function verificarPendenciaMensalidade(mediumId) {
     try {
+        const botoes = [
+            document.getElementById('btnAbrirMensalidade'),
+            document.getElementById('btnAbrirMensalidadeSucesso')
+        ];
+
+        // 1. Isenção: Dirigente ou Médium Isento não têm cobrança pendente
+        const ehDirigente = perfilMediumLogado && (perfilMediumLogado.grau === 'Dirigente' || perfilMediumLogado.funcao === 'Dirigente');
+        const estaIsento = perfilMediumLogado && (perfilMediumLogado.isento_mensalidade === true);
+
+        if (ehDirigente || estaIsento) {
+            botoes.forEach(btn => {
+                if (btn) btn.classList.remove('alerta-mensalidade-pendente');
+            });
+            return;
+        }
+
         const hoje = new Date();
         const anoAtual = hoje.getFullYear();
         const mesAtual = hoje.getMonth() + 1;
+
+        // 2. Data de ingresso para não cobrar meses anteriores à entrada na Casa
+        const dataIngresso = (perfilMediumLogado && perfilMediumLogado.created_at) ? new Date(perfilMediumLogado.created_at) : new Date('2000-01-01');
+        const mesIngresso = dataIngresso.getMonth() + 1;
+        const anoIngresso = dataIngresso.getFullYear();
 
         const { data: registros, error } = await supabaseClient
             .from('financeiro')
@@ -1663,16 +1684,12 @@ async function verificarPendenciaMensalidade(mediumId) {
 
         let temMensalidadeVencida = false;
         for (let m = 1; m <= mesAtual; m++) {
-            if (!quitadosOuIsentos.has(m)) {
+            const isAntesDoIngresso = (anoAtual < anoIngresso) || (anoAtual === anoIngresso && m < mesIngresso);
+            if (!isAntesDoIngresso && !quitadosOuIsentos.has(m)) {
                 temMensalidadeVencida = true;
                 break;
             }
         }
-
-        const botoes = [
-            document.getElementById('btnAbrirMensalidade'),
-            document.getElementById('btnAbrirMensalidadeSucesso')
-        ];
 
         botoes.forEach(btn => {
             if (!btn) return;
