@@ -824,7 +824,70 @@
                         </div>
                     </form>
                 </div>
-                
+                <!-- 2.0. BLOCO DENOMINAÇÕES: GRAUS E FUNÇÕES DA CASA -->
+                <div class="bg-white rounded-2xl shadow-sm p-5 md:p-6 border-t-4 border-indigo-500">
+                    <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
+                        <div class="flex items-center gap-3">
+                            <div class="w-9 h-9 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-lg shadow-inner">
+                                <i class="fas fa-tags"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-base md:text-lg font-bold text-gray-800">Graus e Funções da Casa</h3>
+                                <p class="text-xs text-gray-500">Personalize as denominações da corrente para adequar às tradições do seu terreiro.</p>
+                            </div>
+                        </div>
+                        <button type="button" id="btnRestaurarPadraoGrausFuncoes" class="text-xs font-bold text-gray-500 hover:text-gray-700 underline">
+                            Restaurar Padrão
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Graus -->
+                        <div class="bg-gray-50 p-4 rounded-2xl border border-gray-200 flex flex-col justify-between">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                                    <span><i class="fas fa-graduation-cap text-indigo-600 mr-1.5"></i> Graus Cadastrados</span>
+                                    <span class="text-[10px] text-gray-400 font-normal">Ex: I, B, T, Iniciado...</span>
+                                </label>
+                                <div class="flex gap-2 mb-3">
+                                    <input type="text" id="novoGrauInput" placeholder="Novo grau..." class="flex-1 px-3 py-1.5 border border-gray-300 rounded-xl text-xs outline-none bg-white focus:ring-2 focus:ring-indigo-500">
+                                    <button type="button" id="btnAdicionarGrau" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-3 py-1.5 rounded-xl text-xs active:scale-95 transition">
+                                        <i class="fas fa-plus"></i> Adicionar
+                                    </button>
+                                </div>
+                                <div id="containerTagsGraus" class="flex flex-wrap gap-1.5 min-h-[70px] p-2 bg-white rounded-xl border border-gray-200">
+                                    <!-- Badges geradas via JS -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Funções -->
+                        <div class="bg-gray-50 p-4 rounded-2xl border border-gray-200 flex flex-col justify-between">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                                    <span><i class="fas fa-user-tag text-purple-600 mr-1.5"></i> Funções Cadastradas</span>
+                                    <span class="text-[10px] text-gray-400 font-normal">Ex: Curimba, Cantina, Dirigente...</span>
+                                </label>
+                                <div class="flex gap-2 mb-3">
+                                    <input type="text" id="novaFuncaoInput" placeholder="Nova função..." class="flex-1 px-3 py-1.5 border border-gray-300 rounded-xl text-xs outline-none bg-white focus:ring-2 focus:ring-purple-500">
+                                    <button type="button" id="btnAdicionarFuncao" class="bg-purple-600 hover:bg-purple-700 text-white font-bold px-3 py-1.5 rounded-xl text-xs active:scale-95 transition">
+                                        <i class="fas fa-plus"></i> Adicionar
+                                    </button>
+                                </div>
+                                <div id="containerTagsFuncoes" class="flex flex-wrap gap-1.5 min-h-[70px] p-2 bg-white rounded-xl border border-gray-200">
+                                    <!-- Badges geradas via JS -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pt-4 border-t border-gray-100 mt-4 flex justify-between items-center">
+                        <p id="msgGrausFuncoes" class="text-xs font-bold hidden"></p>
+                        <button type="button" id="btnSalvarGrausFuncoes" class="ml-auto bg-gray-800 hover:bg-gray-900 active:scale-95 text-white font-bold py-2.5 px-6 rounded-xl shadow transition text-xs flex items-center justify-center gap-2">
+                            <i class="fas fa-save"></i> Salvar Graus e Funções
+                        </button>
+                    </div>
+                </div>
                 <!-- 2. BLOCO MENSALIDADES E TESOURARIA / VALORES POR GRAU (DIVIDIDO MEIO A MEIO) -->
                 <div id="boxConfigMensalidade" class="bg-white rounded-2xl shadow-sm p-5 md:p-6 border-t-4 border-tema-secundaria">
                     <div class="flex items-center gap-3 mb-4">
