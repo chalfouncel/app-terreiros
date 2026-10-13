@@ -12,6 +12,18 @@ let listaMediunsGlobal = [];
 
 window.comprovanteAtualId = null;
 
+const GRAUS_PADRAO = ['I', 'IJ', 'B', 'BJ', 'T', 'TJ', 'SCT', 'Escola de CT', 'CT', 'SCCT', 'Escola de CCT', 'CCT', 'Dirigente', 'Outros'];
+const FUNCOES_PADRAO = ['MG', 'MGA', 'MC', 'MCA', 'MD', 'MDA', 'CC', 'CA', 'Cantina', 'Dirigente'];
+
+let opcoesGrau = ['-', ...GRAUS_PADRAO];
+let opcoesFuncao = ['-', ...FUNCOES_PADRAO];
+let grausAtuaisTerreiro = [...GRAUS_PADRAO];
+let funcoesAtuaisTerreiro = [...FUNCOES_PADRAO];
+
+function renderizarOpcoes(lista, valorAtual) { 
+    return lista.map(op => `<option value="${op === '-' ? '' : op}" ${op === valorAtual ? 'selected' : ''}>${op}</option>`).join(''); 
+}
+
 function comprimirImagem(file, maxWidth = 1200, maxHeight = 1200, quality = 0.82) {
     return new Promise((resolve) => {
         if (!file || !file.type || !file.type.match(/image.*/)) {
@@ -187,12 +199,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (idTerreiroGlobal) {
             const { data: terreiro } = await supabaseClient
                 .from('terreiros')
-                .select('nome, logo_url, cor_primaria, cor_secundaria, cor_fundo, cor_texto')
+                .select('nome, logo_url, cor_primaria, cor_secundaria, cor_fundo, cor_texto, lista_graus, lista_funcoes')
                 .eq('id', idTerreiroGlobal)
                 .single();
             
             if (terreiro) {
                 nomeTerreiroGlobal = terreiro.nome;
+                if (terreiro.lista_graus && terreiro.lista_graus.length > 0) {
+                    grausAtuaisTerreiro = [...terreiro.lista_graus];
+                    opcoesGrau = ['-', ...grausAtuaisTerreiro];
+                }
+                if (terreiro.lista_funcoes && terreiro.lista_funcoes.length > 0) {
+                    funcoesAtuaisTerreiro = [...terreiro.lista_funcoes];
+                    opcoesFuncao = ['-', ...funcoesAtuaisTerreiro];
+                }
                 logoTerreiroGlobal = terreiro.logo_url;
                 const elSide = document.getElementById('nomeTerreiroSidebar');
                 if (elSide) elSide.textContent = terreiro.nome;
@@ -1339,18 +1359,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-red-500">Erro: ${error.message}</td></tr>`;
             }
         };
-
-        const GRAUS_PADRAO = ['I', 'IJ', 'B', 'BJ', 'T', 'TJ', 'SCT', 'Escola de CT', 'CT', 'SCCT', 'Escola de CCT', 'CCT', 'Dirigente', 'Outros'];
-        const FUNCOES_PADRAO = ['MG', 'MGA', 'MC', 'MCA', 'MD', 'MDA', 'CC', 'CA', 'Cantina', 'Dirigente'];
-
-        let opcoesGrau = ['-', ...GRAUS_PADRAO];
-        let opcoesFuncao = ['-', ...FUNCOES_PADRAO];
-        let grausAtuaisTerreiro = [...GRAUS_PADRAO];
-        let funcoesAtuaisTerreiro = [...FUNCOES_PADRAO];
-
-        function renderizarOpcoes(lista, valorAtual) { 
-            return lista.map(op => `<option value="${op === '-' ? '' : op}" ${op === valorAtual ? 'selected' : ''}>${op}</option>`).join(''); 
-        }
 
         async function carregarTabelaGraus() {
             if(!idTerreiroGlobal) return;
