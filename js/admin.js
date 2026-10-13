@@ -2711,6 +2711,95 @@ setTimeout(() => {
         window.gerarPDFRelatorio(titulo, ['Data', 'Nome', 'Grau'], dados);
         setTimeout(() => { btn.innerHTML = originalHtml; btn.disabled = false; }, 2000);
     });
+
+    document.getElementById('btnImprimirFinanceiro')?.addEventListener('click', async () => {
+        const btn = document.getElementById('btnImprimirFinanceiro');
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Gerando...';
+        btn.disabled = true;
+
+        try {
+            const anoBusca = parseInt(document.getElementById('selectAnoFinanceiro').value) || new Date().getFullYear();
+
+            const { data: todosMediuns, error: errMediuns } = await supabaseClient.from('mediuns')
+                .select('id, nome_completo, created_at, isento_mensalidade, grau, funcao')
+                .eq('terreiro_id', idTerreiroGlobal)
+                .neq('nome_completo', 'Administrador Sistema')
+                .order('nome_completo');
+
+            if (errMediuns) throw errMediuns;
+
+            const mediuns = (todosMediuns || []).filter(m => {
+                const ehDirigente = (m.grau === 'Dirigente' || m.funcao === 'Dirigente');
+                return !(ehDirigente && m.isento_mensalidade === true);
+            });
+
+            if (mediuns.length === 0) {
+                alert('Nenhum médium registrado para gerar o relatório financeiro.');
+                return;
+            }
+
+            const idsMediuns = mediuns.map(m => m.id);
+
+            const { data: pgtos, error: errPgtos } = await supabaseClient.from('financeiro')
+                .select('medium_id, mes, ano, pago, isento')
+                .eq('ano', anoBusca)
+                .in('medium_id', idsMediuns);
+
+            if (errPgtos) throw errPgtos;
+
+            const mesAtual = new Date().getMonth() + 1;
+            const anoAtual = new Date().getFullYear();
+
+            const dados = mediuns.map(m => {
+                const meusPgtos = pgtos ? pgtos.filter(p => p.medium_id === m.id) : [];
+                let emDia = true;
+
+                const dataIngresso = m.created_at ? new Date(m.created_at) : new Date('2000-01-01');
+                const mesIngresso = dataIngresso.getMonth() + 1;
+                const anoIngresso = dataIngresso.getFullYear();
+
+                const linha = [m.nome_completo];
+
+                for (let i = 1; i <= 12; i++) {
+                    const pgto = meusPgtos.find(p => p.mes === i);
+                    const isAntesDoIngresso = (anoBusca < anoIngresso) || (anoBusca === anoIngresso && i < mesIngresso);
+                    const isIsento = m.isento_mensalidade === true || (pgto ? pgto.isento : false);
+                    const pago = pgto ? pgto.pago : false;
+                    const passou = (anoBusca < anoAtual) || (anoBusca === anoAtual && i < mesAtual);
+
+                    if (passou && !pago && !isIsento && !isAntesDoIngresso) emDia = false;
+
+                    if (isAntesDoIngresso) {
+                        linha.push('-');
+                    } else if (isIsento) {
+                        linha.push('Isento');
+                    } else if (pago) {
+                        linha.push('Pago');
+                    } else {
+                        linha.push(passou ? 'Pend.' : 'Aber.');
+                    }
+                }
+
+                linha.push(emDia ? 'Em Dia' : 'Pendente');
+                return linha;
+            });
+
+            dados.sort((a, b) => a[0].localeCompare(b[0], 'pt-BR'));
+
+            const colunas = ['Médium', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez', 'Status'];
+            window.gerarPDFRelatorio(`Relatório Financeiro Anual - ${anoBusca}`, colunas, dados);
+
+        } catch (err) {
+            console.error(err);
+            alert('Erro ao gerar relatório financeiro: ' + err.message);
+        } finally {
+            setTimeout(() => {
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+            }, 2000);
+        }
+    });
 }, 500);
 
 window.abrirModalNovoMedium = () => {
