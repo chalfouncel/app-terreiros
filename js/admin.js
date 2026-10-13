@@ -1340,9 +1340,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         };
 
-        const opcoesGrau = ['-', 'I', 'IJ', 'B', 'BJ', 'T', 'TJ', 'SCT', 'Escola de CT', 'CT', 'SCCT', 'Escola de CCT', 'CCT'];
-        const opcoesFuncao = ['-', 'MG', 'MGA', 'MC', 'MCA', 'MD', 'MDA', 'CC', 'CA', 'Cantina', 'Dirigente'];
-        function renderizarOpcoes(lista, valorAtual) { return lista.map(op => `<option value="${op === '-' ? '' : op}" ${op === valorAtual ? 'selected' : ''}>${op}</option>`).join(''); }
+        const GRAUS_PADRAO = ['I', 'IJ', 'B', 'BJ', 'T', 'TJ', 'SCT', 'Escola de CT', 'CT', 'SCCT', 'Escola de CCT', 'CCT', 'Dirigente', 'Outros'];
+        const FUNCOES_PADRAO = ['MG', 'MGA', 'MC', 'MCA', 'MD', 'MDA', 'CC', 'CA', 'Cantina', 'Dirigente'];
+
+        let opcoesGrau = ['-', ...GRAUS_PADRAO];
+        let opcoesFuncao = ['-', ...FUNCOES_PADRAO];
+        let grausAtuaisTerreiro = [...GRAUS_PADRAO];
+        let funcoesAtuaisTerreiro = [...FUNCOES_PADRAO];
+
+        function renderizarOpcoes(lista, valorAtual) { 
+            return lista.map(op => `<option value="${op === '-' ? '' : op}" ${op === valorAtual ? 'selected' : ''}>${op}</option>`).join(''); 
+        }
 
         async function carregarTabelaGraus() {
             if(!idTerreiroGlobal) return;
@@ -1910,8 +1918,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             }
 
-            const { data } = await supabaseClient.from('terreiros').select('logo_url, cor_primaria, cor_secundaria, cor_fundo, cor_texto, latitude, longitude, modulo_mensalidade_ativo, gateway_pagamento, chave_pix_manual, asaas_api_key, email, cpf_cnpj, phone, postal_code, address, address_number, company_type, asaas_wallet_id, dirigente_id, tipo_chave_pix_repasse, chave_pix_repasse').eq('id', idTerreiroGlobal).single();
+            const { data } = await supabaseClient.from('terreiros').select('logo_url, cor_primaria, cor_secundaria, cor_fundo, cor_texto, latitude, longitude, modulo_mensalidade_ativo, gateway_pagamento, chave_pix_manual, asaas_api_key, email, cpf_cnpj, phone, postal_code, address, address_number, company_type, asaas_wallet_id, dirigente_id, tipo_chave_pix_repasse, chave_pix_repasse, lista_graus, lista_funcoes').eq('id', idTerreiroGlobal).single();
             if (data) {
+                // Sincroniza listas de Graus e Funções do Terreiro
+                grausAtuaisTerreiro = (data.lista_graus && data.lista_graus.length > 0) ? [...data.lista_graus] : [...GRAUS_PADRAO];
+                funcoesAtuaisTerreiro = (data.lista_funcoes && data.lista_funcoes.length > 0) ? [...data.lista_funcoes] : [...FUNCOES_PADRAO];
+
+                opcoesGrau = ['-', ...grausAtuaisTerreiro];
+                opcoesFuncao = ['-', ...funcoesAtuaisTerreiro];
+
+                renderizarTagsConfiguracao();
                 if (document.getElementById('inputTerreiroEmail')) document.getElementById('inputTerreiroEmail').value = data.email || '';
                 if (document.getElementById('inputTerreiroCpfCnpj')) document.getElementById('inputTerreiroCpfCnpj').value = data.cpf_cnpj || '';
                 if (document.getElementById('selectDirigenteCompliance')) document.getElementById('selectDirigenteCompliance').value = data.dirigente_id || '';
