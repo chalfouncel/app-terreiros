@@ -129,7 +129,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (estadoCarregando) estadoCarregando.classList.add('hidden');
         if (estadoSemGira) {
             estadoSemGira.classList.remove('hidden');
-            estadoSemGira.innerHTML = `<p class="text-xs text-red-500 font-bold">Erro ao aceder à recepção: ${err.message}</p>`;
+            estadoSemGira.innerHTML = `<p class="text-xs text-red-500 font-bold">Erro ao acessar a recepção: ${err.message}</p>`;
         }
     }
 
@@ -151,7 +151,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             btnConfirmar.disabled = true;
-            btnConfirmar.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> A confirmar presença...';
+            btnConfirmar.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Confirmando presença...';
             if (msgErro) msgErro.classList.add('hidden');
 
             try {
