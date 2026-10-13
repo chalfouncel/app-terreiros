@@ -3240,6 +3240,7 @@ window.gerarPDF_ATA = async (eventoId) => {
             
         const numeroAta = eventosAnteriores ? eventosAnteriores.length : 1;
 
+        // 1. Presenças dos Médiuns
         const { data: presencas } = await supabaseClient.from('presencas').select('data_hora_checkin, usuario_id').eq('evento_id', eventoId).order('data_hora_checkin', { ascending: true });
         
         const { data: mediuns } = await supabaseClient.from('mediuns').select('id, auth_id, nome_completo, nome_social, grau, funcao').eq('terreiro_id', idTerreiroGlobal);
@@ -3251,6 +3252,12 @@ window.gerarPDF_ATA = async (eventoId) => {
                 if(m.auth_id) mapaMediuns[m.auth_id] = m;
             });
         }
+
+        // 2. Presenças da Assistência
+        const { data: assistencias } = await supabaseClient.from('presencas_assistencia')
+            .select('nome_completo, primeira_vez, data_hora_checkin')
+            .eq('evento_id', eventoId)
+            .order('data_hora_checkin', { ascending: true });
 
         const dataEv = new Date(evento.data_hora_inicio);
         const dia = dataEv.getDate().toString().padStart(2, '0');
@@ -3277,7 +3284,8 @@ window.gerarPDF_ATA = async (eventoId) => {
             });
         }
 
-        let trs = '';
+        // Linhas da Corrente Mediúnica
+        let trsMediuns = '';
         if (presencas && presencas.length > 0) {
             presencas.forEach((p, index) => {
                 const medium = mapaMediuns[p.usuario_id] || { nome_completo: 'Médium não identificado', grau: '-', funcao: '-' };
@@ -3304,7 +3312,7 @@ window.gerarPDF_ATA = async (eventoId) => {
                     }
                 }
 
-                trs += `
+                trsMediuns += `
                     <tr style="${estiloLinha} page-break-inside: avoid;">
                         <td style="border-bottom: ${borderStyle}; padding: 6px 4px; overflow-wrap: break-word;">${nomeFinal}</td>
                         <td style="border-bottom: ${borderStyle}; padding: 6px 4px; text-align: center;">${grauExibicao}</td>
@@ -3313,7 +3321,25 @@ window.gerarPDF_ATA = async (eventoId) => {
                 `;
             });
         } else {
-            trs = `<tr><td colspan="3" style="text-align: center; padding: 20px; font-style: italic;">Nenhum check-in registrado na plataforma para esta data.</td></tr>`;
+            trsMediuns = `<tr><td colspan="3" style="text-align: center; padding: 15px; font-style: italic; color: #64748b;">Nenhum médium presente nesta sessão.</td></tr>`;
+        }
+
+        // Linhas da Assistência / Visitantes
+        let trsAssist = '';
+        if (assistencias && assistencias.length > 0) {
+            assistencias.forEach((a) => {
+                const horaCheckin = new Date(a.data_hora_checkin).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                const tagPrimeiraVez = a.primeira_vez ? ' <span style="color: #16a34a; font-size: 10px; font-weight: bold;">(1ª vez)</span>' : '';
+
+                trsAssist += `
+                    <tr style="page-break-inside: avoid;">
+                        <td style="border-bottom: 1px solid #ddd; padding: 6px 4px; overflow-wrap: break-word;">${a.nome_completo}${tagPrimeiraVez}</td>
+                        <td style="border-bottom: 1px solid #ddd; padding: 6px 4px; text-align: right;">${horaCheckin}</td>
+                    </tr>
+                `;
+            });
+        } else {
+            trsAssist = `<tr><td colspan="2" style="text-align: center; padding: 15px; font-style: italic; color: #64748b;">Nenhum visitante registrado na assistência.</td></tr>`;
         }
 
         const nomeCasa = nomeTerreiroGlobal || 'Templo';
@@ -3326,13 +3352,15 @@ window.gerarPDF_ATA = async (eventoId) => {
         }
 
         const corpoTextoAta = evento.texto_ata 
-            ? `<p style="text-align: justify; line-height: 1.8; font-size: 14px; margin-bottom: 30px; white-space: pre-wrap;">${evento.texto_ata}</p>`
-            : `<p style="text-align: justify; line-height: 1.8; font-size: 14px; margin-bottom: 30px; text-indent: 40px;">
+            ? `<p style="text-align: justify; line-height: 1.8; font-size: 14px; margin-bottom: 25px; white-space: pre-wrap;">${evento.texto_ata}</p>`
+            : `<p style="text-align: justify; line-height: 1.8; font-size: 14px; margin-bottom: 25px; text-indent: 40px;">
                 Aos <strong>${dia}</strong> dias do mês de <strong>${mesExtenso}</strong> do ano de <strong>${ano}</strong>,
                 com início às <strong>${hora}</strong>, realizou-se a sessão de <strong>${evento.titulo}</strong> nas dependências
-                do templo <strong>${nomeCasa}</strong>. Abaixo, assinam digitalmente, através de validação
-                presencial por geolocalização no sistema, os médiuns que compuseram a corrente neste trabalho:
+                do templo <strong>${nomeCasa}</strong>. Abaixo, registram-se digitalmente a corrente mediúnica e a assistência que compuseram este trabalho:
                </p>`;
+
+        const totalMediunsPres = presencas ? presencas.length : 0;
+        const totalAssistPres = assistencias ? assistencias.length : 0;
 
         const div = document.createElement('div');
         div.style.padding = '40px';
@@ -3344,35 +3372,61 @@ window.gerarPDF_ATA = async (eventoId) => {
         div.innerHTML = `
             ${watermarkAta}
             <div style="position: relative; z-index: 1;">
-                <div style="text-align: center; margin-bottom: 30px;">
-                    ${logoTerreiroGlobal ? `<img src="${logoTerreiroGlobal}" style="max-height: 80px; margin-bottom: 15px;">` : ''}
+                <div style="text-align: center; margin-bottom: 25px;">
+                    ${logoTerreiroGlobal ? `<img src="${logoTerreiroGlobal}" style="max-height: 80px; margin-bottom: 12px;">` : ''}
                     <h1 style="font-size: 20px; font-weight: bold; text-transform: uppercase; margin: 0 0 5px 0;">${nomeCasa}</h1>
-                    <h2 style="font-size: 16px; font-weight: normal; margin: 0; letter-spacing: 2px;">LIVRO DE ATAS E PRESENÇAS</h2>
+                    <h2 style="font-size: 15px; font-weight: normal; margin: 0; letter-spacing: 2px;">LIVRO DE ATAS E PRESENÇAS</h2>
                 </div>
                 
-                <h3 style="text-align: center; font-size: 16px; margin-bottom: 25px; text-transform: uppercase; background-color: rgba(243, 244, 246, 0.9); padding: 10px; border-radius: 4px;">
+                <h3 style="text-align: center; font-size: 15px; margin-bottom: 20px; text-transform: uppercase; background-color: rgba(243, 244, 246, 0.9); padding: 9px; border-radius: 4px;">
                     ATA Nº ${numeroAta.toString().padStart(3, '0')}/${ano} - ${evento.titulo}
                 </h3>
                 
                 ${corpoTextoAta}
                 
-                <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 40px; background-color: rgba(255, 255, 255, 0.6);">
-                    <thead>
-                        <tr>
-                            <th style="border-bottom: 2px solid #000; padding: 8px 4px; text-align: left;">NOME DO MÉDIUM</th>
-                            <th style="border-bottom: 2px solid #000; padding: 8px 4px; text-align: center;">GRAU</th>
-                            <th style="border-bottom: 2px solid #000; padding: 8px 4px; text-align: right;">HORA DO CHECK-IN</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${trs}
-                    </tbody>
-                </table>
+                <!-- BLOCO 1: CORRENTE MEDIÚNICA -->
+                <div style="margin-bottom: 25px;">
+                    <div style="border-bottom: 2px solid #000; padding-bottom: 4px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: baseline;">
+                        <span style="font-size: 13px; font-weight: bold; text-transform: uppercase;">1. Corrente Mediúnica</span>
+                        <span style="font-size: 11px; font-weight: bold; color: #475569;">Total Presentes: ${totalMediunsPres}</span>
+                    </div>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 11.5px; margin-bottom: 15px; background-color: rgba(255, 255, 255, 0.6);">
+                        <thead>
+                            <tr>
+                                <th style="border-bottom: 1px solid #000; padding: 6px 4px; text-align: left;">NOME DO MÉDIUM</th>
+                                <th style="border-bottom: 1px solid #000; padding: 6px 4px; text-align: center; width: 18%;">GRAU</th>
+                                <th style="border-bottom: 1px solid #000; padding: 6px 4px; text-align: right; width: 22%;">HORA CHECK-IN</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${trsMediuns}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- BLOCO 2: ASSISTÊNCIA / VISITANTES -->
+                <div style="margin-bottom: 35px; page-break-inside: auto;">
+                    <div style="border-bottom: 2px solid #000; padding-bottom: 4px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: baseline;">
+                        <span style="font-size: 13px; font-weight: bold; text-transform: uppercase;">2. Assistência / Visitantes</span>
+                        <span style="font-size: 11px; font-weight: bold; color: #475569;">Total Presentes: ${totalAssistPres}</span>
+                    </div>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 11.5px; margin-bottom: 15px; background-color: rgba(255, 255, 255, 0.6);">
+                        <thead>
+                            <tr>
+                                <th style="border-bottom: 1px solid #000; padding: 6px 4px; text-align: left;">NOME DO VISITANTE</th>
+                                <th style="border-bottom: 1px solid #000; padding: 6px 4px; text-align: right; width: 22%;">HORA CHECK-IN</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${trsAssist}
+                        </tbody>
+                    </table>
+                </div>
                 
-                <div style="margin-top: 60px; text-align: center; page-break-inside: avoid;">
+                <div style="margin-top: 50px; text-align: center; page-break-inside: avoid;">
                     <p style="margin: 0;">________________________________________________________</p>
                     <p style="font-size: 14px; margin-top: 5px;"><strong>Direção / Presidência</strong></p>
-                    <p style="font-size: 10px; color: #777; margin-top: 25px;">
+                    <p style="font-size: 10px; color: #777; margin-top: 20px;">
                         ATA gerada eletronicamente pelo Sistema de Gestão em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}
                     </p>
                 </div>
