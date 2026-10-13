@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const inputTel = document.getElementById('telVisitante');
     const chkPrimeiraVez = document.getElementById('chkPrimeiraVez');
     const btnConfirmar = document.getElementById('btnConfirmar');
+    const btnNovoRegistro = document.getElementById('btnNovoRegistro');
     const msgErro = document.getElementById('msgErro');
 
     // 1. Identifica o Terreiro pelo parâmetro da URL (?t=ID) ou memória local
@@ -146,7 +147,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // 6. Envio com Validação de GPS (Raio de 30 metros)
+    // 6. Botão para Registrar Acompanhante / Familiar
+    if (btnNovoRegistro) {
+        btnNovoRegistro.addEventListener('click', () => {
+            if (inputNome) inputNome.value = '';
+            if (chkPrimeiraVez) chkPrimeiraVez.checked = false;
+            if (msgErro) msgErro.classList.add('hidden');
+            
+            if (estadoSucesso) estadoSucesso.classList.add('hidden');
+            if (estadoComGira) {
+                estadoComGira.classList.remove('hidden');
+                if (inputNome) inputNome.focus();
+            }
+        });
+    }
+
+    // 7. Envio com Validação de GPS (Raio de 30 metros)
     if (formAssistencia) {
         formAssistencia.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -178,7 +194,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             navigator.geolocation.getCurrentPosition(
                 async (posicao) => {
                     try {
-                        // Validação de raio de 30m se o terreiro tiver GPS cadastrado
                         if (coordsTerreiro && coordsTerreiro.lat && coordsTerreiro.lng) {
                             const latUser = posicao.coords.latitude;
                             const lonUser = posicao.coords.longitude;
@@ -206,7 +221,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                         if (errInsert) throw errInsert;
 
-                        // Salva dados no aparelho para visitas futuras
+                        // Salva dados no aparelho
                         localStorage.setItem('assistencia_nome', nome);
                         if (tel) localStorage.setItem('assistencia_telefone', tel);
                         localStorage.setItem(`assistencia_checkin_${idEventoGlobal}`, agoraIso);
