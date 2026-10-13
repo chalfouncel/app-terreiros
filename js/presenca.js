@@ -405,7 +405,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (btnSalvarDados) {
             btnSalvarDados.addEventListener('click', async () => {
-                const n Completo = document.getElementById('perfilNomeCompleto').value.trim();
+                const nCompleto = document.getElementById('perfilNomeCompleto').value.trim();
                 const nSocial = document.getElementById('perfilNomeSocial').value.trim();
                 const nTel = document.getElementById('perfilTelefone').value.replace(/\D/g, '');
 
@@ -572,7 +572,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (idsEnvolvidos.size > 0) {
                 const { data: dadosMed } = await supabaseClient
                     .from('mediuns')
-                    .select('id, nome_completo, grau, funcao, isento_mensalidade, created_at, status_ativo')
+                    .select('id, nome_completo, grau, status_ativo')
                     .in('id', Array.from(idsEnvolvidos));
                 
                 if (dadosMed) {
@@ -638,7 +638,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             </div>
                             <div class="flex gap-1.5">
                                 <button onclick="responderVinculo(${p.vinculoId}, 'aprovado')" class="bg-green-600 hover:bg-green-700 text-white font-bold px-2.5 py-1 rounded-lg text-xs active:scale-95 transition">Aceitar</button>
-                                <button onclick="responderVinculo(${p.vinculoId}, 'rejeitado')" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold px-2.5 py-1 rounded-lg text-xs active:scale-95 transition">Recusar</button>
+                                <button onclick="responderVinculo(${p.vinculoId}, 'rejeitado')" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold px-2 py-1 rounded-lg text-xs active:scale-95 transition">Recusar</button>
                             </div>
                         </li>
                     `).join('');
@@ -955,19 +955,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             `;
         }
 
-        const ehDirigente = perfilMediumLogado.grau === 'Dirigente' || perfilMediumLogado.funcao === 'Dirigente';
-        const estaIsento = perfilMediumLogado.isento_mensalidade === true;
-        const isentoGeral = ehDirigente || estaIsento;
-
         carrinhoMensalidadesState = [{
             mediumId: perfilMediumLogado.id,
             mediumNome: perfilMediumLogado.nome_completo,
             grau: perfilMediumLogado.grau || '-',
-            isentoGeral: isentoGeral,
-            created_at: perfilMediumLogado.created_at,
-            valorUnitario: isentoGeral ? 0.00 : (configValoresGrau[perfilMediumLogado.grau] || 0.00),
+            valorUnitario: configValoresGrau[perfilMediumLogado.grau] || 0.00,
             mesesPagosNoAno: [],
-            mesesIsentosNoAno: [],
             mesesSelecionados: []
         }];
 
@@ -1021,51 +1014,30 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const idsNoCarrinho = carrinhoMensalidadesState.map(c => c.mediumId);
         const { data: pgtosFeitos } = await supabaseClient.from('financeiro')
-            .select('medium_id, mes, pago, isento')
+            .select('medium_id, mes, pago')
             .eq('ano', anoSelecionado)
-            .in('medium_id', idsNoCarrinho);
+            .in('medium_id', idsNoCarrinho)
+            .eq('pago', true);
 
         let htmlGeral = '';
 
         carrinhoMensalidadesState.forEach((itemCarrinho, indexCarrinho) => {
             const pgtosMedium = pgtosFeitos ? pgtosFeitos.filter(p => p.medium_id === itemCarrinho.mediumId) : [];
-            const mesesPagos = pgtosMedium.filter(p => p.pago === true).map(p => p.mes);
-            const mesesIsentos = pgtosMedium.filter(p => p.isento === true).map(p => p.mes);
+            const mesesPagos = pgtosMedium.map(p => p.mes);
             itemCarrinho.mesesPagosNoAno = mesesPagos;
-            itemCarrinho.mesesIsentosNoAno = mesesIsentos;
-
-            const dataIngresso = itemCarrinho.created_at ? new Date(itemCarrinho.created_at) : new Date('2000-01-01');
-            const mesIngresso = dataIngresso.getMonth() + 1;
-            const anoIngresso = dataIngresso.getFullYear();
 
             const nomesMeses = ['', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
             
             let gridMesesHtml = '';
             for (let m = 1; m <= 12; m++) {
-                const isAntesDoIngresso = (anoSelecionado < anoIngresso) || (anoSelecionado === anoIngresso && m < mesIngresso);
                 const jaPago = mesesPagos.includes(m);
-                const jaIsento = mesesIsentos.includes(m) || itemCarrinho.isentoGeral;
                 const selecionado = itemCarrinho.mesesSelecionados.includes(m);
                 
-                if (isAntesDoIngresso) {
-                    gridMesesHtml += `
-                        <div class="bg-gray-100 border border-gray-200 text-gray-400 rounded-lg p-2 text-center text-xs font-bold flex flex-col justify-between opacity-60 cursor-not-allowed" title="Anterior ao ingresso">
-                            <span>${nomesMeses[m]}</span>
-                            <span class="text-[9px] font-normal text-gray-400">-</span>
-                        </div>
-                    `;
-                } else if (jaPago) {
+                if (jaPago) {
                     gridMesesHtml += `
                         <div class="bg-green-50 border border-green-200 text-green-700 rounded-lg p-2 text-center text-xs font-bold flex flex-col justify-between opacity-80 cursor-not-allowed" title="Mês já pago">
                             <span>${nomesMeses[m]}</span>
                             <i class="fas fa-check-circle text-green-600 mt-1"></i>
-                        </div>
-                    `;
-                } else if (jaIsento) {
-                    gridMesesHtml += `
-                        <div class="bg-purple-50 border border-purple-200 text-purple-700 rounded-lg p-2 text-center text-xs font-bold flex flex-col justify-between opacity-80 cursor-not-allowed" title="Isento de mensalidade">
-                            <span>${nomesMeses[m]}</span>
-                            <span class="text-[9px] font-bold text-purple-600">Isento</span>
                         </div>
                     `;
                 } else {
@@ -1085,16 +1057,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 </button>
             ` : '';
 
-            const subtituloHtml = itemCarrinho.isentoGeral
-                ? `<p class="text-[10px] text-purple-600 font-bold uppercase">Isento de Mensalidade (${itemCarrinho.grau})</p>`
-                : `<p class="text-[10px] text-gray-500 uppercase">Grau: ${itemCarrinho.grau} | Valor: R$ ${itemCarrinho.valorUnitario.toFixed(2)}/mês</p>`;
-
             htmlGeral += `
                 <div class="bg-gray-50 border border-gray-200 rounded-2xl p-4 shadow-sm">
                     <div class="flex justify-between items-center mb-2">
                         <div>
                             <p class="font-bold text-gray-800 text-sm">${itemCarrinho.mediumNome}</p>
-                            ${subtituloHtml}
+                            <p class="text-[10px] text-gray-500 uppercase">Grau: ${itemCarrinho.grau} | Valor: R$ ${itemCarrinho.valorUnitario.toFixed(2)}/mês</p>
                         </div>
                         ${btnRemoverHtml}
                     </div>
@@ -1225,19 +1193,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             li.innerHTML = `<span><strong>${fam.nome_completo}</strong> <span class="text-gray-400">(${fam.grau || '-'})</span></span> <span class="text-tema-secundaria font-bold"><i class="fas fa-plus"></i> Adicionar</span>`;
             
             li.addEventListener('click', async () => {
-                const ehFamDirigente = fam.grau === 'Dirigente' || fam.funcao === 'Dirigente';
-                const famIsento = fam.isento_mensalidade === true || ehFamDirigente;
-                const valorGrau = famIsento ? 0.00 : (configValoresGrau[fam.grau] || 0.00);
-
+                const valorGrau = configValoresGrau[fam.grau] || 0.00;
                 carrinhoMensalidadesState.push({
                     mediumId: fam.id,
                     mediumNome: fam.nome_completo,
                     grau: fam.grau || '-',
-                    isentoGeral: famIsento,
-                    created_at: fam.created_at,
                     valorUnitario: valorGrau,
                     mesesPagosNoAno: [],
-                    mesesIsentosNoAno: [],
                     mesesSelecionados: []
                 });
                 boxBuscaOutroMedium.classList.add('hidden');
@@ -1678,35 +1640,9 @@ if (!document.getElementById('styleAlertaMensalidade')) {
 
 async function verificarPendenciaMensalidade(mediumId) {
     try {
-        if (!perfilMediumLogado) return;
-
-        const botoes = [
-            document.getElementById('btnAbrirMensalidade'),
-            document.getElementById('btnAbrirMensalidadeSucesso')
-        ];
-
-        // 1. Isenção Direta: Dirigente ou Médium Isento não têm cobrança pendente
-        const ehDirigente = perfilMediumLogado.grau === 'Dirigente' || perfilMediumLogado.funcao === 'Dirigente';
-        const estaIsento = perfilMediumLogado.isento_mensalidade === true;
-
-        if (ehDirigente || estaIsento) {
-            botoes.forEach(btn => {
-                if (!btn) return;
-                btn.classList.remove('alerta-mensalidade-pendente');
-                const spanTexto = btn.querySelector('span');
-                if (spanTexto) spanTexto.textContent = 'Mensalidade / Tesouraria';
-            });
-            return;
-        }
-
         const hoje = new Date();
         const anoAtual = hoje.getFullYear();
         const mesAtual = hoje.getMonth() + 1;
-
-        // Data de ingresso para não cobrar meses anteriores
-        const dataIngresso = perfilMediumLogado.created_at ? new Date(perfilMediumLogado.created_at) : new Date('2000-01-01');
-        const mesIngresso = dataIngresso.getMonth() + 1;
-        const anoIngresso = dataIngresso.getFullYear();
 
         const { data: registros, error } = await supabaseClient
             .from('financeiro')
@@ -1727,12 +1663,16 @@ async function verificarPendenciaMensalidade(mediumId) {
 
         let temMensalidadeVencida = false;
         for (let m = 1; m <= mesAtual; m++) {
-            const isAntesDoIngresso = (anoAtual < anoIngresso) || (anoAtual === anoIngresso && m < mesIngresso);
-            if (!isAntesDoIngresso && !quitadosOuIsentos.has(m)) {
+            if (!quitadosOuIsentos.has(m)) {
                 temMensalidadeVencida = true;
                 break;
             }
         }
+
+        const botoes = [
+            document.getElementById('btnAbrirMensalidade'),
+            document.getElementById('btnAbrirMensalidadeSucesso')
+        ];
 
         botoes.forEach(btn => {
             if (!btn) return;
@@ -1744,10 +1684,6 @@ async function verificarPendenciaMensalidade(mediumId) {
                 }
             } else {
                 btn.classList.remove('alerta-mensalidade-pendente');
-                const spanTexto = btn.querySelector('span');
-                if (spanTexto) {
-                    spanTexto.textContent = 'Mensalidade / Tesouraria';
-                }
             }
         });
 
