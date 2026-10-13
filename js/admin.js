@@ -2722,7 +2722,7 @@ setTimeout(() => {
             const anoBusca = parseInt(document.getElementById('selectAnoFinanceiro').value) || new Date().getFullYear();
 
             const { data: todosMediuns, error: errMediuns } = await supabaseClient.from('mediuns')
-                .select('id, nome_completo, created_at, isento_mensalidade, grau, funcao')
+                .select('id, nome_completo, isento_mensalidade, grau, funcao')
                 .eq('terreiro_id', idTerreiroGlobal)
                 .neq('nome_completo', 'Administrador Sistema')
                 .order('nome_completo');
