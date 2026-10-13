@@ -2784,24 +2784,24 @@ setTimeout(() => {
                     if (passou && !pago && !isIsento && !isAntesDoIngresso) emDia = false;
 
                     if (isAntesDoIngresso) {
-                        linha.push('-');
+                        linha.push('<span style="color: #cbd5e1;">-</span>');
                     } else if (isIsento) {
-                        linha.push('Isento');
+                        linha.push('<span style="color: #9333ea; font-weight: bold;">Isento</span>');
                     } else if (pago) {
-                        linha.push('Pago');
+                        linha.push('<span style="color: #16a34a; font-weight: bold;">Pago</span>');
                     } else {
-                        linha.push(passou ? 'Pend.' : 'Aber.');
+                        linha.push(passou ? '<span style="color: #dc2626; font-weight: bold;">Pend.</span>' : '<span style="color: #94a3b8;">Aber.</span>');
                     }
                 }
 
-                linha.push(emDia ? 'Em Dia' : 'Pendente');
+                linha.push(emDia ? '<span style="color: #16a34a; font-weight: bold;">Em Dia</span>' : '<span style="color: #dc2626; font-weight: bold;">Pendente</span>');
                 return linha;
             });
 
             dados.sort((a, b) => a[0].localeCompare(b[0], 'pt-BR'));
 
             const colunas = ['Médium', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez', 'Status'];
-            window.gerarPDFRelatorio(`Relatório Financeiro Anual - ${anoBusca}`, colunas, dados);
+            window.gerarPDFRelatorio(`Relatório Financeiro Anual - ${anoBusca}`, colunas, dados, 'landscape');
 
         } catch (err) {
             console.error(err);
