@@ -1,4 +1,4 @@
-<!-- VERSÃO: ASAAS_STEP_1 -->
+<!-- VERSÃO: ASAAS_STEP_1_FAMILIA -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -32,11 +32,26 @@
 </head>
 <body class="min-h-screen flex flex-col items-center p-4 transition-colors duration-300">
 
-    <!-- Cabeçalho (Nome e Logo da Casa) -->
-    <div class="w-full max-w-md flex flex-col items-center mt-6 mb-6">
+    <!-- Cabeçalho (Nome, Logo e Botão Meu Perfil) -->
+    <div class="w-full max-w-md flex flex-col items-center mt-4 mb-6">
+        <div class="w-full flex justify-between items-center mb-3 px-1">
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-full bg-tema-primaria/10 text-tema-primaria flex items-center justify-center font-bold">
+                    <i class="fas fa-user text-sm"></i>
+                </div>
+                <span class="text-xs md:text-sm font-semibold text-gray-700" id="nomeMedium">Olá, Médium</span>
+            </div>
+
+            <!-- Botão Meu Perfil com Notificação -->
+            <button id="btnAbrirPerfil" class="relative bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 px-3 py-1.5 rounded-xl text-xs font-bold shadow-sm transition flex items-center gap-1.5 active:scale-95">
+                <i class="fas fa-id-card text-tema-primaria"></i>
+                <span>Meu Perfil</span>
+                <span id="badgeNotificacaoPerfil" class="hidden absolute -top-1.5 -right-1.5 bg-red-600 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md animate-pulse">0</span>
+            </button>
+        </div>
+
         <img id="logoTerreiro" src="" class="hidden max-h-24 mb-3 object-contain drop-shadow-md rounded-xl">
         <h1 id="nomeTerreiro" class="text-2xl font-bold text-tema-primaria text-center drop-shadow-sm">Carregando...</h1>
-        <p class="text-gray-500 text-sm mt-1" id="nomeMedium">Olá, Médium</p>
     </div>
 
     <!-- Container Principal do Check-in -->
@@ -67,7 +82,6 @@
                     <i class="fas fa-map-marker-alt"></i> Confirmar Presença
                 </button>
                 
-                <!-- NOVO: Botão de Mensalidades (Ficará Oculto caso o Terreiro não ative o Módulo) -->
                 <button id="btnAbrirMensalidade" class="hidden w-full items-center justify-center py-3 px-4 border-2 border-tema-secundaria rounded-xl shadow-sm text-lg font-bold text-tema-secundaria bg-white hover:bg-green-50 transition-all active:scale-95 mb-3">
                     <i class="fas fa-file-invoice-dollar mr-2"></i> Mensalidade / Tesouraria
                 </button>
@@ -87,7 +101,6 @@
                 <p class="text-gray-500 text-sm mt-2">Sua chegada foi registrada às <span id="horaCheckinFeito" class="font-bold">--:--</span>.</p>
                 <p class="text-gray-500 text-sm mb-6">Bom trabalho espiritual!</p>
                 
-                <!-- Re-render do botão mensalidade caso já tenha feito check-in -->
                 <button id="btnAbrirMensalidadeSucesso" class="hidden w-full items-center justify-center py-3 px-4 border-2 border-tema-secundaria rounded-xl shadow-sm text-lg font-bold text-tema-secundaria bg-white hover:bg-green-50 transition-all active:scale-95 mb-3">
                     <i class="fas fa-file-invoice-dollar mr-2"></i> Mensalidade / Tesouraria
                 </button>
@@ -114,6 +127,109 @@
     </div>
 
     <!-- ============================================== -->
+    <!-- MODAL DE PERFIL DO MÉDIUM (DADOS, SENHA E FAMÍLIA) -->
+    <!-- ============================================== -->
+    <div id="modalPerfilMedium" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50 transition-opacity">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-5 text-left transform scale-95 transition-all flex flex-col max-h-[92vh]">
+            
+            <div class="flex justify-between items-center mb-4 border-b border-gray-100 pb-3">
+                <h3 class="text-lg font-black text-gray-800 flex items-center gap-2">
+                    <i class="fas fa-user-circle text-tema-primaria text-xl"></i> Meu Perfil
+                </h3>
+                <button id="btnFecharPerfil" class="text-gray-400 hover:text-gray-700 p-1 active:scale-90"><i class="fas fa-times text-xl"></i></button>
+            </div>
+
+            <!-- Abas de Navegação do Perfil -->
+            <div class="flex border-b border-gray-200 mb-4 text-xs font-bold">
+                <button type="button" id="tabPerfilDados" class="flex-1 py-2 text-center border-b-2 border-tema-primaria text-tema-primaria transition">Dados</button>
+                <button type="button" id="tabPerfilSenha" class="flex-1 py-2 text-center border-b-2 border-transparent text-gray-400 hover:text-gray-600 transition">Senha</button>
+                <button type="button" id="tabPerfilFamilia" class="flex-1 py-2 text-center border-b-2 border-transparent text-gray-400 hover:text-gray-600 transition relative">
+                    Família
+                    <span id="badgeAbaFamilia" class="hidden ml-1 px-1.5 py-0.2 bg-red-600 text-white rounded-full text-[9px]">!</span>
+                </button>
+            </div>
+
+            <!-- Conteúdo das Abas (Scrollável) -->
+            <div class="flex-1 overflow-y-auto pr-1 space-y-4">
+
+                <!-- ABA 1: DADOS PESSOAIS -->
+                <div id="conteudoAbaDados" class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1">Nome Completo</label>
+                        <input type="text" id="perfilNomeCompleto" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-tema-primaria bg-white">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1">Nome Social</label>
+                        <input type="text" id="perfilNomeSocial" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-tema-primaria bg-white" placeholder="Opcional">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1">WhatsApp</label>
+                        <input type="tel" id="perfilTelefone" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-tema-primaria bg-white" placeholder="DDD + Número">
+                    </div>
+                    <button type="button" id="btnSalvarDadosPerfil" class="w-full bg-tema-primaria text-white font-bold py-2.5 rounded-xl shadow text-xs hover:opacity-90 active:scale-95 transition">
+                        Salvar Dados
+                    </button>
+                    <p id="msgPerfilDados" class="text-xs font-bold text-center hidden"></p>
+                </div>
+
+                <!-- ABA 2: ALTERAR SENHA -->
+                <div id="conteudoAbaSenha" class="space-y-3 hidden">
+                    <p class="text-xs text-gray-500">A sua senha de acesso ao sistema deve conter <strong>exatamente 6 números</strong>.</p>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1">Nova Senha (6 números)</label>
+                        <input type="password" id="perfilNovaSenha" maxlength="6" inputmode="numeric" class="w-full px-3 py-2 text-center font-mono tracking-widest text-base border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-tema-primaria bg-white" placeholder="******">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1">Confirmar Nova Senha</label>
+                        <input type="password" id="perfilConfirmaSenha" maxlength="6" inputmode="numeric" class="w-full px-3 py-2 text-center font-mono tracking-widest text-base border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-tema-primaria bg-white" placeholder="******">
+                    </div>
+                    <button type="button" id="btnSalvarSenhaPerfil" class="w-full bg-tema-primaria text-white font-bold py-2.5 rounded-xl shadow text-xs hover:opacity-90 active:scale-95 transition">
+                        Atualizar Senha
+                    </button>
+                    <p id="msgPerfilSenha" class="text-xs font-bold text-center hidden"></p>
+                </div>
+
+                <!-- ABA 3: FAMÍLIA -->
+                <div id="conteudoAbaFamilia" class="space-y-4 hidden">
+                    
+                    <!-- Convites Recebidos Pendentes -->
+                    <div id="boxConvitesRecebidos" class="hidden bg-amber-50 border border-amber-200 rounded-xl p-3">
+                        <p class="text-xs font-bold text-amber-800 mb-2 flex items-center gap-1">
+                            <i class="fas fa-bell"></i> Pedidos de Vínculo Recebidos
+                        </p>
+                        <ul id="listaConvitesRecebidos" class="space-y-2"></ul>
+                    </div>
+
+                    <!-- Familiares Ativos / Aprovados -->
+                    <div>
+                        <p class="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Meus Familiares Aprovados</p>
+                        <ul id="listaFamiliaresAprovados" class="space-y-1.5 divide-y divide-gray-100 bg-gray-50 rounded-xl p-2.5 border border-gray-200">
+                            <li class="text-xs text-gray-400 text-center py-2">Nenhum familiar vinculado.</li>
+                        </ul>
+                    </div>
+
+                    <!-- Convites Enviados Aguardando Resposta -->
+                    <div id="boxConvitesEnviados" class="hidden">
+                        <p class="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Aguardando Aprovação deles</p>
+                        <ul id="listaConvitesEnviados" class="space-y-1 text-xs"></ul>
+                    </div>
+
+                    <!-- Buscar e Adicionar Familiar -->
+                    <div class="border-t border-gray-200 pt-3">
+                        <p class="text-xs font-bold text-gray-700 mb-1">Adicionar Familiar</p>
+                        <p class="text-[11px] text-gray-500 mb-2">O familiar receberá o convite no painel dele e precisará autorizar.</p>
+                        <div class="relative">
+                            <input type="text" id="buscaFamiliarPerfil" placeholder="Buscar por nome..." class="w-full px-3 py-2 text-xs border border-gray-300 rounded-xl outline-none focus:border-tema-primaria">
+                            <ul id="resultadoBuscaFamiliarPerfil" class="hidden absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-lg mt-1 max-h-36 overflow-y-auto divide-y divide-gray-100 z-20"></ul>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================== -->
     <!-- MODAL DE MENSALIDADE (CARRINHO E PIX) -->
     <!-- ============================================== -->
     <div id="modalMensalidade" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50 transition-opacity">
@@ -131,28 +247,26 @@
                 <div class="bg-gray-50 border border-gray-200 rounded-xl p-3 flex justify-between items-center mb-4">
                     <span class="text-xs font-bold text-gray-600 uppercase">Referência:</span>
                     <select id="selectAnoMensalidade" class="bg-white border border-gray-300 rounded-lg px-3 py-1 font-bold text-gray-800 text-sm outline-none focus:ring-2 focus:ring-tema-secundaria shadow-sm">
-                        <!-- Gerado via JS (Anos: Atual, Anterior, Próximo) -->
                     </select>
                 </div>
             </div>
 
-            <!-- Lista de Meses e Adição de Outros Médiuns (Scrollável) -->
+            <!-- Lista de Meses e Adição de Familiares -->
             <div class="flex-1 overflow-y-auto text-left mb-4 pr-1">
-                
-                <!-- Container onde será gerado o(s) bloco(s) de cobrança -->
                 <div id="containerCarrinhoMensalidades" class="space-y-4">
                     <p class="text-center text-gray-500 text-sm py-4"><i class="fas fa-spinner fa-spin mr-2"></i> Carregando meses...</p>
                 </div>
 
-                <!-- Botão Adicionar Familiar/Médium -->
+                <!-- Botão Adicionar Familiar (Exclusivo para Aprovados) -->
                 <div class="mt-4 pt-4 border-t border-dashed border-gray-300 text-center">
                     <button id="btnAdicionarOutroMedium" class="text-xs font-bold text-tema-secundaria hover:text-green-800 bg-green-50 hover:bg-green-100 py-2 px-4 rounded-xl transition border border-green-200 shadow-sm inline-flex items-center gap-1 active:scale-95">
-                        <i class="fas fa-user-plus"></i> Adicionar mensalidade de outro Médium
+                        <i class="fas fa-users"></i> Adicionar Familiar à Mensalidade
                     </button>
-                    <!-- Campo de Busca que aparece ao clicar acima -->
-                    <div id="boxBuscaOutroMedium" class="hidden mt-3">
-                        <input type="text" id="buscaOutroMedium" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:border-tema-secundaria mb-2 shadow-inner" placeholder="Digite o nome para buscar...">
-                        <ul id="resultadoBuscaOutroMedium" class="bg-white border border-gray-200 rounded-lg shadow-md max-h-32 overflow-y-auto text-left divide-y divide-gray-100"></ul>
+                    <!-- Lista de Familiares Aprovados -->
+                    <div id="boxBuscaOutroMedium" class="hidden mt-3 text-left">
+                        <p class="text-[11px] font-bold text-gray-600 mb-1.5">Selecione um familiar aprovado:</p>
+                        <ul id="resultadoBuscaOutroMedium" class="bg-white border border-gray-200 rounded-lg shadow-md max-h-36 overflow-y-auto text-left divide-y divide-gray-100"></ul>
+                        <p class="text-[10px] text-gray-400 mt-2 text-center">Gerencie ou convide familiares no seu <strong>Meu Perfil</strong>.</p>
                     </div>
                 </div>
                 
@@ -187,7 +301,6 @@
             </div>
         </div>
     </div>
-
 
     <!-- ============================================== -->
     <!-- Modal de Doação -->
