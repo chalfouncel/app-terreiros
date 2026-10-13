@@ -311,7 +311,19 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             });
         });
-
+                if (!emModoMasterPuro) {
+                            setTimeout(() => {
+                                // Encontra qual é o primeiro menu lateral que NÃO está invisível (hidden)
+                                const primeiroMenuVisivel = Array.from(menus).find(menu => !menu.classList.contains('hidden'));
+                
+                                if (primeiroMenuVisivel) {
+                                    primeiroMenuVisivel.click(); // O sistema clica automaticamente para abrir a tela certa
+                                } else {
+                                    secoes.forEach(s => s.classList.add('hidden')); // Tela em branco se não tiver nenhum acesso
+                                }
+                            }, 100);
+                        }
+        
         const formNovaGira = document.getElementById('formNovaGira');
         if (formNovaGira) {
             formNovaGira.addEventListener('submit', async (e) => {
