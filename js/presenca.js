@@ -515,6 +515,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     .select('id, nome_completo, grau')
                     .eq('terreiro_id', idTerreiroGlobal)
                     .neq('id', perfilMediumLogado.id)
+                    .neq('status_ativo', false)
                     .neq('nome_completo', 'Administrador Sistema')
                     .ilike('nome_completo', `%${termo}%`)
                     .limit(5);
