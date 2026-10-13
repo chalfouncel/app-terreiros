@@ -1879,7 +1879,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 <div class="qr-box">
                                     <img class="qr" src="${qrCodeUrl}" alt="QR Code">
                                 </div>
-                                <div class="instrucao">Aponte a câmara do seu telemóvel aqui</div>
+                                <div class="instrucao">Aponte a câmara do seu celular aqui</div>
                                 <div class="subtexto">Registe a sua presença na sessão de hoje de forma rápida e segura.</div>
                             </div>
                             <script>
