@@ -1788,6 +1788,109 @@ document.addEventListener('DOMContentLoaded', async () => {
 
        async function carregarConfiguracoesCasa() {
             if (!idTerreiroGlobal) return;
+
+            // Gera e exibe o QR Code estático da Assistência
+            const linkAssistencia = `https://app-terreiros.vercel.app/assistencia.html?t=${idTerreiroGlobal}`;
+            const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=10&data=${encodeURIComponent(linkAssistencia)}`;
+
+            const imgQr = document.getElementById('imgQrCodeAssistencia');
+            const inputLinkQr = document.getElementById('linkQrCodeAssistencia');
+            if (imgQr) imgQr.src = qrCodeUrl;
+            if (inputLinkQr) inputLinkQr.value = linkAssistencia;
+
+            const btnCopiarLink = document.getElementById('btnCopiarLinkAssistencia');
+            if (btnCopiarLink && !btnCopiarLink.dataset.bound) {
+                btnCopiarLink.dataset.bound = 'true';
+                btnCopiarLink.addEventListener('click', () => {
+                    navigator.clipboard.writeText(linkAssistencia).then(() => {
+                        const original = btnCopiarLink.innerHTML;
+                        btnCopiarLink.innerHTML = '<i class="fas fa-check text-green-400"></i>';
+                        setTimeout(() => btnCopiarLink.innerHTML = original, 2000);
+                    });
+                });
+            }
+
+            const btnImprimirCartaz = document.getElementById('btnImprimirCartazQR');
+            if (btnImprimirCartaz && !btnImprimirCartaz.dataset.bound) {
+                btnImprimirCartaz.dataset.bound = 'true';
+                btnImprimirCartaz.addEventListener('click', () => {
+                    const nomeTerreiro = nomeTerreiroGlobal || 'Templo';
+                    const logoHtml = logoTerreiroGlobal 
+                        ? `<img src="${logoTerreiroGlobal}" style="max-height: 90px; margin-bottom: 15px; object-fit: contain;">`
+                        : '';
+
+                    const janelaPrint = window.open('', '_blank');
+                    janelaPrint.document.write(`
+                        <!DOCTYPE html>
+                        <html>
+                        <head>
+                            <title>Cartaz Recepção - ${nomeTerreiro}</title>
+                            <style>
+                                @page { size: A4 portrait; margin: 15mm; }
+                                body {
+                                    font-family: Arial, sans-serif;
+                                    text-align: center;
+                                    color: #1e293b;
+                                    margin: 0;
+                                    padding: 20px 10px;
+                                    display: flex;
+                                    flex-direction: column;
+                                    justify-content: center;
+                                    align-items: center;
+                                    min-height: 90vh;
+                                }
+                                .borda {
+                                    border: 3px solid #1e3a8a;
+                                    border-radius: 24px;
+                                    padding: 40px 30px;
+                                    width: 88%;
+                                    box-sizing: border-box;
+                                }
+                                h1 { font-size: 24pt; margin: 0 0 8px 0; text-transform: uppercase; color: #1e3a8a; }
+                                h2 { font-size: 14pt; font-weight: normal; margin: 0 0 25px 0; color: #64748b; }
+                                .qr-box {
+                                    margin: 20px auto;
+                                    padding: 15px;
+                                    background: #ffffff;
+                                    border: 2px solid #e2e8f0;
+                                    border-radius: 16px;
+                                    display: inline-block;
+                                }
+                                img.qr { width: 280px; height: 280px; display: block; }
+                                .instrucao {
+                                    font-size: 16pt;
+                                    font-weight: bold;
+                                    margin-top: 25px;
+                                    color: #0f172a;
+                                }
+                                .subtexto {
+                                    font-size: 11pt;
+                                    color: #64748b;
+                                    margin-top: 8px;
+                                    line-height: 1.5;
+                                }
+                            </style>
+                        </head>
+                        <body>
+                            <div class="borda">
+                                ${logoHtml}
+                                <h1>${nomeTerreiro}</h1>
+                                <h2>Recepção e Acolhimento • Assistência</h2>
+                                <div class="qr-box">
+                                    <img class="qr" src="${qrCodeUrl}" alt="QR Code">
+                                </div>
+                                <div class="instrucao">Aponte a câmara do seu telemóvel aqui</div>
+                                <div class="subtexto">Registe a sua presença na sessão de hoje de forma rápida e segura.</div>
+                            </div>
+                            <script>
+                                window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); };
+                            <\/script>
+                        </body>
+                        </html>
+                    `);
+                    janelaPrint.document.close();
+                });
+            }
             
             // Carrega os dirigentes no select de compliance
             const selectDirigente = document.getElementById('selectDirigenteCompliance');
