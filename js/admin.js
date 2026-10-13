@@ -1647,11 +1647,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 dashboard.innerHTML = skeletonDash;
             }
             
-            const { data: todosMediuns } = await supabaseClient.from('mediuns')
-                .select('id, nome_completo, nome_social, isento_mensalidade, grau, funcao, created_at')
+            const { data: todosMediuns, error: errMediuns } = await supabaseClient.from('mediuns')
+                .select('id, nome_completo, nome_social, isento_mensalidade, grau, funcao')
                 .eq('terreiro_id', idTerreiroGlobal)
                 .neq('nome_completo', 'Administrador Sistema')
                 .order('nome_completo');
+
+            if (errMediuns) console.error('Erro ao carregar médiuns no financeiro:', errMediuns);
 
             const mediuns = (todosMediuns || []).filter(m => {
                 const ehDirigente = (m.grau === 'Dirigente' || m.funcao === 'Dirigente');
