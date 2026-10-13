@@ -2428,11 +2428,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 });
     
-window.gerarPDFRelatorio = (titulo, colunas, dados) => {
+window.gerarPDFRelatorio = (titulo, colunas, dados, orientacao = 'portrait') => {
     if (!dados || dados.length === 0) {
         alert('Não há dados para gerar o relatório.');
         return;
     }
+
+    const isLandscape = orientacao === 'landscape';
+    const larguraPdfPx = isLandscape ? 1045 : 718;
 
     // 1. TAMANHO DE FONTE E ESPAÇAMENTO AUTOAJUSTÁVEIS
     const totalCols = colunas.length;
@@ -2440,7 +2443,11 @@ window.gerarPDFRelatorio = (titulo, colunas, dados) => {
     let cellPadding = '5px 6px';
     let headerFontSize = '9.5pt';
 
-    if (totalCols >= 6) {
+    if (totalCols >= 14) {
+        fontSize = isLandscape ? '8pt' : '6.5pt';
+        headerFontSize = isLandscape ? '8.5pt' : '7pt';
+        cellPadding = isLandscape ? '4px 3px' : '3px 2px';
+    } else if (totalCols >= 6) {
         fontSize = '7.5pt';
         headerFontSize = '8pt';
         cellPadding = '4px 3px';
@@ -2463,28 +2470,35 @@ window.gerarPDFRelatorio = (titulo, colunas, dados) => {
     const theadHtml = `
         <thead>
             <tr>
-                ${colunas.map(c => `
-                    <th style="background-color: #f1f5f9; color: #1e293b; font-weight: bold; border: 1px solid #cbd5e1; padding: ${cellPadding}; text-align: left; font-size: ${headerFontSize};">
-                        ${c}
-                    </th>
-                `).join('')}
+                ${colunas.map((c, idx) => {
+                    let larguraEstilo = '';
+                    if (totalCols >= 14) {
+                        larguraEstilo = idx === 0 ? 'width: 22%;' : (idx === totalCols - 1 ? 'width: 8%;' : 'width: 5.8%;');
+                    }
+                    const align = idx === 0 ? 'left' : 'center';
+                    return `
+                        <th style="background-color: #f1f5f9; color: #1e293b; font-weight: bold; border: 1px solid #cbd5e1; padding: ${cellPadding}; text-align:${align}; font-size: ${headerFontSize};${larguraEstilo}">
+                            ${c}
+                        </th>
+                    `;
+                }).join('')}
             </tr>
         </thead>
     `;
 
-    // 2. PRÉ-CÁLCULO E MEDIÇÃO EM CONTAINER OCULTO (718px ≈ 190mm úteis do A4)
+    // 2. PRÉ-CÁLCULO E MEDIÇÃO EM CONTAINER OCULTO
     const stage = document.createElement('div');
-    stage.style.cssText = 'position: absolute; left: -9999px; top: 0; width: 718px; font-family: Arial, sans-serif; visibility: hidden;';
+    stage.style.cssText = `position: absolute; left: -9999px; top: 0; width: ${larguraPdfPx}px; font-family: Arial, sans-serif; visibility: hidden;`;
     
     stage.innerHTML = `
         <div id="test-header" style="padding-bottom: 8px; margin-bottom: 12px; border-bottom: 2px solid #2563eb;">
             <div style="height: 55px;"></div>
         </div>
-        <table id="test-table" style="width: 100%; border-collapse: collapse; table-layout: auto;">
+        <table id="test-table" style="width: 100%; border-collapse: collapse; table-layout: ${totalCols >= 14 ? 'fixed' : 'auto'};">
             ${theadHtml}
             <tbody>
                 ${dados.map(linha => `
-                    <tr>${linha.map(celula => `<td style="padding: ${cellPadding}; font-size: ${fontSize}; border: 1px solid #e2e8f0; word-break: break-word;">${celula || '-'}</td>`).join('')}</tr>
+                    <tr>${linha.map((celula, idx) => `<td style="padding: ${cellPadding}; font-size: ${fontSize}; border: 1px solid #e2e8f0; word-break: break-word; text-align: ${idx === 0 ? 'left' : 'center'};">${celula || '-'}</td>`).join('')}</tr>
                 `).join('')}
             </tbody>
         </table>
@@ -2498,9 +2512,9 @@ window.gerarPDFRelatorio = (titulo, colunas, dados) => {
     document.body.removeChild(stage);
 
     // 3. SEPARAÇÃO DAS LINHAS EM PÁGINAS SEM CORTAR NENHUMA
-    // Altura útil do A4 retrato com margem 10mm ≈ 1045px. Usamos 980px como teto de segurança.
-    const ALTURA_MAX_PAG1 = 980 - alturaHeaderPag1 - alturaThead;
-    const ALTURA_MAX_OUTRAS = 980 - 45 - alturaThead; // 45px para cabeçalho de continuação
+    const ALTURA_BASE = isLandscape ? 660 : 980;
+    const ALTURA_MAX_PAG1 = ALTURA_BASE - alturaHeaderPag1 - alturaThead;
+    const ALTURA_MAX_OUTRAS = ALTURA_BASE - 45 - alturaThead;
 
     const paginas = [];
     let linhasPaginaAtual = [];
@@ -2510,7 +2524,6 @@ window.gerarPDFRelatorio = (titulo, colunas, dados) => {
     dados.forEach((linha, idx) => {
         const alturaLinha = alturasLinhas[idx] || 25;
 
-        // Se a linha for cair em cima da margem inferior, joga para a próxima página
         if (alturaAcumulada + alturaLinha > limiteAtual && linhasPaginaAtual.length > 0) {
             paginas.push(linhasPaginaAtual);
             linhasPaginaAtual = [linha];
@@ -2528,7 +2541,7 @@ window.gerarPDFRelatorio = (titulo, colunas, dados) => {
 
     // 4. CONSTRUÇÃO DO HTML FINAL PAGINADO
     const containerPDF = document.createElement('div');
-    containerPDF.style.cssText = 'width: 718px; font-family: Arial, sans-serif; color: #333;';
+    containerPDF.style.cssText = `width: ${larguraPdfPx}px; font-family: Arial, sans-serif; color: #333;`;
 
     const dataAtual = `${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
 
@@ -2568,7 +2581,7 @@ window.gerarPDFRelatorio = (titulo, colunas, dados) => {
         }
 
         htmlFinal += `
-            <table style="width: 100%; border-collapse: collapse; table-layout: auto;">
+            <table style="width: 100%; border-collapse: collapse; table-layout: ${totalCols >= 14 ? 'fixed' : 'auto'};">
                 ${theadHtml}
                 <tbody>
         `;
@@ -2577,8 +2590,8 @@ window.gerarPDFRelatorio = (titulo, colunas, dados) => {
             const bg = i % 2 === 0 ? '#ffffff' : '#f8fafc';
             htmlFinal += `
                 <tr style="background-color: ${bg};">
-                    ${linha.map(celula => `
-                        <td style="border: 1px solid #e2e8f0; padding: ${cellPadding}; color: #334155; font-size: ${fontSize}; vertical-align: middle; word-break: break-word;">
+                    ${linha.map((celula, idx) => `
+                        <td style="border: 1px solid #e2e8f0; padding: ${cellPadding}; color: #334155; font-size: ${fontSize}; vertical-align: middle; word-break: break-word; text-align:${idx === 0 ? 'left' : 'center'};">
                             ${celula || '-'}
                         </td>
                     `).join('')}
@@ -2601,7 +2614,7 @@ window.gerarPDFRelatorio = (titulo, colunas, dados) => {
         filename:     `${titulo.replace(/\s+/g, '_')}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
         html2canvas:  { scale: 2, useCORS: true },
-        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: orientacao },
         pagebreak:    { mode: ['css', 'legacy'] }
     };
 
