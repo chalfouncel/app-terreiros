@@ -1998,30 +1998,153 @@ document.addEventListener('DOMContentLoaded', async () => {
                     if(document.getElementById('chavePixManual')) document.getElementById('chavePixManual').value = data.chave_pix_manual || '';
                     
                     const { data: configVals } = await supabaseClient.from('config_mensalidades').select('*').eq('terreiro_id', idTerreiroGlobal);
-                    const containerGraus = document.getElementById('listaValoresGrau');
-                    if(containerGraus) {
-                        containerGraus.innerHTML = '';
-                        const grausBase = ['I', 'IJ', 'B', 'BJ', 'T', 'TJ', 'SCT', 'Escola de CT', 'CT', 'SCCT', 'Escola de CCT', 'CCT', 'Dirigente', 'Outros'];
-                        grausBase.forEach(g => {
-                            const conf = configVals?.find(c => c.grau === g);
-                            const valor = conf ? conf.valor : '0.00';
-                            containerGraus.innerHTML += `
-                                <div class="flex flex-row items-center justify-between bg-white px-3 py-2 rounded-xl border border-gray-200 shadow-sm hover:border-gray-300 transition">
-                                    <label class="text-[14px] font-bold text-gray-800 uppercase tracking-wide truncate mr-2" title="${g}">${g}</label>
-                                    <div class="flex items-center shrink-0">
-                                        <span class="text-xs font-bold text-gray-500 mr-1.5">R$</span>
-                                        <input type="number" step="0.01" min="0" data-grau="${g}" value="${valor}" class="input-valor-grau w-20 px-2 py-1 text-xs font-bold font-mono border border-gray-200 rounded-lg outline-none focus:border-tema-secundaria focus:ring-1 focus:ring-tema-secundaria bg-gray-50 focus:bg-white text-gray-800 text-right">
-                                    </div>
-                                </div>
-                            `;
-                        });
-                    }
+                    renderizarValoresTesourariaGraus(configVals);
                 } else {
                     document.getElementById('boxConfigMensalidade')?.classList.add('hidden');
                 }
             }
         }
-                
+
+function renderizarTagsConfiguracao() {
+            const containerGraus = document.getElementById('containerTagsGraus');
+            const containerFuncoes = document.getElementById('containerTagsFuncoes');
+
+            if (containerGraus) {
+                containerGraus.innerHTML = grausAtuaisTerreiro.map((g, idx) => `
+                    <span class="inline-flex items-center gap-1.5 bg-indigo-50 text-indigo-800 border border-indigo-200 text-xs font-bold px-2.5 py-1 rounded-lg">
+                        ${g}
+                        <button type="button" onclick="removerGrauTag(${idx})" class="text-indigo-400 hover:text-red-500 transition"><i class="fas fa-times text-[10px]"></i></button>
+                    </span>
+                `).join('') || '<span class="text-xs text-gray-400 p-1">Nenhum grau registado.</span>';
+            }
+
+            if (containerFuncoes) {
+                containerFuncoes.innerHTML = funcoesAtuaisTerreiro.map((f, idx) => `
+                    <span class="inline-flex items-center gap-1.5 bg-purple-50 text-purple-800 border border-purple-200 text-xs font-bold px-2.5 py-1 rounded-lg">
+                        ${f}
+                        <button type="button" onclick="removerFuncaoTag(${idx})" class="text-purple-400 hover:text-red-500 transition"><i class="fas fa-times text-[10px]"></i></button>
+                    </span>
+                `).join('') || '<span class="text-xs text-gray-400 p-1">Nenhuma função registada.</span>';
+            }
+        }
+
+        function renderizarValoresTesourariaGraus(configVals) {
+            const containerGraus = document.getElementById('listaValoresGrau');
+            if (!containerGraus) return;
+            containerGraus.innerHTML = '';
+            grausAtuaisTerreiro.forEach(g => {
+                const conf = configVals?.find(c => c.grau === g);
+                const valor = conf ? conf.valor : '0.00';
+                containerGraus.innerHTML += `
+                    <div class="flex flex-row items-center justify-between bg-white px-3 py-2 rounded-xl border border-gray-200 shadow-sm hover:border-gray-300 transition">
+                        <label class="text-[13px] font-bold text-gray-800 uppercase tracking-wide truncate mr-2" title="${g}">${g}</label>
+                        <div class="flex items-center shrink-0">
+                            <span class="text-xs font-bold text-gray-500 mr-1.5">R$</span>
+                            <input type="number" step="0.01" min="0" data-grau="${g}" value="${valor}" class="input-valor-grau w-20 px-2 py-1 text-xs font-bold font-mono border border-gray-200 rounded-lg outline-none focus:border-tema-secundaria focus:ring-1 focus:ring-tema-secundaria bg-gray-50 focus:bg-white text-gray-800 text-right">
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        window.removerGrauTag = (idx) => {
+            grausAtuaisTerreiro.splice(idx, 1);
+            opcoesGrau = ['-', ...grausAtuaisTerreiro];
+            renderizarTagsConfiguracao();
+        };
+
+        window.removerFuncaoTag = (idx) => {
+            funcoesAtuaisTerreiro.splice(idx, 1);
+            opcoesFuncao = ['-', ...funcoesAtuaisTerreiro];
+            renderizarTagsConfiguracao();
+        };
+
+        const inputNovoGrau = document.getElementById('novoGrauInput');
+        const btnAddGrau = document.getElementById('btnAdicionarGrau');
+        if (btnAddGrau && inputNovoGrau && !btnAddGrau.dataset.bound) {
+            btnAddGrau.dataset.bound = 'true';
+            btnAddGrau.addEventListener('click', () => {
+                const val = inputNovoGrau.value.trim();
+                if (val && !grausAtuaisTerreiro.includes(val)) {
+                    grausAtuaisTerreiro.push(val);
+                    opcoesGrau = ['-', ...grausAtuaisTerreiro];
+                    inputNovoGrau.value = '';
+                    renderizarTagsConfiguracao();
+                }
+            });
+        }
+
+        const inputNovaFuncao = document.getElementById('novaFuncaoInput');
+        const btnAddFuncao = document.getElementById('btnAdicionarFuncao');
+        if (btnAddFuncao && inputNovaFuncao && !btnAddFuncao.dataset.bound) {
+            btnAddFuncao.dataset.bound = 'true';
+            btnAddFuncao.addEventListener('click', () => {
+                const val = inputNovaFuncao.value.trim();
+                if (val && !funcoesAtuaisTerreiro.includes(val)) {
+                    funcoesAtuaisTerreiro.push(val);
+                    opcoesFuncao = ['-', ...funcoesAtuaisTerreiro];
+                    inputNovaFuncao.value = '';
+                    renderizarTagsConfiguracao();
+                }
+            });
+        }
+
+        const btnRestaurarPadrao = document.getElementById('btnRestaurarPadraoGrausFuncoes');
+        if (btnRestaurarPadrao && !btnRestaurarPadrao.dataset.bound) {
+            btnRestaurarPadrao.dataset.bound = 'true';
+            btnRestaurarPadrao.addEventListener('click', () => {
+                if (!confirm("Restaurar as denominações padrão do sistema?")) return;
+                grausAtuaisTerreiro = [...GRAUS_PADRAO];
+                funcoesAtuaisTerreiro = [...FUNCOES_PADRAO];
+                opcoesGrau = ['-', ...grausAtuaisTerreiro];
+                opcoesFuncao = ['-', ...funcoesAtuaisTerreiro];
+                renderizarTagsConfiguracao();
+            });
+        }
+
+        const btnSalvarGrausFuncoes = document.getElementById('btnSalvarGrausFuncoes');
+        const msgGrausFuncoes = document.getElementById('msgGrausFuncoes');
+        if (btnSalvarGrausFuncoes && !btnSalvarGrausFuncoes.dataset.bound) {
+            btnSalvarGrausFuncoes.dataset.bound = 'true';
+            btnSalvarGrausFuncoes.addEventListener('click', async () => {
+                btnSalvarGrausFuncoes.disabled = true;
+                btnSalvarGrausFuncoes.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i> A guardar...';
+                if (msgGrausFuncoes) msgGrausFuncoes.classList.add('hidden');
+
+                try {
+                    const { error } = await supabaseClient.from('terreiros')
+                        .update({
+                            lista_graus: grausAtuaisTerreiro,
+                            lista_funcoes: funcoesAtuaisTerreiro
+                        })
+                        .eq('id', idTerreiroGlobal);
+
+                    if (error) throw error;
+
+                    if (msgGrausFuncoes) {
+                        msgGrausFuncoes.textContent = '✅ Denominações guardadas com sucesso!';
+                        msgGrausFuncoes.className = 'text-xs font-bold text-green-600 block';
+                        msgGrausFuncoes.classList.remove('hidden');
+                        setTimeout(() => msgGrausFuncoes.classList.add('hidden'), 3500);
+                    }
+
+                    const { data: configVals } = await supabaseClient.from('config_mensalidades').select('*').eq('terreiro_id', idTerreiroGlobal);
+                    renderizarValoresTesourariaGraus(configVals);
+
+                } catch (err) {
+                    if (msgGrausFuncoes) {
+                        msgGrausFuncoes.textContent = 'Erro ao guardar: ' + err.message;
+                        msgGrausFuncoes.className = 'text-xs font-bold text-red-600 block';
+                        msgGrausFuncoes.classList.remove('hidden');
+                    }
+                } finally {
+                    btnSalvarGrausFuncoes.disabled = false;
+                    btnSalvarGrausFuncoes.innerHTML = '<i class="fas fa-save"></i> Salvar Graus e Funções';
+                }
+            });
+        }
+
+        
         function iniciarMapa(lat, lng, zoomLvl) {
             const mapEl = document.getElementById('mapaLocalizacao');
             const overlay = document.getElementById('mapaOverlay');
@@ -2967,9 +3090,10 @@ window.abrirModalEditarMedium = async (id) => {
     document.getElementById('editMediumNomeSocial').value = medium.nome_social || '';
     document.getElementById('editMediumTelefone').value = medium.telefone || '';
     document.getElementById('editMediumNascimento').value = medium.data_nascimento || '';
-    document.getElementById('editMediumGrau').value = medium.grau || '-';
-    document.getElementById('editMediumFuncao').value = medium.funcao || '-';
-
+    const selGrau = document.getElementById('editMediumGrau');
+    const selFuncao = document.getElementById('editMediumFuncao');
+    if (selGrau) selGrau.innerHTML = renderizarOpcoes(opcoesGrau, medium.grau || '-');
+    if (selFuncao) selFuncao.innerHTML = renderizarOpcoes(opcoesFuncao, medium.funcao || '-');
     document.getElementById('msgEditMedium')?.classList.add('hidden');
     document.getElementById('modalEditarMedium')?.classList.remove('hidden');
 
