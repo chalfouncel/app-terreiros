@@ -296,7 +296,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     if (typeof carregarDoacoesPrometidas === 'function') carregarDoacoesPrometidas();
                     if (typeof carregarDoacoesCatalogo === 'function') carregarDoacoesCatalogo();
                 } else if (menu.id === 'menuAdmin') {
-                    document.getElementById('secAdministracao')?.classList.remove('hidden');
+                    document.getElementById('secAdmin')?.classList.remove('hidden');
                     aplicarTitulos('Configurações da Casa');
                     carregarConfiguracoesCasa();
                 } else if (menu.id === 'menuMaster') {
