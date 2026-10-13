@@ -473,13 +473,18 @@
                 <div id="dashboardFinanceiro" class="mb-8">
                     <div class="flex justify-between items-center mb-4 flex-wrap gap-3">
                         <h2 class="text-xl md:text-2xl font-bold text-gray-800"><i class="fas fa-chart-pie text-tema-secundaria mr-2"></i> Painel de Arrecadação</h2>
-                        <div class="flex items-center space-x-2 bg-white p-2 rounded-xl shadow-sm border border-gray-200">
-                            <label class="text-xs md:text-sm font-bold text-gray-700">Ano:</label>
-                            <select id="selectAnoFinanceiro" class="border-0 bg-transparent font-bold text-gray-800 text-sm outline-none cursor-pointer focus:ring-0">
-                                <option value="2026">2026</option>
-                                <option value="2027">2027</option>
-                                <option value="2028">2028</option>
-                            </select>
+                        <div class="flex items-center gap-2">
+                            <div class="flex items-center space-x-2 bg-white p-2 rounded-xl shadow-sm border border-gray-200">
+                                <label class="text-xs md:text-sm font-bold text-gray-700">Ano:</label>
+                                <select id="selectAnoFinanceiro" class="border-0 bg-transparent font-bold text-gray-800 text-sm outline-none cursor-pointer focus:ring-0">
+                                    <option value="2026">2026</option>
+                                    <option value="2027">2027</option>
+                                    <option value="2028">2028</option>
+                                </select>
+                            </div>
+                            <button id="btnImprimirFinanceiro" class="bg-gray-800 hover:bg-gray-900 text-white px-3.5 py-2.5 rounded-xl font-bold shadow transition flex items-center justify-center gap-2 text-xs md:text-sm active:scale-95">
+                                <i class="fas fa-file-pdf text-red-400"></i> PDF Anual
+                            </button>
                         </div>
                     </div>
                     <!-- Cards dos Meses Injectados pelo JS -->
