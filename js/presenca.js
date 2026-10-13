@@ -571,11 +571,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (idsEnvolvidos.size > 0) {
                 const { data: dadosMed } = await supabaseClient
                     .from('mediuns')
-                    .select('id, nome_completo, grau')
+                    .select('id, nome_completo, grau, status_ativo')
                     .in('id', Array.from(idsEnvolvidos));
                 
                 if (dadosMed) {
-                    dadosMed.forEach(m => mapaNomes[m.id] = m);
+                    dadosMed.forEach(m => {
+                        // Só mapeia se o médium estiver ativo
+                        if (m.status_ativo !== false) {
+                            mapaNomes[m.id] = m;
+                        }
+                    });
                 }
             }
 
@@ -586,7 +591,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             (vinculos || []).forEach(v => {
                 const souSolicitante = v.solicitante_id === perfilMediumLogado.id;
                 const outroId = souSolicitante ? v.familiar_id : v.solicitante_id;
-                const outroMedium = mapaNomes[outroId] || { id: outroId, nome_completo: 'Médium', grau: '-' };
+                const outroMedium = mapaNomes[outroId];
+
+                // Ignora se o familiar tiver sido inativado ou não existir
+                if (!outroMedium) return;
 
                 if (v.status === 'pendente') {
                     if (souSolicitante) {
