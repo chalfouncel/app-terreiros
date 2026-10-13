@@ -122,14 +122,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const { data: perfil, error: erroPerfil } = await supabaseClient
             .from('mediuns')
-            .select('nome_completo, is_admin, terreiro_id, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin, is_master, perm_visao_geral, perm_ata')
+            .select('nome_completo, is_admin, terreiro_id, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin, is_master, perm_visao_geral, perm_ata, perm_quadro_mediuns')
             .eq('auth_id', session.user.id)
             .single();
 
         if (erroPerfil) throw erroPerfil;
         perfilAdminLogado = perfil;
 
-        const temAcessoPainel = perfil.is_admin || perfil.perm_visao_geral || perfil.perm_agenda || perfil.perm_grau || perfil.perm_financeiro || perfil.perm_doacoes || perfil.perm_admin || perfil.perm_ata || perfil.is_master;
+        const temAcessoPainel = perfil.is_admin || perfil.perm_visao_geral || perfil.perm_quadro_mediuns || perfil.perm_agenda || perfil.perm_grau || perfil.perm_financeiro || perfil.perm_doacoes || perfil.perm_admin || perfil.perm_ata || perfil.is_master;
 
         if (!temAcessoPainel) {
             alert('Acesso negado. Não possui permissão para aceder ao Painel de Gestão.');
@@ -157,7 +157,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 perfil.is_admin = true; perfil.perm_visao_geral = true; perfil.perm_agenda = true;
                 perfil.perm_ata = true; perfil.perm_grau = true; perfil.perm_financeiro = true;
-                perfil.perm_doacoes = true; perfil.perm_admin = true;
+                perfil.perm_doacoes = true; perfil.perm_admin = true; perfil.perm_quadro_mediuns = true;
             } else {
                 emModoMasterPuro = true;
                 idTerreiroGlobal = null;
@@ -177,6 +177,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         } else {
             if (!perfil.is_admin) {
                 if (!perfil.perm_visao_geral && document.getElementById('menuVisaoGeral')) document.getElementById('menuVisaoGeral').classList.add('hidden');
+                if (!perfil.perm_quadro_mediuns && document.getElementById('menuQuadroMediuns')) document.getElementById('menuQuadroMediuns').classList.add('hidden');
                 if (!perfil.perm_agenda && document.getElementById('menuAgendaGiras')) document.getElementById('menuAgendaGiras').classList.add('hidden');
                 if (!perfil.perm_ata && document.getElementById('menuLivroAta')) document.getElementById('menuLivroAta').classList.add('hidden');
                 if (!perfil.perm_grau && document.getElementById('menuGrau')) document.getElementById('menuGrau').classList.add('hidden');
@@ -620,6 +621,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 const payload = {
                     perm_visao_geral: document.getElementById('chkPermVisao')?.checked || false,
+                    perm_quadro_mediuns: document.getElementById('chkPermQuadro')?.checked || false,
                     perm_agenda: document.getElementById('chkPermAgenda')?.checked || false,
                     perm_ata: document.getElementById('chkPermAta')?.checked || false,
                     perm_grau: document.getElementById('chkPermGrau')?.checked || false,
@@ -1023,7 +1025,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             try {
                 const { data, error } = await supabaseClient
                     .from('mediuns')
-                    .select('id, nome_completo, nome_social, data_nascimento, grau, funcao, telefone, palavra, cadastro_completo, is_admin, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin, perm_visao_geral, perm_ata, status_ativo, isento_mensalidade')
+                    .select('id, nome_completo, nome_social, data_nascimento, grau, funcao, telefone, palavra, cadastro_completo, is_admin, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin, perm_visao_geral, perm_ata, perm_quadro_mediuns, status_ativo, isento_mensalidade')
                     .eq('terreiro_id', idTerreiroGlobal)
                     .neq('nome_completo', 'Administrador Sistema')
                     .order('nome_completo');
@@ -1075,7 +1077,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 let acoesHtml = '<span class="text-gray-400 text-xs">Sem acesso</span>';
                 
                 if (perfilAdminLogado && perfilAdminLogado.is_admin) {
-                    const perms = `${m.perm_agenda || false},${m.perm_grau || false},${m.perm_financeiro || false},${m.perm_doacoes || false},${m.perm_admin || false},${m.perm_visao_geral || false},${m.perm_ata || false}`;
+                    const perms = `${m.perm_agenda || false},${m.perm_grau || false},${m.perm_financeiro || false},${m.perm_doacoes || false},${m.perm_admin || false},${m.perm_visao_geral || false},${m.perm_ata || false},${m.perm_quadro_mediuns || false}`;
                     
                     const isAtivo = m.status_ativo !== false;
                     const iconInativar = isAtivo ? 'fa-user-times' : 'fa-user-check';
@@ -3237,7 +3239,7 @@ window.alternarStatusAtivoMedium = async (id, statusAtual) => {
 window.abrirModalPermissoes = (id, nome, permsString) => {
     document.getElementById('idMediumPermissao').value = id;
     document.getElementById('nomeMediumPermissao').textContent = nome;
-    const [pAgenda, pGrau, pFin, pDoa, pAdmin, pVisao, pAta] = permsString.split(',');
+    const [pAgenda, pGrau, pFin, pDoa, pAdmin, pVisao, pAta, pQuadro] = permsString.split(',');
     
     document.getElementById('chkPermAgenda').checked = pAgenda === 'true';
     document.getElementById('chkPermGrau').checked = pGrau === 'true';
@@ -3246,6 +3248,7 @@ window.abrirModalPermissoes = (id, nome, permsString) => {
     document.getElementById('chkPermAdmin').checked = pAdmin === 'true';
     if (document.getElementById('chkPermVisao')) document.getElementById('chkPermVisao').checked = pVisao === 'true';
     if (document.getElementById('chkPermAta')) document.getElementById('chkPermAta').checked = pAta === 'true';
+    if (document.getElementById('chkPermQuadro')) document.getElementById('chkPermQuadro').checked = pQuadro === 'true';
     
     document.getElementById('modalPermissoes').classList.remove('hidden');
 };
