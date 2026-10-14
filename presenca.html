@@ -87,7 +87,7 @@
                 </button>
 
                 <button id="btnAbrirDoacao" class="w-full flex items-center justify-center py-3 px-4 border-2 border-tema-primaria rounded-xl shadow-sm text-lg font-bold text-tema-primaria bg-white hover:bg-blue-50 transition-all active:scale-95">
-                    <i class="fas fa-heart text-red-500 mr-2"></i> Fazer uma Doação
+                    <i class="fas fa-hand-holding-heart text-red-500 mr-2"></i> Doações, Cantina e Rifas
                 </button>
                 <p id="msgCheckin" class="mt-3 text-sm font-bold hidden"></p>
             </div>
@@ -105,8 +105,8 @@
                     <i class="fas fa-file-invoice-dollar mr-2"></i> Mensalidade / Tesouraria
                 </button>
 
-                <button id="btnAbrirDoacaoSucesso" class="w-full flex items-center justify-center py-3 px-4 border-2 border-tema-primaria rounded-xl shadow-sm text-lg font-bold text-tema-primaria bg-white hover:bg-blue-50 transition-all active:scale-95">
-                    <i class="fas fa-heart text-red-500 mr-2"></i> Fazer uma Doação
+                <button id="btnAbrirDoacao" class="w-full flex items-center justify-center py-3 px-4 border-2 border-tema-primaria rounded-xl shadow-sm text-lg font-bold text-tema-primaria bg-white hover:bg-blue-50 transition-all active:scale-95">
+                    <i class="fas fa-hand-holding-heart text-red-500 mr-2"></i> Doações, Cantina e Rifas
                 </button>
             </div>
         </div>
@@ -303,43 +303,63 @@
     </div>
 
     <!-- ============================================== -->
-    <!-- Modal de Doação -->
+    <!-- Modal de Campanhas (Ex-Doação) -->
     <!-- ============================================== -->
     <div id="modalDoacao" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 transition-opacity">
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 text-center transform scale-95 transition-all flex flex-col max-h-[90vh]">
+        <div class="bg-white rounded-3xl shadow-xl w-full max-w-md p-5 md:p-6 text-center transform scale-95 transition-all flex flex-col max-h-[92vh] overflow-hidden">
             
-            <div class="flex-shrink-0">
-                <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3 shadow-sm">
-                    <i class="fas fa-hands-holding-heart text-2xl text-red-500"></i>
+            <div class="flex-shrink-0 mb-2 border-b border-gray-100 pb-3">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-black text-gray-800 flex items-center"><i class="fas fa-hands-holding-heart text-red-500 mr-2 text-2xl"></i> Campanhas</h3>
+                    <button id="btnFecharDoacao" class="text-gray-400 bg-gray-100 hover:bg-gray-200 p-1.5 rounded-xl transition active:scale-90"><i class="fas fa-times text-xl"></i></button>
                 </div>
-                <h3 class="text-xl font-bold text-gray-800 mb-1">Apoie nossa Casa</h3>
-                <p class="text-gray-600 mb-4 text-xs">Sua contribuição fortalece a nossa corrente.</p>
 
-                <div class="bg-gray-100 p-3 rounded-xl mb-4 relative border border-gray-200">
-                    <p class="text-[10px] text-gray-500 font-bold uppercase mb-1">Doação Livre (PIX)</p>
-                    <p id="chavePix" class="text-base font-mono font-bold text-gray-800 break-all">ciccantinho@gmail.com</p>
-                    <button id="btnCopiarPix" class="mt-2 w-full bg-gray-800 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-700 transition flex items-center justify-center shadow-sm active:scale-95 text-sm">
+                <!-- Abas de Navegação -->
+                <div class="flex text-xs font-bold w-full bg-gray-50 rounded-xl p-1 shadow-inner">
+                    <button type="button" id="tabDoacaoGeral" class="flex-1 py-2.5 rounded-lg text-center bg-white shadow-sm text-tema-primaria transition">Terreiro</button>
+                    <button type="button" id="tabDoacaoCantina" class="flex-1 py-2.5 rounded-lg text-center text-gray-500 hover:text-gray-800 transition">Cantina</button>
+                    <button type="button" id="tabDoacaoRifas" class="flex-1 py-2.5 rounded-lg text-center text-gray-500 hover:text-gray-800 transition">Rifas</button>
+                </div>
+            </div>
+
+            <!-- Conteúdo: Doações & Cantina -->
+            <div id="conteudoAbasDoacaoCantina" class="flex-1 overflow-y-auto text-left flex flex-col px-1">
+                
+                <div class="bg-gray-50 p-3.5 rounded-2xl mb-4 border border-gray-200 text-center shrink-0 shadow-inner">
+                    <p id="lblPixDoacao" class="text-[10px] text-gray-500 font-bold uppercase mb-1">Chave PIX (Doações)</p>
+                    <p id="chavePix" class="text-sm font-mono font-black text-gray-800 break-all bg-white border border-gray-200 p-2 rounded-xl select-all mb-3 shadow-sm">Carregando...</p>
+                    <button id="btnCopiarPix" class="w-full bg-gray-800 text-white font-bold py-2.5 px-4 rounded-xl hover:bg-gray-900 transition flex items-center justify-center shadow-sm active:scale-95 text-xs">
                         <i class="fas fa-copy mr-2"></i> Copiar Chave
                     </button>
                 </div>
                 
-                <h4 class="font-bold text-gray-700 mb-2 border-b pb-1 text-sm text-left">Ou escolha itens para doar:</h4>
+                <h4 id="tituloListaItens" class="font-bold text-gray-700 mb-2 border-b border-gray-100 pb-2 text-[11px] uppercase tracking-wider">Itens Disponíveis:</h4>
+                
+                <!-- Lista Dinâmica (Limpeza/Firmeza ou Cantina) -->
+                <div class="flex-1 space-y-1 mb-2" id="listaItensDoacao">
+                    <p class="text-center text-gray-400 text-xs py-6"><i class="fas fa-spinner fa-spin mr-2 text-xl"></i><br><br>Carregando itens...</p>
+                </div>
             </div>
 
-            <!-- Lista de Itens Dinâmica -->
-            <div class="flex-1 overflow-y-auto text-left mb-4 pr-1 space-y-1" id="listaItensDoacao">
-                <p class="text-center text-gray-500 text-sm py-4"><i class="fas fa-spinner fa-spin mr-2"></i> Carregando itens...</p>
-            </div>
-
-            <div class="flex-shrink-0 pt-2 border-t border-gray-100">
-                <button id="btnConfirmarDoacao" class="hidden w-full bg-green-600 text-white font-bold py-3 px-4 rounded-xl hover:bg-green-700 transition flex items-center justify-center shadow-md active:scale-95 mb-3">
-                    <i class="fas fa-check-circle mr-2"></i> Registrar Doação (<span id="qtdTotalDoacao">0</span>)
+            <!-- Conteúdo: Rifas -->
+            <div id="conteudoAbaRifas" class="hidden flex-1 flex flex-col justify-center items-center py-6 text-center px-4">
+                <div class="w-20 h-20 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-4xl mb-5 shadow-inner">
+                    <i class="fas fa-ticket-alt"></i>
+                </div>
+                <h4 class="font-black text-gray-800 text-xl mb-2">Rifas e Sorteios</h4>
+                <p class="text-xs text-gray-500 mb-8 leading-relaxed">Acesse a nossa página exclusiva de rifas. Você pode reservar números para você ou registrar vendas realizadas presencialmente para amigos.</p>
+                <button onclick="window.location.href='rifas.html?t=' + idTerreiroGlobal" class="w-full bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold py-4 px-4 rounded-xl shadow-md transition text-sm flex items-center justify-center gap-2">
+                    <i class="fas fa-external-link-alt"></i> Acessar Portal de Rifas
                 </button>
+            </div>
 
-                <button id="btnFecharDoacao" class="w-full text-gray-500 font-semibold hover:text-gray-800 transition p-2 uppercase text-xs tracking-wider">
-                    Voltar
+            <!-- Rodapé (Apenas para Doações e Cantina) -->
+            <div id="rodapeDoacao" class="flex-shrink-0 pt-3 border-t border-gray-100 bg-white">
+                <button id="btnConfirmarDoacao" class="hidden w-full bg-green-600 text-white font-bold py-3.5 px-4 rounded-xl hover:bg-green-700 transition flex items-center justify-center shadow-lg active:scale-95">
+                    <i class="fas fa-check-circle mr-2"></i> Lançar Pedido (<span id="qtdTotalDoacao">0</span>)
                 </button>
             </div>
+            
         </div>
     </div>
 
