@@ -116,7 +116,7 @@
             <div class="p-5 md:p-6 overflow-y-auto flex-1">
                 <form id="formComprarNumero" class="space-y-4">
                     
-                    <div class="bg-blue-50 border border-blue-200 p-3 rounded-xl text-xs text-blue-800 mb-2">
+                    <div id="avisoVendaTerceiro" class="hidden bg-blue-50 border border-blue-200 p-3 rounded-xl text-xs text-blue-800 mb-2">
                         <strong>Atenção:</strong> Se você estiver registrando a venda para outra pessoa, <strong>apague seus dados abaixo</strong> e digite o nome e WhatsApp do comprador final.
                     </div>
 
@@ -157,10 +157,10 @@
                     </div>
                 </form>
 
-                <!-- Box Instruções de Pagamento (Mostrado na Autocompra) -->
+                <!-- Box Instruções de Pagamento (Mostrado na Autocompra ou Link Público) -->
                 <div id="boxPixCheckout" class="hidden mt-4 bg-green-50 border border-green-200 p-4 rounded-2xl text-center shadow-inner">
-                    <div class="bg-yellow-100 border border-yellow-200 text-yellow-800 text-xs p-2.5 rounded-lg mb-4 font-bold flex items-center gap-2 justify-center">
-                        <i class="fas fa-info-circle"></i> Você está comprando para si mesmo.
+                    <div id="boxPixAlertaMsg" class="bg-yellow-100 border border-yellow-200 text-yellow-800 text-xs p-2.5 rounded-lg mb-4 font-bold flex items-center gap-2 justify-center">
+                        <i class="fas fa-info-circle"></i> Aguardando pagamento da reserva.
                     </div>
                     
                     <p class="text-[11px] font-bold text-green-800 uppercase mb-1">Chave PIX do Terreiro</p>
@@ -426,6 +426,12 @@
             if (usuarioLogadoNome) document.getElementById('compradorNome').value = usuarioLogadoNome;
             if (usuarioLogadoTelefone) document.getElementById('compradorTelefone').value = usuarioLogadoTelefone;
             
+            if (usuarioLogadoId) {
+                document.getElementById('avisoVendaTerceiro').classList.remove('hidden');
+            } else {
+                document.getElementById('avisoVendaTerceiro').classList.add('hidden');
+            }
+            
             document.getElementById('formComprarNumero').classList.remove('hidden');
             document.getElementById('boxPixCheckout').classList.add('hidden');
             
@@ -464,11 +470,17 @@
                 btnConfirmarReserva.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
 
                 try {
-                    // BLINDAGEM: Compara se o telefone digitado é o mesmo do celular logado
+                    // BLINDAGEM MÁXIMA DE SEGURANÇA:
+                    // 1. O aparelho precisa estar LOGADO (ter usuarioLogadoId)
+                    // 2. O telefone digitado NÃO pode ser o do próprio médium
+                    const isUsuarioDeslogado = !usuarioLogadoId;
                     const isAutoCompra = (usuarioLogadoTelefone && tel === usuarioLogadoTelefone);
                     
-                    // Se for ele mesmo, vai pra PENDENTE (Amarelo). Se for cliente, APROVADO (Verde).
-                    const statusPagamento = isAutoCompra ? 'pendente' : 'aprovado';
+                    // Só aprova na hora se for Médium Logado vendendo para TERCEIROS
+                    const isVendaPresencialTerceiro = !isUsuarioDeslogado && !isAutoCompra;
+                    
+                    // Se não estiver logado ou se for autocompra, o status é SEMPRE 'pendente'
+                    const statusPagamento = isVendaPresencialTerceiro ? 'aprovado' : 'pendente';
                     
                     const insercoes = numerosSelecionadosArray.map(num => ({
                         terreiro_id: idTerreiro,
@@ -493,10 +505,21 @@
                     const valorTotalOperacao = numerosSelecionadosArray.length * dadosRifaGlobal.valor_numero;
                     const numStringFormated = numerosSelecionadosArray.join(', ');
 
-                    if (isAutoCompra) {
-                        // ==== FLUXO DE AUTOCOMPRA (PENDENTE) ====
-                        // Esconde formulário e mostra chave PIX
+                    if (!isVendaPresencialTerceiro) {
+                        // ==== FLUXO PENDENTE (Autocompra ou Público Externo) ====
+                        // Esconde formulário e mostra chave PIX para envio de comprovante
                         document.getElementById('formComprarNumero').classList.add('hidden');
+                        
+                        // Atualiza a mensagem dependendo de quem está comprando
+                        const boxPixText = document.getElementById('boxPixAlertaMsg');
+                        if (boxPixText) {
+                            if (isAutoCompra) {
+                                boxPixText.innerHTML = '<i class="fas fa-info-circle"></i> Você está comprando para si mesmo.';
+                            } else {
+                                boxPixText.innerHTML = '<i class="fas fa-info-circle"></i> Efetue o pagamento para concluir a reserva.';
+                            }
+                        }
+                        
                         document.getElementById('boxPixCheckout').classList.remove('hidden');
                         
                         const chavePix = window.terreiroGlobal.chave_pix_manual || window.terreiroGlobal.cantina_chave_pix || 'Chave não informada no sistema';
