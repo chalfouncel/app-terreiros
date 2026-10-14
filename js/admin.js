@@ -1547,7 +1547,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
 
-        window.aprovarCaixaPendente = async (caixaId, referenciaId, tipoTransacao) => {
+       window.aprovarCaixaPendente = async (caixaId, referenciaId, tipoTransacao) => {
             if(!confirm("Confirmar que este PIX (Direto na Conta do Terreiro) já foi recebido e compensado?")) return;
 
             try {
@@ -1555,9 +1555,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const { error: err1 } = await supabaseClient.from('caixa_terreiro').update({ status: 'pago' }).eq('id', caixaId);
                 if (err1) throw err1;
 
-                // 2. Se for Rifa, dá baixa no número para mudar a cor da cartela
+                // 2. Se for Rifa, dá baixa nos números para mudar a cor da cartela
                 if (tipoTransacao === 'RIFA' && referenciaId && referenciaId !== 'null') {
-                    await supabaseClient.from('rifa_numeros').update({ status_pagamento: 'aprovado' }).eq('id', parseInt(referenciaId));
+                    const arrayIds = String(referenciaId).split(',').map(n => parseInt(n.trim()));
+                    await supabaseClient.from('rifa_numeros').update({ status_pagamento: 'aprovado' }).in('id', arrayIds);
                 }
 
                 alert("Pagamento confirmado com sucesso!");
@@ -1575,9 +1576,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const { error: err1 } = await supabaseClient.from('caixa_terreiro').delete().eq('id', caixaId);
                 if (err1) throw err1;
 
-                // 2. Se for rifa, apaga o número reservado (para voltar a ficar "Livre" na cartela)
+                // 2. Se for rifa, apaga os números reservados (para voltar a ficar "Livre" na cartela)
                 if (tipoTransacao === 'RIFA' && referenciaId && referenciaId !== 'null') {
-                    await supabaseClient.from('rifa_numeros').delete().eq('id', parseInt(referenciaId));
+                    const arrayIds = String(referenciaId).split(',').map(n => parseInt(n.trim()));
+                    await supabaseClient.from('rifa_numeros').delete().in('id', arrayIds);
                 }
 
                 alert("Transação pendente cancelada e removida com sucesso.");
