@@ -15,18 +15,6 @@ let familiaresAprovadosCache = [];
 
 document.addEventListener('DOMContentLoaded', async () => {
     
-    // Elementos do Modal de Doação
-    const modalDoacao = document.getElementById('modalDoacao');
-    const btnAbrirDoacao = document.getElementById('btnAbrirDoacao');
-    const btnAbrirDoacaoSucesso = document.getElementById('btnAbrirDoacaoSucesso');
-    const btnFecharDoacao = document.getElementById('btnFecharDoacao');
-    const btnCopiarPix = document.getElementById('btnCopiarPix');
-    const chavePix = document.getElementById('chavePix');
-    const listaItensDoacao = document.getElementById('listaItensDoacao');
-    const btnConfirmarDoacao = document.getElementById('btnConfirmarDoacao');
-    const qtdTotalDoacao = document.getElementById('qtdTotalDoacao');
-    let carrinhoDoacoes = {};
-
     const tituloTerreiro = document.getElementById('nomeTerreiro');
     if (tituloTerreiro) tituloTerreiro.textContent = "Carregando sistema...";
 
