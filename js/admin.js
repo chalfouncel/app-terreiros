@@ -4189,6 +4189,20 @@ window.addEventListener('DOMContentLoaded', () => {
             btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
             
             try {
+                let imagemUrl = null;
+                const fileInput = document.getElementById('rifaImagem');
+                if (fileInput && fileInput.files && fileInput.files.length > 0) {
+                    const arquivoOriginal = fileInput.files[0];
+                    const arquivoComprimido = await comprimirImagem(arquivoOriginal, 800, 800, 0.85);
+                    const nomeArquivo = `rifa_${idTerreiroGlobal}_${Date.now()}.${arquivoComprimido.name.split('.').pop()}`;
+                    
+                    const { error: errUp } = await supabaseClient.storage.from('logos').upload(nomeArquivo, arquivoComprimido);
+                    if (!errUp) {
+                        const { data: urlData } = supabaseClient.storage.from('logos').getPublicUrl(nomeArquivo);
+                        imagemUrl = urlData.publicUrl;
+                    }
+                }
+
                 const { error } = await supabaseClient.from('rifas').insert([{
                     terreiro_id: idTerreiroGlobal,
                     titulo: document.getElementById('rifaTitulo').value.trim(),
@@ -4196,6 +4210,7 @@ window.addEventListener('DOMContentLoaded', () => {
                     valor_numero: parseFloat(document.getElementById('rifaValor').value),
                     chave_pix: document.getElementById('rifaPix').value.trim() || null,
                     descricao: document.getElementById('rifaDescricao').value.trim() || null,
+                    imagem_url: imagemUrl,
                     status: 'aberta'
                 }]);
                 
@@ -4392,5 +4407,124 @@ window.addEventListener('DOMContentLoaded', () => {
         
         document.getElementById('modalCartelaRifa').classList.add('hidden');
         carregarRifasAdmin(); 
+    }
+// ============================================================================
+    // ABAS DO FINANCEIRO E RELATÓRIO DE ARRECADAÇÃO (RIFAS COM MÉDIUNS EM VERDE)
+    // ============================================================================
+    const btnTabFinMensalidades = document.getElementById('btnTabFinMensalidades');
+    const btnTabFinArrecadacao = document.getElementById('btnTabFinArrecadacao');
+    const abaFinMensalidades = document.getElementById('abaFinMensalidades');
+    const abaFinArrecadacao = document.getElementById('abaFinArrecadacao');
+
+    if (btnTabFinMensalidades) {
+        btnTabFinMensalidades.addEventListener('click', () => {
+            btnTabFinMensalidades.classList.replace('border-transparent', 'border-tema-secundaria');
+            btnTabFinMensalidades.classList.replace('text-gray-500', 'text-tema-secundaria');
+            btnTabFinArrecadacao.classList.replace('border-tema-secundaria', 'border-transparent');
+            btnTabFinArrecadacao.classList.replace('text-tema-secundaria', 'text-gray-500');
+            abaFinMensalidades.classList.remove('hidden');
+            abaFinArrecadacao.classList.add('hidden');
+        });
+    }
+
+    if (btnTabFinArrecadacao) {
+        btnTabFinArrecadacao.addEventListener('click', () => {
+            btnTabFinArrecadacao.classList.replace('border-transparent', 'border-tema-secundaria');
+            btnTabFinArrecadacao.classList.replace('text-gray-500', 'text-tema-secundaria');
+            btnTabFinMensalidades.classList.replace('border-tema-secundaria', 'border-transparent');
+            btnTabFinMensalidades.classList.replace('text-tema-secundaria', 'text-gray-500');
+            abaFinArrecadacao.classList.remove('hidden');
+            abaFinMensalidades.classList.add('hidden');
+            carregarSelectRifasFinanceiro();
+        });
+    }
+
+    async function carregarSelectRifasFinanceiro() {
+        const select = document.getElementById('selectRifaFinanceiro');
+        if (!select || select.options.length > 1) return; 
+
+        const { data } = await supabaseClient.from('rifas').select('id, titulo').eq('terreiro_id', idTerreiroGlobal).order('created_at', {ascending: false});
+        if (data) {
+            select.innerHTML = '<option value="">Selecione uma rifa...</option>';
+            data.forEach(r => {
+                select.innerHTML += `<option value="${r.id}">${r.titulo}</option>`;
+            });
+        }
+    }
+
+    const selectRifaFin = document.getElementById('selectRifaFinanceiro');
+    if (selectRifaFin) {
+        selectRifaFin.addEventListener('change', async (e) => {
+            const idRifa = e.target.value;
+            const tbody = document.getElementById('tabelaRelatorioRifa');
+            
+            if (!idRifa) {
+                tbody.innerHTML = '<tr><td colspan="3" class="text-center p-6 text-gray-500">Selecione uma rifa para visualizar.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = '<tr><td colspan="3" class="text-center p-6 text-gray-500"><i class="fas fa-spinner fa-spin"></i> Buscando dados da rifa...</td></tr>';
+            
+            const { data: numeros } = await supabaseClient.from('rifa_numeros').select('*').eq('rifa_id', idRifa).order('numero', {ascending: true});
+            
+            if (!numeros || numeros.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" class="text-center p-6 text-gray-500">Nenhum número vendido nesta rifa ainda.</td></tr>';
+                return;
+            }
+
+            const agrupado = {};
+            numeros.forEach(n => {
+                const telLimpo = n.telefone_comprador ? n.telefone_comprador.replace(/\D/g, '') : '';
+                const chave = telLimpo + '_' + n.nome_comprador;
+                
+                if (!agrupado[chave]) {
+                    agrupado[chave] = {
+                        nome: n.nome_comprador,
+                        telefoneOriginal: n.telefone_comprador,
+                        telefoneLimpo: telLimpo,
+                        numeros: [],
+                        vendedor_id: n.vendido_por_medium_id,
+                        status: n.status_pagamento
+                    };
+                }
+                agrupado[chave].numeros.push(n.numero);
+            });
+
+            tbody.innerHTML = '';
+            Object.values(agrupado).forEach(comp => {
+                // Valida se o comprador é médium pelo número de telefone
+                const ehMedium = listaMediunsGlobal.find(m => m.telefone && m.telefone.replace(/\D/g, '') === comp.telefoneLimpo);
+                
+                const nomeExibicao = ehMedium 
+                    ? `<span class="text-green-600 font-bold" title="Médium da Casa">${comp.nome} <i class="fas fa-check-circle text-[10px]"></i></span>` 
+                    : `<span class="text-gray-800 font-medium">${comp.nome}</span>`;
+
+                // Exibe o Nome Social (ou o primeiro nome) de quem passou a rifa
+                let vendedorNome = '-';
+                if (comp.vendedor_id) {
+                    const v = listaMediunsGlobal.find(m => m.id === comp.vendedor_id);
+                    if (v) vendedorNome = `<span class="text-gray-700">${v.nome_social || v.nome_completo.split(' ')[0]}</span>`;
+                } else {
+                    vendedorNome = '<span class="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-bold uppercase">Link Externo</span>';
+                }
+
+                const numsStr = comp.numeros.map(n => String(n).padStart(2,'0')).join(', ');
+                const badgePendente = comp.status !== 'aprovado' ? `<span class="bg-yellow-100 text-yellow-800 text-[9px] px-1 rounded font-bold ml-1">Pendente</span>` : '';
+
+                tbody.innerHTML += `
+                    <tr class="border-b border-gray-100 hover:bg-gray-50">
+                        <td class="p-3">
+                            ${nomeExibicao} <br>
+                            <span class="text-[10px] text-gray-500 font-mono">${comp.telefoneOriginal}</span>
+                        </td>
+                        <td class="p-3 font-mono text-xs text-indigo-600 font-bold break-words max-w-[150px]">
+                            ${numsStr} ${badgePendente}
+                        </td>
+                        <td class="p-3 text-xs">
+                            ${vendedorNome}
+                        </td>
+                    </tr>
+                `;
+            });
+        });
     }
 });
