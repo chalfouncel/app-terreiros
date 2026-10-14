@@ -41,7 +41,7 @@
         <p class="text-xs text-gray-500 mt-1 uppercase tracking-wider font-semibold">Campanhas e Ações Solidárias</p>
     </div>
 
-    <!-- ESTADO 1: LISTA DE RIFAS ABERTAS DO TERREIRO -->
+    <!-- ESTADO 1: LISTA DE RIFAS ABERTAS -->
     <main id="estadoListaRifas" class="w-full max-w-2xl hidden flex-col gap-4">
         <h2 class="font-bold text-gray-700 text-sm md:text-base border-b border-gray-200 pb-2 mb-2">Rifas Disponíveis</h2>
         <div id="gridRifasAbertas" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
@@ -99,7 +99,7 @@
         </div>
     </main>
 
-    <!-- MODAL DE CHECKOUT (PREENCHER DADOS E PAGAR/ANEXAR COMPROVANTE) -->
+    <!-- MODAL DE CHECKOUT -->
     <div id="modalCheckoutRifa" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex flex-col justify-end md:justify-center items-center z-50 p-0 md:p-4 transition-all">
         
         <div class="bg-white w-full max-w-lg rounded-t-3xl md:rounded-3xl shadow-2xl flex flex-col max-h-[90vh] md:max-h-[85vh] animate-slide-up">
@@ -116,6 +116,11 @@
                 
                 <!-- PASSO 1: DADOS DO COMPRADOR -->
                 <form id="formComprarNumero" class="space-y-4">
+                    
+                    <div id="avisoVendaTerceiro" class="hidden bg-blue-50 border border-blue-200 p-3 rounded-xl text-xs text-blue-800 mb-2">
+                        <strong>Atenção Equipe de Vendas:</strong> Se estiver vendendo para outra pessoa, apague seus dados e coloque o número do comprador para aprovação automática.
+                    </div>
+
                     <div>
                         <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Nome Completo do Comprador *</label>
                         <input type="text" id="compradorNome" required class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-tema-primaria outline-none text-sm bg-white shadow-sm" placeholder="Ex: Maria da Silva">
@@ -131,10 +136,9 @@
                     <p id="msgCheckout" class="hidden text-xs font-bold text-center mt-3 text-red-600 block"></p>
                 </form>
 
-                <!-- PASSO 2: PIX E COMPROVANTE (Para quem não é da equipe) -->
+                <!-- PASSO 2: PIX E COMPROVANTE -->
                 <div id="boxUploadComprovante" class="hidden flex flex-col items-center">
                     
-                    <!-- CRONÔMETRO -->
                     <div class="w-full bg-red-50 border border-red-200 p-4 rounded-2xl text-center shadow-inner mb-5 relative overflow-hidden">
                         <div class="absolute top-0 left-0 w-full h-1.5 bg-red-200">
                             <div id="barraProgressoTempo" class="h-full bg-red-500 w-full transition-all duration-1000"></div>
@@ -144,7 +148,6 @@
                         <p class="text-[10px] text-red-500 mt-1 font-medium">Se o tempo acabar, a reserva é cancelada e o número volta a ficar livre.</p>
                     </div>
 
-                    <!-- CHAVE PIX -->
                     <div class="w-full bg-gray-50 border border-gray-200 p-4 rounded-xl text-center mb-5 shadow-sm">
                         <p class="text-[10px] font-bold text-gray-500 uppercase mb-1">Efetue o PIX na Chave Abaixo</p>
                         <p id="chavePixExibicao" class="text-sm font-mono font-bold text-gray-800 mb-3 break-all select-all p-2 bg-white rounded border border-gray-300 shadow-inner"></p>
@@ -153,7 +156,6 @@
                         </button>
                     </div>
 
-                    <!-- UPLOAD -->
                     <div class="w-full">
                         <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Anexar Comprovante *</label>
                         <input type="file" id="arquivoComprovante" accept="image/*,application/pdf" class="block w-full text-xs text-gray-500 file:mr-3 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-green-50 file:text-green-700 hover:file:bg-green-100 border border-gray-300 rounded-xl p-1.5 cursor-pointer bg-white shadow-sm">
@@ -192,6 +194,8 @@
         let numerosSelecionadosArray = [];
         
         let usuarioLogadoId = null; 
+        let usuarioLogadoTelefone = ''; // Usado para barrar fraude de autocompra
+        
         let vendedorIdParaBD = null;
         let isVendedorAutorizado = false;
         
@@ -199,7 +203,6 @@
         let timerInterval = null;
 
         document.addEventListener('DOMContentLoaded', async () => {
-            // Tenta limpar reservas vencidas assim que abrir a tela
             try { await supabaseClient.rpc('limpar_reservas_expiradas'); } catch(e) { }
 
             const urlParams = new URLSearchParams(window.location.search);
@@ -207,7 +210,6 @@
             idRifaSelecionada = urlParams.get('r'); 
             usuarioLogadoId = localStorage.getItem('medium_id');
 
-            // Preserva o vendedor do link (se existir) para lançar a venda pra ele
             vendedorIdParaBD = urlParams.get('v') ? urlParams.get('v') : usuarioLogadoId;
 
             if (!idTerreiro) {
@@ -227,12 +229,13 @@
                 const imgLogo = document.getElementById('logoTerreiro');
                 if (terreiro.logo_url) { imgLogo.src = terreiro.logo_url; imgLogo.classList.remove('hidden'); }
 
-                // Se houver um usuário logado no celular, preenche os dados dele no form
+                // Puxa o telefone logado para garantir a regra de autocompra
                 if (usuarioLogadoId) {
                     const { data: mData } = await supabaseClient.from('mediuns').select('nome_completo, telefone').eq('id', usuarioLogadoId).single();
                     if (mData) {
                         document.getElementById('compradorNome').value = mData.nome_completo || '';
-                        document.getElementById('compradorTelefone').value = mData.telefone ? mData.telefone.replace(/\D/g, '') : '';
+                        usuarioLogadoTelefone = mData.telefone ? mData.telefone.replace(/\D/g, '') : '';
+                        document.getElementById('compradorTelefone').value = usuarioLogadoTelefone;
                     }
                 }
 
@@ -311,22 +314,33 @@
                 c.classList.remove('bg-indigo-100', 'text-indigo-500');
             }
 
-            // A MÁGICA DE AUTORIZAÇÃO DE VENDEDOR ACONTECE AQUI!
+            // MÁGICA 2.0: VERIFICAÇÃO BLINDADA DO ARRAY JSON DA EQUIPE DE VENDAS
             isVendedorAutorizado = false;
             if (usuarioLogadoId && rifa.vendedores_id) {
-                // Suporta array de IDs ou string separada por vírgula
-                let listaVendedores = [];
-                if (Array.isArray(rifa.vendedores_id)) {
-                    listaVendedores = rifa.vendedores_id.map(String);
-                } else if (typeof rifa.vendedores_id === 'string') {
-                    listaVendedores = rifa.vendedores_id.split(',').map(v => v.trim());
-                } else if (typeof rifa.vendedores_id === 'number') {
-                    listaVendedores = [String(rifa.vendedores_id)];
+                try {
+                    let vends = rifa.vendedores_id;
+                    // Se for salvo como string JSON "[{\"id\":1}]", convertemos:
+                    if (typeof vends === 'string') {
+                        try { vends = JSON.parse(vends); } catch(e) { vends = vends.split(','); }
+                    }
+                    
+                    if (Array.isArray(vends)) {
+                        // Verifica se o ID do logado bate com array simples [1, 2] ou array de objetos [{id: 1}]
+                        isVendedorAutorizado = vends.some(v => 
+                            String(v) === String(usuarioLogadoId) || 
+                            (v !== null && typeof v === 'object' && v.id && String(v.id) === String(usuarioLogadoId))
+                        );
+                    }
+                } catch (e) {
+                    console.error("Erro ao analisar vendedores_id", e);
                 }
-                
-                if (listaVendedores.includes(String(usuarioLogadoId))) {
-                    isVendedorAutorizado = true;
-                }
+            }
+
+            // Exibe mensagem azul se ele for da equipe
+            if (isVendedorAutorizado) {
+                document.getElementById('avisoVendaTerceiro').classList.remove('hidden');
+            } else {
+                document.getElementById('avisoVendaTerceiro').classList.add('hidden');
             }
 
             const { data: comprados } = await supabaseClient.from('rifa_numeros').select('numero, status_pagamento').eq('rifa_id', idRifa);
@@ -382,7 +396,6 @@
             document.getElementById('checkoutNumeroLabel').textContent = numerosSelecionadosArray.join(', ');
             document.getElementById('checkoutValorLabel').textContent = (numerosSelecionadosArray.length * dadosRifaGlobal.valor_numero).toFixed(2).replace('.', ',');
             
-            // Exibe formulário e zera caixa de upload
             document.getElementById('formComprarNumero').classList.remove('hidden');
             document.getElementById('boxUploadComprovante').classList.add('hidden');
             document.getElementById('msgCheckout').classList.add('hidden');
@@ -398,10 +411,10 @@
         // PASSO 1 DO PAGAMENTO: REGISTRA A VENDA OU A RESERVA
         document.getElementById('btnConfirmarReserva').addEventListener('click', async () => {
             const nome = document.getElementById('compradorNome').value.trim();
-            const tel = document.getElementById('compradorTelefone').value.replace(/\D/g, '');
+            const telDigitado = document.getElementById('compradorTelefone').value.replace(/\D/g, '');
             const msg = document.getElementById('msgCheckout');
             
-            if (!nome || tel.length < 10) {
+            if (!nome || telDigitado.length < 10) {
                 msg.textContent = "Preencha o Nome e um WhatsApp válido com DDD.";
                 msg.classList.remove('hidden'); return;
             }
@@ -411,16 +424,23 @@
             btnConf.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
 
             try {
-                // REGRA DE NEGÓCIO DA APROVAÇÃO
-                const statusPgt = isVendedorAutorizado ? 'aprovado' : 'pendente';
-                const bloqueioTempo = isVendedorAutorizado ? null : new Date().toISOString(); // Marca hora só se for pendente
+                // =============== LÓGICA MESTRA DE APROVAÇÃO ===============
+                
+                // 1. É o próprio médium comprando para si mesmo? (Segurança Antifraude)
+                const isAutoCompra = (usuarioLogadoTelefone && telDigitado === usuarioLogadoTelefone);
+                
+                // 2. Aprova DIRETO apenas se for equipe de vendas vendendo para TERCEIROS
+                const isVendaAprovada = isVendedorAutorizado && !isAutoCompra;
+                
+                const statusPgt = isVendaAprovada ? 'aprovado' : 'pendente';
+                const bloqueioTempo = isVendaAprovada ? null : new Date().toISOString(); 
                 
                 const insercoes = numerosSelecionadosArray.map(num => ({
                     terreiro_id: idTerreiro,
                     rifa_id: dadosRifaGlobal.id,
                     numero: num,
                     nome_comprador: nome,
-                    telefone_comprador: tel,
+                    telefone_comprador: telDigitado,
                     status_pagamento: statusPgt,
                     metodo_pagamento: 'manual',
                     vendido_por_medium_id: vendedorIdParaBD ? parseInt(vendedorIdParaBD) : null,
@@ -434,8 +454,8 @@
                 const valorTotalOp = numerosSelecionadosArray.length * dadosRifaGlobal.valor_numero;
                 const arrayIdsC = numsCriados.map(n => n.id).join(',');
 
-                if (isVendedorAutorizado) {
-                    // FLUXO APROVADO: Vai direto para o caixa!
+                if (isVendaAprovada) {
+                    // FLUXO APROVADO: Vai direto para o caixa (Venda confirmada para Terceiros)
                     const { error: errCaixa } = await supabaseClient.from('caixa_terreiro').insert([{
                         terreiro_id: idTerreiro, tipo_transacao: 'RIFA',
                         descricao: `Venda Rifa - Números: ${numerosSelecionadosArray.join(', ')}`,
@@ -455,7 +475,7 @@
                     carregarCartelaRifa(dadosRifaGlobal.id);
 
                 } else {
-                    // FLUXO PENDENTE: Vai para o UPLOAD DO COMPROVANTE!
+                    // FLUXO PENDENTE: Vai para o UPLOAD DO COMPROVANTE (Público externo ou Autocompra)
                     arrayIdsReservados = numsCriados.map(n => n.id);
                     document.getElementById('formComprarNumero').classList.add('hidden');
                     document.getElementById('boxUploadComprovante').classList.remove('hidden');
@@ -487,7 +507,6 @@
                     clearInterval(timerInterval);
                     alert("⏳ Tempo esgotado! A reserva foi cancelada e os números estão livres novamente.");
                     fecharCheckout();
-                    // Como encerrou o tempo, tentamos chamar o RPC para limpar ou atualizamos
                     try { await supabaseClient.rpc('limpar_reservas_expiradas'); } catch(e) {}
                     carregarCartelaRifa(dadosRifaGlobal.id);
                 }
@@ -517,8 +536,6 @@
 
             btn.disabled = true;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando para diretoria...';
-            
-            // Pausa o relógio pois o usuário tentou subir o arquivo
             clearInterval(timerInterval); 
 
             try {
@@ -526,15 +543,12 @@
                 const fileExt = file.name.split('.').pop();
                 const fileName = `rifa_${idTerreiro}_${Date.now()}.${fileExt}`;
                 
-                // Faz o Upload para a pasta de RIFAS dentro do bucket Comprovantes
                 const { error: uploadError } = await supabaseClient.storage.from('comprovantes').upload(`rifas/${fileName}`, file);
-                
                 if (uploadError) throw new Error("Falha no upload do arquivo. Tente novamente.");
 
                 const { data: publicUrlData } = supabaseClient.storage.from('comprovantes').getPublicUrl(`rifas/${fileName}`);
                 const comprovanteUrl = publicUrlData.publicUrl;
 
-                // Atualiza a reserva colocando a URL. A trava de tempo perde a utilidade já que ele mandou o comprovante.
                 const { error: updError } = await supabaseClient.from('rifa_numeros')
                     .update({ comprovante_url: comprovanteUrl })
                     .in('id', arrayIdsReservados);
@@ -548,7 +562,7 @@
             } catch (err) {
                 msg.textContent = err.message; msg.classList.remove('hidden');
                 btn.disabled = false; btn.innerHTML = '<i class="fas fa-upload"></i> Enviar Comprovante para Validação';
-                iniciarTimer(120); // Dá mais 2 minutos caso o upload falhe para ele tentar de novo
+                iniciarTimer(120); 
             }
         });
 
