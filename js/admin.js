@@ -4408,6 +4408,125 @@ window.addEventListener('DOMContentLoaded', () => {
         document.getElementById('modalCartelaRifa').classList.add('hidden');
         carregarRifasAdmin(); 
     }
+
+    // --- MÓDULO EQUIPE DE VENDAS (RIFAS) ---
+    const btnAbrirEquipeVendas = document.getElementById('btnAbrirEquipeVendas');
+    if (btnAbrirEquipeVendas) {
+        btnAbrirEquipeVendas.addEventListener('click', () => {
+            if (!window.rifaAtivaId) return;
+            abrirModalEquipeVendas(window.rifaAtivaId);
+        });
+    }
+
+    window.abrirModalEquipeVendas = async (idRifa) => {
+        const modal = document.getElementById('modalEquipeVendas');
+        if (modal) modal.classList.remove('hidden');
+        
+        const selectVendedor = document.getElementById('selectVendedorRifa');
+        if (selectVendedor && selectVendedor.options.length <= 1) {
+            // Popula com a lista de médiuns global já existente
+            listaMediunsGlobal.forEach(m => {
+                selectVendedor.innerHTML += `<option value="${m.id}">${m.nome_completo}</option>`;
+            });
+        }
+        
+        await carregarListaVendedores(idRifa);
+    };
+
+    window.carregarListaVendedores = async (idRifa) => {
+        const listaEl = document.getElementById('listaVendedoresRifa');
+        if (!listaEl) return;
+        
+        listaEl.innerHTML = '<div class="text-center p-4 text-gray-500"><i class="fas fa-spinner fa-spin"></i> Carregando equipe...</div>';
+        
+        try {
+            const { data, error } = await supabaseClient.from('rifas').select('vendedores_ids').eq('id', idRifa).single();
+            
+            if (error) throw error;
+            
+            const vendedores = data.vendedores_ids || [];
+            if (vendedores.length === 0) {
+                listaEl.innerHTML = '<div class="text-center p-4 text-gray-500 text-sm">Nenhum vendedor escalado para esta rifa.</div>';
+                return;
+            }
+
+            listaEl.innerHTML = '';
+            vendedores.forEach(vendedorId => {
+                const medium = listaMediunsGlobal.find(m => m.id === vendedorId);
+                const nome = medium ? medium.nome_completo : 'Médium Desconhecido';
+                
+                listaEl.innerHTML += `
+                    <div class="flex justify-between items-center bg-gray-50 p-2 rounded border border-gray-200 mb-2">
+                        <span class="text-sm text-gray-700 font-medium"><i class="fas fa-user-tag text-indigo-500 mr-2"></i>${nome}</span>
+                        <button onclick="removerVendedorEquipe('${idRifa}', ${vendedorId})" class="text-red-500 hover:text-red-700" title="Remover da Equipe">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                `;
+            });
+        } catch (err) {
+            listaEl.innerHTML = `<div class="text-center p-4 text-red-500 text-sm">Erro ao carregar: ${err.message}</div>`;
+        }
+    };
+
+    const btnAdicionarVendedor = document.getElementById('btnAdicionarVendedor');
+    if (btnAdicionarVendedor) {
+        btnAdicionarVendedor.addEventListener('click', async () => {
+            if (!window.rifaAtivaId) return;
+            const selectVendedor = document.getElementById('selectVendedorRifa');
+            const mediumId = parseInt(selectVendedor.value);
+            
+            if (!mediumId) {
+                alert('Por favor, selecione um médium da lista.');
+                return;
+            }
+
+            const btnHtml = btnAdicionarVendedor.innerHTML;
+            btnAdicionarVendedor.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            btnAdicionarVendedor.disabled = true;
+
+            try {
+                const { data } = await supabaseClient.from('rifas').select('vendedores_ids').eq('id', window.rifaAtivaId).single();
+                let vendedores = data.vendedores_ids || [];
+                
+                if (!vendedores.includes(mediumId)) {
+                    vendedores.push(mediumId);
+                    const { error } = await supabaseClient.from('rifas').update({ vendedores_ids: vendedores }).eq('id', window.rifaAtivaId);
+                    if (error) throw error;
+                } else {
+                    alert('Este médium já faz parte da equipe desta rifa!');
+                }
+                
+                selectVendedor.value = ''; // Reseta o select
+                await carregarListaVendedores(window.rifaAtivaId);
+            } catch (e) {
+                alert("Erro ao adicionar vendedor: " + e.message);
+            } finally {
+                btnAdicionarVendedor.innerHTML = btnHtml;
+                btnAdicionarVendedor.disabled = false;
+            }
+        });
+    }
+
+    window.removerVendedorEquipe = async (idRifa, mediumId) => {
+        if (!confirm('Remover este vendedor da equipe?')) return;
+        
+        try {
+            const { data } = await supabaseClient.from('rifas').select('vendedores_ids').eq('id', idRifa).single();
+            let vendedores = data.vendedores_ids || [];
+            
+            // Filtra removendo apenas o ID selecionado
+            vendedores = vendedores.filter(id => id !== mediumId);
+            
+            const { error } = await supabaseClient.from('rifas').update({ vendedores_ids: vendedores }).eq('id', idRifa);
+            if (error) throw error;
+            
+            await carregarListaVendedores(idRifa);
+        } catch (e) {
+            alert("Erro ao remover vendedor: " + e.message);
+        }
+    };
+
 // ============================================================================
     // ABAS DO FINANCEIRO E RELATÓRIO DE ARRECADAÇÃO (RIFAS COM MÉDIUNS EM VERDE)
     // ============================================================================
