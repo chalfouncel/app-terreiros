@@ -234,11 +234,6 @@
                 const imgLogo = document.getElementById('logoTerreiro');
                 if (terreiro.logo_url) { imgLogo.src = terreiro.logo_url; imgLogo.classList.remove('hidden'); }
 
-                if (mediumLogadoId) {
-                    document.getElementById('optPagamentoPresencial').classList.remove('hidden');
-                    document.getElementById('optPagamentoPresencial').classList.add('flex');
-                }
-
                 if (idRifaSelecionada) {
                     await carregarCartelaRifa(idRifaSelecionada);
                 } else {
