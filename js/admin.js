@@ -3911,3 +3911,398 @@ window.abrirModalFinanceiroMaster = async (idTerreiro, nomeTerreiro) => {
     
     document.getElementById('modalMasterFinanceiro').classList.remove('hidden');
 };
+
+// ============================================================================
+// NOVO MÓDULO: GESTÃO DE DOAÇÕES, CANTINA E RIFAS
+// ============================================================================
+
+window.addEventListener('DOMContentLoaded', () => {
+    
+    // --- LÓGICA DAS ABAS INTERNAS (Doações, Cantina, Rifas) ---
+    const btnsTab = {
+        doacoes: document.getElementById('btnTabDoacoes'),
+        cantina: document.getElementById('btnTabCantina'),
+        rifas: document.getElementById('btnTabRifas')
+    };
+    const abas = {
+        doacoes: document.getElementById('abaDoacoes'),
+        cantina: document.getElementById('abaCantina'),
+        rifas: document.getElementById('abaRifas')
+    };
+
+    function alternarAbaCampanha(abaAtiva) {
+        Object.keys(btnsTab).forEach(k => {
+            if (!btnsTab[k]) return;
+            if (k === abaAtiva) {
+                btnsTab[k].classList.replace('border-transparent', 'border-tema-secundaria');
+                btnsTab[k].classList.replace('text-gray-500', 'text-tema-secundaria');
+                if (abas[k]) abas[k].classList.remove('hidden');
+            } else {
+                btnsTab[k].classList.replace('border-tema-secundaria', 'border-transparent');
+                btnsTab[k].classList.replace('text-tema-secundaria', 'text-gray-500');
+                if (abas[k]) abas[k].classList.add('hidden');
+            }
+        });
+        
+        if (abaAtiva === 'rifas') carregarRifasAdmin();
+        if (abaAtiva === 'cantina') carregarConfigCantina();
+        if (abaAtiva === 'doacoes') {
+            if (typeof window.carregarDoacoesPrometidas === 'function') window.carregarDoacoesPrometidas();
+            if (typeof window.carregarDoacoesCatalogo === 'function') window.carregarDoacoesCatalogo();
+        }
+    }
+
+    if(btnsTab.doacoes) btnsTab.doacoes.addEventListener('click', () => alternarAbaCampanha('doacoes'));
+    if(btnsTab.cantina) btnsTab.cantina.addEventListener('click', () => alternarAbaCampanha('cantina'));
+    if(btnsTab.rifas) btnsTab.rifas.addEventListener('click', () => alternarAbaCampanha('rifas'));
+
+    // Sobrescreve a função de clique do menu principal para abrir a aba Doações por padrão
+    const menuDoacoes = document.getElementById('menuDoacoes');
+    if (menuDoacoes) {
+        menuDoacoes.addEventListener('click', () => {
+            alternarAbaCampanha('doacoes');
+        });
+    }
+
+    // --- MÓDULO CANTINA ---
+    async function carregarConfigCantina() {
+        if (!idTerreiroGlobal) return;
+        const select = document.getElementById('cantinaGestor');
+        
+        // Carrega lista de médiuns para o select de gestor
+        if (select && select.options.length <= 1) {
+            const { data: mediuns } = await supabaseClient.from('mediuns').select('id, nome_completo').eq('terreiro_id', idTerreiroGlobal).neq('nome_completo', 'Administrador Sistema').order('nome_completo');
+            if (mediuns) {
+                mediuns.forEach(m => {
+                    select.innerHTML += `<option value="${m.id}">${m.nome_completo}</option>`;
+                });
+            }
+        }
+        // Carrega Configuração Atual do Terreiro
+        const { data } = await supabaseClient.from('terreiros').select('cantina_chave_pix, cantina_gestor_id').eq('id', idTerreiroGlobal).single();
+        if (data) {
+            document.getElementById('cantinaChavePix').value = data.cantina_chave_pix || '';
+            document.getElementById('cantinaGestor').value = data.cantina_gestor_id || '';
+        }
+    }
+
+    const btnSalvarCantina = document.getElementById('btnSalvarCantina');
+    if (btnSalvarCantina) {
+        btnSalvarCantina.addEventListener('click', async () => {
+            const btnHtml = btnSalvarCantina.innerHTML;
+            btnSalvarCantina.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            const pix = document.getElementById('cantinaChavePix').value.trim();
+            const gestor = document.getElementById('cantinaGestor').value;
+            
+            const { error } = await supabaseClient.from('terreiros').update({
+                cantina_chave_pix: pix,
+                cantina_gestor_id: gestor ? parseInt(gestor) : null
+            }).eq('id', idTerreiroGlobal);
+            
+            btnSalvarCantina.innerHTML = btnHtml;
+            const msg = document.getElementById('msgCantinaConfig');
+            msg.classList.remove('hidden');
+            if(error) {
+                msg.textContent = "Erro: " + error.message; msg.className = "text-xs font-bold text-red-600";
+            } else {
+                msg.textContent = "Salvo com sucesso!"; msg.className = "text-xs font-bold text-green-600";
+                setTimeout(()=> msg.classList.add('hidden'), 3000);
+            }
+        });
+    }
+
+    // --- REESCREVENDO CATÁLOGO DE DOAÇÕES PARA SUPORTAR CATEGORIAS ---
+    const formNovoItemDoacao = document.getElementById('formNovoItemDoacao');
+    if (formNovoItemDoacao) {
+        formNovoItemDoacao.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btnSalvarDoacao');
+            const msg = document.getElementById('msgDoacao');
+            btn.disabled = true; btn.innerHTML = 'Adicionando...';
+            
+            const cat = document.getElementById('doacaoCategoria').value;
+            const nome = document.getElementById('doacaoNome').value.trim();
+            const val = document.getElementById('doacaoValor').value;
+
+            try {
+                const { error } = await supabaseClient.from('itens_doacao').insert([{
+                    terreiro_id: idTerreiroGlobal,
+                    categoria: cat,
+                    nome: nome,
+                    valor_sugerido: val ? parseFloat(val) : null,
+                    ativo: true
+                }]);
+                if (error) throw error;
+                
+                formNovoItemDoacao.reset();
+                window.carregarDoacoesCatalogo();
+                msg.textContent = "Produto adicionado!"; msg.className = "text-xs font-bold text-green-600 block mt-2";
+                msg.classList.remove('hidden'); setTimeout(()=> msg.classList.add('hidden'), 3000);
+            } catch (err) {
+                msg.textContent = "Erro: " + err.message; msg.className = "text-xs font-bold text-red-600 block mt-2";
+                msg.classList.remove('hidden');
+            } finally {
+                btn.disabled = false; btn.innerHTML = 'Adicionar ao Catálogo';
+            }
+        });
+    }
+
+    // Redefine a função do catálogo globalmente para aplicar as badges de cor
+    window.carregarDoacoesCatalogo = async () => {
+        if (!idTerreiroGlobal) return;
+        const tbody = document.getElementById('tabelaItensDoacao');
+        if(!tbody) return;
+        const { data, error } = await supabaseClient.from('itens_doacao').select('*').eq('terreiro_id', idTerreiroGlobal).order('categoria').order('nome');
+        if (error) return;
+        
+        tbody.innerHTML = '';
+        if (data && data.length > 0) {
+            data.forEach(item => {
+                const btn = item.ativo 
+                    ? `<button onclick="alternarStatusCatalogo('${item.id}', false)" class="text-[10px] bg-gray-200 text-gray-700 px-2 py-1 rounded font-bold hover:bg-gray-300">Desativar</button>` 
+                    : `<button onclick="alternarStatusCatalogo('${item.id}', true)" class="text-[10px] bg-green-100 text-green-700 px-2 py-1 rounded font-bold hover:bg-green-200">Ativar</button>`;
+                
+                const catMap = { 
+                    'limpeza': '<span class="text-blue-500 font-bold">Limpeza</span>', 
+                    'firmeza': '<span class="text-purple-500 font-bold">Firmeza</span>', 
+                    'cantina': '<span class="text-orange-500 font-bold">Cantina</span>' 
+                };
+                const cName = catMap[item.categoria] || item.categoria;
+
+                tbody.innerHTML += `<tr class="border-b border-gray-100 ${item.ativo ? '' : 'opacity-40 bg-gray-50'} hover:bg-gray-50 transition-colors">
+                    <td class="p-2 text-xs">${cName}</td>
+                    <td class="p-2 text-xs font-medium text-gray-800">${item.nome}${item.valor_sugerido ? `<span class="text-gray-400 font-normal ml-1">(R$ ${item.valor_sugerido})</span>` : ''}</td>
+                    <td class="p-2 text-center">${btn} <button onclick="excluirItemCatalogo('${item.id}')" class="text-red-500 hover:text-red-700 ml-2"><i class="fas fa-trash text-[10px]"></i></button></td>
+                </tr>`;
+            });
+        } else {
+            tbody.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-gray-500 text-xs">Catálogo vazio.</td></tr>';
+        }
+    };
+
+    window.excluirItemCatalogo = async (id) => {
+        if(!confirm("Excluir definitivamente este item do catálogo?")) return;
+        await supabaseClient.from('itens_doacao').delete().eq('id', id);
+        window.carregarDoacoesCatalogo();
+    };
+
+    // --- MÓDULO RIFAS ---
+    window.abrirModalNovaRifa = () => {
+        document.getElementById('formNovaRifa').reset();
+        document.getElementById('modalNovaRifa').classList.remove('hidden');
+    };
+
+    const formNovaRifa = document.getElementById('formNovaRifa');
+    if (formNovaRifa) {
+        formNovaRifa.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btnSalvarNovaRifa');
+            btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
+            
+            try {
+                const { error } = await supabaseClient.from('rifas').insert([{
+                    terreiro_id: idTerreiroGlobal,
+                    titulo: document.getElementById('rifaTitulo').value.trim(),
+                    quantidade_numeros: parseInt(document.getElementById('rifaQtd').value),
+                    valor_numero: parseFloat(document.getElementById('rifaValor').value),
+                    chave_pix: document.getElementById('rifaPix').value.trim() || null,
+                    descricao: document.getElementById('rifaDescricao').value.trim() || null,
+                    status: 'aberta'
+                }]);
+                
+                if (error) throw error;
+                document.getElementById('modalNovaRifa').classList.add('hidden');
+                carregarRifasAdmin();
+            } catch (err) {
+                alert("Erro ao criar rifa: " + err.message);
+            } finally {
+                btn.disabled = false; btn.innerHTML = 'Lançar Rifa';
+            }
+        });
+    }
+
+    async function carregarRifasAdmin() {
+        if (!idTerreiroGlobal) return;
+        const grid = document.getElementById('gridRifas');
+        if (!grid) return;
+        grid.innerHTML = '<div class="col-span-full text-center p-8 text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i> Carregando rifas...</div>';
+
+        const { data: rifas, error } = await supabaseClient.from('rifas')
+            .select('*').eq('terreiro_id', idTerreiroGlobal).order('created_at', { ascending: false });
+
+        if (error || !rifas || rifas.length === 0) {
+            grid.innerHTML = '<div class="col-span-full p-6 text-center text-gray-400 bg-gray-50 rounded-xl border border-dashed border-gray-200">Nenhuma rifa cadastrada ainda.</div>';
+            return;
+        }
+
+        grid.innerHTML = '';
+        rifas.forEach(r => {
+            const isEncerrada = r.status === 'encerrada';
+            const bgCor = isEncerrada ? 'bg-gray-100 opacity-80' : 'bg-white border-t-4 border-indigo-500';
+            const badge = isEncerrada 
+                ? `<span class="bg-gray-200 text-gray-600 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">Encerrada</span>`
+                : `<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider"><i class="fas fa-circle text-[8px] animate-pulse"></i> Aberta</span>`;
+
+            grid.innerHTML += `
+                <div class="${bgCor} border border-gray-200 rounded-2xl p-5 shadow-sm flex flex-col justify-between hover:shadow-md transition">
+                    <div>
+                        <div class="flex justify-between items-start mb-2">
+                            <h4 class="font-bold text-gray-800 text-sm leading-tight pr-2">${r.titulo}</h4>${badge}
+                        </div>
+                        <p class="text-[11px] text-gray-500 mb-4 line-clamp-2">${r.descricao || 'Sem descrição'}</p>
+                        
+                        <div class="flex items-center gap-4 mb-4">
+                            <div class="text-center">
+                                <p class="text-[10px] text-gray-400 font-bold uppercase">Números</p>
+                                <p class="text-lg font-black text-indigo-600">${r.quantidade_numeros}</p>
+                            </div>
+                            <div class="w-px h-8 bg-gray-200"></div>
+                            <div class="text-center">
+                                <p class="text-[10px] text-gray-400 font-bold uppercase">Valor</p>
+                                <p class="text-sm font-bold text-gray-700">R$ ${r.valor_numero.toFixed(2)}</p>
+                            </div>
+                        </div>
+                        ${isEncerrada && r.numero_vencedor ? `<div class="bg-yellow-100 border border-yellow-300 text-yellow-800 text-xs font-bold p-2 rounded-lg text-center mb-3"><i class="fas fa-trophy mr-1 text-yellow-600"></i> Número Vencedor: ${r.numero_vencedor}</div>` : ''}
+                    </div>
+                    
+                    <button onclick="abrirCartelaAdmin('${r.id}', '${r.titulo.replace(/'/g, "\\'")}', ${r.quantidade_numeros},${r.valor_numero})" class="w-full bg-gray-800 hover:bg-gray-900 text-white font-bold py-2.5 rounded-xl text-xs shadow-sm transition flex items-center justify-center gap-2 active:scale-95">
+                        <i class="fas fa-th"></i> Ver Cartela / Gerenciar
+                    </button>
+                </div>
+            `;
+        });
+    }
+
+    // Modal da Cartela Visual e Sorteio
+    window.rifaAtivaId = null;
+    window.abrirCartelaAdmin = async (idRifa, titulo, qtdNumeros, valorNum) => {
+        window.rifaAtivaId = idRifa;
+        document.getElementById('cartelaTituloRifa').textContent = titulo;
+        const grid = document.getElementById('gridNumerosRifa');
+        grid.innerHTML = '<div class="col-span-full text-center text-gray-500 py-10"><i class="fas fa-spinner fa-spin text-3xl"></i></div>';
+        document.getElementById('modalCartelaRifa').classList.remove('hidden');
+
+        // Botão de copiar link de venda
+        const btnLink = document.getElementById('btnCopiarLinkRifa');
+        btnLink.onclick = () => {
+            // Usa o link absoluto da hospedagem para poder enviar no WhatsApp
+            const linkBase = window.location.origin;
+            const linkPublico = `${linkBase}/rifas.html?t=${idTerreiroGlobal}&r=${idRifa}`;
+            navigator.clipboard.writeText(linkPublico).then(() => {
+                const ori = btnLink.innerHTML;
+                btnLink.innerHTML = '<i class="fas fa-check text-green-400"></i> Link Copiado!';
+                setTimeout(() => { btnLink.innerHTML = ori; }, 2500);
+            });
+        };
+
+        // Botão de sortear
+        const btnSorteio = document.getElementById('btnRealizarSorteio');
+        btnSorteio.onclick = () => {
+            if(!confirm("Atenção! Ao sortear, a rifa será ENCERRADA e nenhum número a mais poderá ser vendido. Deseja prosseguir?")) return;
+            sortearRifa(idRifa, qtdNumeros);
+        };
+
+        const { data: comprados } = await supabaseClient.from('rifa_numeros').select('*').eq('rifa_id', idRifa);
+        
+        let qtdLivre = qtdNumeros;
+        let qtdPago = 0;
+        let qtdPendente = 0;
+        grid.innerHTML = '';
+
+        for(let i = 1; i <= qtdNumeros; i++) {
+            const comprado = comprados ? comprados.find(c => c.numero === i) : null;
+            
+            let btnClass = "border-gray-200 text-gray-500 bg-white hover:bg-gray-50 hover:border-gray-300"; // Livre
+            let acao = ``;
+            let tooltip = `Livre (R$ ${valorNum.toFixed(2)})`;
+
+            if (comprado) {
+                qtdLivre--;
+                if (comprado.status_pagamento === 'aprovado') {
+                    qtdPago++;
+                    btnClass = "border-green-600 bg-green-500 text-white shadow-sm cursor-not-allowed";
+                    tooltip = `PAGO\nNome: ${comprado.nome_comprador}`;
+                } else {
+                    qtdPendente++;
+                    btnClass = "border-yellow-500 bg-yellow-400 text-yellow-900 shadow-sm animate-pulse hover:bg-yellow-500";
+                    tooltip = `PENDENTE (Clique para Aprovar)\nNome: ${comprado.nome_comprador}`;
+                    acao = `onclick="aprovarNumeroRifaAdmin('${comprado.id}', ${i}, '${comprado.nome_comprador.replace(/'/g, "\\'")}', ${valorNum})"`;
+                }
+            }
+
+            grid.innerHTML += `
+                <button ${acao} class="aspect-square rounded-xl border-2 font-black text-sm md:text-base flex items-center justify-center transition-all ${btnClass}" title="${tooltip}">
+                    ${String(i).padStart(2, '0')}
+                </button>
+            `;
+        }
+
+        document.getElementById('cartelaQtdLivres').textContent = qtdLivre;
+        document.getElementById('cartelaQtdPagos').textContent = qtdPago;
+        document.getElementById('cartelaQtdPendentes').textContent = qtdPendente;
+    };
+
+    window.aprovarNumeroRifaAdmin = async (registroId, numero, nome, valor) => {
+        if(!confirm(`Confirmar o recebimento do Número ${numero} comprado por ${nome}? \nO valor de R$ ${valor.toFixed(2)} será lançado como pago no Caixa do Terreiro.`)) return;
+
+        try {
+            // 1. Atualiza o status na tabela da rifa
+            const { error: err1 } = await supabaseClient.from('rifa_numeros')
+                .update({ status_pagamento: 'aprovado' }).eq('id', registroId);
+            if (err1) throw err1;
+
+            // 2. Lança a entrada de receita no Caixa Unificado
+            const desc = `Rifa - Número ${numero}`;
+            await supabaseClient.from('caixa_terreiro').insert([{
+                terreiro_id: idTerreiroGlobal,
+                tipo_transacao: 'RIFA',
+                descricao: desc,
+                valor: valor,
+                metodo_pagamento: 'baixado_admin',
+                pagador_nome: nome,
+                status: 'pago',
+                referencia_id: registroId
+            }]);
+
+            // Recarrega visualmente a cartela atual
+            const tituloAtual = document.getElementById('cartelaTituloRifa').textContent;
+            const qtdNum = document.querySelectorAll('#gridNumerosRifa button').length;
+            abrirCartelaAdmin(window.rifaAtivaId, tituloAtual, qtdNum, valor);
+
+        } catch(e) {
+            alert("Erro ao baixar pagamento: " + e.message);
+        }
+    };
+
+    async function sortearRifa(idRifa, maxNumeros) {
+        // Busca APENAS números que foram vendidos E PAGOS (Status Aprovado)
+        const { data: pagos } = await supabaseClient.from('rifa_numeros')
+            .select('numero, nome_comprador')
+            .eq('rifa_id', idRifa)
+            .eq('status_pagamento', 'aprovado');
+
+        if (!pagos || pagos.length === 0) {
+            alert("Nenhum número validado/pago foi registrado. Não é possível realizar o sorteio.");
+            return;
+        }
+
+        // Extrai todos os números pagos em um array simples
+        const numerosPagos = pagos.map(p => p.numero);
+        
+        // Sorteio Aleatório restrito apenas aos números válidos
+        const indiceSorteado = Math.floor(Math.random() * numerosPagos.length);
+        const numeroVencedor = numerosPagos[indiceSorteado];
+        const ganhador = pagos.find(p => p.numero === numeroVencedor);
+
+        // Atualiza a Rifa no banco para Encerrada
+        await supabaseClient.from('rifas').update({ 
+            status: 'encerrada', 
+            numero_vencedor: numeroVencedor 
+        }).eq('id', idRifa);
+
+        alert(`🎉 SORTEIO REALIZADO COM SUCESSO!\n\nNúmero Sorteado: ${numeroVencedor}\nGanhador(a): ${ganhador.nome_comprador}`);
+        
+        document.getElementById('modalCartelaRifa').classList.add('hidden');
+        carregarRifasAdmin(); // Atualiza o grid de rifas para exibir o vencedor e fechar a edição
+    }
+});
