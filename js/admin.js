@@ -4364,24 +4364,23 @@ window.addEventListener('DOMContentLoaded', () => {
     };
 
     async function sortearRifa(idRifa, maxNumeros) {
-        // Busca APENAS números que foram vendidos E PAGOS (Status Aprovado)
-        const { data: pagos } = await supabaseClient.from('rifa_numeros')
+        // Busca TODOS os números registrados (aprovados ou pendentes)
+        const { data: vendidos } = await supabaseClient.from('rifa_numeros')
             .select('numero, nome_comprador')
-            .eq('rifa_id', idRifa)
-            .eq('status_pagamento', 'aprovado');
+            .eq('rifa_id', idRifa);
 
-        if (!pagos || pagos.length === 0) {
-            alert("Nenhum número validado/pago foi registrado. Não é possível realizar o sorteio.");
+        if (!vendidos || vendidos.length === 0) {
+            alert("Nenhum número foi reservado ou vendido. Não é possível realizar o sorteio.");
             return;
         }
 
-        // Extrai todos os números pagos em um array simples
-        const numerosPagos = pagos.map(p => p.numero);
+        // Extrai todos os números em um array simples
+        const numerosVendidos = vendidos.map(v => v.numero);
         
-        // Sorteio Aleatório restrito apenas aos números válidos
-        const indiceSorteado = Math.floor(Math.random() * numerosPagos.length);
-        const numeroVencedor = numerosPagos[indiceSorteado];
-        const ganhador = pagos.find(p => p.numero === numeroVencedor);
+        // Sorteio Aleatório restrito apenas aos números registrados
+        const indiceSorteado = Math.floor(Math.random() * numerosVendidos.length);
+        const numeroVencedor = numerosVendidos[indiceSorteado];
+        const ganhador = vendidos.find(v => v.numero === numeroVencedor);
 
         // Atualiza a Rifa no banco para Encerrada
         await supabaseClient.from('rifas').update({ 
@@ -4392,6 +4391,6 @@ window.addEventListener('DOMContentLoaded', () => {
         alert(`🎉 SORTEIO REALIZADO COM SUCESSO!\n\nNúmero Sorteado: ${numeroVencedor}\nGanhador(a): ${ganhador.nome_comprador}`);
         
         document.getElementById('modalCartelaRifa').classList.add('hidden');
-        carregarRifasAdmin(); // Atualiza o grid de rifas para exibir o vencedor e fechar a edição
+        carregarRifasAdmin(); 
     }
 });
