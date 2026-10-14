@@ -402,9 +402,6 @@
                 const nome = document.getElementById('compradorNome').value.trim();
                 const tel = document.getElementById('compradorTelefone').value.replace(/\D/g, '');
                 
-                let metodo = 'manual';
-                document.getElementsByName('metodoPagamento').forEach(r => { if(r.checked) metodo = r.value; });
-
                 if (!nome || tel.length < 10) {
                     const msg = document.getElementById('msgCheckout');
                     msg.textContent = "Preencha o Nome e um WhatsApp válido com DDD.";
@@ -417,8 +414,8 @@
                 btnConfirmarReserva.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
 
                 try {
-                    // Como unificou tudo em "manual", o status será sempre pendente para baixa posterior
-                    const statusPagamento = 'pendente';
+                    // VALIDAÇÃO IMEDIATA: O status entra diretamente como aprovado/pago
+                    const statusPagamento = 'aprovado';
                     
                     const insercoes = numerosSelecionadosArray.map(num => ({
                         terreiro_id: idTerreiro,
@@ -444,31 +441,23 @@
                     const valorTotalOperacao = numerosSelecionadosArray.length * dadosRifaGlobal.valor_numero;
                     const numStringFormated = numerosSelecionadosArray.join(', ');
 
-                    // Lança no caixa como pendente
+                    // Lança no caixa como PAGO imediatamente
                     await supabaseClient.from('caixa_terreiro').insert([{
                         terreiro_id: idTerreiro,
                         tipo_transacao: 'RIFA',
-                        descricao: `Reserva Rifa - Números: ${numStringFormated}`,
+                        descricao: `Venda Rifa - Números: ${numStringFormated}`,
                         valor: valorTotalOperacao,
                         metodo_pagamento: 'manual',
                         pagador_nome: nome,
-                        status: 'pendente',
+                        status: 'pago',
+                        medium_responsavel_id: mediumLogadoId ? parseInt(mediumLogadoId) : null,
                         referencia_id: arrayIdsCriados
                     }]);
 
-                    document.getElementById('formComprarNumero').classList.add('hidden');
+                    alert("✅ Venda registada com sucesso! Os números já estão confirmados na cartela.");
                     
-                    const chaveExibicao = dadosRifaGlobal.chave_pix || window.terreiroGlobal.chave_pix_manual || "Chave PIX não configurada";
-                    document.getElementById('chavePixExibicao').textContent = chaveExibicao;
-                    
-                    document.querySelectorAll('.lblValorPix').forEach(el => el.textContent = valorTotalOperacao.toFixed(2).replace('.', ','));
-                    
-                    document.getElementById('boxPixCheckout').classList.remove('hidden');
-                    
-                    btnConfirmarReserva.classList.add('hidden');
-                    btnConfirmarReserva.classList.remove('flex');
-                    document.getElementById('btnConcluirPix').classList.remove('hidden');
-                    document.getElementById('btnConcluirPix').classList.add('flex');
+                    fecharCheckout();
+                    carregarCartelaRifa(dadosRifaGlobal.id);
 
                 } catch (err) {
                     const msg = document.getElementById('msgCheckout');
