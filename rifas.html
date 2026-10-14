@@ -469,7 +469,7 @@
                         pagador_nome: nome,
                         status: 'pago',
                         medium_responsavel_id: mediumLogadoId ? parseInt(mediumLogadoId) : null,
-                        referencia_id: arrayIdsCriados
+                        referencia_id: dadosRifaGlobal.id // Mudamos para o ID da Rifa (que é um número inteiro válido)
                     }]);
 
                     if (errCaixa) {
