@@ -1416,113 +1416,176 @@ document.addEventListener('DOMContentLoaded', async () => {
             const listaCards = document.getElementById('listaComprovantesPendentes');
             if (!listaCards) return;
 
-        // Loading Skeleton para os Cards de Comprovantes
-        let skeletonCards = '';
-        for(let i=0; i<3; i++) {
-            skeletonCards += `
-                <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-200 animate-pulse">
-                    <div class="flex justify-between items-start mb-3">
-                        <div class="h-4 bg-gray-200 rounded w-2/3"></div>
-                        <div class="h-4 bg-gray-200 rounded-full w-12"></div>
-                    </div>
-                    <div class="mb-3 bg-gray-50 p-2.5 rounded-lg border border-gray-100">
-                        <div class="h-3 bg-gray-200 rounded w-full mb-2"></div>
-                        <div class="h-3 bg-gray-200 rounded w-4/5"></div>
-                    </div>
-                    <div class="flex justify-between items-end mb-4">
-                        <div class="space-y-1">
-                            <div class="h-2 bg-gray-200 rounded w-16"></div>
-                            <div class="h-3 bg-gray-200 rounded w-24"></div>
-                        </div>
-                        <div class="space-y-1 text-right flex flex-col items-end">
-                            <div class="h-2 bg-gray-200 rounded w-16"></div>
-                            <div class="h-5 bg-gray-200 rounded w-20"></div>
-                        </div>
-                    </div>
-                    <div class="w-full h-10 bg-gray-200 rounded-xl"></div>
-                </div>
-            `;
-        }
-        listaCards.innerHTML = skeletonCards;
+            // Loading Skeleton
+            listaCards.innerHTML = '<div class="col-span-full p-8 text-center text-gray-500 bg-white rounded-2xl shadow-sm border border-gray-100"><i class="fas fa-spinner fa-spin mr-2 text-xl"></i> Buscando pendências financeiras...</div>';
 
-        try {
-                const { data: comprovantes, error } = await supabaseClient
+            try {
+                // 1. Busca Comprovantes de Mensalidade (Antigo)
+                const { data: mensalidades } = await supabaseClient
                     .from('comprovantes_mensalidade')
                     .select('*')
                     .eq('terreiro_id', idTerreiroGlobal)
                     .eq('status', 'pendente')
                     .order('data_envio', { ascending: true });
 
-                if (error) throw error;
-
-                if (!comprovantes || comprovantes.length === 0) {
-                    listaCards.innerHTML = '<div class="col-span-full p-8 text-center text-gray-500 bg-white rounded-2xl shadow-sm border border-gray-100"><i class="fas fa-check-circle text-3xl text-green-300 mb-2 block"></i> Tudo em dia! Não há comprovantes aguardando validação.</div>';
-                    return;
-                }
+                // 2. Busca Caixa Terreiro Pendentes (Novo: Rifas, Doações, Cantina)
+                const { data: caixaPendentes } = await supabaseClient
+                    .from('caixa_terreiro')
+                    .select('*')
+                    .eq('terreiro_id', idTerreiroGlobal)
+                    .eq('status', 'pendente')
+                    .order('data_transacao', { ascending: true });
 
                 const { data: mediuns } = await supabaseClient
                     .from('mediuns')
-                    .select('auth_id, nome_completo')
+                    .select('auth_id, nome_completo, id')
                     .eq('terreiro_id', idTerreiroGlobal);
+
+                const pendenciasGerais = [];
+
+                // Formata Mensalidades
+                (mensalidades || []).forEach(comp => {
+                    const remetente = mediuns?.find(m => m.auth_id === comp.enviado_por)?.nome_completo || 'Médium Desconhecido';
+                    pendenciasGerais.push({
+                        tipoObj: 'mensalidade',
+                        id: comp.id,
+                        nomeExibicao: remetente,
+                        descricao: 'Mensalidade com Comprovante Anexo',
+                        valor: comp.valor_total,
+                        data: comp.data_envio,
+                        extra: comp 
+                    });
+                });
+
+                // Formata Caixa (Rifas, Doações, etc)
+                (caixaPendentes || []).forEach(cx => {
+                    pendenciasGerais.push({
+                        tipoObj: 'caixa',
+                        id: cx.id,
+                        nomeExibicao: cx.pagador_nome || 'Visitante/Médium',
+                        descricao: `[${cx.tipo_transacao}] ${cx.descricao}`,
+                        valor: cx.valor,
+                        data: cx.data_transacao,
+                        extra: cx
+                    });
+                });
+
+                // Ordena tudo por data (mais antigos primeiro)
+                pendenciasGerais.sort((a, b) => new Date(a.data) - new Date(b.data));
+
+                if (pendenciasGerais.length === 0) {
+                    listaCards.innerHTML = '<div class="col-span-full p-8 text-center text-gray-500 bg-white rounded-2xl shadow-sm border border-gray-100"><i class="fas fa-check-circle text-3xl text-green-300 mb-2 block"></i> Tudo em dia! Não há transações aguardando validação.</div>';
+                    return;
+                }
 
                 listaCards.innerHTML = '';
 
-                comprovantes.forEach(comp => {
-                    const remetente = mediuns?.find(m => m.auth_id === comp.enviado_por)?.nome_completo || 'Médium Desconhecido';
-                    
-                    let refTexto = '';
-                    let nomesInclusos = [];
-                    if (comp.detalhes_pagamento && Array.isArray(comp.detalhes_pagamento)) {
-                        comp.detalhes_pagamento.forEach(det => {
-                            if (det.medium_nome && !nomesInclusos.includes(det.medium_nome)) {
-                                nomesInclusos.push(det.medium_nome);
-                            }
-                            if (det.meses && Array.isArray(det.meses)) {
-                                const mesesNomes = det.meses.map(m => ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][m-1]).join(', ');
-                                refTexto += `<div class="mb-1"><span class="font-bold text-gray-700">${det.medium_nome}:</span> ${mesesNomes}/${det.ano}</div>`;
-                            }
-                        });
-                    } else {
-                        refTexto = '<span class="text-gray-400">Sem detalhes estruturados</span>';
-                    }
-                    
-                    const nomesExibicao = nomesInclusos.length > 0 ? nomesInclusos.join(', ') : remetente;
+                pendenciasGerais.forEach(item => {
+                    const valFmt = Number(item.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    const dataEnvio = new Date(item.data).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
-                    const valFmt = Number(comp.valor_total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                    const dataEnvio = new Date(comp.data_envio).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+                    let btnAcao = '';
+                    let iconeCard = '';
+                    let corBorda = '';
+
+                    if (item.tipoObj === 'mensalidade') {
+                        corBorda = 'border-t-yellow-400';
+                        iconeCard = '<i class="fas fa-file-invoice text-yellow-500 mr-1.5"></i>';
+                        btnAcao = `<button onclick="abrirModalVerComprovante('${item.id}', '${item.extra.url_comprovante}', '${item.nomeExibicao} - ${valFmt}')" class="w-full bg-gray-800 hover:bg-gray-900 active:scale-95 text-white font-bold py-2.5 px-4 rounded-xl shadow-sm transition text-sm flex justify-center items-center gap-2">
+                            <i class="fas fa-search"></i> Analisar Comprovante
+                        </button>`;
+                    } else {
+                        corBorda = 'border-t-blue-500';
+                        let icn = 'fa-cash-register';
+                        if(item.extra.tipo_transacao === 'RIFA') icn = 'fa-ticket-alt';
+                        if(item.extra.tipo_transacao === 'CANTINA') icn = 'fa-hamburger';
+                        if(item.extra.tipo_transacao === 'DOACAO') icn = 'fa-hand-holding-heart';
+
+                        iconeCard = `<i class="fas ${icn} text-blue-500 mr-1.5"></i>`;
+                        btnAcao = `
+                            <div class="flex gap-2 w-full mt-1">
+                                <button onclick="rejeitarCaixaPendente('${item.id}', '${item.extra.referencia_id}', '${item.extra.tipo_transacao}')" class="flex-1 bg-red-100 text-red-700 hover:bg-red-200 font-bold py-2.5 rounded-xl shadow-sm transition text-xs active:scale-95 border border-red-200">
+                                    <i class="fas fa-times"></i> Rejeitar
+                                </button>
+                                <button onclick="aprovarCaixaPendente('${item.id}', '${item.extra.referencia_id}', '${item.extra.tipo_transacao}')" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 rounded-xl shadow-sm transition text-xs active:scale-95 flex items-center justify-center gap-1">
+                                    <i class="fas fa-check"></i> Baixar PIX
+                                </button>
+                            </div>
+                        `;
+                    }
 
                     const card = `
-                        <div class="bg-white p-5 rounded-2xl shadow-sm border border-yellow-200 border-t-4 hover:shadow-md transition">
-                            <div class="flex justify-between items-start mb-3">
-                                <h4 class="font-bold text-gray-800 text-sm truncate pr-2" title="${nomesExibicao}"><i class="fas fa-user-circle text-yellow-500 mr-1.5"></i> ${nomesExibicao}</h4>
-                                <span class="bg-yellow-100 text-yellow-800 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">Avaliar</span>
-                            </div>
-                            <div class="text-xs text-gray-600 mb-3 bg-gray-50 p-2.5 rounded-lg border border-gray-100">
-                                ${refTexto}
-                            </div>
-                            <div class="flex justify-between items-end mb-4">
-                                <div>
-                                    <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">Enviado em</p>
-                                    <p class="text-xs text-gray-600 font-medium">${dataEnvio}</p>
+                        <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-200 border-t-4 ${corBorda} hover:shadow-md transition flex flex-col justify-between">
+                            <div>
+                                <div class="flex justify-between items-start mb-3">
+                                    <h4 class="font-bold text-gray-800 text-sm truncate pr-2" title="${item.nomeExibicao}">${iconeCard} ${item.nomeExibicao}</h4>
+                                    <span class="bg-gray-100 text-gray-600 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">Aguardando PIX</span>
                                 </div>
-                                <div class="text-right">
-                                    <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">Valor Total</p>
-                                    <p class="text-lg font-black text-green-600 leading-none">${valFmt}</p>
+                                <div class="text-xs text-gray-600 mb-3 bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                                    <span class="font-bold text-gray-700">${item.descricao}</span>
+                                </div>
+                                <div class="flex justify-between items-end mb-4">
+                                    <div>
+                                        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">Lançado em</p>
+                                        <p class="text-xs text-gray-600 font-medium">${dataEnvio}</p>
+                                    </div>
+                                    <div class="text-right">
+                                        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">Valor Total</p>
+                                        <p class="text-lg font-black text-green-600 leading-none">${valFmt}</p>
+                                    </div>
                                 </div>
                             </div>
-                            <button onclick="abrirModalVerComprovante('${comp.id}', '${comp.url_comprovante}', '${nomesExibicao} - ${valFmt}')" class="w-full bg-gray-800 hover:bg-gray-900 active:scale-95 text-white font-bold py-2.5 px-4 rounded-xl shadow-sm transition text-sm flex justify-center items-center gap-2">
-                                <i class="fas fa-search"></i> Analisar Comprovante
-                            </button>
+                            ${btnAcao}
                         </div>
                     `;
                     listaCards.innerHTML += card;
                 });
 
             } catch (err) {
-                console.error('Erro ao carregar comprovantes pendentes:', err);
-                listaCards.innerHTML = `<div class="col-span-full p-4 text-center text-red-500 text-sm font-bold border border-red-200 rounded-xl bg-red-50">Erro ao buscar comprovantes: ${err.message}</div>`;
+                console.error('Erro ao carregar pendentes:', err);
+                listaCards.innerHTML = `<div class="col-span-full p-4 text-center text-red-500 text-sm font-bold border border-red-200 rounded-xl bg-red-50">Erro ao buscar pendências: ${err.message}</div>`;
             }
         }
+
+        window.aprovarCaixaPendente = async (caixaId, referenciaId, tipoTransacao) => {
+            if(!confirm("Confirmar que este PIX (Direto na Conta do Terreiro) já foi recebido e compensado?")) return;
+
+            try {
+                // 1. Atualiza o caixa para 'pago'
+                const { error: err1 } = await supabaseClient.from('caixa_terreiro').update({ status: 'pago' }).eq('id', caixaId);
+                if (err1) throw err1;
+
+                // 2. Se for Rifa, dá baixa no número para mudar a cor da cartela
+                if (tipoTransacao === 'RIFA' && referenciaId && referenciaId !== 'null') {
+                    await supabaseClient.from('rifa_numeros').update({ status_pagamento: 'aprovado' }).eq('id', parseInt(referenciaId));
+                }
+
+                alert("Pagamento confirmado com sucesso!");
+                carregarValidadorPagamentos();
+            } catch(e) {
+                alert("Erro ao aprovar: " + e.message);
+            }
+        };
+
+        window.rejeitarCaixaPendente = async (caixaId, referenciaId, tipoTransacao) => {
+            if(!confirm("Tem certeza que deseja CANCELAR/REJEITAR esta reserva de pagamento? O registro de pendência será excluído.")) return;
+
+            try {
+                // 1. Apaga do caixa
+                const { error: err1 } = await supabaseClient.from('caixa_terreiro').delete().eq('id', caixaId);
+                if (err1) throw err1;
+
+                // 2. Se for rifa, apaga o número reservado (para voltar a ficar "Livre" na cartela)
+                if (tipoTransacao === 'RIFA' && referenciaId && referenciaId !== 'null') {
+                    await supabaseClient.from('rifa_numeros').delete().eq('id', parseInt(referenciaId));
+                }
+
+                alert("Transação pendente cancelada e removida com sucesso.");
+                carregarValidadorPagamentos();
+            } catch(e) {
+                alert("Erro ao rejeitar: " + e.message);
+            }
+        };
 
         async function carregarHistoricoComprovantes() {
             if (!idTerreiroGlobal) return;
@@ -1530,53 +1593,77 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (!tbody) return;
 
             try {
-                const { data: comprovantes, error } = await supabaseClient
+                // Busca Histórico de Mensalidades
+                const { data: comprovantes } = await supabaseClient
                     .from('comprovantes_mensalidade')
                     .select('*')
                     .eq('terreiro_id', idTerreiroGlobal)
                     .neq('status', 'pendente')
                     .order('data_envio', { ascending: false }) 
-                    .limit(20);
+                    .limit(10);
 
-                if (error) throw error;
-
-                if (!comprovantes || comprovantes.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-gray-500 text-xs">Nenhum histórico recente de validação.</td></tr>';
-                    return;
-                }
+                // Busca Histórico do Novo Caixa (Excluindo Mensalidades)
+                const { data: caixaResolvidos } = await supabaseClient
+                    .from('caixa_terreiro')
+                    .select('*')
+                    .eq('terreiro_id', idTerreiroGlobal)
+                    .neq('status', 'pendente')
+                    .order('data_transacao', { ascending: false })
+                    .limit(10);
 
                 const { data: mediuns } = await supabaseClient.from('mediuns').select('auth_id, nome_completo').eq('terreiro_id', idTerreiroGlobal);
 
-                tbody.innerHTML = '';
-                comprovantes.forEach(comp => {
+                const historicoMisto = [];
+
+                (comprovantes || []).forEach(comp => {
                     const remetente = mediuns?.find(m => m.auth_id === comp.enviado_por)?.nome_completo || 'Desconhecido';
-                    
                     let nomesInclusos = [];
                     let qtdMeses = 0;
                     if (comp.detalhes_pagamento && Array.isArray(comp.detalhes_pagamento)) {
                         comp.detalhes_pagamento.forEach(det => {
-                            if (det.medium_nome && !nomesInclusos.includes(det.medium_nome)) {
-                                nomesInclusos.push(det.medium_nome);
-                            }
-                            if (det.meses && Array.isArray(det.meses)) {
-                                qtdMeses += det.meses.length;
-                            }
+                            if (det.medium_nome && !nomesInclusos.includes(det.medium_nome)) nomesInclusos.push(det.medium_nome);
+                            if (det.meses && Array.isArray(det.meses)) qtdMeses += det.meses.length;
                         });
                     }
                     const nomesExibicao = nomesInclusos.length > 0 ? nomesInclusos.join(', ') : remetente;
-                    
-                    const valFmt = Number(comp.valor_total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                    
-                    let statusBadge = '';
-                    if(comp.status === 'aprovado') statusBadge = '<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[10px] font-bold"><i class="fas fa-check mr-1"></i> Aprovado</span>';
-                    else if(comp.status === 'rejeitado') statusBadge = '<span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-[10px] font-bold"><i class="fas fa-times mr-1"></i> Rejeitado</span>';
+                    historicoMisto.push({
+                        nome: nomesExibicao,
+                        ref: qtdMeses > 0 ? `${qtdMeses} mes(es)` : 'Mensalidades',
+                        valor: comp.valor_total,
+                        status: comp.status,
+                        data: comp.data_envio
+                    });
+                });
 
-                    let refStr = qtdMeses > 0 ? `${qtdMeses} mes(es)` : 'Vários';
+                (caixaResolvidos || []).forEach(cx => {
+                    historicoMisto.push({
+                        nome: cx.pagador_nome || 'Visitante/Médium',
+                        ref: cx.tipo_transacao,
+                        valor: cx.valor,
+                        status: cx.status === 'pago' ? 'aprovado' : 'rejeitado',
+                        data: cx.data_transacao
+                    });
+                });
+
+                historicoMisto.sort((a, b) => new Date(b.data) - new Date(a.data));
+                const finalHistorico = historicoMisto.slice(0, 15);
+
+                if (finalHistorico.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-gray-500 text-xs">Nenhum histórico recente de validação.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = '';
+                finalHistorico.forEach(item => {
+                    const valFmt = Number(item.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    let statusBadge = '';
+                    if(item.status === 'aprovado') statusBadge = '<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[10px] font-bold"><i class="fas fa-check mr-1"></i> Aprovado</span>';
+                    else statusBadge = '<span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-[10px] font-bold"><i class="fas fa-times mr-1"></i> Rejeitado</span>';
 
                     tbody.innerHTML += `
                         <tr class="hover:bg-gray-50">
-                            <td class="p-3 text-[11px] font-medium text-gray-800 max-w-[150px] truncate" title="${nomesExibicao}">${nomesExibicao}</td>
-                            <td class="p-3 text-[11px] text-gray-500">${refStr}</td>
+                            <td class="p-3 text-[11px] font-medium text-gray-800 max-w-[150px] truncate" title="${item.nome}">${item.nome}</td>
+                            <td class="p-3 text-[11px] text-gray-500">${item.ref}</td>
                             <td class="p-3 text-[11px] font-bold text-gray-800">${valFmt}</td>
                             <td class="p-3 text-center">${statusBadge}</td>
                         </tr>
