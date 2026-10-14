@@ -137,30 +137,29 @@
                         <div class="space-y-2.5">
                             <label class="flex items-center justify-between p-3.5 border-2 border-green-500 rounded-xl bg-green-50 cursor-pointer shadow-sm transition active:scale-[0.98]">
                                 <div class="flex items-center gap-3">
-                                    <i class="fab fa-pix text-green-600 text-xl"></i>
-                                    <span class="font-bold text-gray-800 text-sm">Pagar via PIX (Copia e Cola)</span>
+                                    <i class="fas fa-money-bill-wave text-green-600 text-xl"></i>
+                                    <span class="font-bold text-gray-800 text-sm">Dinheiro / PIX / Maquininha</span>
                                 </div>
-                                <input type="radio" name="metodoPagamento" value="pix_direto" class="w-5 h-5 text-green-600 focus:ring-green-500" checked>
+                                <input type="radio" name="metodoPagamento" value="manual" class="w-5 h-5 text-green-600 focus:ring-green-500" checked>
                             </label>
 
-                            <!-- Opção Dinheiro/Máquina: Só aparece se o médium estiver logado (identificado via LocalStorage) -->
-                            <label id="optPagamentoPresencial" class="hidden flex items-center justify-between p-3.5 border border-gray-200 rounded-xl bg-white hover:bg-gray-50 cursor-pointer shadow-sm transition active:scale-[0.98]">
+                            <label class="flex items-center justify-between p-3.5 border border-gray-200 rounded-xl bg-gray-50 cursor-not-allowed opacity-60 transition">
                                 <div class="flex items-center gap-3">
-                                    <i class="fas fa-cash-register text-gray-500 text-xl"></i>
+                                    <i class="fas fa-credit-card text-gray-400 text-xl"></i>
                                     <div>
-                                        <span class="font-bold text-gray-800 text-sm block">Dinheiro / Maquininha</span>
-                                        <span class="text-[10px] text-gray-500">Eu já recebi o valor (Venda presencial)</span>
+                                        <span class="font-bold text-gray-500 text-sm block">Via Asaas</span>
+                                        <span class="text-[10px] text-gray-400">Em breve</span>
                                     </div>
                                 </div>
-                                <input type="radio" name="metodoPagamento" value="presencial_medium" class="w-5 h-5 text-tema-primaria focus:ring-tema-primaria">
+                                <input type="radio" name="metodoPagamento" value="asaas" disabled class="w-5 h-5 text-gray-300">
                             </label>
                         </div>
                     </div>
                 </form>
 
-                <!-- Box PIX -->
+                <!-- Box Instruções de Pagamento -->
                 <div id="boxPixCheckout" class="hidden mt-6 bg-green-50 border border-green-200 p-4 rounded-2xl text-center shadow-inner">
-                    <p class="text-[11px] font-bold text-green-800 uppercase mb-1">Chave PIX da Tesouraria</p>
+                    <p class="text-[11px] font-bold text-green-800 uppercase mb-1">Chave PIX (Se preferir transferir)</p>
                     <p id="chavePixExibicao" class="text-sm font-mono font-bold text-gray-800 mb-3 break-all select-all p-2 bg-white rounded border border-gray-200 shadow-sm">carregando...</p>
                     
                     <button id="btnCopiarPix" class="w-full bg-green-600 hover:bg-green-700 active:scale-95 text-white font-bold py-3 px-4 rounded-xl shadow transition text-xs flex items-center justify-center gap-2 mb-3">
@@ -168,7 +167,7 @@
                     </button>
                     
                     <p class="text-[10px] text-gray-600 leading-relaxed">
-                        Faça a transferência no valor exato de <strong>R$ <span class="lblValorPix"></span></strong>.<br>Os números ficarão como "Reservados". Envie o comprovante para a organização validar e dar a baixa oficial no sistema.
+                        O valor total é de <strong>R$ <span class="lblValorPix"></span></strong>.<br>Os números ficarão "Reservados" (em amarelo). Realize o acerto via PIX, Dinheiro ou Maquininha com a organização para aprovarem a sua cartela.
                     </p>
                 </div>
             </div>
@@ -408,7 +407,7 @@
                 const nome = document.getElementById('compradorNome').value.trim();
                 const tel = document.getElementById('compradorTelefone').value.replace(/\D/g, '');
                 
-                let metodo = 'pix_direto';
+                let metodo = 'manual';
                 document.getElementsByName('metodoPagamento').forEach(r => { if(r.checked) metodo = r.value; });
 
                 if (!nome || tel.length < 10) {
@@ -423,8 +422,8 @@
                 btnConfirmarReserva.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
 
                 try {
-                    const isPresencial = (metodo === 'presencial_medium');
-                    const statusPagamento = isPresencial ? 'aprovado' : 'pendente';
+                    // Como unificou tudo em "manual", o status será sempre pendente para baixa posterior
+                    const statusPagamento = 'pendente';
                     
                     const insercoes = numerosSelecionadosArray.map(num => ({
                         terreiro_id: idTerreiro,
@@ -433,7 +432,7 @@
                         nome_comprador: nome,
                         telefone_comprador: tel,
                         status_pagamento: statusPagamento,
-                        metodo_pagamento: isPresencial ? 'dinheiro_ou_maquininha' : 'pix_direto',
+                        metodo_pagamento: 'manual',
                         vendido_por_medium_id: mediumLogadoId ? parseInt(mediumLogadoId) : null
                     }));
 
@@ -450,32 +449,13 @@
                     const valorTotalOperacao = numerosSelecionadosArray.length * dadosRifaGlobal.valor_numero;
                     const numStringFormated = numerosSelecionadosArray.join(', ');
 
-                    if (isPresencial) {
-                        await supabaseClient.from('caixa_terreiro').insert([{
-                            terreiro_id: idTerreiro,
-                            tipo_transacao: 'RIFA',
-                            descricao: `Rifa Presencial - Números: ${numStringFormated} (Médium)`,
-                            valor: valorTotalOperacao,
-                            metodo_pagamento: 'presencial',
-                            pagador_nome: nome,
-                            status: 'pago',
-                            medium_responsavel_id: parseInt(mediumLogadoId),
-                            referencia_id: arrayIdsCriados
-                        }]);
-
-                        alert("✅ Venda e pagamento registrados com sucesso!");
-                        fecharCheckout();
-                        carregarCartelaRifa(dadosRifaGlobal.id);
-                        return;
-                    }
-
-                    // Se for PIX Direto do Visitante
+                    // Lança no caixa como pendente
                     await supabaseClient.from('caixa_terreiro').insert([{
                         terreiro_id: idTerreiro,
                         tipo_transacao: 'RIFA',
-                        descricao: `Reserva Rifa (PIX) - Números: ${numStringFormated}`,
+                        descricao: `Reserva Rifa - Números: ${numStringFormated}`,
                         valor: valorTotalOperacao,
-                        metodo_pagamento: 'pix_direto',
+                        metodo_pagamento: 'manual',
                         pagador_nome: nome,
                         status: 'pendente',
                         referencia_id: arrayIdsCriados
@@ -505,7 +485,6 @@
                 }
             });
         }
-
         const btnCopiarPix = document.getElementById('btnCopiarPix');
         if (btnCopiarPix) {
             btnCopiarPix.addEventListener('click', () => {
