@@ -207,12 +207,20 @@
         let idRifaSelecionada = null;
         let dadosRifaGlobal = null;
         let numerosSelecionadosArray = [];
-        let mediumLogadoId = localStorage.getItem('medium_id'); 
+        let mediumLogadoId = null; 
 
         document.addEventListener('DOMContentLoaded', async () => {
             const urlParams = new URLSearchParams(window.location.search);
             idTerreiro = urlParams.get('t');
             idRifaSelecionada = urlParams.get('r'); 
+            
+            // Prioriza o vendedor que veio no link. Se não vier, tenta pegar o logado no aparelho.
+            const vendedorUrl = urlParams.get('v');
+            if (vendedorUrl) {
+                mediumLogadoId = vendedorUrl;
+            } else {
+                mediumLogadoId = localStorage.getItem('medium_id');
+            } 
 
             if (!idTerreiro) {
                 mostrarErro("Link inválido. O identificador da Instituição não foi encontrado.");
@@ -253,7 +261,9 @@
         }
 
         window.voltarParaLista = () => {
-            window.location.href = `rifas.html?t=${idTerreiro}`;
+            const urlParams = new URLSearchParams(window.location.search);
+            const v = urlParams.get('v');
+            window.location.href = v ? `rifas.html?t=${idTerreiro}&v=${v}` : `rifas.html?t=${idTerreiro}`;
         };
 
         async function carregarListaDeRifas() {
@@ -279,7 +289,7 @@
                     : '';
 
                 grid.innerHTML += `
-                    <div onclick="window.location.href='rifas.html?t=${idTerreiro}&r=${r.id}'" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 hover:border-tema-primaria cursor-pointer transition active:scale-[0.98] flex flex-col h-full">
+                    <div onclick="window.location.href='rifas.html?t=${idTerreiro}&r=${r.id}${mediumLogadoId ? '&v=' + mediumLogadoId : ''}'" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 hover:border-tema-primaria cursor-pointer transition active:scale-[0.98] flex flex-col h-full">
                         ${imgBanner}
                         <div class="flex-1 flex flex-col">
                             <div class="flex items-start justify-between gap-2 mb-2">
