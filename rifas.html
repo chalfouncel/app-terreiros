@@ -275,7 +275,7 @@
             rifas.forEach(r => {
                 // Se a rifa tiver imagem, criamos um banner para ela
                 const imgBanner = r.imagem_url 
-                    ? `<div class="w-full h-32 mb-3 rounded-xl overflow-hidden shrink-0 bg-gray-100"><img src="${r.imagem_url}" class="w-full h-full object-cover"></div>` 
+                    ? `<div class="w-full h-40 mb-3 rounded-xl overflow-hidden shrink-0 bg-gray-50 flex items-center justify-center p-2 border border-gray-100"><img src="${r.imagem_url}" class="w-full h-full object-contain drop-shadow-md"></div>` 
                     : '';
 
                 grid.innerHTML += `
