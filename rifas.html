@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Comprar Rifa - Templo</title>
+    
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#1e3a8a">
+    <link rel="apple-touch-icon" href="https://pbjwqhfzsvdougeksztq.supabase.co/storage/v1/object/public/public-img/icone-192.png">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --cor-primaria: #1e3a8a;
+            --cor-secundaria: #16a34a;
+            --cor-fundo: #f3f4f6;
+            --cor-texto: #1f2937;
+        }
+        body { background-color: var(--cor-fundo); color: var(--cor-texto); -webkit-tap-highlight-color: transparent; }
+        .bg-tema-primaria { background-color: var(--cor-primaria) !important; }
+        .text-tema-primaria { color: var(--cor-primaria) !important; }
+        .border-tema-primaria { border-color: var(--cor-primaria) !important; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center p-4 pt-6 pb-12">
+
+    <!-- CABEÇALHO DO TERREIRO -->
+    <div class="w-full max-w-2xl flex flex-col items-center mb-6 text-center">
+        <img id="logoTerreiro" src="" class="hidden max-h-20 mb-3 object-contain drop-shadow-md rounded-xl">
+        <h1 id="nomeTerreiro" class="text-xl md:text-2xl font-black text-tema-primaria drop-shadow-sm">Carregando...</h1>
+        <p class="text-xs text-gray-500 mt-1 uppercase tracking-wider font-semibold">Campanhas e Ações Solidárias</p>
+    </div>
+
+    <!-- ESTADO 1: LISTA DE RIFAS ABERTAS DO TERREIRO -->
+    <main id="estadoListaRifas" class="w-full max-w-2xl hidden flex-col gap-4">
+        <h2 class="font-bold text-gray-700 text-sm md:text-base border-b border-gray-200 pb-2 mb-2">Rifas Disponíveis</h2>
+        <div id="gridRifasAbertas" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Injetado via JS -->
+        </div>
+    </main>
+
+    <!-- ESTADO 2: COMPRA DA RIFA (CARTELA) -->
+    <main id="estadoComprarRifa" class="w-full max-w-3xl bg-white rounded-3xl shadow-xl overflow-hidden border-t-4 border-tema-primaria flex flex-col hidden">
+        
+        <!-- Detalhes do Prêmio -->
+        <div class="p-5 md:p-8 bg-gray-50 border-b border-gray-100 flex flex-col md:flex-row gap-5 items-center md:items-start shrink-0">
+            <div class="w-20 h-20 md:w-24 md:h-24 bg-indigo-100 text-indigo-500 rounded-full flex items-center justify-center text-3xl shadow-inner shrink-0">
+                <i class="fas fa-gift"></i>
+            </div>
+            <div class="text-center md:text-left flex-1">
+                <h2 id="rifaTitulo" class="text-xl md:text-2xl font-black text-gray-800 leading-tight mb-2">Título da Rifa</h2>
+                <p id="rifaDescricao" class="text-xs md:text-sm text-gray-500 mb-3 leading-relaxed">...</p>
+                <div class="flex items-center justify-center md:justify-start gap-4">
+                    <span class="bg-white border border-gray-200 px-3 py-1.5 rounded-lg text-sm font-bold text-gray-700 shadow-sm">
+                        R$ <span id="rifaValor">0,00</span> <span class="text-[10px] text-gray-400 font-normal uppercase">/ Número</span>
+                    </span>
+                </div>
+            </div>
+            <button onclick="voltarParaLista()" class="hidden md:flex text-gray-400 hover:text-gray-800 transition p-2 bg-white rounded-xl shadow-sm border border-gray-200" title="Voltar para a lista">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+        </div>
+
+        <div class="p-4 md:p-6 bg-yellow-50 text-yellow-800 text-xs md:text-sm text-center font-medium border-b border-yellow-100 shrink-0">
+            <i class="fas fa-hand-pointer mr-1 text-yellow-600"></i> Toque num número disponível abaixo para reservar.
+        </div>
+
+        <!-- Cartela de Números -->
+        <div class="p-4 md:p-6 flex-1 overflow-y-auto bg-white">
+            <div id="gridNumerosDisponiveis" class="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-2 md:gap-3">
+                <div class="col-span-full text-center text-gray-400 py-10"><i class="fas fa-spinner fa-spin text-2xl"></i></div>
+            </div>
+        </div>
+
+        <!-- Legenda Fixa no Rodapé da Cartela -->
+        <div class="p-4 bg-gray-50 border-t border-gray-100 flex justify-center gap-4 md:gap-6 text-[10px] md:text-xs font-bold text-gray-500 uppercase tracking-wider shrink-0">
+            <span class="flex items-center gap-1.5"><div class="w-3 h-3 bg-white border border-gray-300 rounded-sm"></div> Livre</span>
+            <span class="flex items-center gap-1.5"><div class="w-3 h-3 bg-yellow-400 border border-yellow-500 rounded-sm"></div> Reservado</span>
+            <span class="flex items-center gap-1.5"><div class="w-3 h-3 bg-green-500 border border-green-600 rounded-sm"></div> Vendido</span>
+        </div>
+        
+        <button onclick="voltarParaLista()" class="md:hidden w-full p-4 text-xs font-bold text-gray-500 uppercase border-t border-gray-100 hover:bg-gray-50 active:scale-95 transition text-center">
+            <i class="fas fa-arrow-left mr-1"></i> Voltar para a lista
+        </button>
+    </main>
+
+    <!-- MODAL DE CHECKOUT (PREENCHER DADOS E PAGAR) -->
+    <div id="modalCheckoutRifa" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex flex-col justify-end md:justify-center items-center z-50 p-0 md:p-4 transition-all">
+        
+        <div class="bg-white w-full max-w-lg rounded-t-3xl md:rounded-3xl shadow-2xl flex flex-col max-h-[90vh] md:max-h-[85vh] animate-slide-up">
+            
+            <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-3xl md:rounded-t-3xl shrink-0">
+                <div>
+                    <h3 class="font-black text-gray-800 text-lg">Reservar Número <span id="checkoutNumeroLabel" class="text-tema-primaria">00</span></h3>
+                    <p class="text-[11px] font-bold text-gray-500 uppercase mt-0.5">Total: R$ <span id="checkoutValorLabel">0,00</span></p>
+                </div>
+                <button onclick="fecharCheckout()" class="w-8 h-8 bg-gray-200 text-gray-600 rounded-full flex items-center justify-center hover:bg-gray-300 transition active:scale-90"><i class="fas fa-times"></i></button>
+            </div>
+
+            <div class="p-5 md:p-6 overflow-y-auto flex-1">
+                <form id="formComprarNumero" class="space-y-4">
+                    
+                    <div class="bg-blue-50 border border-blue-200 p-3 rounded-xl text-xs text-blue-800 mb-2">
+                        <strong>Atenção:</strong> Se você for um médium vendendo para alguém, coloque o <strong>nome e telefone do comprador final</strong>.
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Nome Completo do Comprador *</label>
+                        <input type="text" id="compradorNome" required class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-tema-primaria outline-none text-sm transition bg-white shadow-sm" placeholder="Ex: Maria da Silva">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">WhatsApp *</label>
+                        <input type="tel" id="compradorTelefone" required class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-tema-primaria outline-none text-sm transition bg-white shadow-sm" placeholder="(11) 99999-9999">
+                        <p class="text-[10px] text-gray-400 mt-1">Sortearemos o vencedor usando este contato.</p>
+                    </div>
+
+                    <div class="pt-4 border-t border-gray-100 mt-4">
+                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-3">Forma de Pagamento</label>
+                        
+                        <div class="space-y-2.5">
+                            <label class="flex items-center justify-between p-3.5 border-2 border-green-500 rounded-xl bg-green-50 cursor-pointer shadow-sm transition active:scale-[0.98]">
+                                <div class="flex items-center gap-3">
+                                    <i class="fab fa-pix text-green-600 text-xl"></i>
+                                    <span class="font-bold text-gray-800 text-sm">Pagar via PIX (Copia e Cola)</span>
+                                </div>
+                                <input type="radio" name="metodoPagamento" value="pix_direto" class="w-5 h-5 text-green-600 focus:ring-green-500" checked>
+                            </label>
+
+                            <!-- Opção Dinheiro/Máquina: Só aparece se o médium estiver logado (identificado via LocalStorage) -->
+                            <label id="optPagamentoPresencial" class="hidden flex items-center justify-between p-3.5 border border-gray-200 rounded-xl bg-white hover:bg-gray-50 cursor-pointer shadow-sm transition active:scale-[0.98]">
+                                <div class="flex items-center gap-3">
+                                    <i class="fas fa-cash-register text-gray-500 text-xl"></i>
+                                    <div>
+                                        <span class="font-bold text-gray-800 text-sm block">Dinheiro / Maquininha</span>
+                                        <span class="text-[10px] text-gray-500">Eu já recebi o valor (Venda presencial)</span>
+                                    </div>
+                                </div>
+                                <input type="radio" name="metodoPagamento" value="presencial_medium" class="w-5 h-5 text-tema-primaria focus:ring-tema-primaria">
+                            </label>
+                        </div>
+                    </div>
+                </form>
+
+                <!-- Box PIX (Fica oculto até ele confirmar a reserva se for PIX Direto) -->
+                <div id="boxPixCheckout" class="hidden mt-6 bg-green-50 border border-green-200 p-4 rounded-2xl text-center shadow-inner">
+                    <p class="text-[11px] font-bold text-green-800 uppercase mb-1">Chave PIX da Tesouraria</p>
+                    <p id="chavePixExibicao" class="text-sm font-mono font-bold text-gray-800 mb-3 break-all select-all p-2 bg-white rounded border border-gray-200 shadow-sm">carregando...</p>
+                    
+                    <button id="btnCopiarPix" class="w-full bg-green-600 hover:bg-green-700 active:scale-95 text-white font-bold py-3 px-4 rounded-xl shadow transition text-xs flex items-center justify-center gap-2 mb-3">
+                        <i class="fas fa-copy"></i> Copiar Chave PIX
+                    </button>
+                    
+                    <p class="text-[10px] text-gray-600 leading-relaxed">
+                        Faça a transferência no valor exato de <strong>R$ <span class="lblValorPix"></span></strong>.<br>O número ficará como "Reservado". Envie o comprovante para a tesouraria/organização validar e dar a baixa oficial no sistema.
+                    </p>
+                </div>
+            </div>
+
+            <div class="p-4 md:p-5 border-t border-gray-100 bg-white shrink-0">
+                <p id="msgCheckout" class="hidden text-xs font-bold text-center mb-3"></p>
+                <button type="button" id="btnConfirmarReserva" class="w-full bg-tema-primaria hover:opacity-90 active:scale-95 text-white font-bold py-4 rounded-xl shadow-lg transition text-sm flex items-center justify-center gap-2">
+                    <i class="fas fa-check-circle"></i> Confirmar Reserva
+                </button>
+                <button type="button" id="btnConcluirPix" class="hidden w-full bg-gray-800 hover:bg-gray-900 active:scale-95 text-white font-bold py-4 rounded-xl shadow-lg transition text-sm items-center justify-center gap-2">
+                    <i class="fas fa-door-open"></i> Já paguei, voltar à cartela
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ESTADO 404 / ERROS -->
+    <div id="estadoErro" class="hidden w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden border-t-4 border-red-500 p-8 text-center mt-8">
+        <div class="w-20 h-20 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 text-4xl shadow-inner">
+            <i class="fas fa-exclamation-triangle"></i>
+        </div>
+        <h2 class="text-xl font-black text-gray-800">Ops! Algo deu errado.</h2>
+        <p id="txtErroGeral" class="text-sm text-gray-500 mt-2">Verifique o link acessado.</p>
+    </div>
+
+    <style>
+        @keyframes slideUp {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .animate-slide-up { animation: slideUp 0.3s ease-out forwards; }
+    </style>
+
+    <script src="js/supabase.js"></script>
+    <!-- Um script dedicado só para a página da rifa -->
+    <script>
+        // COMO É UMA PÁGINA PÚBLICA, TODA A LÓGICA FICA AQUI DENTRO, SUPER LEVE.
+        
+        let idTerreiro = null;
+        let idRifaSelecionada = null;
+        let dadosRifaGlobal = null;
+        let numeroSelecionadoGlobal = null;
+        let mediumLogadoId = localStorage.getItem('medium_id'); // Pega se o vendedor for do terreiro
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            idTerreiro = urlParams.get('t');
+            idRifaSelecionada = urlParams.get('r'); // Pode vir nulo, aí mostramos a lista
+
+            if (!idTerreiro) {
+                mostrarErro("Link inválido. O identificador da Instituição não foi encontrado.");
+                return;
+            }
+
+            try {
+                // 1. CARREGA DADOS DO TERREIRO (Cores e Logo)
+                const { data: terreiro, error: errT } = await supabaseClient.from('terreiros').select('nome, logo_url, cor_primaria, cor_secundaria, cor_fundo, cor_texto, cantina_chave_pix, chave_pix_manual').eq('id', idTerreiro).single();
+                if (errT || !terreiro) throw new Error("Instituição não encontrada.");
+                
+                window.terreiroGlobal = terreiro;
+                document.getElementById('nomeTerreiro').textContent = terreiro.nome;
+                
+                const root = document.documentElement;
+                if(terreiro.cor_primaria) root.style.setProperty('--cor-primaria', terreiro.cor_primaria);
+                if(terreiro.cor_fundo) root.style.setProperty('--cor-fundo', terreiro.cor_fundo);
+                if(terreiro.cor_texto) root.style.setProperty('--cor-texto', terreiro.cor_texto);
+
+                const imgLogo = document.getElementById('logoTerreiro');
+                if (terreiro.logo_url) { imgLogo.src = terreiro.logo_url; imgLogo.classList.remove('hidden'); }
+
+                // Se o médium estiver logado no celular, libera ele dar baixa presencial na hora
+                if (mediumLogadoId) {
+                    document.getElementById('optPagamentoPresencial').classList.remove('hidden');
+                    document.getElementById('optPagamentoPresencial').classList.add('flex');
+                }
+
+                // 2. ROTEAMENTO: SE TEM RIFA NO LINK ABRE A CARTELA, SENÃO LISTA TODAS
+                if (idRifaSelecionada) {
+                    await carregarCartelaRifa(idRifaSelecionada);
+                } else {
+                    await carregarListaDeRifas();
+                }
+
+            } catch (e) {
+                mostrarErro(e.message);
+            }
+        });
+
+        function mostrarErro(texto) {
+            document.getElementById('estadoListaRifas').classList.add('hidden');
+            document.getElementById('estadoComprarRifa').classList.add('hidden');
+            document.getElementById('estadoErro').classList.remove('hidden');
+            document.getElementById('txtErroGeral').textContent = texto;
+        }
+
+        window.voltarParaLista = () => {
+            window.location.href = `rifas.html?t=${idTerreiro}`;
+        };
+
+        // ==========================================
+        // FLUXO A: LISTAR RIFAS ABERTAS DO TERREIRO
+        // ==========================================
+        async function carregarListaDeRifas() {
+            document.getElementById('estadoListaRifas').classList.remove('hidden');
+            document.getElementById('estadoListaRifas').classList.add('flex');
+            
+            const grid = document.getElementById('gridRifasAbertas');
+            grid.innerHTML = '<div class="col-span-full text-center text-gray-500 py-6"><i class="fas fa-spinner fa-spin text-2xl"></i></div>';
+
+            const { data: rifas, error } = await supabaseClient.from('rifas').select('*').eq('terreiro_id', idTerreiro).eq('status', 'aberta').order('created_at', { ascending: false });
+
+            if (error) { grid.innerHTML = `<div class="text-red-500 text-sm">Erro ao buscar campanhas.</div>`; return; }
+            if (!rifas || rifas.length === 0) {
+                grid.innerHTML = `<div class="col-span-full bg-white p-6 rounded-2xl shadow-sm text-center text-gray-500 text-sm">Não há nenhuma rifa ou ação solidária aberta no momento.</div>`;
+                return;
+            }
+
+            grid.innerHTML = '';
+            rifas.forEach(r => {
+                grid.innerHTML += `
+                    <div onclick="window.location.href='rifas.html?t=${idTerreiro}&r=${r.id}'" class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 hover:border-tema-primaria cursor-pointer transition active:scale-[0.98] flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-start justify-between gap-2 mb-2">
+                                <h3 class="font-black text-gray-800 text-sm leading-tight line-clamp-2">${r.titulo}</h3>
+                                <span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider shrink-0 animate-pulse">Aberta</span>
+                            </div>
+                            <p class="text-[11px] text-gray-500 line-clamp-2 mb-4 leading-relaxed">${r.descricao || 'Apoie nossa causa.'}</p>
+                        </div>
+                        <div class="flex items-center justify-between border-t border-gray-100 pt-3 mt-auto">
+                            <span class="text-[10px] font-bold text-gray-400 uppercase">${r.quantidade_numeros} Números</span>
+                            <span class="text-sm font-black text-tema-primaria">R$ ${r.valor_numero.toFixed(2)}</span>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // ==========================================
+        // FLUXO B: CARTELA DA RIFA (ESCOLHER NÚMERO)
+        // ==========================================
+        async function carregarCartelaRifa(idRifa) {
+            document.getElementById('estadoComprarRifa').classList.remove('hidden');
+            
+            // 1. Dados da Rifa
+            const { data: rifa, error: errR } = await supabaseClient.from('rifas').select('*').eq('id', idRifa).eq('terreiro_id', idTerreiro).single();
+            if (errR || !rifa) { mostrarErro("A rifa não existe ou foi excluída."); return; }
+            if (rifa.status === 'encerrada') { mostrarErro("Esta rifa já foi encerrada e o sorteio realizado."); return; }
+            
+            dadosRifaGlobal = rifa;
+            
+            document.getElementById('rifaTitulo').textContent = rifa.titulo;
+            document.getElementById('rifaDescricao').textContent = rifa.descricao || 'Adquira seu número e ajude a nossa casa.';
+            document.getElementById('rifaValor').textContent = rifa.valor_numero.toFixed(2).replace('.', ',');
+
+            // 2. Números Vendidos
+            const { data: comprados } = await supabaseClient.from('rifa_numeros').select('numero, status_pagamento').eq('rifa_id', idRifa);
+            
+            const grid = document.getElementById('gridNumerosDisponiveis');
+            grid.innerHTML = '';
+
+            for(let i = 1; i <= rifa.quantidade_numeros; i++) {
+                const comprado = comprados ? comprados.find(c => c.numero === i) : null;
+                
+                let btnClass = "border-gray-200 text-gray-500 hover:border-tema-primaria hover:text-tema-primaria bg-white";
+                let acao = `onclick="abrirCheckout(${i})"`;
+                let cursor = "cursor-pointer active:scale-90";
+
+                if (comprado) {
+                    acao = ""; cursor = "cursor-not-allowed opacity-90";
+                    if (comprado.status_pagamento === 'aprovado') {
+                        btnClass = "border-green-600 bg-green-500 text-white shadow-sm"; // Vendido
+                    } else {
+                        btnClass = "border-yellow-400 bg-yellow-400 text-yellow-900 shadow-sm"; // Pendente/Reservado
+                    }
+                }
+
+                grid.innerHTML += `
+                    <button type="button" ${acao} class="aspect-square rounded-xl border-2 font-black text-sm md:text-base flex items-center justify-center transition-all ${btnClass} ${cursor}">
+                        ${String(i).padStart(2, '0')}
+                    </button>
+                `;
+            }
+        }
+
+        // ==========================================
+        // FLUXO C: CHECKOUT E PAGAMENTO
+        // ==========================================
+        window.abrirCheckout = (numero) => {
+            numeroSelecionadoGlobal = numero;
+            document.getElementById('checkoutNumeroLabel').textContent = String(numero).padStart(2, '0');
+            document.getElementById('checkoutValorLabel').textContent = dadosRifaGlobal.valor_numero.toFixed(2).replace('.', ',');
+            
+            // Reseta formulário
+            document.getElementById('formComprarNumero').reset();
+            document.getElementById('formComprarNumero').classList.remove('hidden');
+            document.getElementById('boxPixCheckout').classList.add('hidden');
+            document.getElementById('btnConfirmarReserva').classList.remove('hidden');
+            document.getElementById('btnConfirmarReserva').classList.add('flex');
+            document.getElementById('btnConcluirPix').classList.add('hidden');
+            document.getElementById('btnConcluirPix').classList.remove('flex');
+            document.getElementById('msgCheckout').classList.add('hidden');
+
+            document.getElementById('modalCheckoutRifa').classList.remove('hidden');
+        };
+
+        window.fecharCheckout = () => {
+            document.getElementById('modalCheckoutRifa').classList.add('hidden');
+        };
+
+        const btnConfirmarReserva = document.getElementById('btnConfirmarReserva');
+        if (btnConfirmarReserva) {
+            btnConfirmarReserva.addEventListener('click', async () => {
+                const nome = document.getElementById('compradorNome').value.trim();
+                const tel = document.getElementById('compradorTelefone').value.replace(/\D/g, '');
+                
+                let metodo = 'pix_direto';
+                document.getElementsByName('metodoPagamento').forEach(r => { if(r.checked) metodo = r.value; });
+
+                if (!nome || tel.length < 10) {
+                    const msg = document.getElementById('msgCheckout');
+                    msg.textContent = "Preencha o Nome e um WhatsApp válido com DDD.";
+                    msg.className = "text-xs font-bold text-center mb-3 text-red-600 block";
+                    msg.classList.remove('hidden');
+                    return;
+                }
+
+                btnConfirmarReserva.disabled = true;
+                btnConfirmarReserva.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
+
+                try {
+                    // SE O PAGAMENTO FOR PRESENCIAL (Feito pelo médium ali na hora, via maquininha ou dinheiro vivo)
+                    // Nós já marcamos como APROVADO e não precisa exibir PIX.
+                    const isPresencial = (metodo === 'presencial_medium');
+                    const statusPagamento = isPresencial ? 'aprovado' : 'pendente';
+                    
+                    const payload = {
+                        terreiro_id: idTerreiro,
+                        rifa_id: dadosRifaGlobal.id,
+                        numero: numeroSelecionadoGlobal,
+                        nome_comprador: nome,
+                        telefone_comprador: tel,
+                        status_pagamento: statusPagamento,
+                        metodo_pagamento: isPresencial ? 'dinheiro_ou_maquininha' : 'pix_direto',
+                        vendido_por_medium_id: mediumLogadoId ? parseInt(mediumLogadoId) : null
+                    };
+
+                    const { data: numCriado, error: errInsert } = await supabaseClient.from('rifa_numeros').insert([payload]).select('id').single();
+
+                    if (errInsert) {
+                        if (errInsert.message.includes('unique constraint')) throw new Error("Oops! Alguém comprou este número há poucos segundos. Escolha outro.");
+                        throw errInsert;
+                    }
+
+                    // Se foi venda presencial, lança imediatamente no CAIXA do Terreiro
+                    if (isPresencial) {
+                        await supabaseClient.from('caixa_terreiro').insert([{
+                            terreiro_id: idTerreiro,
+                            tipo_transacao: 'RIFA',
+                            descricao: `Rifa Presencial - Número ${numeroSelecionadoGlobal} (Médium)`,
+                            valor: dadosRifaGlobal.valor_numero,
+                            metodo_pagamento: 'presencial',
+                            pagador_nome: nome,
+                            status: 'pago',
+                            medium_responsavel_id: parseInt(mediumLogadoId),
+                            referencia_id: numCriado.id
+                        }]);
+
+                        alert("✅ Venda e pagamento registados com sucesso!");
+                        fecharCheckout();
+                        carregarCartelaRifa(dadosRifaGlobal.id); // Recarrega a cartela para mostrar vermelho (Vendido)
+                        return;
+                    }
+
+                    // SE FOR PIX DIRETO DO VISITANTE, ESCONDE FORM E MOSTRA A CHAVE
+                    document.getElementById('formComprarNumero').classList.add('hidden');
+                    
+                    const chaveExibicao = dadosRifaGlobal.chave_pix || window.terreiroGlobal.chave_pix_manual || "Chave PIX não configurada";
+                    document.getElementById('chavePixExibicao').textContent = chaveExibicao;
+                    
+                    document.querySelectorAll('.lblValorPix').forEach(el => el.textContent = dadosRifaGlobal.valor_numero.toFixed(2).replace('.', ','));
+                    
+                    document.getElementById('boxPixCheckout').classList.remove('hidden');
+                    
+                    btnConfirmarReserva.classList.add('hidden');
+                    btnConfirmarReserva.classList.remove('flex');
+                    document.getElementById('btnConcluirPix').classList.remove('hidden');
+                    document.getElementById('btnConcluirPix').classList.add('flex');
+
+                } catch (err) {
+                    const msg = document.getElementById('msgCheckout');
+                    msg.textContent = err.message;
+                    msg.className = "text-xs font-bold text-center mb-3 text-red-600 block";
+                    msg.classList.remove('hidden');
+                    btnConfirmarReserva.disabled = false;
+                    btnConfirmarReserva.innerHTML = '<i class="fas fa-check-circle"></i> Confirmar Reserva';
+                }
+            });
+        }
+
+        const btnCopiarPix = document.getElementById('btnCopiarPix');
+        if (btnCopiarPix) {
+            btnCopiarPix.addEventListener('click', () => {
+                const texto = document.getElementById('chavePixExibicao').textContent;
+                navigator.clipboard.writeText(texto).then(() => {
+                    const ori = btnCopiarPix.innerHTML;
+                    btnCopiarPix.innerHTML = '<i class="fas fa-check"></i> Chave Copiada!';
+                    btnCopiarPix.classList.replace('bg-green-600', 'bg-gray-800');
+                    setTimeout(() => { 
+                        btnCopiarPix.innerHTML = ori; 
+                        btnCopiarPix.classList.replace('bg-gray-800', 'bg-green-600');
+                    }, 3000);
+                });
+            });
+        }
+
+        const btnConcluirPix = document.getElementById('btnConcluirPix');
+        if (btnConcluirPix) {
+            btnConcluirPix.addEventListener('click', () => {
+                fecharCheckout();
+                carregarCartelaRifa(dadosRifaGlobal.id); // Recarrega, agora o número vai estar Amarelo (Reservado)
+                alert("Sua reserva foi concluída. Envie o comprovante para a organização validar seu número.");
+            });
+        }
+
+    </script>
+</body>
+</html>
