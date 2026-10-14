@@ -737,8 +737,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     // ====================================================================
-    // DOAÇÕES
+    // CAMPANHAS, CANTINA E RIFAS (Ex-DOAÇÕES)
     // ====================================================================
+    window.todosItensDoacaoCache = [];
+    let abaCampanhaAtiva = 'doacao';
+
     async function carregarItensDoacao() {
         try {
             const { data: itens, error } = await supabaseClient
@@ -749,38 +752,113 @@ document.addEventListener('DOMContentLoaded', async () => {
                 .order('nome', { ascending: true }); 
 
             if (error) throw error;
-
-            if (!itens || itens.length === 0) {
-                if(listaItensDoacao) listaItensDoacao.innerHTML = '<p class="text-center text-gray-500 text-sm py-4">Apenas doações via PIX no momento.</p>';
-                return;
-            }
-
-            let html = '';
-            itens.forEach(item => {
-                html += `
-                <div class="flex justify-between items-center py-2 border-b border-gray-50 last:border-0 px-1">
-                    <div class="flex-1 pr-2">
-                        <p class="text-xs font-medium text-gray-800 leading-tight">${item.nome}</p>
-                        ${item.descricao ? `<p class="text-[10px] text-gray-500 mt-0.5">${item.descricao}</p>` : ''}
-                    </div>
-                    <div class="flex items-center space-x-2 bg-gray-100 rounded p-1">
-                        <button type="button" class="btn-qtd w-6 h-6 rounded bg-white text-red-500 font-bold shadow-sm flex items-center justify-center border border-gray-200 active:scale-95" data-id="${item.id}" data-delta="-1">
-                            <i class="fas fa-minus text-[10px] pointer-events-none"></i>
-                        </button>
-                        <span class="w-4 text-center text-xs font-bold text-gray-700" id="qtd-item-${item.id}">0</span>
-                        <button type="button" class="btn-qtd w-6 h-6 rounded bg-white text-green-600 font-bold shadow-sm flex items-center justify-center border border-gray-200 active:scale-95" data-id="${item.id}" data-delta="1">
-                            <i class="fas fa-plus text-[10px] pointer-events-none"></i>
-                        </button>
-                    </div>
-                </div>`;
-            });
-
-            if(listaItensDoacao) listaItensDoacao.innerHTML = html;
+            window.todosItensDoacaoCache = itens || [];
+            renderizarItensAba('doacao');
         } catch (err) {
             console.error('Erro ao carregar itens:', err);
+            const listaItensDoacao = document.getElementById('listaItensDoacao');
             if(listaItensDoacao) listaItensDoacao.innerHTML = '<p class="text-center text-red-500 text-xs py-4">Erro ao carregar itens.</p>';
         }
     }
+
+    function renderizarItensAba(aba) {
+        const listaItensDoacao = document.getElementById('listaItensDoacao');
+        if (!listaItensDoacao) return;
+
+        const itensFiltrados = window.todosItensDoacaoCache.filter(item => {
+            if (aba === 'doacao') return item.categoria === 'limpeza' || item.categoria === 'firmeza';
+            if (aba === 'cantina') return item.categoria === 'cantina';
+            return false;
+        });
+
+        if (itensFiltrados.length === 0) {
+            listaItensDoacao.innerHTML = '<p class="text-center text-gray-400 text-xs py-6">Nenhum item disponível nesta categoria.</p>';
+            return;
+        }
+
+        let html = '';
+        itensFiltrados.forEach(item => {
+            const valSugerido = item.valor_sugerido ? `<span class="text-green-600 font-bold text-[10px] bg-green-50 border border-green-100 px-1.5 py-0.5 rounded">R$ ${item.valor_sugerido.toFixed(2)}</span>` : '';
+            
+            // Corrige valores nulos no carrinho se houver
+            const qtdCarrinho = carrinhoDoacoes[item.id] || 0;
+
+            html += `
+            <div class="flex justify-between items-center py-3 border-b border-gray-100 last:border-0 px-1">
+                <div class="flex-1 pr-2">
+                    <div class="flex items-center gap-2 mb-0.5">
+                        <p class="text-sm font-bold text-gray-800 leading-tight">${item.nome}</p>
+                        ${valSugerido}
+                    </div>
+                    ${item.descricao ? `<p class="text-[10px] text-gray-500 mt-0.5 leading-snug">${item.descricao}</p>` : ''}
+                </div>
+                <div class="flex items-center space-x-2 bg-gray-50 rounded-xl p-1 shrink-0 border border-gray-200">
+                    <button type="button" class="btn-qtd w-8 h-8 rounded-lg bg-white text-red-500 font-black shadow-sm flex items-center justify-center border border-gray-200 active:scale-90 transition hover:bg-red-50" data-id="${item.id}" data-delta="-1">
+                        <i class="fas fa-minus text-xs pointer-events-none"></i>
+                    </button>
+                    <span class="w-5 text-center text-sm font-bold text-gray-800" id="qtd-item-${item.id}">${qtdCarrinho}</span>
+                    <button type="button" class="btn-qtd w-8 h-8 rounded-lg bg-white text-green-600 font-black shadow-sm flex items-center justify-center border border-gray-200 active:scale-90 transition hover:bg-green-50" data-id="${item.id}" data-delta="1">
+                        <i class="fas fa-plus text-xs pointer-events-none"></i>
+                    </button>
+                </div>
+            </div>`;
+        });
+
+        listaItensDoacao.innerHTML = html;
+    }
+
+    const tabDoacaoGeral = document.getElementById('tabDoacaoGeral');
+    const tabDoacaoCantina = document.getElementById('tabDoacaoCantina');
+    const tabDoacaoRifas = document.getElementById('tabDoacaoRifas');
+    const secAbasDoacaoCantina = document.getElementById('conteudoAbasDoacaoCantina');
+    const secAbaRifas = document.getElementById('conteudoAbaRifas');
+    const rodapeDoacao = document.getElementById('rodapeDoacao');
+    const lblPixDoacao = document.getElementById('lblPixDoacao');
+    const qtdTotalDoacao = document.getElementById('qtdTotalDoacao');
+    const btnConfirmarDoacao = document.getElementById('btnConfirmarDoacao');
+    const listaItensDoacao = document.getElementById('listaItensDoacao');
+    const chavePix = document.getElementById('chavePix');
+    let carrinhoDoacoes = {};
+
+    window.alternarAbaCampanhaApp = (aba) => {
+        abaCampanhaAtiva = aba;
+        carrinhoDoacoes = {}; // Limpa carrinho ao trocar de aba para evitar mistura de contas PIX
+        if(qtdTotalDoacao) qtdTotalDoacao.textContent = '0';
+        if(btnConfirmarDoacao) { btnConfirmarDoacao.classList.add('hidden'); btnConfirmarDoacao.classList.remove('flex'); }
+
+        [tabDoacaoGeral, tabDoacaoCantina, tabDoacaoRifas].forEach(t => {
+            if(t) { 
+                t.classList.remove('bg-white', 'shadow-sm', 'text-tema-primaria'); 
+                t.classList.add('text-gray-500'); 
+            }
+        });
+
+        if (aba === 'rifas') {
+            if(tabDoacaoRifas) { tabDoacaoRifas.classList.remove('text-gray-500'); tabDoacaoRifas.classList.add('bg-white', 'shadow-sm', 'text-tema-primaria'); }
+            if(secAbasDoacaoCantina) { secAbasDoacaoCantina.classList.add('hidden'); secAbasDoacaoCantina.classList.remove('flex'); }
+            if(secAbaRifas) { secAbaRifas.classList.remove('hidden'); secAbaRifas.classList.add('flex'); }
+            if(rodapeDoacao) rodapeDoacao.classList.add('hidden');
+        } else {
+            if(secAbasDoacaoCantina) { secAbasDoacaoCantina.classList.remove('hidden'); secAbasDoacaoCantina.classList.add('flex'); }
+            if(secAbaRifas) { secAbaRifas.classList.add('hidden'); secAbaRifas.classList.remove('flex'); }
+            if(rodapeDoacao) rodapeDoacao.classList.remove('hidden');
+            
+            if (aba === 'doacao') {
+                if(tabDoacaoGeral) { tabDoacaoGeral.classList.remove('text-gray-500'); tabDoacaoGeral.classList.add('bg-white', 'shadow-sm', 'text-tema-primaria'); }
+                if(lblPixDoacao) lblPixDoacao.textContent = 'Chave PIX (Doações)';
+                if(chavePix && terreiroConfigMensalidade) chavePix.textContent = terreiroConfigMensalidade.chave_pix_manual || 'Não configurada';
+            } else if (aba === 'cantina') {
+                if(tabDoacaoCantina) { tabDoacaoCantina.classList.remove('text-gray-500'); tabDoacaoCantina.classList.add('bg-white', 'shadow-sm', 'text-tema-primaria'); }
+                if(lblPixDoacao) lblPixDoacao.textContent = 'Chave PIX (Cantina)';
+                if(chavePix && terreiroConfigMensalidade) chavePix.textContent = terreiroConfigMensalidade.cantina_chave_pix || 'Não configurada';
+            }
+            renderizarItensAba(aba);
+        }
+    };
+
+    if(tabDoacaoGeral) tabDoacaoGeral.addEventListener('click', () => alternarAbaCampanhaApp('doacao'));
+    if(tabDoacaoCantina) tabDoacaoCantina.addEventListener('click', () => alternarAbaCampanhaApp('cantina'));
+    if(tabDoacaoRifas) tabDoacaoRifas.addEventListener('click', () => alternarAbaCampanhaApp('rifas'));
 
     if (listaItensDoacao) {
         listaItensDoacao.addEventListener('click', (e) => {
@@ -797,11 +875,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             document.getElementById(`qtd-item-${itemId}`).textContent = carrinhoDoacoes[itemId];
             
-            let total = 0;
-            for (let id in carrinhoDoacoes) total += carrinhoDoacoes[id];
+            let totalItens = 0;
+            for (let id in carrinhoDoacoes) totalItens += carrinhoDoacoes[id];
             
-            if (total > 0) {
-                if(qtdTotalDoacao) qtdTotalDoacao.textContent = total;
+            if (totalItens > 0) {
+                if(qtdTotalDoacao) qtdTotalDoacao.textContent = totalItens;
                 if(btnConfirmarDoacao) {
                     btnConfirmarDoacao.classList.remove('hidden');
                     btnConfirmarDoacao.classList.add('flex');
@@ -819,36 +897,68 @@ document.addEventListener('DOMContentLoaded', async () => {
         btnConfirmarDoacao.addEventListener('click', async () => {
             const { data: { session } } = await supabaseClient.auth.getSession();
             const originalText = btnConfirmarDoacao.innerHTML;
-            btnConfirmarDoacao.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Salvando...';
+            btnConfirmarDoacao.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Processando...';
             btnConfirmarDoacao.disabled = true;
 
             const insercoes = [];
+            let totalFinanceiroCalculado = 0;
+
             for (let itemId in carrinhoDoacoes) {
                 if (carrinhoDoacoes[itemId] > 0) {
+                    const qtd = carrinhoDoacoes[itemId];
+                    const itemDb = window.todosItensDoacaoCache.find(i => String(i.id) === String(itemId));
+                    const preco = itemDb && itemDb.valor_sugerido ? parseFloat(itemDb.valor_sugerido) : 0;
+                    
+                    const subtotal = preco * qtd;
+                    totalFinanceiroCalculado += subtotal;
+
                     insercoes.push({
                         terreiro_id: idTerreiroGlobal,
                         medium_auth_id: session.user.id,
                         item_id: parseInt(itemId),
-                        quantidade: carrinhoDoacoes[itemId]
+                        quantidade: qtd,
+                        valor_total: subtotal,
+                        metodo_pagamento: 'pix_direto',
+                        status_pagamento: 'pendente'
                     });
                 }
             }
 
             try {
+                // Insere os registros de doação detalhados
                 const { error } = await supabaseClient.from('doacoes_registradas').insert(insercoes);
                 if (error) throw error;
 
-                btnConfirmarDoacao.innerHTML = '<i class="fas fa-check mr-2"></i> Doação Registrada!';
+                // Lança no Caixa Central (Unificado)
+                if (totalFinanceiroCalculado > 0) {
+                    const tipoCaixa = abaCampanhaAtiva === 'cantina' ? 'CANTINA' : 'DOACAO';
+                    const descCaixa = abaCampanhaAtiva === 'cantina' ? 'Compra na Cantina (App)' : 'Doação ao Terreiro (App)';
+
+                    await supabaseClient.from('caixa_terreiro').insert([{
+                        terreiro_id: idTerreiroGlobal,
+                        tipo_transacao: tipoCaixa,
+                        descricao: descCaixa,
+                        valor: totalFinanceiroCalculado,
+                        metodo_pagamento: 'pix_direto',
+                        pagador_nome: perfilMediumLogado.nome_completo,
+                        status: 'pendente', // Pendente até a tesouraria visualizar no painel que caiu o PIX
+                        medium_responsavel_id: perfilMediumLogado.id
+                    }]);
+                }
+
+                btnConfirmarDoacao.innerHTML = '<i class="fas fa-check mr-2"></i> Pedido Registrado!';
                 btnConfirmarDoacao.classList.replace('bg-green-600', 'bg-blue-600');
                 
                 setTimeout(() => {
+                    alert('Pedido registrado! Lembre-se de transferir o valor para a chave PIX exibida na tela.');
+                    const btnFecharDoacao = document.getElementById('btnFecharDoacao');
                     if(btnFecharDoacao) btnFecharDoacao.click();
                     carrinhoDoacoes = {};
                     if(btnConfirmarDoacao) {
                         btnConfirmarDoacao.classList.add('hidden');
                         btnConfirmarDoacao.classList.remove('flex');
                     }
-                    carregarItensDoacao(); 
+                    renderizarItensAba(abaCampanhaAtiva); 
                     btnConfirmarDoacao.innerHTML = originalText;
                     btnConfirmarDoacao.disabled = false;
                     btnConfirmarDoacao.classList.replace('bg-blue-600', 'bg-green-600');
@@ -867,8 +977,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    const abrirModal = () => {
+    const modalDoacao = document.getElementById('modalDoacao');
+    const btnAbrirDoacao = document.getElementById('btnAbrirDoacao');
+    const btnAbrirDoacaoSucesso = document.getElementById('btnAbrirDoacaoSucesso');
+    const btnFecharDoacao = document.getElementById('btnFecharDoacao');
+    const btnCopiarPix = document.getElementById('btnCopiarPix');
+
+    const abrirModalDoacaoApp = () => {
         if(modalDoacao) {
+            alternarAbaCampanhaApp('doacao'); // Reseta a aba sempre pra Doação geral ao abrir
             modalDoacao.classList.remove('hidden');
             setTimeout(() => {
                 modalDoacao.querySelector('div').classList.remove('scale-95');
@@ -877,8 +994,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     };
 
-    if(btnAbrirDoacao) btnAbrirDoacao.addEventListener('click', abrirModal);
-    if(btnAbrirDoacaoSucesso) btnAbrirDoacaoSucesso.addEventListener('click', abrirModal);
+    if(btnAbrirDoacao) btnAbrirDoacao.addEventListener('click', abrirModalDoacaoApp);
+    if(btnAbrirDoacaoSucesso) btnAbrirDoacaoSucesso.addEventListener('click', abrirModalDoacaoApp);
 
     if(btnFecharDoacao) {
         btnFecharDoacao.addEventListener('click', () => {
@@ -904,7 +1021,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
     }
-
     // ====================================================================
     // LÓGICA DO MÓDULO DE MENSALIDADES (RESTRITA AO NÚCLEO FAMILIAR)
     // ====================================================================
