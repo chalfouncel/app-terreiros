@@ -24,6 +24,12 @@
         .bg-tema-primaria { background-color: var(--cor-primaria) !important; }
         .text-tema-primaria { color: var(--cor-primaria) !important; }
         .border-tema-primaria { border-color: var(--cor-primaria) !important; }
+        
+        @keyframes pulse-fast {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .animate-pulse-fast { animation: pulse-fast 1s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center p-4 pt-6 pb-20">
@@ -35,18 +41,14 @@
         <p class="text-xs text-gray-500 mt-1 uppercase tracking-wider font-semibold">Campanhas e Ações Solidárias</p>
     </div>
 
-    <!-- ESTADO 1: LISTA DE RIFAS ABERTAS DO TERREIRO -->
+    <!-- ESTADO 1: LISTA DE RIFAS -->
     <main id="estadoListaRifas" class="w-full max-w-2xl hidden flex-col gap-4">
         <h2 class="font-bold text-gray-700 text-sm md:text-base border-b border-gray-200 pb-2 mb-2">Rifas Disponíveis</h2>
-        <div id="gridRifasAbertas" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <!-- Injetado via JS -->
-        </div>
+        <div id="gridRifasAbertas" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
     </main>
 
-    <!-- ESTADO 2: COMPRA DA RIFA (CARTELA) -->
+    <!-- ESTADO 2: CARTELA DE NÚMEROS -->
     <main id="estadoComprarRifa" class="w-full max-w-3xl bg-white rounded-3xl shadow-xl overflow-hidden border-t-4 border-tema-primaria flex flex-col hidden relative">
-        
-        <!-- Detalhes do Prêmio -->
         <div class="p-5 md:p-8 bg-gray-50 border-b border-gray-100 flex flex-col md:flex-row gap-5 items-center md:items-start shrink-0">
             <div id="rifaImagemContainer" class="w-20 h-20 md:w-24 md:h-24 bg-indigo-100 text-indigo-500 rounded-full flex items-center justify-center text-3xl shadow-inner shrink-0 overflow-hidden">
                 <i class="fas fa-gift"></i>
@@ -60,7 +62,7 @@
                     </span>
                 </div>
             </div>
-            <button onclick="voltarParaLista()" class="hidden md:flex text-gray-400 hover:text-gray-800 transition p-2 bg-white rounded-xl shadow-sm border border-gray-200" title="Voltar para a lista">
+            <button onclick="voltarParaLista()" class="hidden md:flex text-gray-400 hover:text-gray-800 transition p-2 bg-white rounded-xl shadow-sm border border-gray-200">
                 <i class="fas fa-arrow-left"></i>
             </button>
         </div>
@@ -69,26 +71,23 @@
             <i class="fas fa-hand-pointer mr-1 text-yellow-600"></i> Toque nos números disponíveis abaixo para reservar.
         </div>
 
-        <!-- Cartela de Números -->
         <div class="p-4 md:p-6 flex-1 overflow-y-auto bg-white">
             <div id="gridNumerosDisponiveis" class="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-2 md:gap-3">
                 <div class="col-span-full text-center text-gray-400 py-10"><i class="fas fa-spinner fa-spin text-2xl"></i></div>
             </div>
         </div>
 
-        <!-- Legenda Fixa no Rodapé da Cartela -->
         <div class="p-4 bg-gray-50 border-t border-gray-100 flex justify-center gap-4 md:gap-6 text-[10px] md:text-xs font-bold text-gray-500 uppercase tracking-wider shrink-0">
             <span class="flex items-center gap-1.5"><div class="w-3 h-3 bg-white border border-gray-300 rounded-sm"></div> Livre</span>
-            <span class="flex items-center gap-1.5"><div class="w-3 h-3 bg-tema-primaria rounded-sm"></div> Selecionado</span>
-            <span class="flex items-center gap-1.5"><div class="w-3 h-3 bg-yellow-400 border border-yellow-500 rounded-sm"></div> Reservado</span>
+            <span class="flex items-center gap-1.5"><div class="w-3 h-3 bg-tema-primaria rounded-sm"></div> Selecion.</span>
+            <span class="flex items-center gap-1.5"><div class="w-3 h-3 bg-yellow-400 border border-yellow-500 rounded-sm"></div> Reserv.</span>
             <span class="flex items-center gap-1.5"><div class="w-3 h-3 bg-green-500 border border-green-600 rounded-sm"></div> Vendido</span>
         </div>
         
         <button onclick="voltarParaLista()" class="md:hidden w-full p-4 text-xs font-bold text-gray-500 uppercase border-t border-gray-100 hover:bg-gray-50 active:scale-95 transition text-center">
-            <i class="fas fa-arrow-left mr-1"></i> Voltar para a lista
+            <i class="fas fa-arrow-left mr-1"></i> Voltar
         </button>
 
-        <!-- Barra Fixa de Múltipla Seleção -->
         <div id="barraSelecao" class="hidden sticky bottom-0 left-0 w-full bg-white border-t border-gray-200 p-4 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.1)] flex justify-between items-center z-20">
             <div>
                 <p class="text-[11px] font-bold text-gray-500 uppercase"><span id="qtdSelecionados" class="text-tema-primaria text-sm">0</span> números selecionados</p>
@@ -100,99 +99,80 @@
         </div>
     </main>
 
-    <!-- MODAL DE CHECKOUT (PREENCHER DADOS E PAGAR) -->
+    <!-- MODAL DE CHECKOUT E UPLOAD -->
     <div id="modalCheckoutRifa" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex flex-col justify-end md:justify-center items-center z-50 p-0 md:p-4 transition-all">
         
         <div class="bg-white w-full max-w-lg rounded-t-3xl md:rounded-3xl shadow-2xl flex flex-col max-h-[90vh] md:max-h-[85vh] animate-slide-up">
             
             <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-3xl md:rounded-t-3xl shrink-0">
                 <div>
-                    <h3 class="font-black text-gray-800 text-lg">Reservar Números <span id="checkoutNumeroLabel" class="text-tema-primaria">00</span></h3>
+                    <h3 class="font-black text-gray-800 text-lg">Reserva: <span id="checkoutNumeroLabel" class="text-tema-primaria">00</span></h3>
                     <p class="text-[11px] font-bold text-gray-500 uppercase mt-0.5">Total: R$ <span id="checkoutValorLabel">0,00</span></p>
                 </div>
                 <button onclick="fecharCheckout()" class="w-8 h-8 bg-gray-200 text-gray-600 rounded-full flex items-center justify-center hover:bg-gray-300 transition active:scale-90"><i class="fas fa-times"></i></button>
             </div>
 
             <div class="p-5 md:p-6 overflow-y-auto flex-1">
+                
+                <!-- PASSO 1: DADOS DO COMPRADOR -->
                 <form id="formComprarNumero" class="space-y-4">
-                    
                     <div id="avisoVendaTerceiro" class="hidden bg-blue-50 border border-blue-200 p-3 rounded-xl text-xs text-blue-800 mb-2">
-                        <strong>Atenção Equipe de Vendas:</strong> Se você estiver registrando a venda para outra pessoa, <strong>apague seus dados abaixo</strong> e digite o nome e WhatsApp do comprador final para aprovação automática.
+                        <strong>Atenção Equipe de Vendas:</strong> Se estiver vendendo para outra pessoa, apague seus dados e coloque o número do comprador para aprovação automática.
                     </div>
 
                     <div>
                         <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Nome Completo do Comprador *</label>
-                        <input type="text" id="compradorNome" required class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-tema-primaria outline-none text-sm transition bg-white shadow-sm" placeholder="Ex: Maria da Silva">
+                        <input type="text" id="compradorNome" required class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-tema-primaria outline-none text-sm bg-white shadow-sm" placeholder="Ex: Maria da Silva">
                     </div>
-
                     <div>
                         <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">WhatsApp *</label>
-                        <input type="tel" id="compradorTelefone" required class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-tema-primaria outline-none text-sm transition bg-white shadow-sm" placeholder="(11) 99999-9999">
-                        <p class="text-[10px] text-gray-400 mt-1">Sortearemos o vencedor usando este contato.</p>
+                        <input type="tel" id="compradorTelefone" required class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-tema-primaria outline-none text-sm bg-white shadow-sm" placeholder="(11) 99999-9999">
                     </div>
 
-                    <div class="pt-4 border-t border-gray-100 mt-4">
-                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-3">Forma de Pagamento</label>
-                        
-                        <div class="space-y-2.5">
-                            <label class="flex items-center justify-between p-3.5 border-2 border-green-500 rounded-xl bg-green-50 cursor-pointer shadow-sm transition active:scale-[0.98]">
-                                <div class="flex items-center gap-3">
-                                    <i class="fas fa-money-bill-wave text-green-600 text-xl"></i>
-                                    <span class="font-bold text-gray-800 text-sm">Dinheiro / PIX / Maquininha</span>
-                                </div>
-                                <input type="radio" name="metodoPagamento" value="manual" class="w-5 h-5 text-green-600 focus:ring-green-500" checked>
-                            </label>
-
-                            <label class="flex items-center justify-between p-3.5 border border-gray-200 rounded-xl bg-gray-50 cursor-not-allowed opacity-60 transition">
-                                <div class="flex items-center gap-3">
-                                    <i class="fas fa-credit-card text-gray-400 text-xl"></i>
-                                    <div>
-                                        <span class="font-bold text-gray-500 text-sm block">Via Asaas</span>
-                                        <span class="text-[10px] text-gray-400">Em breve</span>
-                                    </div>
-                                </div>
-                                <input type="radio" name="metodoPagamento" value="asaas" disabled class="w-5 h-5 text-gray-300">
-                            </label>
-                        </div>
-                    </div>
+                    <button type="button" id="btnConfirmarReserva" class="w-full mt-6 bg-tema-primaria hover:opacity-90 active:scale-95 text-white font-bold py-4 rounded-xl shadow-lg transition text-sm flex items-center justify-center gap-2">
+                        <i class="fas fa-check-circle"></i> Confirmar Reserva
+                    </button>
+                    <p id="msgCheckout" class="hidden text-xs font-bold text-center mt-3 text-red-600 block"></p>
                 </form>
 
-                <!-- Box Instruções de Pagamento (Mostrado na Autocompra ou Link Público) -->
-                <div id="boxPixCheckout" class="hidden mt-4 bg-green-50 border border-green-200 p-4 rounded-2xl text-center shadow-inner">
-                    <div id="boxPixAlertaMsg" class="bg-yellow-100 border border-yellow-200 text-yellow-800 text-xs p-2.5 rounded-lg mb-4 font-bold flex items-center gap-2 justify-center">
-                        <i class="fas fa-info-circle"></i> Aguardando pagamento da reserva.
+                <!-- PASSO 2: PIX E COMPROVANTE (O SEU FLUXO ORIGINAL RESTAURADO) -->
+                <div id="boxUploadComprovante" class="hidden flex flex-col items-center">
+                    
+                    <div class="w-full bg-red-50 border border-red-200 p-4 rounded-2xl text-center shadow-inner mb-5 relative overflow-hidden">
+                        <div class="absolute top-0 left-0 w-full h-1.5 bg-red-200">
+                            <div id="barraProgressoTempo" class="h-full bg-red-500 w-full transition-all duration-1000"></div>
+                        </div>
+                        <p class="text-xs text-red-800 font-bold uppercase tracking-widest mb-1 mt-1">Tempo para anexar comprovante</p>
+                        <div class="text-3xl font-black text-red-600 font-mono animate-pulse-fast tracking-widest" id="timerVisual">05:00</div>
+                        <p class="text-[10px] text-red-500 mt-1 font-medium">Se o tempo acabar, a reserva é cancelada e o número volta a ficar livre.</p>
                     </div>
-                    
-                    <p class="text-[11px] font-bold text-green-800 uppercase mb-1">Chave PIX do Terreiro</p>
-                    <p id="chavePixExibicao" class="text-sm font-mono font-bold text-gray-800 mb-3 break-all select-all p-2 bg-white rounded border border-gray-200 shadow-sm">carregando...</p>
-                    
-                    <button id="btnCopiarPix" class="w-full bg-green-600 hover:bg-green-700 active:scale-95 text-white font-bold py-3 px-4 rounded-xl shadow transition text-xs flex items-center justify-center gap-2 mb-3">
-                        <i class="fas fa-copy"></i> Copiar Chave PIX
-                    </button>
-                    
-                    <p class="text-[10px] text-gray-600 leading-relaxed">
-                        O valor total é de <strong>R$ <span class="lblValorPix"></span></strong>.<br>Os números ficarão "Reservados" (em amarelo). <strong>Envie o comprovante de pagamento para a direção</strong> no WhatsApp para eles aprovarem a sua cartela.
-                    </p>
-                </div>
-            </div>
 
-            <div class="p-4 md:p-5 border-t border-gray-100 bg-white shrink-0">
-                <p id="msgCheckout" class="hidden text-xs font-bold text-center mb-3"></p>
-                <button type="button" id="btnConfirmarReserva" class="w-full bg-tema-primaria hover:opacity-90 active:scale-95 text-white font-bold py-4 rounded-xl shadow-lg transition text-sm flex items-center justify-center gap-2">
-                    <i class="fas fa-check-circle"></i> Confirmar Reserva
-                </button>
-                <button type="button" id="btnConcluirPix" class="hidden w-full bg-gray-800 hover:bg-gray-900 active:scale-95 text-white font-bold py-4 rounded-xl shadow-lg transition text-sm items-center justify-center gap-2">
-                    <i class="fas fa-door-open"></i> Concluir Reserva
-                </button>
+                    <div class="w-full bg-gray-50 border border-gray-200 p-4 rounded-xl text-center mb-5 shadow-sm">
+                        <p class="text-[10px] font-bold text-gray-500 uppercase mb-1">Efetue o PIX na Chave Abaixo</p>
+                        <p id="chavePixExibicao" class="text-sm font-mono font-bold text-gray-800 mb-3 break-all select-all p-2 bg-white rounded border border-gray-300 shadow-inner"></p>
+                        <button id="btnCopiarPix" class="w-full bg-gray-200 hover:bg-gray-300 active:scale-95 text-gray-700 font-bold py-2.5 rounded-lg text-xs flex items-center justify-center gap-2 transition">
+                            <i class="fas fa-copy"></i> Copiar Chave PIX
+                        </button>
+                    </div>
+
+                    <div class="w-full">
+                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Anexar Comprovante *</label>
+                        <input type="file" id="arquivoComprovante" accept="image/*,application/pdf" class="block w-full text-xs text-gray-500 file:mr-3 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-green-50 file:text-green-700 hover:file:bg-green-100 border border-gray-300 rounded-xl p-1.5 cursor-pointer bg-white shadow-sm">
+                    </div>
+
+                    <button type="button" id="btnEnviarComprovante" class="w-full mt-6 bg-green-600 hover:bg-green-700 active:scale-95 text-white font-bold py-4 rounded-xl shadow-lg transition text-sm flex items-center justify-center gap-2">
+                        <i class="fas fa-upload"></i> Enviar Comprovante para Validação
+                    </button>
+                    <p id="msgUpload" class="hidden text-xs font-bold text-center mt-3 text-red-600 block"></p>
+                </div>
+
             </div>
         </div>
     </div>
 
     <!-- ESTADO 404 / ERROS -->
     <div id="estadoErro" class="hidden w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden border-t-4 border-red-500 p-8 text-center mt-8">
-        <div class="w-20 h-20 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 text-4xl shadow-inner">
-            <i class="fas fa-exclamation-triangle"></i>
-        </div>
+        <div class="w-20 h-20 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 text-4xl shadow-inner"><i class="fas fa-exclamation-triangle"></i></div>
         <h2 class="text-xl font-black text-gray-800">Ops! Algo deu errado.</h2>
         <p id="txtErroGeral" class="text-sm text-gray-500 mt-2">Verifique o link acessado.</p>
     </div>
@@ -212,31 +192,23 @@
         let dadosRifaGlobal = null;
         let numerosSelecionadosArray = [];
         
-        // Separação de quem está operando (logado) e quem ganha a venda (vendedor)
         let usuarioLogadoId = null; 
-        let vendedorId = null; 
+        let usuarioLogadoTelefone = ''; 
+        let vendedorIdParaBD = null;
+        let isVendedorAutorizado = false;
         
-        // Dados para preenchimento automático
-        let usuarioLogadoNome = '';
-        let usuarioLogadoTelefone = '';
+        let arrayIdsReservados = [];
+        let timerInterval = null;
 
         document.addEventListener('DOMContentLoaded', async () => {
+            try { await supabaseClient.rpc('limpar_reservas_expiradas'); } catch(e) { }
+
             const urlParams = new URLSearchParams(window.location.search);
             idTerreiro = urlParams.get('t');
             idRifaSelecionada = urlParams.get('r'); 
-            
             usuarioLogadoId = localStorage.getItem('medium_id');
-            
-            const vendedorUrl = urlParams.get('v');
-            vendedorId = vendedorUrl ? vendedorUrl : usuarioLogadoId;
 
-            if (usuarioLogadoId) {
-                const { data: mData } = await supabaseClient.from('mediuns').select('nome, telefone').eq('id', usuarioLogadoId).single();
-                if (mData) {
-                    usuarioLogadoNome = mData.nome || '';
-                    usuarioLogadoTelefone = mData.telefone ? mData.telefone.replace(/\D/g, '') : '';
-                }
-            }
+            vendedorIdParaBD = urlParams.get('v') ? urlParams.get('v') : usuarioLogadoId;
 
             if (!idTerreiro) {
                 mostrarErro("Link inválido. O identificador da Instituição não foi encontrado.");
@@ -244,7 +216,7 @@
             }
 
             try {
-                const { data: terreiro, error: errT } = await supabaseClient.from('terreiros').select('nome, logo_url, cor_primaria, cor_secundaria, cor_fundo, cor_texto, cantina_chave_pix, chave_pix_manual').eq('id', idTerreiro).single();
+                const { data: terreiro, error: errT } = await supabaseClient.from('terreiros').select('*').eq('id', idTerreiro).single();
                 if (errT || !terreiro) throw new Error("Instituição não encontrada.");
                 
                 window.terreiroGlobal = terreiro;
@@ -252,11 +224,17 @@
                 
                 const root = document.documentElement;
                 if(terreiro.cor_primaria) root.style.setProperty('--cor-primaria', terreiro.cor_primaria);
-                if(terreiro.cor_fundo) root.style.setProperty('--cor-fundo', terreiro.cor_fundo);
-                if(terreiro.cor_texto) root.style.setProperty('--cor-texto', terreiro.cor_texto);
-
                 const imgLogo = document.getElementById('logoTerreiro');
                 if (terreiro.logo_url) { imgLogo.src = terreiro.logo_url; imgLogo.classList.remove('hidden'); }
+
+                if (usuarioLogadoId) {
+                    const { data: mData } = await supabaseClient.from('mediuns').select('nome_completo, telefone').eq('id', usuarioLogadoId).single();
+                    if (mData) {
+                        document.getElementById('compradorNome').value = mData.nome_completo || '';
+                        usuarioLogadoTelefone = mData.telefone ? mData.telefone.replace(/\D/g, '') : '';
+                        document.getElementById('compradorTelefone').value = usuarioLogadoTelefone;
+                    }
+                }
 
                 if (idRifaSelecionada) {
                     await carregarCartelaRifa(idRifaSelecionada);
@@ -277,43 +255,34 @@
         }
 
         window.voltarParaLista = () => {
-            const urlParams = new URLSearchParams(window.location.search);
-            const v = urlParams.get('v');
+            const v = new URLSearchParams(window.location.search).get('v');
             window.location.href = v ? `rifas.html?t=${idTerreiro}&v=${v}` : `rifas.html?t=${idTerreiro}`;
         };
 
         async function carregarListaDeRifas() {
             document.getElementById('estadoListaRifas').classList.remove('hidden');
             document.getElementById('estadoListaRifas').classList.add('flex');
-            
             const grid = document.getElementById('gridRifasAbertas');
             grid.innerHTML = '<div class="col-span-full text-center text-gray-500 py-6"><i class="fas fa-spinner fa-spin text-2xl"></i></div>';
 
             const { data: rifas, error } = await supabaseClient.from('rifas').select('*').eq('terreiro_id', idTerreiro).eq('status', 'aberta').order('created_at', { ascending: false });
 
-            if (error) { grid.innerHTML = `<div class="text-red-500 text-sm">Erro ao buscar campanhas.</div>`; return; }
-            if (!rifas || rifas.length === 0) {
-                grid.innerHTML = `<div class="col-span-full bg-white p-6 rounded-2xl shadow-sm text-center text-gray-500 text-sm">Não há nenhuma rifa ou ação solidária aberta no momento.</div>`;
+            if (error || !rifas || rifas.length === 0) {
+                grid.innerHTML = `<div class="col-span-full bg-white p-6 rounded-2xl text-center text-gray-500 text-sm shadow-sm">Nenhuma rifa aberta.</div>`;
                 return;
             }
 
             grid.innerHTML = '';
             rifas.forEach(r => {
-                const imgBanner = r.imagem_url 
-                    ? `<div class="w-full h-40 mb-3 rounded-xl overflow-hidden shrink-0 bg-gray-50 flex items-center justify-center p-2 border border-gray-100"><img src="${r.imagem_url}" class="w-full h-full object-contain drop-shadow-md"></div>` 
-                    : '';
-
+                const img = r.imagem_url ? `<div class="w-full h-40 mb-3 rounded-xl overflow-hidden bg-gray-50 p-2"><img src="${r.imagem_url}" class="w-full h-full object-contain"></div>` : '';
                 grid.innerHTML += `
-                    <div onclick="window.location.href='rifas.html?t=${idTerreiro}&r=${r.id}${vendedorId ? '&v=' + vendedorId : ''}'" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 hover:border-tema-primaria cursor-pointer transition active:scale-[0.98] flex flex-col h-full">
-                        ${imgBanner}
+                    <div onclick="window.location.href='rifas.html?t=${idTerreiro}&r=${r.id}${vendedorIdParaBD ? '&v=' + vendedorIdParaBD : ''}'" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 hover:border-tema-primaria cursor-pointer active:scale-[0.98] flex flex-col h-full transition">
+                        ${img}
                         <div class="flex-1 flex flex-col">
-                            <div class="flex items-start justify-between gap-2 mb-2">
-                                <h3 class="font-black text-gray-800 text-sm leading-tight line-clamp-2">${r.titulo}</h3>
-                                <span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider shrink-0 animate-pulse">Aberta</span>
-                            </div>
-                            <p class="text-[11px] text-gray-500 line-clamp-2 mb-4 leading-relaxed">${r.descricao || 'Apoie nossa causa.'}</p>
-                            <div class="flex items-center justify-between border-t border-gray-100 pt-3 mt-auto">
-                                <span class="text-[10px] font-bold text-gray-400 uppercase">${r.quantidade_numeros} Números</span>
+                            <h3 class="font-black text-gray-800 text-sm mb-2">${r.titulo}</h3>
+                            <p class="text-[11px] text-gray-500 line-clamp-2 mb-4">${r.descricao || 'Apoie nossa causa.'}</p>
+                            <div class="flex justify-between border-t border-gray-100 pt-3 mt-auto">
+                                <span class="text-[10px] font-bold text-gray-400">${r.quantidade_numeros} Números</span>
                                 <span class="text-sm font-black text-tema-primaria">R$ ${r.valor_numero.toFixed(2).replace('.', ',')}</span>
                             </div>
                         </div>
@@ -324,75 +293,84 @@
 
         async function carregarCartelaRifa(idRifa) {
             document.getElementById('estadoComprarRifa').classList.remove('hidden');
-            
-            numerosSelecionadosArray = [];
-            atualizarBarraSelecao();
+            numerosSelecionadosArray = []; atualizarBarraSelecao();
 
             const { data: rifa, error: errR } = await supabaseClient.from('rifas').select('*').eq('id', idRifa).eq('terreiro_id', idTerreiro).single();
             if (errR || !rifa) { mostrarErro("A rifa não existe ou foi excluída."); return; }
-            if (rifa.status === 'encerrada') { mostrarErro("Esta rifa já foi encerrada e o sorteio realizado."); return; }
+            if (rifa.status === 'encerrada') { mostrarErro("Esta rifa já foi encerrada."); return; }
             
             dadosRifaGlobal = rifa;
-            
             document.getElementById('rifaTitulo').textContent = rifa.titulo;
-            document.getElementById('rifaDescricao').textContent = rifa.descricao || 'Adquira seu número e ajude a nossa casa.';
+            document.getElementById('rifaDescricao').textContent = rifa.descricao || 'Adquira seu número.';
             document.getElementById('rifaValor').textContent = rifa.valor_numero.toFixed(2).replace('.', ',');
 
-            const containerImg = document.getElementById('rifaImagemContainer');
-            if (containerImg) {
-                if (rifa.imagem_url) {
-                    containerImg.innerHTML = `<img src="${rifa.imagem_url}" class="w-full h-full object-cover">`;
-                    containerImg.classList.remove('bg-indigo-100', 'text-indigo-500'); 
-                } else {
-                    containerImg.innerHTML = `<i class="fas fa-gift"></i>`;
-                    containerImg.classList.add('bg-indigo-100', 'text-indigo-500');
-                }
+            if (rifa.imagem_url) {
+                const c = document.getElementById('rifaImagemContainer');
+                c.innerHTML = `<img src="${rifa.imagem_url}" class="w-full h-full object-cover">`;
+                c.classList.remove('bg-indigo-100', 'text-indigo-500');
             }
 
-            const { data: comprados } = await supabaseClient.from('rifa_numeros').select('numero, status_pagamento').eq('rifa_id', idRifa);
-            
+            isVendedorAutorizado = false;
+            if (usuarioLogadoId && rifa.vendedores_ids) {
+                try {
+                    let vends = rifa.vendedores_ids;
+                    if (typeof vends === 'string') {
+                        try { vends = JSON.parse(vends); } catch(e) { vends = vends.replace(/[\[\]]/g, '').split(','); }
+                    }
+                    if (Array.isArray(vends)) {
+                        isVendedorAutorizado = vends.some(v => {
+                            if (!v) return false;
+                            if (typeof v === 'object' && v.id !== undefined) return String(v.id) === String(usuarioLogadoId);
+                            if (typeof v === 'object' && v.value !== undefined) return String(v.value) === String(usuarioLogadoId);
+                            return String(v).trim() === String(usuarioLogadoId);
+                        });
+                    }
+                } catch (e) { console.error(e); }
+            }
+
+            if (isVendedorAutorizado) {
+                document.getElementById('avisoVendaTerceiro').classList.remove('hidden');
+            } else {
+                document.getElementById('avisoVendaTerceiro').classList.add('hidden');
+            }
+
+            // BUSCAMOS O LOCKED_AT PARA SABER O TEMPO RESTANTE DO AMARELO
+            const { data: comprados } = await supabaseClient.from('rifa_numeros').select('id, numero, status_pagamento, locked_at').eq('rifa_id', idRifa);
             const grid = document.getElementById('gridNumerosDisponiveis');
             grid.innerHTML = '';
 
-            // Desenha a cartela com a regra corrigida para o Amarelo (Pendente)
             for(let i = 1; i <= rifa.quantidade_numeros; i++) {
-                const comprado = comprados ? comprados.find(c => c.numero === i) : null;
-                
-                let btnClass = "";
-                let acao = "";
-                let cursor = "";
+                const c = comprados ? comprados.find(x => x.numero === i) : null;
+                let btnC = "", acao = "", cursor = "";
 
-                if (comprado) {
-                    if (comprado.status_pagamento === 'aprovado') {
-                        // VERDE (Vendido): Bloqueia o clique
-                        acao = ""; 
+                if (c) {
+                    if (c.status_pagamento === 'aprovado') {
+                        // VERDE - Vendido definitivo
                         cursor = "cursor-not-allowed opacity-90";
-                        btnClass = "border-green-600 bg-green-500 text-white shadow-sm"; 
+                        btnC = "border-green-600 bg-green-500 text-white shadow-sm"; 
+                        acao = "";
                     } else {
-                        // AMARELO (Pendente): Permite clicar novamente para reabrir a tela
-                        acao = `onclick="reabrirPendente(${i})"`; 
+                        // AMARELO - Pendente de anexo. Clicável para abrir o UPLOAD
                         cursor = "cursor-pointer active:scale-95 hover:brightness-105";
-                        btnClass = "border-yellow-400 bg-yellow-400 text-yellow-900 shadow-sm"; 
+                        btnC = "border-yellow-400 bg-yellow-400 text-yellow-900 shadow-sm"; 
+                        // Envia os dados para a função de reabrir
+                        acao = `onclick="reabrirPendente(${i}, '${c.locked_at}', '${c.id}')"`;
                     }
                 } else {
-                    // BRANCO (Livre): Seleciona para comprar
-                    btnClass = "border-gray-200 text-gray-500 hover:border-tema-primaria hover:text-tema-primaria bg-white";
+                    // BRANCO - Livre
+                    btnC = "border-gray-200 text-gray-500 hover:border-tema-primaria hover:text-tema-primaria bg-white";
                     acao = `onclick="toggleNumeroRifa(${i}, this)"`;
                     cursor = "cursor-pointer active:scale-90";
                 }
 
-                grid.innerHTML += `
-                    <button type="button" ${acao} class="aspect-square rounded-xl border-2 font-black text-sm md:text-base flex items-center justify-center transition-all ${btnClass} ${cursor}">
-                        ${String(i).padStart(2, '0')}
-                    </button>
-                `;
+                grid.innerHTML += `<button type="button" ${acao} class="aspect-square rounded-xl border-2 font-black text-sm md:text-base flex items-center justify-center transition-all ${btnC} ${cursor}">${String(i).padStart(2, '0')}</button>`;
             }
         }
 
         window.toggleNumeroRifa = (numero, btn) => {
-            const index = numerosSelecionadosArray.indexOf(numero);
-            if (index > -1) {
-                numerosSelecionadosArray.splice(index, 1);
+            const idx = numerosSelecionadosArray.indexOf(numero);
+            if (idx > -1) {
+                numerosSelecionadosArray.splice(idx, 1);
                 btn.classList.remove('bg-tema-primaria', 'text-white', 'border-tema-primaria');
                 btn.classList.add('bg-white', 'text-gray-500', 'border-gray-200');
             } else {
@@ -404,14 +382,13 @@
         };
 
         function atualizarBarraSelecao() {
-            const barra = document.getElementById('barraSelecao');
+            const b = document.getElementById('barraSelecao');
             if (numerosSelecionadosArray.length > 0) {
-                barra.classList.remove('hidden');
+                b.classList.remove('hidden');
                 document.getElementById('qtdSelecionados').textContent = numerosSelecionadosArray.length;
-                const total = numerosSelecionadosArray.length * dadosRifaGlobal.valor_numero;
-                document.getElementById('valorTotalSelecao').textContent = total.toFixed(2).replace('.', ',');
+                document.getElementById('valorTotalSelecao').textContent = (numerosSelecionadosArray.length * dadosRifaGlobal.valor_numero).toFixed(2).replace('.', ',');
             } else {
-                barra.classList.add('hidden');
+                b.classList.add('hidden');
             }
         }
 
@@ -420,224 +397,253 @@
             numerosSelecionadosArray.sort((a,b) => a - b);
             
             document.getElementById('checkoutNumeroLabel').textContent = numerosSelecionadosArray.join(', ');
-            const total = numerosSelecionadosArray.length * dadosRifaGlobal.valor_numero;
-            document.getElementById('checkoutValorLabel').textContent = total.toFixed(2).replace('.', ',');
+            document.getElementById('checkoutValorLabel').textContent = (numerosSelecionadosArray.length * dadosRifaGlobal.valor_numero).toFixed(2).replace('.', ',');
             
-            document.getElementById('formComprarNumero').reset();
-            
-            if (usuarioLogadoNome) document.getElementById('compradorNome').value = usuarioLogadoNome;
-            if (usuarioLogadoTelefone) document.getElementById('compradorTelefone').value = usuarioLogadoTelefone;
-            
-            if (usuarioLogadoId) {
-                document.getElementById('avisoVendaTerceiro').classList.remove('hidden');
-            } else {
-                document.getElementById('avisoVendaTerceiro').classList.add('hidden');
-            }
-            
-            document.getElementById('formComprarNumero').classList.remove('hidden');
-            document.getElementById('boxPixCheckout').classList.add('hidden');
+            const msgCheckout = document.getElementById('msgCheckout');
+            msgCheckout.classList.add('hidden'); msgCheckout.textContent = '';
+            const msgUpload = document.getElementById('msgUpload');
+            msgUpload.classList.add('hidden'); msgUpload.textContent = '';
             
             const btnConf = document.getElementById('btnConfirmarReserva');
             btnConf.disabled = false;
             btnConf.innerHTML = '<i class="fas fa-check-circle"></i> Confirmar Reserva';
-            btnConf.classList.remove('hidden');
-            btnConf.classList.add('flex');
-
-            document.getElementById('btnConcluirPix').classList.add('hidden');
-            document.getElementById('btnConcluirPix').classList.remove('flex');
-            document.getElementById('msgCheckout').classList.add('hidden');
-
+            
+            const btnEnv = document.getElementById('btnEnviarComprovante');
+            btnEnv.disabled = false;
+            btnEnv.innerHTML = '<i class="fas fa-upload"></i> Enviar Comprovante para Validação';
+            
+            document.getElementById('formComprarNumero').classList.remove('hidden');
+            document.getElementById('boxUploadComprovante').classList.add('hidden');
+            
             document.getElementById('modalCheckoutRifa').classList.remove('hidden');
         };
 
         window.fecharCheckout = () => {
             document.getElementById('modalCheckoutRifa').classList.add('hidden');
+            if(timerInterval) clearInterval(timerInterval);
             
-            // Destrava o botão "Confirmar Reserva" para a próxima vez que a tela abrir
             const btnConf = document.getElementById('btnConfirmarReserva');
-            if (btnConf) {
-                btnConf.disabled = false;
-                btnConf.innerHTML = '<i class="fas fa-check-circle"></i> Confirmar Reserva';
-            }
+            if(btnConf) { btnConf.disabled = false; btnConf.innerHTML = '<i class="fas fa-check-circle"></i> Confirmar Reserva'; }
+            
+            const btnEnv = document.getElementById('btnEnviarComprovante');
+            if(btnEnv) { btnEnv.disabled = false; btnEnv.innerHTML = '<i class="fas fa-upload"></i> Enviar Comprovante para Validação'; }
+            
+            const fileInp = document.getElementById('arquivoComprovante');
+            if(fileInp) fileInp.value = '';
         };
 
-        // Função adicionada para permitir o clique no número amarelo
-        window.reabrirPendente = (numero) => {
+        // NOVA FUNÇÃO: REABRIR O NÚMERO AMARELO COM O CRONÔMETRO
+        window.reabrirPendente = (numero, locked_at, id_reserva) => {
+            if (!locked_at) { carregarCartelaRifa(dadosRifaGlobal.id); return; }
+
+            const lockTime = new Date(locked_at).getTime();
+            const now = new Date().getTime();
+            const diffSegundos = Math.floor((now - lockTime) / 1000);
+            const tempoRestante = 300 - diffSegundos; // 300 segundos = 5 minutos
+
+            // Se já passou de 5 minutos, avisa e atualiza a tela para ele voltar a ser livre
+            if (tempoRestante <= 0) {
+                alert("⏳ O tempo de reserva deste número já expirou. Ele está livre novamente.");
+                carregarCartelaRifa(dadosRifaGlobal.id);
+                return;
+            }
+
+            // Se ainda tem tempo, abre direto na tela de UPLOAD com o tempo que falta
             numerosSelecionadosArray = [numero];
-            
+            arrayIdsReservados = [id_reserva]; 
+
             document.getElementById('checkoutNumeroLabel').textContent = numero;
             document.getElementById('checkoutValorLabel').textContent = dadosRifaGlobal.valor_numero.toFixed(2).replace('.', ',');
-            
+
+            document.getElementById('msgUpload').classList.add('hidden');
+            document.getElementById('arquivoComprovante').value = '';
+            const btnEnv = document.getElementById('btnEnviarComprovante');
+            btnEnv.disabled = false; btnEnv.innerHTML = '<i class="fas fa-upload"></i> Enviar Comprovante para Validação';
+
             document.getElementById('formComprarNumero').classList.add('hidden');
-            document.getElementById('boxPixCheckout').classList.remove('hidden');
-            
-            const btnConf = document.getElementById('btnConfirmarReserva');
-            if (btnConf) {
-                btnConf.classList.add('hidden');
-                btnConf.classList.remove('flex');
-            }
-            
-            const btnConcluir = document.getElementById('btnConcluirPix');
-            if (btnConcluir) {
-                btnConcluir.classList.remove('hidden');
-                btnConcluir.classList.add('flex');
-            }
-            
+            document.getElementById('boxUploadComprovante').classList.remove('hidden');
+
+            const chavePix = window.terreiroGlobal?.chave_pix_manual || window.terreiroGlobal?.cantina_chave_pix || 'Chave não informada no sistema';
+            document.getElementById('chavePixExibicao').textContent = chavePix;
+
             document.getElementById('modalCheckoutRifa').classList.remove('hidden');
+
+            // Inicia o cronômetro com os segundos restantes
+            iniciarTimer(300, tempoRestante);
         };
 
-        const btnConfirmarReserva = document.getElementById('btnConfirmarReserva');
-        if (btnConfirmarReserva) {
-            btnConfirmarReserva.addEventListener('click', async () => {
+        // PASSO 1 DO PAGAMENTO: REGISTRA A VENDA OU A RESERVA
+        document.getElementById('btnConfirmarReserva').addEventListener('click', async () => {
+            const btnConf = document.getElementById('btnConfirmarReserva');
+            const msg = document.getElementById('msgCheckout');
+            
+            try {
                 const nome = document.getElementById('compradorNome').value.trim();
-                const tel = document.getElementById('compradorTelefone').value.replace(/\D/g, '');
+                const telDigitado = document.getElementById('compradorTelefone').value.replace(/\D/g, '');
                 
-                if (!nome || tel.length < 10) {
-                    const msg = document.getElementById('msgCheckout');
+                if (!nome || telDigitado.length < 10) {
                     msg.textContent = "Preencha o Nome e um WhatsApp válido com DDD.";
-                    msg.className = "text-xs font-bold text-center mb-3 text-red-600 block";
-                    msg.classList.remove('hidden');
-                    return;
+                    msg.classList.remove('hidden'); return;
                 }
 
-                btnConfirmarReserva.disabled = true;
-                btnConfirmarReserva.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
+                btnConf.disabled = true;
+                btnConf.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
+                msg.classList.add('hidden');
 
-                try {
-                    const isUsuarioDeslogado = !usuarioLogadoId;
-                    const isAutoCompra = (usuarioLogadoTelefone && tel === usuarioLogadoTelefone);
-                    
-                    // Verifica se o usuário logado está na array vendedores_ids
-                    let isEquipeVendas = false;
-                    if (dadosRifaGlobal.vendedores_ids && Array.isArray(dadosRifaGlobal.vendedores_ids) && dadosRifaGlobal.vendedores_ids.length > 0) {
-                        isEquipeVendas = dadosRifaGlobal.vendedores_ids.some(v => 
-                            String(v) === String(usuarioLogadoId) || 
-                            (v.id && String(v.id) === String(usuarioLogadoId)) ||
-                            (v.value && String(v.value) === String(usuarioLogadoId))
-                        );
-                    } else {
-                        // Se não tem equipe configurada (array vazio), liberamos geral para médiuns
-                        isEquipeVendas = true;
-                    }
-                    
-                    const isVendaPresencialTerceiro = !isUsuarioDeslogado && !isAutoCompra && isEquipeVendas;
-                    const statusPagamento = isVendaPresencialTerceiro ? 'aprovado' : 'pendente';
-                    
-                    const insercoes = numerosSelecionadosArray.map(num => ({
-                        terreiro_id: idTerreiro,
-                        rifa_id: dadosRifaGlobal.id,
-                        numero: num,
-                        nome_comprador: nome,
-                        telefone_comprador: tel,
-                        status_pagamento: statusPagamento,
-                        metodo_pagamento: 'manual',
-                        vendido_por_medium_id: vendedorId ? parseInt(vendedorId) : null
-                    }));
-
-                    const { data: numsCriados, error: errInsert } = await supabaseClient.from('rifa_numeros').insert(insercoes).select('id');
-
-                    if (errInsert) {
-                        if (errInsert.message.includes('unique constraint') || errInsert.code === '23505') {
-                            throw new Error("Oops! Alguns números selecionados foram comprados há poucos segundos. Atualize a página e tente novamente.");
-                        }
-                        throw errInsert;
-                    }
-
-                    const valorTotalOperacao = numerosSelecionadosArray.length * dadosRifaGlobal.valor_numero;
-                    const numStringFormated = numerosSelecionadosArray.join(', ');
-
-                    if (!isVendaPresencialTerceiro) {
-                        // ==== FLUXO PENDENTE ====
-                        document.getElementById('formComprarNumero').classList.add('hidden');
-                        
-                        const boxPixText = document.getElementById('boxPixAlertaMsg');
-                        if (boxPixText) {
-                            if (isAutoCompra) {
-                                boxPixText.innerHTML = '<i class="fas fa-info-circle"></i> Você está comprando para si mesmo.';
-                            } else {
-                                boxPixText.innerHTML = '<i class="fas fa-info-circle"></i> Efetue o pagamento para concluir a reserva.';
-                            }
-                        }
-                        
-                        document.getElementById('boxPixCheckout').classList.remove('hidden');
-                        
-                        const chavePix = window.terreiroGlobal.chave_pix_manual || window.terreiroGlobal.cantina_chave_pix || 'Chave não informada no sistema';
-                        document.getElementById('chavePixExibicao').textContent = chavePix;
-                        document.querySelector('.lblValorPix').textContent = valorTotalOperacao.toFixed(2).replace('.', ',');
-                        
-                        // Atualiza IMEDIATAMENTE a cartela ao fundo para amarelo, evitando duplo clique e conflito de 409
-                        carregarCartelaRifa(dadosRifaGlobal.id);
-
-                        btnConfirmarReserva.classList.add('hidden');
-                        btnConfirmarReserva.classList.remove('flex');
-                        
-                        const btnConcluir = document.getElementById('btnConcluirPix');
-                        btnConcluir.classList.remove('hidden');
-                        btnConcluir.classList.add('flex');
-
-                    } else {
-                        // ==== FLUXO APROVADO ====
-                        const arrayIdsCriados = numsCriados.map(n => n.id).join(',');
-                        
-                        const { error: errCaixa } = await supabaseClient.from('caixa_terreiro').insert([{
-                            terreiro_id: idTerreiro,
-                            tipo_transacao: 'RIFA',
-                            descricao: `Venda Rifa - Números: ${numStringFormated}`,
-                            valor: valorTotalOperacao,
-                            metodo_pagamento: 'manual',
-                            pagador_nome: nome,
-                            status: 'pago',
-                            medium_responsavel_id: vendedorId ? parseInt(vendedorId) : null,
-                            referencia_id: dadosRifaGlobal.id
-                        }]);
-
-                        if (errCaixa) {
-                            console.error("Erro Caixa:", errCaixa);
-                            await supabaseClient.from('rifa_numeros').delete().in('id', arrayIdsCriados.split(','));
-                            throw new Error("Falha ao registrar o valor no Caixa. A compra foi desfeita automaticamente. Tente novamente.");
-                        }
-
-                        alert("✅ Venda registrada com sucesso! Os números já estão confirmados na cartela.");
-                        fecharCheckout();
-                        carregarCartelaRifa(dadosRifaGlobal.id);
-                    }
-
-                } catch (err) {
-                    const msg = document.getElementById('msgCheckout');
-                    msg.textContent = err.message;
-                    msg.className = "text-xs font-bold text-center mb-3 text-red-600 block";
-                    msg.classList.remove('hidden');
-                    
-                    btnConfirmarReserva.disabled = false;
-                    btnConfirmarReserva.innerHTML = '<i class="fas fa-check-circle"></i> Confirmar Reserva';
+                const isAutoCompra = (usuarioLogadoTelefone && telDigitado === usuarioLogadoTelefone);
+                const isVendaAprovada = isVendedorAutorizado && !isAutoCompra;
+                
+                const statusPgt = isVendaAprovada ? 'aprovado' : 'pendente';
+                const bloqueioTempo = isVendaAprovada ? null : new Date().toISOString(); 
+                
+                let numMediumID = null;
+                if (vendedorIdParaBD && !isNaN(parseInt(vendedorIdParaBD))) {
+                    numMediumID = parseInt(vendedorIdParaBD);
                 }
-            });
-        }
-        
-        const btnCopiarPix = document.getElementById('btnCopiarPix');
-        if (btnCopiarPix) {
-            btnCopiarPix.addEventListener('click', () => {
-                const texto = document.getElementById('chavePixExibicao').textContent;
-                navigator.clipboard.writeText(texto).then(() => {
-                    const ori = btnCopiarPix.innerHTML;
-                    btnCopiarPix.innerHTML = '<i class="fas fa-check"></i> Chave Copiada!';
-                    btnCopiarPix.classList.replace('bg-green-600', 'bg-gray-800');
-                    setTimeout(() => { 
-                        btnCopiarPix.innerHTML = ori; 
-                        btnCopiarPix.classList.replace('bg-gray-800', 'bg-green-600');
-                    }, 3000);
-                });
-            });
+                
+                const insercoes = numerosSelecionadosArray.map(num => ({
+                    terreiro_id: idTerreiro,
+                    rifa_id: dadosRifaGlobal.id,
+                    numero: num,
+                    nome_comprador: nome,
+                    telefone_comprador: telDigitado,
+                    status_pagamento: statusPgt,
+                    metodo_pagamento: 'manual',
+                    vendido_por_medium_id: numMediumID,
+                    locked_at: bloqueioTempo
+                }));
+
+                const { data: numsCriados, error: errInsert } = await supabaseClient.from('rifa_numeros').insert(insercoes).select('id');
+
+                if (errInsert) throw new Error("Oops! Alguns números selecionados acabaram de ser comprados. Tente outro.");
+
+                const valorTotalOp = numerosSelecionadosArray.length * dadosRifaGlobal.valor_numero;
+                const arrayIdsC = numsCriados ? numsCriados.map(n => n.id).join(',') : '';
+
+                if (isVendaAprovada) {
+                    // FLUXO APROVADO
+                    const { error: errCaixa } = await supabaseClient.from('caixa_terreiro').insert([{
+                        terreiro_id: idTerreiro, tipo_transacao: 'RIFA',
+                        descricao: `Venda Rifa - Números: ${numerosSelecionadosArray.join(', ')}`,
+                        valor: valorTotalOp, metodo_pagamento: 'manual',
+                        pagador_nome: nome, status: 'pago',
+                        medium_responsavel_id: numMediumID,
+                        referencia_id: dadosRifaGlobal.id
+                    }]);
+
+                    if (errCaixa && arrayIdsC) {
+                        await supabaseClient.from('rifa_numeros').delete().in('id', arrayIdsC.split(','));
+                        throw new Error("Falha ao registrar no Caixa. Compra desfeita.");
+                    }
+
+                    alert("✅ Venda registrada! Os números já estão na cartela (Verde).");
+                    fecharCheckout();
+                    carregarCartelaRifa(dadosRifaGlobal.id);
+
+                } else {
+                    // FLUXO PENDENTE (Mostra Tela de Anexo e Relógio)
+                    arrayIdsReservados = numsCriados.map(n => n.id);
+                    document.getElementById('formComprarNumero').classList.add('hidden');
+                    document.getElementById('boxUploadComprovante').classList.remove('hidden');
+                    
+                    const chavePix = window.terreiroGlobal?.chave_pix_manual || window.terreiroGlobal?.cantina_chave_pix || 'Chave não informada no sistema';
+                    document.getElementById('chavePixExibicao').textContent = chavePix;
+                    
+                    carregarCartelaRifa(dadosRifaGlobal.id); // Pinta de amarelo ao fundo imediatamente
+                    iniciarTimer(300, 300); // 5 Minutos cravados
+                }
+
+            } catch (err) {
+                msg.textContent = err.message || "Erro desconhecido ao processar."; 
+                msg.classList.remove('hidden');
+                btnConf.disabled = false; 
+                btnConf.innerHTML = '<i class="fas fa-check-circle"></i> Confirmar Reserva';
+            }
+        });
+
+        // CRONÔMETRO ATUALIZADO (Trata tempo total e tempo restante para quando reabrir)
+        function iniciarTimer(segundosTotais, segundosRestantes) {
+            let tempo = segundosRestantes;
+            const bar = document.getElementById('barraProgressoTempo');
+            
+            if(timerInterval) clearInterval(timerInterval);
+
+            // Atualiza visual instantaneamente ao abrir
+            const mIni = Math.floor(tempo / 60); const sIni = tempo % 60;
+            document.getElementById('timerVisual').innerText = `0${mIni}:${sIni.toString().padStart(2, '0')}`;
+            bar.style.width = `${(tempo/segundosTotais)*100}%`;
+            
+            timerInterval = setInterval(async () => {
+                tempo--;
+                const m = Math.floor(tempo / 60); const s = tempo % 60;
+                document.getElementById('timerVisual').innerText = `0${m}:${s.toString().padStart(2, '0')}`;
+                bar.style.width = `${(tempo/segundosTotais)*100}%`;
+                
+                if (tempo <= 0) {
+                    clearInterval(timerInterval);
+                    alert("⏳ Tempo esgotado! A reserva foi cancelada e os números estão livres novamente.");
+                    fecharCheckout();
+                    try { await supabaseClient.rpc('limpar_reservas_expiradas'); } catch(e) {}
+                    carregarCartelaRifa(dadosRifaGlobal.id);
+                }
+            }, 1000);
         }
 
-        const btnConcluirPix = document.getElementById('btnConcluirPix');
-        if (btnConcluirPix) {
-            btnConcluirPix.addEventListener('click', () => {
+        document.getElementById('btnCopiarPix').addEventListener('click', () => {
+            const texto = document.getElementById('chavePixExibicao').textContent;
+            navigator.clipboard.writeText(texto).then(() => {
+                const btn = document.getElementById('btnCopiarPix');
+                const ori = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-check"></i> Copiada!';
+                setTimeout(() => { btn.innerHTML = ori; }, 3000);
+            });
+        });
+
+        // PASSO 2: UPLOAD DO ARQUIVO PARA DIREÇÃO APROVAR
+        document.getElementById('btnEnviarComprovante').addEventListener('click', async () => {
+            const fileInput = document.getElementById('arquivoComprovante');
+            const msg = document.getElementById('msgUpload');
+            const btn = document.getElementById('btnEnviarComprovante');
+
+            try {
+                if (!fileInput.files || fileInput.files.length === 0) {
+                    throw new Error("Selecione o comprovante antes de enviar!");
+                }
+
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
+                msg.classList.add('hidden');
+                
+                clearInterval(timerInterval); 
+
+                const file = fileInput.files[0];
+                const fileExt = file.name.split('.').pop();
+                const fileName = `rifa_${idTerreiro}_${Date.now()}.${fileExt}`;
+                
+                const { error: uploadError } = await supabaseClient.storage.from('comprovantes').upload(`rifas/${fileName}`, file);
+                if (uploadError) throw new Error("Falha no upload do arquivo. Tente novamente.");
+
+                const { data: publicUrlData } = supabaseClient.storage.from('comprovantes').getPublicUrl(`rifas/${fileName}`);
+                const comprovanteUrl = publicUrlData.publicUrl;
+
+                const { error: updError } = await supabaseClient.from('rifa_numeros')
+                    .update({ comprovante_url: comprovanteUrl })
+                    .in('id', arrayIdsReservados);
+
+                if (updError) throw new Error("Erro ao salvar o comprovante no banco.");
+
+                alert("✅ Comprovante enviado! Seus números já estão reservados e aguardam validação da equipe.");
                 fecharCheckout();
-                carregarCartelaRifa(dadosRifaGlobal.id); 
-                alert("Sua reserva foi concluída. Envie o comprovante via WhatsApp para a direção validar seus números.");
-            });
-        }
+                carregarCartelaRifa(dadosRifaGlobal.id);
+
+            } catch (err) {
+                msg.textContent = err.message || "Erro no envio."; 
+                msg.classList.remove('hidden');
+                btn.disabled = false; 
+                btn.innerHTML = '<i class="fas fa-upload"></i> Enviar Comprovante para Validação';
+                iniciarTimer(300, 120); // Se deu erro, dá mais 2 minutinhos de colher de chá
+            }
+        });
 
     </script>
 </body>
