@@ -3,18 +3,15 @@
  * Gerenciamento da cartela unificada e checkout da Rifa com Asaas
  */
 
-// 1. Configuração do Supabase (reutilizando chaves do ambiente local ou do window)
-const SUPABASE_URL = window.SUPABASE_URL || localStorage.getItem('supabase_url') || 'SUA_SUPABASE_URL_AQUI';
-const SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || localStorage.getItem('supabase_anon_key') || 'SUA_SUPABASE_ANON_KEY_AQUI';
+// 1. Configuração do Supabase com as suas credenciais oficiais
+const SUPABASE_URL = 'https://pbjwqhfzsvdougeksztq.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_Ri0hesG16fjM1mxdk2LoLQ_zLFbAmLT';
 
-let supabaseClient = null;
-if (window.supabase) {
-    // Se o cliente já estiver instanciado globalmente
-    if (window.supabaseClient) {
-        supabaseClient = window.supabaseClient;
-    } else if (SUPABASE_URL && SUPABASE_ANON_KEY && !SUPABASE_URL.includes('SUA_SUPABASE_URL')) {
-        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    }
+// Usa o supabaseClient global se já existir (do supabase.js) ou cria a conexão
+let supabaseClient = window.supabaseClient;
+if (!supabaseClient && window.supabase) {
+    const { createClient } = window.supabase;
+    supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 }
 
 // 2. Parâmetros e Estado da Aplicação
@@ -26,19 +23,19 @@ let terreiroAtual = null;
 let numerosOcupados = new Map(); // numero -> { status, nome }
 let numerosSelecionados = new Set(); // Set de números escolhidos pelo usuário
 
-// Regra da Maior Taxa Asaas (Cartão de Crédito à vista Asaas)
+// Regra da Maior Taxa Asaas (Cartão de Crédito à vista Asaas: 3.99% + R$ 0,49)
 const TAXA_PERCENTUAL_ASAAS = 0.0399; // 3.99%
 const TAXA_FIXA_ASAAS = 0.49;         // R$ 0,49
 
 // 3. Inicialização ao carregar a página
 document.addEventListener('DOMContentLoaded', async () => {
-    // Fallback: se não tiver o client configurado, busca do supabaseClient se já existir no window
+    // Garante referência ao cliente
     if (!supabaseClient && window.supabaseClient) {
         supabaseClient = window.supabaseClient;
     }
 
     if (!rifaId) {
-        renderizarErro('Rifa não encontrada', 'O link informado não contém o identificador da rifa.');
+        renderizarErro('Rifa não encontrada', 'O link informado não contém o identificador da rifa. Abra o link completo com "?r=ID".');
         return;
     }
 
@@ -222,7 +219,7 @@ function atualizarBarraFlutuante() {
     const valorUnitario = Number(rifaAtual?.valor_numero || 0);
     const subtotal = qtd * valorUnitario;
 
-    // Cálculo da maior taxa (cartão Asaas)
+    // Cálculo da maior taxa (cartão Asaas: 3.99% + R$ 0,49)
     const taxa = calcularTaxaAsaas(subtotal);
     const totalComTaxa = subtotal + taxa;
 
@@ -233,7 +230,7 @@ function atualizarBarraFlutuante() {
 // 11. Função de Cálculo da Taxa do Asaas
 function calcularTaxaAsaas(subtotal) {
     if (subtotal <= 0) return 0;
-    // Fórmula: (Subtotal * % Cartão) + Taxa Fixa
+    // (Subtotal * 3.99%) + R$ 0,49
     return (subtotal * TAXA_PERCENTUAL_ASAAS) + TAXA_FIXA_ASAAS;
 }
 
@@ -290,7 +287,7 @@ async function processarPagamentoAsaas(event) {
     const arrayNumeros = Array.from(numerosSelecionados);
 
     try {
-        // Disparo para o endpoint/edge function Asaas (implementada no Passo 4)
+        // Disparo para o backend/Edge Function do Asaas (Passo 4)
         if (typeof window.criarCobrancaAsaas === 'function') {
             await window.criarCobrancaAsaas({
                 rifaId: rifaAtual.id,
@@ -302,8 +299,8 @@ async function processarPagamentoAsaas(event) {
                 valorTotal: valorCobrado
             });
         } else {
-            console.log('Dados do Checkout prontos:', {
-                rifa: rifaAtual.titulo,
+            console.log('Dados prontos para o Asaas:', {
+                rifaId: rifaAtual.id,
                 numeros: arrayNumeros,
                 nome,
                 telefone,
@@ -332,7 +329,6 @@ function configurarRealtime() {
             'postgres_changes',
             { event: '*', schema: 'public', table: 'rifa_numeros', filter: `rifa_id=eq.${rifaId}` },
             (payload) => {
-                // Se algum número selecionado pelo usuário foi comprado por outra pessoa, desmarca
                 if (payload.new && numerosSelecionados.has(payload.new.numero)) {
                     numerosSelecionados.delete(payload.new.numero);
                     atualizarBarraFlutuante();
