@@ -4120,18 +4120,20 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- REESCREVENDO CATÁLOGO DE DOAÇÕES PARA SUPORTAR CATEGORIAS ---
-    const formNovoItemDoacao = document.getElementById('formNovoItemDoacao');
-    if (formNovoItemDoacao) {
-        formNovoItemDoacao.addEventListener('submit', async (e) => {
+    // --- REESCREVENDO CATÁLOGO DE DOAÇÕES PARA SUPORTAR CATEGORIAS E NOVO LAYOUT ---
+    
+    // FORMULÁRIO DO TERREIRO
+    const formNovoItemTerreiro = document.getElementById('formNovoItemTerreiro');
+    if (formNovoItemTerreiro) {
+        formNovoItemTerreiro.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const btn = document.getElementById('btnSalvarDoacao');
-            const msg = document.getElementById('msgDoacao');
-            btn.disabled = true; btn.innerHTML = 'Adicionando...';
+            const btn = document.getElementById('btnSalvarDoacaoTerreiro');
+            const msg = document.getElementById('msgDoacaoTerreiro');
+            btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adicionando...';
             
-            const cat = document.getElementById('doacaoCategoria').value;
-            const nome = document.getElementById('doacaoNome').value.trim();
-            const val = document.getElementById('doacaoValor').value;
+            const cat = document.getElementById('doacaoCategoriaTerreiro').value;
+            const nome = document.getElementById('doacaoNomeTerreiro').value.trim();
+            const val = document.getElementById('doacaoValorTerreiro').value;
 
             try {
                 const { error } = await supabaseClient.from('itens_doacao').insert([{
@@ -4143,7 +4145,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 }]);
                 if (error) throw error;
                 
-                formNovoItemDoacao.reset();
+                formNovoItemTerreiro.reset();
                 window.carregarDoacoesCatalogo();
                 msg.textContent = "Produto adicionado!"; msg.className = "text-xs font-bold text-green-600 block mt-2";
                 msg.classList.remove('hidden'); setTimeout(()=> msg.classList.add('hidden'), 3000);
@@ -4156,37 +4158,94 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Redefine a função do catálogo globalmente para aplicar as badges de cor
+    // FORMULÁRIO DA CANTINA
+    const formNovoItemCantina = document.getElementById('formNovoItemCantina');
+    if (formNovoItemCantina) {
+        formNovoItemCantina.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btnSalvarDoacaoCantina');
+            const msg = document.getElementById('msgDoacaoCantina');
+            btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adicionando...';
+            
+            const cat = 'cantina';
+            const nome = document.getElementById('doacaoNomeCantina').value.trim();
+            const val = document.getElementById('doacaoValorCantina').value;
+
+            try {
+                const { error } = await supabaseClient.from('itens_doacao').insert([{
+                    terreiro_id: idTerreiroGlobal,
+                    categoria: cat,
+                    nome: nome,
+                    valor_sugerido: val ? parseFloat(val) : null,
+                    ativo: true
+                }]);
+                if (error) throw error;
+                
+                formNovoItemCantina.reset();
+                window.carregarDoacoesCatalogo();
+                msg.textContent = "Produto adicionado!"; msg.className = "text-xs font-bold text-green-600 block mt-2";
+                msg.classList.remove('hidden'); setTimeout(()=> msg.classList.add('hidden'), 3000);
+            } catch (err) {
+                msg.textContent = "Erro: " + err.message; msg.className = "text-xs font-bold text-red-600 block mt-2";
+                msg.classList.remove('hidden');
+            } finally {
+                btn.disabled = false; btn.innerHTML = 'Adicionar à Cantina';
+            }
+        });
+    }
+
+    // REDEFINE A FUNÇÃO DE CARREGAR AS DUAS TABELAS (TERREIRO E CANTINA)
     window.carregarDoacoesCatalogo = async () => {
         if (!idTerreiroGlobal) return;
-        const tbody = document.getElementById('tabelaItensDoacao');
-        if(!tbody) return;
-        const { data, error } = await supabaseClient.from('itens_doacao').select('*').eq('terreiro_id', idTerreiroGlobal).order('categoria').order('nome');
+        const tbodyTerreiro = document.getElementById('tabelaItensTerreiro');
+        const tbodyCantina = document.getElementById('tabelaItensCantina');
+        
+        if(!tbodyTerreiro || !tbodyCantina) return;
+
+        const { data, error } = await supabaseClient.from('itens_doacao').select('*').eq('terreiro_id', idTerreiroGlobal).order('nome');
         if (error) return;
         
-        tbody.innerHTML = '';
+        tbodyTerreiro.innerHTML = '';
+        tbodyCantina.innerHTML = '';
+        
+        let countTerreiro = 0;
+        let countCantina = 0;
+
         if (data && data.length > 0) {
             data.forEach(item => {
                 const btn = item.ativo 
                     ? `<button onclick="alternarStatusCatalogo('${item.id}', false)" class="text-[10px] bg-gray-200 text-gray-700 px-2 py-1 rounded font-bold hover:bg-gray-300">Desativar</button>` 
                     : `<button onclick="alternarStatusCatalogo('${item.id}', true)" class="text-[10px] bg-green-100 text-green-700 px-2 py-1 rounded font-bold hover:bg-green-200">Ativar</button>`;
                 
-                const catMap = { 
-                    'limpeza': '<span class="text-blue-500 font-bold">Limpeza</span>', 
-                    'firmeza': '<span class="text-purple-500 font-bold">Firmeza</span>', 
-                    'cantina': '<span class="text-orange-500 font-bold">Cantina</span>' 
-                };
-                const cName = catMap[item.categoria] || item.categoria;
+                const badgeCat = item.categoria === 'limpeza' ? '<span class="text-[9px] font-bold text-blue-500 uppercase tracking-wider mt-0.5">Limpeza</span>' : 
+                                 item.categoria === 'firmeza' ? '<span class="text-[9px] font-bold text-purple-500 uppercase tracking-wider mt-0.5">Firmeza</span>' : '';
 
-                tbody.innerHTML += `<tr class="border-b border-gray-100 ${item.ativo ? '' : 'opacity-40 bg-gray-50'} hover:bg-gray-50 transition-colors">
-                    <td class="p-2 text-xs">${cName}</td>
-                    <td class="p-2 text-xs font-medium text-gray-800">${item.nome}${item.valor_sugerido ? `<span class="text-gray-400 font-normal ml-1">(R$ ${item.valor_sugerido})</span>` : ''}</td>
-                    <td class="p-2 text-center">${btn} <button onclick="excluirItemCatalogo('${item.id}')" class="text-red-500 hover:text-red-700 ml-2"><i class="fas fa-trash text-[10px]"></i></button></td>
+                const tr = `<tr class="border-b border-gray-100 ${item.ativo ? '' : 'opacity-40 bg-gray-50'} hover:bg-gray-50 transition-colors">
+                    <td class="p-3 text-xs font-medium text-gray-800">
+                        <div class="flex flex-col">
+                            <span>${item.nome}</span>
+                            ${item.valor_sugerido ? `<span class="text-gray-400 font-normal text-[10px] mt-0.5">R$ ${Number(item.valor_sugerido).toFixed(2)}</span>` : ''}
+                            ${badgeCat}
+                        </div>
+                    </td>
+                    <td class="p-3 text-center align-middle whitespace-nowrap">
+                        ${btn} 
+                        <button onclick="excluirItemCatalogo('${item.id}')" class="text-red-500 hover:text-red-700 ml-2"><i class="fas fa-trash text-[11px]"></i></button>
+                    </td>
                 </tr>`;
+
+                if (item.categoria === 'cantina') {
+                    tbodyCantina.innerHTML += tr;
+                    countCantina++;
+                } else {
+                    tbodyTerreiro.innerHTML += tr;
+                    countTerreiro++;
+                }
             });
-        } else {
-            tbody.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-gray-500 text-xs">Catálogo vazio.</td></tr>';
         }
+        
+        if (countTerreiro === 0) tbodyTerreiro.innerHTML = '<tr><td colspan="2" class="p-6 text-center text-gray-500 text-xs">Catálogo do Terreiro vazio.</td></tr>';
+        if (countCantina === 0) tbodyCantina.innerHTML = '<tr><td colspan="2" class="p-6 text-center text-gray-500 text-xs">Nenhum produto cadastrado na Cantina.</td></tr>';
     };
 
     window.excluirItemCatalogo = async (id) => {
