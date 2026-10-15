@@ -729,6 +729,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ====================================================================
     window.todosItensDoacaoCache = [];
     let abaCampanhaAtiva = 'doacao';
+    let carrinhoDoacoes = {}; // <-- VARIÁVEL MOVIDA PARA AQUI!
 
     async function carregarItensDoacao() {
         try {
@@ -816,7 +817,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const btnConfirmarDoacao = document.getElementById('btnConfirmarDoacao');
     const listaItensDoacao = document.getElementById('listaItensDoacao');
     const chavePix = document.getElementById('chavePix');
-    let carrinhoDoacoes = {};
+    // A declaração do carrinhoDoacoes foi movida para cima para evitar o erro
 
     window.alternarAbaCampanhaApp = (aba) => {
         abaCampanhaAtiva = aba;
