@@ -1,4 +1,4 @@
-// VERSÃO: ASAAS_STEP_1_FAMILIA
+//// VERSÃO: ASAAS_STEP_1_FAMILIA
 let idTerreiroGlobal = null;
 let idGiraGlobal = null;
 let coordsTerreiro = null;
@@ -12,6 +12,11 @@ let terreiroConfigMensalidade = {};
 let carrinhoMensalidadesState = []; 
 let valorPendenteParaPix = 0; 
 let familiaresAprovadosCache = [];
+
+// Variáveis Globais de Doações e Cantina (MOVIDAS PARA O TOPO)
+let carrinhoDoacoes = {};
+window.todosItensDoacaoCache = [];
+let abaCampanhaAtiva = 'doacao';
 
 document.addEventListener('DOMContentLoaded', async () => {
     
