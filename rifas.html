@@ -133,7 +133,8 @@
                     <button type="button" id="btnConfirmarReserva" class="w-full mt-6 bg-tema-primaria hover:opacity-90 active:scale-95 text-white font-bold py-4 rounded-xl shadow-lg transition text-sm flex items-center justify-center gap-2">
                         <i class="fas fa-check-circle"></i> Confirmar Reserva
                     </button>
-                    <p id="msgCheckout" class="hidden text-xs font-bold text-center mt-3 text-red-600 block"></p>
+                    <!-- Ajustado as classes do erro para evitar conflito do Tailwind -->
+                    <p id="msgCheckout" class="hidden text-xs font-bold text-center mt-3 text-red-600"></p>
                 </form>
 
                 <!-- PASSO 2: PIX E COMPROVANTE -->
@@ -164,7 +165,8 @@
                     <button type="button" id="btnEnviarComprovante" class="w-full mt-6 bg-green-600 hover:bg-green-700 active:scale-95 text-white font-bold py-4 rounded-xl shadow-lg transition text-sm flex items-center justify-center gap-2">
                         <i class="fas fa-upload"></i> Enviar Comprovante para Validação
                     </button>
-                    <p id="msgUpload" class="hidden text-xs font-bold text-center mt-3 text-red-600 block"></p>
+                    <!-- Ajustado as classes do erro -->
+                    <p id="msgUpload" class="hidden text-xs font-bold text-center mt-3 text-red-600"></p>
                 </div>
 
             </div>
@@ -194,7 +196,7 @@
         let numerosSelecionadosArray = [];
         
         let usuarioLogadoId = null; 
-        let usuarioLogadoTelefone = ''; // Usado para barrar fraude de autocompra
+        let usuarioLogadoTelefone = ''; 
         
         let vendedorIdParaBD = null;
         let isVendedorAutorizado = false;
@@ -229,7 +231,6 @@
                 const imgLogo = document.getElementById('logoTerreiro');
                 if (terreiro.logo_url) { imgLogo.src = terreiro.logo_url; imgLogo.classList.remove('hidden'); }
 
-                // Puxa o telefone logado para garantir a regra de autocompra
                 if (usuarioLogadoId) {
                     const { data: mData } = await supabaseClient.from('mediuns').select('nome_completo, telefone').eq('id', usuarioLogadoId).single();
                     if (mData) {
@@ -314,40 +315,24 @@
                 c.classList.remove('bg-indigo-100', 'text-indigo-500');
             }
 
-            // MÁGICA 2.0 CORRIGIDA: VERIFICAÇÃO BLINDADA DO ARRAY JSON DA EQUIPE DE VENDAS
             isVendedorAutorizado = false;
-            // ATENÇÃO: O nome da coluna é vendedores_ids (COM O "S" NO FINAL, conforme seu banco)
             if (usuarioLogadoId && rifa.vendedores_ids) {
                 try {
                     let vends = rifa.vendedores_ids;
-                    
-                    // Se estiver salvo como String, fazemos o parse
                     if (typeof vends === 'string') {
-                        try { 
-                            vends = JSON.parse(vends); 
-                        } catch(e) { 
-                            // Fallback caso seja "1,2,3" em vez de JSON válido
-                            vends = vends.replace(/[\[\]]/g, '').split(','); 
-                        }
+                        try { vends = JSON.parse(vends); } catch(e) { vends = vends.replace(/[\[\]]/g, '').split(','); }
                     }
-                    
                     if (Array.isArray(vends)) {
                         isVendedorAutorizado = vends.some(v => {
                             if (!v) return false;
-                            // Se for objeto {"id": 1, ...}
                             if (typeof v === 'object' && v.id !== undefined) return String(v.id) === String(usuarioLogadoId);
-                            // Se for objeto {"value": 1, ...} (Usado por vários componentes de Tags)
                             if (typeof v === 'object' && v.value !== undefined) return String(v.value) === String(usuarioLogadoId);
-                            // Se for valor direto [1, 2]
                             return String(v).trim() === String(usuarioLogadoId);
                         });
                     }
-                } catch (e) {
-                    console.error("Erro ao analisar vendedores_ids", e);
-                }
+                } catch (e) { console.error(e); }
             }
 
-            // Exibe mensagem azul se ele for da equipe
             if (isVendedorAutorizado) {
                 document.getElementById('avisoVendaTerceiro').classList.remove('hidden');
             } else {
@@ -407,9 +392,26 @@
             document.getElementById('checkoutNumeroLabel').textContent = numerosSelecionadosArray.join(', ');
             document.getElementById('checkoutValorLabel').textContent = (numerosSelecionadosArray.length * dadosRifaGlobal.valor_numero).toFixed(2).replace('.', ',');
             
+            // GARANTE QUE AS MENSAGENS ESTEJAM LIMPAS E OCULTAS
+            const msgCheckout = document.getElementById('msgCheckout');
+            msgCheckout.classList.add('hidden');
+            msgCheckout.textContent = '';
+            
+            const msgUpload = document.getElementById('msgUpload');
+            msgUpload.classList.add('hidden');
+            msgUpload.textContent = '';
+            
+            // GARANTE QUE OS BOTÕES ESTEJAM DESBLOQUEADOS (ISSO CAUSOU SEU TRAVAMENTO ANTES)
+            const btnConf = document.getElementById('btnConfirmarReserva');
+            btnConf.disabled = false;
+            btnConf.innerHTML = '<i class="fas fa-check-circle"></i> Confirmar Reserva';
+            
+            const btnEnv = document.getElementById('btnEnviarComprovante');
+            btnEnv.disabled = false;
+            btnEnv.innerHTML = '<i class="fas fa-upload"></i> Enviar Comprovante para Validação';
+            
             document.getElementById('formComprarNumero').classList.remove('hidden');
             document.getElementById('boxUploadComprovante').classList.add('hidden');
-            document.getElementById('msgCheckout').classList.add('hidden');
             
             document.getElementById('modalCheckoutRifa').classList.remove('hidden');
         };
@@ -417,34 +419,52 @@
         window.fecharCheckout = () => {
             document.getElementById('modalCheckoutRifa').classList.add('hidden');
             if(timerInterval) clearInterval(timerInterval);
+            
+            // LIMPEZA FINAL DO BOTÃO CASO A PESSOA SÓ FECHE NO X
+            const btnConf = document.getElementById('btnConfirmarReserva');
+            if(btnConf) {
+                btnConf.disabled = false;
+                btnConf.innerHTML = '<i class="fas fa-check-circle"></i> Confirmar Reserva';
+            }
+            
+            const btnEnv = document.getElementById('btnEnviarComprovante');
+            if(btnEnv) {
+                btnEnv.disabled = false;
+                btnEnv.innerHTML = '<i class="fas fa-upload"></i> Enviar Comprovante para Validação';
+            }
+            
+            const fileInp = document.getElementById('arquivoComprovante');
+            if(fileInp) fileInp.value = '';
         };
 
         // PASSO 1 DO PAGAMENTO: REGISTRA A VENDA OU A RESERVA
         document.getElementById('btnConfirmarReserva').addEventListener('click', async () => {
-            const nome = document.getElementById('compradorNome').value.trim();
-            const telDigitado = document.getElementById('compradorTelefone').value.replace(/\D/g, '');
+            const btnConf = document.getElementById('btnConfirmarReserva');
             const msg = document.getElementById('msgCheckout');
             
-            if (!nome || telDigitado.length < 10) {
-                msg.textContent = "Preencha o Nome e um WhatsApp válido com DDD.";
-                msg.classList.remove('hidden'); return;
-            }
-
-            const btnConf = document.getElementById('btnConfirmarReserva');
-            btnConf.disabled = true;
-            btnConf.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
-
             try {
-                // =============== LÓGICA MESTRA DE APROVAÇÃO ===============
+                const nome = document.getElementById('compradorNome').value.trim();
+                const telDigitado = document.getElementById('compradorTelefone').value.replace(/\D/g, '');
                 
-                // 1. É o próprio médium comprando para si mesmo? (Segurança Antifraude)
+                if (!nome || telDigitado.length < 10) {
+                    msg.textContent = "Preencha o Nome e um WhatsApp válido com DDD.";
+                    msg.classList.remove('hidden'); return;
+                }
+
+                btnConf.disabled = true;
+                btnConf.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
+                msg.classList.add('hidden');
+
                 const isAutoCompra = (usuarioLogadoTelefone && telDigitado === usuarioLogadoTelefone);
-                
-                // 2. Aprova DIRETO apenas se for equipe de vendas vendendo para TERCEIROS
                 const isVendaAprovada = isVendedorAutorizado && !isAutoCompra;
                 
                 const statusPgt = isVendaAprovada ? 'aprovado' : 'pendente';
                 const bloqueioTempo = isVendaAprovada ? null : new Date().toISOString(); 
+                
+                let numMediumID = null;
+                if (vendedorIdParaBD && !isNaN(parseInt(vendedorIdParaBD))) {
+                    numMediumID = parseInt(vendedorIdParaBD);
+                }
                 
                 const insercoes = numerosSelecionadosArray.map(num => ({
                     terreiro_id: idTerreiro,
@@ -454,29 +474,29 @@
                     telefone_comprador: telDigitado,
                     status_pagamento: statusPgt,
                     metodo_pagamento: 'manual',
-                    vendido_por_medium_id: vendedorIdParaBD ? parseInt(vendedorIdParaBD) : null,
+                    vendido_por_medium_id: numMediumID,
                     locked_at: bloqueioTempo
                 }));
 
                 const { data: numsCriados, error: errInsert } = await supabaseClient.from('rifa_numeros').insert(insercoes).select('id');
 
-                if (errInsert) throw new Error("Oops! Alguns números selecionados acabaram de ser comprados. Atualize a página.");
+                if (errInsert) throw new Error("Oops! Alguns números selecionados acabaram de ser comprados. Tente outro.");
 
                 const valorTotalOp = numerosSelecionadosArray.length * dadosRifaGlobal.valor_numero;
-                const arrayIdsC = numsCriados.map(n => n.id).join(',');
+                const arrayIdsC = numsCriados ? numsCriados.map(n => n.id).join(',') : '';
 
                 if (isVendaAprovada) {
-                    // FLUXO APROVADO: Vai direto para o caixa (Venda confirmada para Terceiros)
+                    // FLUXO APROVADO
                     const { error: errCaixa } = await supabaseClient.from('caixa_terreiro').insert([{
                         terreiro_id: idTerreiro, tipo_transacao: 'RIFA',
                         descricao: `Venda Rifa - Números: ${numerosSelecionadosArray.join(', ')}`,
                         valor: valorTotalOp, metodo_pagamento: 'manual',
                         pagador_nome: nome, status: 'pago',
-                        medium_responsavel_id: vendedorIdParaBD ? parseInt(vendedorIdParaBD) : null,
+                        medium_responsavel_id: numMediumID,
                         referencia_id: dadosRifaGlobal.id
                     }]);
 
-                    if (errCaixa) {
+                    if (errCaixa && arrayIdsC) {
                         await supabaseClient.from('rifa_numeros').delete().in('id', arrayIdsC.split(','));
                         throw new Error("Falha ao registrar no Caixa. Compra desfeita.");
                     }
@@ -486,24 +506,26 @@
                     carregarCartelaRifa(dadosRifaGlobal.id);
 
                 } else {
-                    // FLUXO PENDENTE: Vai para o UPLOAD DO COMPROVANTE (Público externo ou Autocompra)
+                    // FLUXO PENDENTE
                     arrayIdsReservados = numsCriados.map(n => n.id);
                     document.getElementById('formComprarNumero').classList.add('hidden');
                     document.getElementById('boxUploadComprovante').classList.remove('hidden');
                     
-                    const chavePix = window.terreiroGlobal.chave_pix_manual || window.terreiroGlobal.cantina_chave_pix || 'Chave não informada no sistema';
+                    const chavePix = window.terreiroGlobal?.chave_pix_manual || window.terreiroGlobal?.cantina_chave_pix || 'Chave não informada no sistema';
                     document.getElementById('chavePixExibicao').textContent = chavePix;
                     
-                    iniciarTimer(300); // INICIA 5 MINUTOS (300 Segundos)
+                    iniciarTimer(300); 
                 }
 
             } catch (err) {
-                msg.textContent = err.message; msg.classList.remove('hidden');
-                btnConf.disabled = false; btnConf.innerHTML = '<i class="fas fa-check-circle"></i> Confirmar Reserva';
+                msg.textContent = err.message || "Erro desconhecido ao processar."; 
+                msg.classList.remove('hidden');
+                btnConf.disabled = false; 
+                btnConf.innerHTML = '<i class="fas fa-check-circle"></i> Confirmar Reserva';
             }
         });
 
-        // CRONÔMETRO DE 5 MINUTOS PARA UPLOAD
+        // CRONÔMETRO
         function iniciarTimer(segundosTotais) {
             let tempo = segundosTotais;
             const bar = document.getElementById('barraProgressoTempo');
@@ -524,32 +546,33 @@
             }, 1000);
         }
 
-        // COPIAR CHAVE PIX
         document.getElementById('btnCopiarPix').addEventListener('click', () => {
             const texto = document.getElementById('chavePixExibicao').textContent;
             navigator.clipboard.writeText(texto).then(() => {
                 const btn = document.getElementById('btnCopiarPix');
                 const ori = btn.innerHTML;
-                btn.innerHTML = '<i class="fas fa-check"></i> Chave Copiada!';
+                btn.innerHTML = '<i class="fas fa-check"></i> Copiada!';
                 setTimeout(() => { btn.innerHTML = ori; }, 3000);
             });
         });
 
-        // PASSO 2 DO PAGAMENTO: UPLOAD DA IMAGEM E FINALIZAÇÃO
+        // PASSO 2: UPLOAD
         document.getElementById('btnEnviarComprovante').addEventListener('click', async () => {
             const fileInput = document.getElementById('arquivoComprovante');
             const msg = document.getElementById('msgUpload');
             const btn = document.getElementById('btnEnviarComprovante');
 
-            if (!fileInput.files || fileInput.files.length === 0) {
-                msg.textContent = "Selecione o comprovante antes de enviar!"; msg.classList.remove('hidden'); return;
-            }
-
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando para diretoria...';
-            clearInterval(timerInterval); 
-
             try {
+                if (!fileInput.files || fileInput.files.length === 0) {
+                    throw new Error("Selecione o comprovante antes de enviar!");
+                }
+
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
+                msg.classList.add('hidden');
+                
+                clearInterval(timerInterval); 
+
                 const file = fileInput.files[0];
                 const fileExt = file.name.split('.').pop();
                 const fileName = `rifa_${idTerreiro}_${Date.now()}.${fileExt}`;
@@ -566,13 +589,15 @@
 
                 if (updError) throw new Error("Erro ao salvar o comprovante no banco.");
 
-                alert("✅ Comprovante enviado! Seus números já estão reservados na cartela e aguardam apenas a validação da administração.");
+                alert("✅ Comprovante enviado! Seus números já estão reservados e aguardam validação.");
                 fecharCheckout();
                 carregarCartelaRifa(dadosRifaGlobal.id);
 
             } catch (err) {
-                msg.textContent = err.message; msg.classList.remove('hidden');
-                btn.disabled = false; btn.innerHTML = '<i class="fas fa-upload"></i> Enviar Comprovante para Validação';
+                msg.textContent = err.message || "Erro no envio."; 
+                msg.classList.remove('hidden');
+                btn.disabled = false; 
+                btn.innerHTML = '<i class="fas fa-upload"></i> Enviar Comprovante para Validação';
                 iniciarTimer(120); 
             }
         });
