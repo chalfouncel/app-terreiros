@@ -672,45 +672,48 @@
                         </div>
                     </div>
 
-                    <div class="bg-white p-5 md:p-6 rounded-2xl shadow-sm border-t-4 border-red-500">
-                        <h3 class="text-base md:text-lg font-bold text-tema-texto mb-4"><i class="fas fa-plus-circle text-red-500 mr-2"></i> Novo Item no Catálogo</h3>
-                        <form id="formNovoItemDoacao" class="space-y-4">
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <!-- Layout Side-by-Side: Novo Item e Catálogo (Terreiro) -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- Metade 1: Formulário Novo Item -->
+                        <div class="bg-white p-5 md:p-6 rounded-2xl shadow-sm border-t-4 border-red-500 flex flex-col h-full">
+                            <h3 class="text-base font-bold text-gray-800 mb-4"><i class="fas fa-plus-circle text-red-500 mr-2"></i> Novo Item (Terreiro)</h3>
+                            <form id="formNovoItemTerreiro" class="space-y-4 flex-1 flex flex-col">
                                 <div>
                                     <label class="block text-xs font-bold text-gray-700 mb-1">Categoria *</label>
-                                    <select id="doacaoCategoria" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm outline-none bg-white">
+                                    <select id="doacaoCategoriaTerreiro" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm outline-none bg-white">
                                         <option value="limpeza">Material de Limpeza</option>
                                         <option value="firmeza">Material de Firmeza/Altar</option>
-                                        <option value="cantina">Produto da Cantina</option>
                                     </select>
                                 </div>
                                 <div>
                                     <label class="block text-xs font-bold text-gray-700 mb-1">Nome do Produto *</label>
-                                    <input type="text" id="doacaoNome" required class="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm" placeholder="Ex: Vela de 7 dias">
+                                    <input type="text" id="doacaoNomeTerreiro" required class="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm" placeholder="Ex: Vela de 7 dias">
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-bold text-gray-700 mb-1">Valor (R$)</label>
-                                    <input type="number" step="0.01" id="doacaoValor" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm" placeholder="Ex: 15.00">
+                                    <label class="block text-xs font-bold text-gray-700 mb-1">Valor Sugerido (R$)</label>
+                                    <input type="number" step="0.01" id="doacaoValorTerreiro" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm" placeholder="Ex: 15.00 (Opcional)">
                                 </div>
-                            </div>
-                            <button type="submit" id="btnSalvarDoacao" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2.5 px-6 rounded-xl shadow text-sm transition w-full md:w-auto">
-                                Adicionar ao Catálogo
-                            </button>
-                            <p id="msgDoacao" class="text-xs font-bold mt-2 hidden"></p>
-                        </form>
+                                <div class="mt-auto pt-4 border-t border-gray-100">
+                                    <button type="submit" id="btnSalvarDoacaoTerreiro" class="w-full bg-red-500 hover:bg-red-600 active:scale-95 text-white font-bold py-2.5 rounded-xl shadow transition text-sm">
+                                        Adicionar ao Catálogo
+                                    </button>
+                                    <p id="msgDoacaoTerreiro" class="text-xs font-bold mt-2 hidden text-center"></p>
+                                </div>
+                            </form>
+                        </div>
 
-                        <div class="mt-8 border-t border-gray-100 pt-6">
-                            <h3 class="text-sm font-bold text-gray-800 mb-3">Catálogo Atual</h3>
-                            <div class="overflow-x-auto max-h-64">
+                        <!-- Metade 2: Tabela Catálogo Terreiro -->
+                        <div class="bg-white p-5 md:p-6 rounded-2xl shadow-sm border-t-4 border-gray-400 flex flex-col h-full">
+                            <h3 class="text-base font-bold text-gray-800 mb-3"><i class="fas fa-list text-gray-500 mr-2"></i> Itens do Terreiro</h3>
+                            <div class="overflow-x-auto flex-1 h-[280px] overflow-y-auto border border-gray-100 rounded-xl">
                                 <table class="w-full text-left border-collapse text-sm">
-                                    <thead class="bg-gray-50 sticky top-0 shadow-sm">
+                                    <thead class="bg-gray-50 sticky top-0 shadow-sm z-10">
                                         <tr>
-                                            <th class="p-2 font-semibold text-gray-600">Categoria</th>
-                                            <th class="p-2 font-semibold text-gray-600">Item</th>
-                                            <th class="p-2 font-semibold text-gray-600 text-center">Ação</th>
+                                            <th class="p-3 font-semibold text-gray-600 text-xs uppercase tracking-wider">Item</th>
+                                            <th class="p-3 font-semibold text-gray-600 text-xs uppercase tracking-wider text-center w-24">Ação</th>
                                         </tr>
                                     </thead>
-                                    <tbody id="tabelaItensDoacao"></tbody>
+                                    <tbody id="tabelaItensTerreiro"></tbody>
                                 </table>
                             </div>
                         </div>
@@ -746,6 +749,47 @@
                                 Salvar Configuração
                             </button>
                             <p id="msgCantinaConfig" class="text-xs font-bold hidden"></p>
+                        </div>
+                    </div>
+
+                    <!-- Layout Side-by-Side: Novo Item e Catálogo (Cantina) -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- Metade 1: Formulário Novo Item -->
+                        <div class="bg-white p-5 md:p-6 rounded-2xl shadow-sm border-t-4 border-orange-500 flex flex-col h-full">
+                            <h3 class="text-base font-bold text-gray-800 mb-4"><i class="fas fa-hamburger text-orange-500 mr-2"></i> Novo Item (Cantina)</h3>
+                            <form id="formNovoItemCantina" class="space-y-4 flex-1 flex flex-col">
+                                <input type="hidden" id="doacaoCategoriaCantina" value="cantina">
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-700 mb-1">Nome do Produto *</label>
+                                    <input type="text" id="doacaoNomeCantina" required class="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm" placeholder="Ex: Refrigerante Lata">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-700 mb-1">Valor de Venda (R$) *</label>
+                                    <input type="number" step="0.01" required id="doacaoValorCantina" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm" placeholder="Ex: 5.00">
+                                </div>
+                                <div class="mt-auto pt-4 border-t border-gray-100">
+                                    <button type="submit" id="btnSalvarDoacaoCantina" class="w-full bg-orange-500 hover:bg-orange-600 active:scale-95 text-white font-bold py-2.5 rounded-xl shadow transition text-sm">
+                                        Adicionar à Cantina
+                                    </button>
+                                    <p id="msgDoacaoCantina" class="text-xs font-bold mt-2 hidden text-center"></p>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Metade 2: Tabela Catálogo Cantina -->
+                        <div class="bg-white p-5 md:p-6 rounded-2xl shadow-sm border-t-4 border-gray-400 flex flex-col h-full">
+                            <h3 class="text-base font-bold text-gray-800 mb-3"><i class="fas fa-list text-gray-500 mr-2"></i> Itens da Cantina</h3>
+                            <div class="overflow-x-auto flex-1 h-[280px] overflow-y-auto border border-gray-100 rounded-xl">
+                                <table class="w-full text-left border-collapse text-sm">
+                                    <thead class="bg-gray-50 sticky top-0 shadow-sm z-10">
+                                        <tr>
+                                            <th class="p-3 font-semibold text-gray-600 text-xs uppercase tracking-wider">Produto</th>
+                                            <th class="p-3 font-semibold text-gray-600 text-xs uppercase tracking-wider text-center w-24">Ação</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tabelaItensCantina"></tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
