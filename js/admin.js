@@ -4037,7 +4037,6 @@ window.addEventListener('DOMContentLoaded', () => {
         Object.keys(btnsTab).forEach(k => {
             if (!btnsTab[k]) return;
             
-            // Classes base para ambos os estados (Layout e Animações)
             const baseClasses = "relative py-3 md:py-4 px-2 md:px-6 rounded-2xl text-xs md:text-base transition-all duration-300 transform hover:-translate-y-1 active:scale-95 flex flex-col items-center justify-center gap-1.5 md:gap-2 w-full";
             
             if (k === abaAtiva) {
@@ -4054,9 +4053,12 @@ window.addEventListener('DOMContentLoaded', () => {
         });
         
         if (abaAtiva === 'rifas') carregarRifasAdmin();
-        if (abaAtiva === 'cantina') carregarConfigCantina();
         if (abaAtiva === 'doacoes') {
             if (typeof window.carregarDoacoesPrometidas === 'function') window.carregarDoacoesPrometidas();
+            if (typeof window.carregarDoacoesCatalogo === 'function') window.carregarDoacoesCatalogo();
+        }
+        if (abaAtiva === 'cantina') {
+            if (typeof carregarConfigCantina === 'function') carregarConfigCantina();
             if (typeof window.carregarDoacoesCatalogo === 'function') window.carregarDoacoesCatalogo();
         }
     }
@@ -4202,50 +4204,66 @@ window.addEventListener('DOMContentLoaded', () => {
         
         if(!tbodyTerreiro || !tbodyCantina) return;
 
-        const { data, error } = await supabaseClient.from('itens_doacao').select('*').eq('terreiro_id', idTerreiroGlobal).order('nome');
-        if (error) return;
-        
-        tbodyTerreiro.innerHTML = '';
-        tbodyCantina.innerHTML = '';
-        
-        let countTerreiro = 0;
-        let countCantina = 0;
+        try {
+            const { data, error } = await supabaseClient.from('itens_doacao').select('*').eq('terreiro_id', idTerreiroGlobal).order('nome');
+            if (error) throw error;
+            
+            tbodyTerreiro.innerHTML = '';
+            tbodyCantina.innerHTML = '';
+            
+            let countTerreiro = 0;
+            let countCantina = 0;
 
-        if (data && data.length > 0) {
-            data.forEach(item => {
-                const btn = item.ativo 
-                    ? `<button onclick="alternarStatusCatalogo('${item.id}', false)" class="text-[10px] bg-gray-200 text-gray-700 px-2 py-1 rounded font-bold hover:bg-gray-300">Desativar</button>` 
-                    : `<button onclick="alternarStatusCatalogo('${item.id}', true)" class="text-[10px] bg-green-100 text-green-700 px-2 py-1 rounded font-bold hover:bg-green-200">Ativar</button>`;
-                
-                const badgeCat = item.categoria === 'limpeza' ? '<span class="text-[9px] font-bold text-blue-500 uppercase tracking-wider mt-0.5">Limpeza</span>' : 
-                                 item.categoria === 'firmeza' ? '<span class="text-[9px] font-bold text-purple-500 uppercase tracking-wider mt-0.5">Firmeza</span>' : '';
+            if (data && data.length > 0) {
+                data.forEach(item => {
+                    const isCantina = item.categoria && item.categoria.toLowerCase().trim() === 'cantina';
 
-                const tr = `<tr class="border-b border-gray-100 ${item.ativo ? '' : 'opacity-40 bg-gray-50'} hover:bg-gray-50 transition-colors">
-                    <td class="p-3 text-xs font-medium text-gray-800">
-                        <div class="flex flex-col">
-                            <span>${item.nome}</span>
-                            ${item.valor_sugerido ? `<span class="text-gray-400 font-normal text-[10px] mt-0.5">R$ ${Number(item.valor_sugerido).toFixed(2)}</span>` : ''}
-                            ${badgeCat}
-                        </div>
-                    </td>
-                    <td class="p-3 text-center align-middle whitespace-nowrap">
-                        ${btn} 
-                        <button onclick="excluirItemCatalogo('${item.id}')" class="text-red-500 hover:text-red-700 ml-2"><i class="fas fa-trash text-[11px]"></i></button>
-                    </td>
-                </tr>`;
+                    const btn = item.ativo 
+                        ? `<button onclick="alternarStatusCatalogo('${item.id}', false)" class="text-[10px] bg-gray-200 text-gray-700 px-2 py-1 rounded font-bold hover:bg-gray-300">Desativar</button>` 
+                        : `<button onclick="alternarStatusCatalogo('${item.id}', true)" class="text-[10px] bg-green-100 text-green-700 px-2 py-1 rounded font-bold hover:bg-green-200">Ativar</button>`;
+                    
+                    let badgeCat = '';
+                    if (item.categoria === 'limpeza') badgeCat = '<span class="text-[9px] font-bold text-blue-500 uppercase tracking-wider mt-0.5">Limpeza</span>';
+                    if (item.categoria === 'firmeza') badgeCat = '<span class="text-[9px] font-bold text-purple-500 uppercase tracking-wider mt-0.5">Firmeza</span>';
 
-                if (item.categoria === 'cantina') {
-                    tbodyCantina.innerHTML += tr;
-                    countCantina++;
-                } else {
-                    tbodyTerreiro.innerHTML += tr;
-                    countTerreiro++;
-                }
-            });
+                    let valorHtml = '';
+                    const valorParsed = parseFloat(item.valor_sugerido);
+                    if (!isNaN(valorParsed) && valorParsed > 0) {
+                        valorHtml = `<span class="text-gray-400 font-normal text-[10px] mt-0.5">R$ ${valorParsed.toFixed(2)}</span>`;
+                    }
+
+                    const tr = `<tr class="border-b border-gray-100 ${item.ativo ? '' : 'opacity-40 bg-gray-50'} hover:bg-gray-50 transition-colors">
+                        <td class="p-3 text-xs font-medium text-gray-800">
+                            <div class="flex flex-col">
+                                <span>${item.nome}</span>
+                                ${valorHtml}
+                                ${badgeCat}
+                            </div>
+                        </td>
+                        <td class="p-3 text-center align-middle whitespace-nowrap">
+                            ${btn} 
+                            <button onclick="excluirItemCatalogo('${item.id}')" class="text-red-500 hover:text-red-700 ml-2"><i class="fas fa-trash text-[11px]"></i></button>
+                        </td>
+                    </tr>`;
+
+                    if (isCantina) {
+                        tbodyCantina.innerHTML += tr;
+                        countCantina++;
+                    } else {
+                        tbodyTerreiro.innerHTML += tr;
+                        countTerreiro++;
+                    }
+                });
+            }
+            
+            if (countTerreiro === 0) tbodyTerreiro.innerHTML = '<tr><td colspan="2" class="p-6 text-center text-gray-500 text-xs">Catálogo do Terreiro vazio.</td></tr>';
+            if (countCantina === 0) tbodyCantina.innerHTML = '<tr><td colspan="2" class="p-6 text-center text-gray-500 text-xs">Nenhum produto cadastrado na Cantina.</td></tr>';
+            
+        } catch (err) {
+            console.error("Erro ao carregar catálogo:", err);
+            tbodyTerreiro.innerHTML = `<tr><td colspan="2" class="p-6 text-center text-red-500 text-xs">Erro: ${err.message}</td></tr>`;
+            tbodyCantina.innerHTML = `<tr><td colspan="2" class="p-6 text-center text-red-500 text-xs">Erro: ${err.message}</td></tr>`;
         }
-        
-        if (countTerreiro === 0) tbodyTerreiro.innerHTML = '<tr><td colspan="2" class="p-6 text-center text-gray-500 text-xs">Catálogo do Terreiro vazio.</td></tr>';
-        if (countCantina === 0) tbodyCantina.innerHTML = '<tr><td colspan="2" class="p-6 text-center text-gray-500 text-xs">Nenhum produto cadastrado na Cantina.</td></tr>';
     };
 
     window.excluirItemCatalogo = async (id) => {
