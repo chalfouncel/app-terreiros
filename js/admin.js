@@ -1483,14 +1483,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                 pendenciasGerais.forEach(item => {
                     const valFmt = Number(item.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
                     
-                    // Corrigindo a leitura da data do banco para forçar UTC antes da conversão
-                    let strData = item.data || '';
-                    if (strData && !strData.includes('Z') && !strData.includes('+')) {
-                        strData += 'Z';
+                    // Cria a data e recua 3 horas explicitamente
+                    let dataObj = new Date(item.data);
+                    if (!isNaN(dataObj)) {
+                        dataObj.setHours(dataObj.getHours() - 3);
+                    } else {
+                        dataObj = new Date(); // Fallback de segurança se a data vier quebrada
                     }
                     
-                    const dataEnvio = new Date(strData).toLocaleString('pt-BR', { 
-                        timeZone: 'America/Sao_Paulo', 
+                    const dataEnvio = dataObj.toLocaleDateString('pt-BR', { 
                         day: '2-digit', 
                         month: '2-digit', 
                         hour: '2-digit', 
