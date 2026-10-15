@@ -34,9 +34,15 @@
 </head>
 <body class="min-h-screen flex flex-col items-center p-4 pt-6 pb-20">
 
-    <!-- CABEÇALHO DO TERREIRO -->
-    <div class="w-full max-w-2xl flex flex-col items-center mb-6 text-center">
-        <img id="logoTerreiro" src="" class="hidden max-h-20 mb-3 object-contain drop-shadow-md rounded-xl">
+    <!-- CABEÇALHO DO TERREIRO E BOTÃO VOLTAR -->
+    <div class="w-full max-w-2xl flex flex-col items-center mb-6 text-center relative">
+        <!-- Botão Voltar para a Tela Principal do App -->
+        <button onclick="window.location.href='presenca.html?t=' + idTerreiro" class="absolute left-0 top-0 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 px-3.5 py-2 rounded-xl text-xs font-bold shadow-sm transition flex items-center gap-1.5 active:scale-95">
+            <i class="fas fa-arrow-left text-tema-primaria"></i>
+            <span>Voltar</span>
+        </button>
+
+        <img id="logoTerreiro" src="" class="hidden max-h-20 mb-3 object-contain drop-shadow-md rounded-xl mt-8 md:mt-0">
         <h1 id="nomeTerreiro" class="text-xl md:text-2xl font-black text-tema-primaria drop-shadow-sm">Carregando...</h1>
         <p class="text-xs text-gray-500 mt-1 uppercase tracking-wider font-semibold">Campanhas e Ações Solidárias</p>
     </div>
@@ -647,7 +653,6 @@
                 const { data: publicUrlData } = supabaseClient.storage.from('comprovantes').getPublicUrl(`rifas/${fileName}`);
                 const comprovanteUrl = publicUrlData.publicUrl;
 
-                // AO ENVIAR O COMPROVANTE: Limpamos o locked_at (para parar o cronômetro) e salvamos a url. O número passa a ficar amarelo fixo (Aguardando Aprovação).
                 const { error: updError } = await supabaseClient
                     .from('rifa_numeros')
                     .update({ comprovante_url: comprovanteUrl, locked_at: null })
@@ -663,7 +668,7 @@
 
             } catch (err) {
                 msg.textContent = err.message || "Erro no envio."; 
-                msg.classList.remove('hidden');
+                msg.classList.add('hidden');
                 btn.disabled = false; 
                 btn.innerHTML = '<i class="fas fa-upload"></i> Enviar Comprovante para Validação';
                 iniciarTimer(300, 120); 
