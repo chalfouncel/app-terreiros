@@ -519,6 +519,7 @@
                 btnConf.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
                 msg.classList.add('hidden');
 
+                // Se for o próprio vendedor comprando para si, exige comprovante. Se estiver vendendo para outro, aprova direto!
                 const isAutoCompra = (usuarioLogadoTelefone && telDigitado === usuarioLogadoTelefone);
                 const isVendaAprovada = isVendedorAutorizado && !isAutoCompra;
                 
@@ -528,6 +529,8 @@
                 let numMediumID = null;
                 if (vendedorIdParaBD && !isNaN(parseInt(vendedorIdParaBD))) {
                     numMediumID = parseInt(vendedorIdParaBD);
+                } else if (usuarioLogadoId && !isNaN(parseInt(usuarioLogadoId))) {
+                    numMediumID = parseInt(usuarioLogadoId);
                 }
                 
                 const insercoes = numerosSelecionadosArray.map(num => ({
@@ -551,12 +554,15 @@
 
                 if (isVendaAprovada) {
                     const { error: errCaixa } = await supabaseClient.from('caixa_terreiro').insert([{
-                        terreiro_id: idTerreiro, tipo_transacao: 'RIFA',
+                        terreiro_id: idTerreiro, 
+                        tipo_transacao: 'RIFA',
                         descricao: `Venda Rifa - Números: ${numerosSelecionadosArray.join(', ')}`,
-                        valor: valorTotalOp, metodo_pagamento: 'manual',
-                        pagador_nome: nome, status: 'pago',
+                        valor: valorTotalOp, 
+                        metodo_pagamento: 'manual',
+                        pagador_nome: nome, 
+                        status: 'pago',
                         medium_responsavel_id: numMediumID,
-                        referencia_id: dadosRifaGlobal.id
+                        referencia_id: arrayIdsC
                     }]);
 
                     if (errCaixa && arrayIdsC) {
@@ -564,7 +570,7 @@
                         throw new Error("Falha ao registrar no Caixa. Compra desfeita.");
                     }
 
-                    alert("✅ Venda registrada! Os números já estão na cartela (Verde).");
+                    alert("✅ Venda registrada com sucesso! Os números já estão confirmados na cartela (Verde).");
                     fecharCheckout();
                     carregarCartelaRifa(dadosRifaGlobal.id);
 
