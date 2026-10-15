@@ -627,10 +627,19 @@
             <div id="secDoacoes" class="secao-painel hidden">
                 
                 <!-- MENU INTERNO DE ABAS -->
-                <div class="flex mb-6 space-x-2 border-b border-gray-200 overflow-x-auto text-sm font-bold no-scrollbar">
-                    <button id="btnTabDoacoes" class="py-3 px-4 border-b-2 border-tema-secundaria text-tema-secundaria whitespace-nowrap transition"><i class="fas fa-hand-holding-heart mr-2"></i>Doações da Casa</button>
-                    <button id="btnTabCantina" class="py-3 px-4 border-b-2 border-transparent text-gray-500 hover:text-gray-800 whitespace-nowrap transition"><i class="fas fa-hamburger mr-2"></i>Cantina</button>
-                    <button id="btnTabRifas" class="py-3 px-4 border-b-2 border-transparent text-gray-500 hover:text-gray-800 whitespace-nowrap transition"><i class="fas fa-ticket-alt mr-2"></i>Rifas e Sorteios</button>
+                <div class="grid grid-cols-3 gap-2 md:gap-4 mb-8">
+                    <button id="btnTabDoacoes" class="relative py-3 md:py-4 px-2 md:px-6 rounded-2xl font-black text-xs md:text-base transition-all duration-300 shadow-md bg-tema-secundaria text-white transform hover:-translate-y-1 active:scale-95 border-b-4 border-black/20 flex flex-col items-center justify-center gap-1.5 md:gap-2 w-full">
+                        <i class="fas fa-hand-holding-heart text-xl md:text-3xl mb-1"></i>
+                        <span class="text-center leading-tight">Doações da Casa</span>
+                    </button>
+                    <button id="btnTabCantina" class="relative py-3 md:py-4 px-2 md:px-6 rounded-2xl font-bold text-xs md:text-base transition-all duration-300 shadow-sm bg-white text-gray-500 hover:text-gray-800 border border-gray-200 hover:border-gray-300 hover:shadow-md transform hover:-translate-y-1 active:scale-95 flex flex-col items-center justify-center gap-1.5 md:gap-2 w-full">
+                        <i class="fas fa-store text-xl md:text-3xl mb-1 opacity-70"></i>
+                        <span class="text-center leading-tight">Cantina</span>
+                    </button>
+                    <button id="btnTabRifas" class="relative py-3 md:py-4 px-2 md:px-6 rounded-2xl font-bold text-xs md:text-base transition-all duration-300 shadow-sm bg-white text-gray-500 hover:text-gray-800 border border-gray-200 hover:border-gray-300 hover:shadow-md transform hover:-translate-y-1 active:scale-95 flex flex-col items-center justify-center gap-1.5 md:gap-2 w-full">
+                        <i class="fas fa-ticket-alt text-xl md:text-3xl mb-1 opacity-70"></i>
+                        <span class="text-center leading-tight">Rifas e Sorteios</span>
+                    </button>
                 </div>
 
                 <!-- ABA 1: DOAÇÕES GERAIS (LIMPEZA/FIRMEZA) -->
