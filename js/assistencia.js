@@ -104,15 +104,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         idEventoGlobal = giraAtiva.id;
 
-        // 4. Preenche cabeçalho da gira
+        // 4. Preenche cabeçalho da gira (Fuso Horário de Brasília)
         const txtTituloGira = document.getElementById('tituloGira');
         if (txtTituloGira) txtTituloGira.textContent = giraAtiva.titulo;
 
         const txtHorarioGira = document.getElementById('horarioGira');
         if (txtHorarioGira) {
-            const inicio = new Date(giraAtiva.data_hora_inicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            const inicio = new Date(giraAtiva.data_hora_inicio).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
             const fim = giraAtiva.data_hora_fim 
-                ? new Date(giraAtiva.data_hora_fim).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+                ? new Date(giraAtiva.data_hora_fim).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' })
                 : '--:--';
             txtHorarioGira.innerHTML = `<i class="far fa-clock mr-1"></i> ${inicio} às ${fim}`;
         }
@@ -122,7 +122,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (checkinSalvo) {
             if (estadoSucesso) {
                 const horaFeita = document.getElementById('horaConfirmada');
-                if (horaFeita) horaFeita.textContent = new Date(checkinSalvo).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                if (horaFeita) horaFeita.textContent = new Date(checkinSalvo).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
                 estadoSucesso.classList.remove('hidden');
             }
             return;
@@ -226,7 +226,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         if (tel) localStorage.setItem('assistencia_telefone', tel);
                         localStorage.setItem(`assistencia_checkin_${idEventoGlobal}`, agoraIso);
 
-                        const horaFormatada = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                        const horaFormatada = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
                         const horaConfirmada = document.getElementById('horaConfirmada');
                         if (horaConfirmada) horaConfirmada.textContent = horaFormatada;
 
