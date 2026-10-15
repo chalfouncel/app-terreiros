@@ -133,7 +133,6 @@
                     <button type="button" id="btnConfirmarReserva" class="w-full mt-6 bg-tema-primaria hover:opacity-90 active:scale-95 text-white font-bold py-4 rounded-xl shadow-lg transition text-sm flex items-center justify-center gap-2">
                         <i class="fas fa-check-circle"></i> Confirmar Reserva
                     </button>
-                    <!-- Ajustado as classes do erro para evitar conflito do Tailwind -->
                     <p id="msgCheckout" class="hidden text-xs font-bold text-center mt-3 text-red-600"></p>
                 </form>
 
@@ -165,7 +164,6 @@
                     <button type="button" id="btnEnviarComprovante" class="w-full mt-6 bg-green-600 hover:bg-green-700 active:scale-95 text-white font-bold py-4 rounded-xl shadow-lg transition text-sm flex items-center justify-center gap-2">
                         <i class="fas fa-upload"></i> Enviar Comprovante para Validação
                     </button>
-                    <!-- Ajustado as classes do erro -->
                     <p id="msgUpload" class="hidden text-xs font-bold text-center mt-3 text-red-600"></p>
                 </div>
 
@@ -392,7 +390,6 @@
             document.getElementById('checkoutNumeroLabel').textContent = numerosSelecionadosArray.join(', ');
             document.getElementById('checkoutValorLabel').textContent = (numerosSelecionadosArray.length * dadosRifaGlobal.valor_numero).toFixed(2).replace('.', ',');
             
-            // GARANTE QUE AS MENSAGENS ESTEJAM LIMPAS E OCULTAS
             const msgCheckout = document.getElementById('msgCheckout');
             msgCheckout.classList.add('hidden');
             msgCheckout.textContent = '';
@@ -401,7 +398,6 @@
             msgUpload.classList.add('hidden');
             msgUpload.textContent = '';
             
-            // GARANTE QUE OS BOTÕES ESTEJAM DESBLOQUEADOS (ISSO CAUSOU SEU TRAVAMENTO ANTES)
             const btnConf = document.getElementById('btnConfirmarReserva');
             btnConf.disabled = false;
             btnConf.innerHTML = '<i class="fas fa-check-circle"></i> Confirmar Reserva';
@@ -420,7 +416,6 @@
             document.getElementById('modalCheckoutRifa').classList.add('hidden');
             if(timerInterval) clearInterval(timerInterval);
             
-            // LIMPEZA FINAL DO BOTÃO CASO A PESSOA SÓ FECHE NO X
             const btnConf = document.getElementById('btnConfirmarReserva');
             if(btnConf) {
                 btnConf.disabled = false;
@@ -515,6 +510,10 @@
                     document.getElementById('chavePixExibicao').textContent = chavePix;
                     
                     iniciarTimer(300); 
+
+                    // NOVA LINHA: Atualiza a cartela IMEDIATAMENTE para o número ficar amarelo lá no fundo 
+                    // e evitar que você clique nele de novo por engano gerando o erro 409!
+                    carregarCartelaRifa(dadosRifaGlobal.id); 
                 }
 
             } catch (err) {
