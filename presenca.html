@@ -315,10 +315,19 @@
                 </div>
 
                 <!-- Abas de Navegação -->
-                <div class="flex text-xs font-bold w-full bg-gray-50 rounded-xl p-1 shadow-inner">
-                    <button type="button" id="tabDoacaoGeral" class="flex-1 py-2.5 rounded-lg text-center bg-white shadow-sm text-tema-primaria transition">Terreiro</button>
-                    <button type="button" id="tabDoacaoCantina" class="flex-1 py-2.5 rounded-lg text-center text-gray-500 hover:text-gray-800 transition">Cantina</button>
-                    <button type="button" id="tabDoacaoRifas" class="flex-1 py-2.5 rounded-lg text-center text-gray-500 hover:text-gray-800 transition">Rifas</button>
+                <div class="grid grid-cols-3 gap-2 mb-5 shrink-0">
+                    <button type="button" id="tabDoacaoGeral" class="relative py-2.5 px-1 rounded-xl font-black text-[11px] md:text-sm transition-all duration-300 shadow-md bg-tema-primaria text-white transform hover:-translate-y-1 active:scale-95 border-b-4 border-black/20 flex flex-col items-center justify-center gap-1">
+                        <i class="fas fa-home text-lg mb-0.5"></i>
+                        <span class="text-center leading-tight">Terreiro</span>
+                    </button>
+                    <button type="button" id="tabDoacaoCantina" class="relative py-2.5 px-1 rounded-xl font-bold text-[11px] md:text-sm transition-all duration-300 shadow-sm bg-white text-gray-500 hover:text-gray-800 border border-gray-200 hover:border-gray-300 transform hover:-translate-y-1 active:scale-95 flex flex-col items-center justify-center gap-1">
+                        <i class="fas fa-store text-lg mb-0.5 opacity-70"></i>
+                        <span class="text-center leading-tight">Cantina</span>
+                    </button>
+                    <button type="button" id="tabDoacaoRifas" class="relative py-2.5 px-1 rounded-xl font-bold text-[11px] md:text-sm transition-all duration-300 shadow-sm bg-white text-gray-500 hover:text-gray-800 border border-gray-200 hover:border-gray-300 transform hover:-translate-y-1 active:scale-95 flex flex-col items-center justify-center gap-1">
+                        <i class="fas fa-ticket-alt text-lg mb-0.5 opacity-70"></i>
+                        <span class="text-center leading-tight">Rifas</span>
+                    </button>
                 </div>
             </div>
 
