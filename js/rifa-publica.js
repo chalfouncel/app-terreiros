@@ -263,7 +263,7 @@ function fecharModalCheckout() {
     setTimeout(() => modal.classList.add('hidden'), 300);
 }
 
-// 13. Submissão do Formulário de Checkout
+// 13. Submissão do Formulário de Checkout chamando a Edge Function Asaas
 async function processarPagamentoAsaas(event) {
     event.preventDefault();
 
@@ -272,14 +272,14 @@ async function processarPagamentoAsaas(event) {
     const cpf = document.getElementById('chkCPF').value.trim();
 
     if (!nome || !telefone || !cpf) {
-        alert('Por favor, preencha todos os campos obrigatórios.');
+        alert('Por favor, preencha todos os campos obrigatórios (Nome, WhatsApp e CPF).');
         return;
     }
 
     const btn = document.getElementById('btnConfirmarPagamento');
     const btnOriginal = btn.innerHTML;
     btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Gerando cobrança segura Asaas...';
+    btn.innerHTML = '<i class="fas fa-circle-notch fa-spin mr-2"></i> Gerando cobrança segura Asaas...';
 
     const subtotal = numerosSelecionados.size * Number(rifaAtual.valor_numero);
     const taxa = calcularTaxaAsaas(subtotal);
@@ -287,32 +287,42 @@ async function processarPagamentoAsaas(event) {
     const arrayNumeros = Array.from(numerosSelecionados);
 
     try {
-        // Disparo para o backend/Edge Function do Asaas (Passo 4)
-        if (typeof window.criarCobrancaAsaas === 'function') {
-            await window.criarCobrancaAsaas({
-                rifaId: rifaAtual.id,
-                terreiroId: rifaAtual.terreiro_id,
-                numeros: arrayNumeros,
-                nome,
-                telefone,
-                cpf,
-                valorTotal: valorCobrado
-            });
+        const payload = {
+            rifaId: rifaAtual.id,
+            terreiroId: rifaAtual.terreiro_id,
+            numeros: arrayNumeros,
+            nome,
+            telefone,
+            cpf,
+            valorTotal: valorCobrado
+        };
+
+        const response = await fetch('https://pbjwqhfzsvdougeksztq.supabase.co/functions/v1/asaas-gerar-cobranca-rifa', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'apikey': SUPABASE_ANON_KEY
+            },
+            body: JSON.stringify(payload)
+        });
+
+        const resultado = await response.json();
+
+        if (!response.ok || resultado.error) {
+            throw new Error(resultado.error || 'Erro ao gerar cobrança no Asaas.');
+        }
+
+        // Sucesso: Redireciona o comprador diretamente para a página de pagamento oficial do Asaas
+        if (resultado.invoiceUrl) {
+            fecharModalCheckout();
+            window.location.href = resultado.invoiceUrl;
         } else {
-            console.log('Dados prontos para o Asaas:', {
-                rifaId: rifaAtual.id,
-                numeros: arrayNumeros,
-                nome,
-                telefone,
-                cpf,
-                valorTotal: valorCobrado
-            });
-            alert(`Reserva simulada com sucesso!\n${arrayNumeros.length} números reservados para ${nome}.\nValor final com taxa Asaas: ${formatarMoeda(valorCobrado)}`);
+            alert('Cobrança gerada com sucesso!');
         }
 
     } catch (err) {
         console.error('Erro no checkout:', err);
-        alert('Não foi possível gerar a cobrança: ' + (err.message || 'Tente novamente.'));
+        alert('Atenção: ' + (err.message || 'Não foi possível gerar a cobrança. Tente novamente.'));
     } finally {
         btn.disabled = false;
         btn.innerHTML = btnOriginal;
