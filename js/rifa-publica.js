@@ -1,16 +1,9 @@
-/**
- * rifa-publica.js
- * Gerenciamento da cartela unificada e checkout da Rifa com Asaas
- */
-
 // 1. Configuração do Supabase com as suas credenciais oficiais
 const SUPABASE_URL = 'https://pbjwqhfzsvdougeksztq.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_Ri0hesG16fjM1mxdk2LoLQ_zLFbAmLT';
 
-// Usa o supabaseClient global se já existir (do supabase.js) ou inicializa sem redeclarar
 if (!window.supabaseClient && window.supabase) {
-    const { createClient } = window.supabase;
-    window.supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 }
 var supabaseClient = window.supabaseClient;
 
