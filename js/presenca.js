@@ -729,7 +729,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ====================================================================
     window.todosItensDoacaoCache = [];
     let abaCampanhaAtiva = 'doacao';
-    let carrinhoDoacoes = {}; // <-- VARIÁVEL MOVIDA PARA AQUI!
+    let carrinhoDoacoes = {};
 
     async function carregarItensDoacao() {
         try {
@@ -755,15 +755,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!listaItensDoacao) return;
 
         const itensFiltrados = window.todosItensDoacaoCache.filter(item => {
-            // Padroniza a categoria para minúsculas para não falhar na filtragem
             const cat = (item.categoria || '').toLowerCase().trim();
-            
-            // Tudo o que NÃO for cantina vai para a aba Terreiro
+            // Qualquer coisa que NÃO seja cantina vai para a aba Terreiro
             if (aba === 'doacao') return cat !== 'cantina';
-            
             // Apenas itens da cantina vão para a aba Cantina
             if (aba === 'cantina') return cat === 'cantina';
-            
             return false;
         });
 
@@ -774,7 +770,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         let html = '';
         itensFiltrados.forEach(item => {
-            // Conversão segura do valor para evitar erro do '.toFixed' quando for nulo ou texto
             const valorParsed = parseFloat(item.valor_sugerido);
             const valSugerido = !isNaN(valorParsed) && valorParsed > 0 
                 ? `<span class="text-green-600 font-bold text-[10px] bg-green-50 border border-green-100 px-1.5 py-0.5 rounded">R$ ${valorParsed.toFixed(2)}</span>` 
@@ -817,11 +812,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const btnConfirmarDoacao = document.getElementById('btnConfirmarDoacao');
     const listaItensDoacao = document.getElementById('listaItensDoacao');
     const chavePix = document.getElementById('chavePix');
-    // A declaração do carrinhoDoacoes foi movida para cima para evitar o erro
 
     window.alternarAbaCampanhaApp = (aba) => {
         abaCampanhaAtiva = aba;
-        carrinhoDoacoes = {}; // Limpa carrinho ao trocar de aba para evitar mistura de contas PIX
+        carrinhoDoacoes = {}; 
         if(qtdTotalDoacao) qtdTotalDoacao.textContent = '0';
         if(btnConfirmarDoacao) { btnConfirmarDoacao.classList.add('hidden'); btnConfirmarDoacao.classList.remove('flex'); }
 
