@@ -4036,13 +4036,19 @@ window.addEventListener('DOMContentLoaded', () => {
     function alternarAbaCampanha(abaAtiva) {
         Object.keys(btnsTab).forEach(k => {
             if (!btnsTab[k]) return;
+            
+            // Classes base para ambos os estados (Layout e Animações)
+            const baseClasses = "relative py-3 md:py-4 px-2 md:px-6 rounded-2xl text-xs md:text-base transition-all duration-300 transform hover:-translate-y-1 active:scale-95 flex flex-col items-center justify-center gap-1.5 md:gap-2 w-full";
+            
             if (k === abaAtiva) {
-                btnsTab[k].classList.replace('border-transparent', 'border-tema-secundaria');
-                btnsTab[k].classList.replace('text-gray-500', 'text-tema-secundaria');
+                btnsTab[k].className = baseClasses + " font-black shadow-md bg-tema-secundaria text-white border-b-4 border-black/20";
+                const icone = btnsTab[k].querySelector('i');
+                if (icone) icone.classList.remove('opacity-70');
                 if (abas[k]) abas[k].classList.remove('hidden');
             } else {
-                btnsTab[k].classList.replace('border-tema-secundaria', 'border-transparent');
-                btnsTab[k].classList.replace('text-tema-secundaria', 'text-gray-500');
+                btnsTab[k].className = baseClasses + " font-bold shadow-sm bg-white text-gray-500 hover:text-gray-800 border border-gray-200 hover:border-gray-300 hover:shadow-md";
+                const icone = btnsTab[k].querySelector('i');
+                if (icone) icone.classList.add('opacity-70');
                 if (abas[k]) abas[k].classList.add('hidden');
             }
         });
