@@ -1139,11 +1139,36 @@ document.addEventListener('DOMContentLoaded', async () => {
         const anoSelecionado = parseInt(selectAnoMensalidade.value);
 
         const idsNoCarrinho = carrinhoMensalidadesState.map(c => c.mediumId);
+        
+        // 1. Busca os meses que JÁ FORAM PAGOS/APROVADOS
         const { data: pgtosFeitos } = await supabaseClient.from('financeiro')
             .select('medium_id, mes, pago')
             .eq('ano', anoSelecionado)
             .in('medium_id', idsNoCarrinho)
             .eq('pago', true);
+
+        // 2. Busca os comprovantes PENDENTES para travar os meses que aguardam validação
+        const { data: comprovantesPendentes } = await supabaseClient.from('comprovantes_mensalidade')
+            .select('detalhes_pagamento')
+            .eq('terreiro_id', idTerreiroGlobal)
+            .eq('status', 'pendente');
+
+        // 3. Mapeia os meses pendentes por cada médium
+        const mesesPendentesMap = {};
+        if (comprovantesPendentes) {
+            comprovantesPendentes.forEach(comp => {
+                if (comp.detalhes_pagamento && Array.isArray(comp.detalhes_pagamento)) {
+                    comp.detalhes_pagamento.forEach(det => {
+                        if (det.ano === anoSelecionado && det.meses) {
+                            if (!mesesPendentesMap[det.medium_id]) {
+                                mesesPendentesMap[det.medium_id] = new Set();
+                            }
+                            det.meses.forEach(m => mesesPendentesMap[det.medium_id].add(m));
+                        }
+                    });
+                }
+            });
+        }
 
         let htmlGeral = '';
 
@@ -1157,16 +1182,27 @@ document.addEventListener('DOMContentLoaded', async () => {
             let gridMesesHtml = '';
             for (let m = 1; m <= 12; m++) {
                 const jaPago = mesesPagos.includes(m);
+                const estaPendente = mesesPendentesMap[itemCarrinho.mediumId]?.has(m);
                 const selecionado = itemCarrinho.mesesSelecionados.includes(m);
                 
                 if (jaPago) {
+                    // MÊS PAGO (Verde)
                     gridMesesHtml += `
                         <div class="bg-green-50 border border-green-200 text-green-700 rounded-lg p-2 text-center text-xs font-bold flex flex-col justify-between opacity-80 cursor-not-allowed" title="Mês já pago">
                             <span>${nomesMeses[m]}</span>
                             <i class="fas fa-check-circle text-green-600 mt-1"></i>
                         </div>
                     `;
+                } else if (estaPendente) {
+                    // MÊS PENDENTE / EM ANÁLISE (Amarelo Travado)
+                    gridMesesHtml += `
+                        <div class="bg-yellow-50 border border-yellow-300 text-yellow-700 rounded-lg p-2 text-center text-xs font-bold flex flex-col justify-between opacity-90 cursor-not-allowed" title="Aguardando validação da tesouraria">
+                            <span>${nomesMeses[m]}</span>
+                            <i class="fas fa-clock text-yellow-500 mt-1"></i>
+                        </div>
+                    `;
                 } else {
+                    // MÊS LIVRE PARA SELECIONAR E PAGAR
                     gridMesesHtml += `
                         <label class="border rounded-lg p-2 text-center text-xs font-bold flex flex-col justify-between cursor-pointer transition select-none ${selecionado ? 'bg-tema-secundaria text-white border-tema-secundaria shadow-sm' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'}">
                             <span>${nomesMeses[m]}</span>
