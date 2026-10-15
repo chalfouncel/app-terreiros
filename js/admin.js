@@ -1483,8 +1483,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 pendenciasGerais.forEach(item => {
                     const valFmt = Number(item.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
                     
-                    // Forçando o fuso horário de Brasília (UTC-3)
-                    const dataEnvio = new Date(item.data).toLocaleString('pt-BR', { 
+                    // Corrigindo a leitura da data do banco para forçar UTC antes da conversão
+                    let strData = item.data || '';
+                    if (strData && !strData.includes('Z') && !strData.includes('+')) {
+                        strData += 'Z';
+                    }
+                    
+                    const dataEnvio = new Date(strData).toLocaleString('pt-BR', { 
                         timeZone: 'America/Sao_Paulo', 
                         day: '2-digit', 
                         month: '2-digit', 
