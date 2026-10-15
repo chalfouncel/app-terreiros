@@ -1699,7 +1699,7 @@ async function carregarComprovantesPendentes() {
         const { data: rifasPendentesRaw, error: errR } = await supabaseClient
             .from('rifa_numeros')
             .select('*')
-            .eq('terreiro_id', idTerreiro)
+            .eq('terreiro_id', idTerreiroGlobal)
             .eq('status_pagamento', 'pendente');
 
         if (errR) console.error("Erro busca rifas:", errR);
@@ -1728,10 +1728,10 @@ async function carregarComprovantesPendentes() {
         const { data: mensPendentes, error: errM } = await supabaseClient
             .from('mensalidades')
             .select('*, mediuns(nome)')
-            .eq('terreiro_id', idTerreiro)
+            .eq('terreiro_id', idTerreiroGlobal)
             .eq('status', 'pendente')
             .not('comprovante_url', 'is', null);
-
+        
         if (mensPendentes && !errM) {
             const meses = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
             mensPendentes.forEach(m => {
@@ -1917,6 +1917,13 @@ async function processarAcaoComprovante(acao) {
 
         document.getElementById('modalVerComprovante').classList.add('hidden');
         carregarComprovantesPendentes(); // Atualiza a tela
+        
+        // Atualiza a cartela da rifa em tempo real
+        if (window.rifaAtivaId && typeof abrirCartelaAdmin === 'function') {
+            const tituloAtual = document.getElementById('cartelaTituloRifa').textContent;
+            const qtdNum = document.querySelectorAll('#gridNumerosRifa button').length;
+            abrirCartelaAdmin(window.rifaAtivaId, tituloAtual, qtdNum, item.valor);
+        }
         
     } catch (error) {
         if(error.message !== "Cancelado") {
