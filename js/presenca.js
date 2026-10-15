@@ -815,59 +815,60 @@ document.addEventListener('DOMContentLoaded', async () => {
     const listaItensDoacao = document.getElementById('listaItensDoacao');
     const chavePix = document.getElementById('chavePix');
 
-    // --- CARREGAR THUMBNAIL DA RIFA ATIVA NO MODAL ---
-    async function carregarThumbRifaAtiva() {
-        const container = document.getElementById('cardRifaThumbContainer');
-        if (!container || !idTerreiroGlobal) return;
-
-        try {
-            const { data: rifas, error } = await supabaseClient
-                .from('rifas')
-                .select('*')
-                .eq('terreiro_id', idTerreiroGlobal)
-                .eq('status', 'aberta')
-                .order('created_at', { ascending: false })
-                .limit(1);
-
-            if (error) throw error;
-
-            if (rifas && rifas.length > 0) {
-                const r = rifas[0];
-                const imgSrc = r.imagem_url || 'https://images.unsplash.com/photo-1513151233558-d860c5398176?q=80&w=400&auto=format&fit=crop';
-                
-                container.innerHTML = `
-                    <div onclick="window.location.href='rifas.html?t=${idTerreiroGlobal}&r=${r.id}'" class="group relative bg-white rounded-2xl border-2 border-indigo-100 hover:border-indigo-500 overflow-hidden shadow-md cursor-pointer transition-all transform hover:-translate-y-1 active:scale-95">
-                        <div class="h-40 w-full overflow-hidden bg-gray-100 relative">
-                            <img src="${imgSrc}" class="w-full h-full object-cover group-hover:scale-105 transition duration-500" alt="${r.titulo}">
-                            <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent flex items-end p-3">
-                                <span class="bg-indigo-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Rifa Ativa</span>
+    // --- CARREGAR TODAS AS RIFAS ATIVAS NO MODAL ---
+        async function carregarThumbRifaAtiva() {
+            const container = document.getElementById('cardRifaThumbContainer');
+            if (!container || !idTerreiroGlobal) return;
+    
+            try {
+                const { data: rifas, error } = await supabaseClient
+                    .from('rifas')
+                    .select('*')
+                    .eq('terreiro_id', idTerreiroGlobal)
+                    .eq('status', 'aberta')
+                    .order('created_at', { ascending: false });
+    
+                if (error) throw error;
+    
+                if (rifas && rifas.length > 0) {
+                    container.innerHTML = rifas.map(r => {
+                        const imgSrc = r.imagem_url || 'https://images.unsplash.com/photo-1513151233558-d860c5398176?q=80&w=400&auto=format&fit=crop';
+                        const valorFormatado = Number(r.valor_numero).toFixed(2).replace('.', ',');
+                        
+                        return `
+                            <div onclick="window.location.href='rifas.html?t=${idTerreiroGlobal}&r=${r.id}'" class="group relative bg-white rounded-2xl border-2 border-indigo-100 hover:border-indigo-500 overflow-hidden shadow-sm hover:shadow-md cursor-pointer transition-all transform hover:-translate-y-0.5 active:scale-95 text-left">
+                                <div class="h-32 w-full overflow-hidden bg-gray-100 relative">
+                                    <img src="${imgSrc}" class="w-full h-full object-cover group-hover:scale-105 transition duration-500" alt="${r.titulo}">
+                                    <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent flex items-end p-2.5">
+                                        <span class="bg-indigo-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider shadow">Rifa Ativa</span>
+                                    </div>
+                                </div>
+                                <div class="p-3">
+                                    <h5 class="font-bold text-gray-800 text-sm truncate">${r.titulo}</h5>
+                                    <div class="flex justify-between items-center mt-2 pt-1 border-t border-gray-100">
+                                        <span class="text-xs font-black text-indigo-600">R$ ${valorFormatado} <span class="text-[10px] text-gray-400 font-normal">/ número</span></span>
+                                        <span class="text-[11px] font-bold text-gray-400 group-hover:text-indigo-600 transition flex items-center gap-1">Participar <i class="fas fa-arrow-right text-[9px]"></i></span>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                        <div class="p-3 text-left">
-                            <h5 class="font-bold text-gray-800 text-sm truncate">${r.titulo}</h5>
-                            <div class="flex justify-between items-center mt-1">
-                                <span class="text-xs font-bold text-indigo-600">R$ ${r.valor_numero.toFixed(2)} / número</span>
-                                <span class="text-[11px] font-bold text-gray-400 group-hover:text-indigo-600 transition flex items-center gap-1">Participar <i class="fas fa-arrow-right text-[9px]"></i></span>
+                        `;
+                    }).join('');
+                } else {
+                    container.innerHTML = `
+                        <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-6 text-center shadow-sm">
+                            <div class="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-xl mx-auto mb-2 shadow-inner">
+                                <i class="fas fa-ticket-alt"></i>
                             </div>
+                            <p class="font-bold text-indigo-900 text-sm">Nenhuma rifa ativa</p>
+                            <p class="text-[11px] text-indigo-600 mt-1">No momento não há sorteios em andamento.</p>
                         </div>
-                    </div>
-                `;
-            } else {
-                container.innerHTML = `
-                    <div onclick="window.location.href='rifas.html?t=${idTerreiroGlobal}'" class="bg-indigo-50 border border-indigo-200 rounded-2xl p-6 text-center cursor-pointer hover:bg-indigo-100 transition shadow-sm">
-                        <div class="w-14 h-14 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-2xl mx-auto mb-3 shadow-inner">
-                            <i class="fas fa-ticket-alt"></i>
-                        </div>
-                        <p class="font-bold text-indigo-900 text-sm">Abrir Portal de Rifas</p>
-                        <p class="text-[11px] text-indigo-600 mt-1">Nenhuma rifa com imagem em destaque no momento.</p>
-                    </div>
-                `;
+                    `;
+                }
+            } catch (err) {
+                console.error('Erro ao carregar rifas ativas:', err);
+                container.innerHTML = `<div class="p-4 text-center text-red-400 text-xs">Erro ao carregar rifas ativas.</div>`;
             }
-        } catch (err) {
-            console.error('Erro ao carregar thumb da rifa:', err);
-            container.innerHTML = `<div class="p-4 text-center text-red-400 text-xs">Erro ao carregar rifa ativa.</div>`;
         }
-    }
 
     window.alternarAbaCampanhaApp = (aba) => {
         abaCampanhaAtiva = aba;
