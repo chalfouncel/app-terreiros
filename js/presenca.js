@@ -754,8 +754,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!listaItensDoacao) return;
 
         const itensFiltrados = window.todosItensDoacaoCache.filter(item => {
-            if (aba === 'doacao') return item.categoria === 'limpeza' || item.categoria === 'firmeza';
+            // Qualquer coisa que NÃO seja cantina vai para a aba Terreiro
+            if (aba === 'doacao') return item.categoria !== 'cantina';
+            
+            // Apenas itens da cantina vão para a aba Cantina
             if (aba === 'cantina') return item.categoria === 'cantina';
+            
             return false;
         });
 
@@ -814,15 +818,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         if(qtdTotalDoacao) qtdTotalDoacao.textContent = '0';
         if(btnConfirmarDoacao) { btnConfirmarDoacao.classList.add('hidden'); btnConfirmarDoacao.classList.remove('flex'); }
 
+        const baseClasses = "relative py-2.5 px-1 rounded-xl transition-all duration-300 transform hover:-translate-y-1 active:scale-95 flex flex-col items-center justify-center gap-1 w-full text-[11px] md:text-sm";
+
         [tabDoacaoGeral, tabDoacaoCantina, tabDoacaoRifas].forEach(t => {
             if(t) { 
-                t.classList.remove('bg-white', 'shadow-sm', 'text-tema-primaria'); 
-                t.classList.add('text-gray-500'); 
+                t.className = baseClasses + " font-bold shadow-sm bg-white text-gray-500 hover:text-gray-800 border border-gray-200 hover:border-gray-300";
+                const icone = t.querySelector('i');
+                if (icone) icone.classList.add('opacity-70');
             }
         });
 
         if (aba === 'rifas') {
-            if(tabDoacaoRifas) { tabDoacaoRifas.classList.remove('text-gray-500'); tabDoacaoRifas.classList.add('bg-white', 'shadow-sm', 'text-tema-primaria'); }
+            if(tabDoacaoRifas) { 
+                tabDoacaoRifas.className = baseClasses + " font-black shadow-md bg-tema-primaria text-white border-b-4 border-black/20";
+                const icone = tabDoacaoRifas.querySelector('i');
+                if (icone) icone.classList.remove('opacity-70');
+            }
             if(secAbasDoacaoCantina) { secAbasDoacaoCantina.classList.add('hidden'); secAbasDoacaoCantina.classList.remove('flex'); }
             if(secAbaRifas) { secAbaRifas.classList.remove('hidden'); secAbaRifas.classList.add('flex'); }
             if(rodapeDoacao) rodapeDoacao.classList.add('hidden');
@@ -832,11 +843,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             if(rodapeDoacao) rodapeDoacao.classList.remove('hidden');
             
             if (aba === 'doacao') {
-                if(tabDoacaoGeral) { tabDoacaoGeral.classList.remove('text-gray-500'); tabDoacaoGeral.classList.add('bg-white', 'shadow-sm', 'text-tema-primaria'); }
+                if(tabDoacaoGeral) { 
+                    tabDoacaoGeral.className = baseClasses + " font-black shadow-md bg-tema-primaria text-white border-b-4 border-black/20";
+                    const icone = tabDoacaoGeral.querySelector('i');
+                    if (icone) icone.classList.remove('opacity-70');
+                }
                 if(lblPixDoacao) lblPixDoacao.textContent = 'Chave PIX (Doações)';
                 if(chavePix && terreiroConfigMensalidade) chavePix.textContent = terreiroConfigMensalidade.chave_pix_manual || 'Não configurada';
             } else if (aba === 'cantina') {
-                if(tabDoacaoCantina) { tabDoacaoCantina.classList.remove('text-gray-500'); tabDoacaoCantina.classList.add('bg-white', 'shadow-sm', 'text-tema-primaria'); }
+                if(tabDoacaoCantina) { 
+                    tabDoacaoCantina.className = baseClasses + " font-black shadow-md bg-tema-primaria text-white border-b-4 border-black/20";
+                    const icone = tabDoacaoCantina.querySelector('i');
+                    if (icone) icone.classList.remove('opacity-70');
+                }
                 if(lblPixDoacao) lblPixDoacao.textContent = 'Chave PIX (Cantina)';
                 if(chavePix && terreiroConfigMensalidade) chavePix.textContent = terreiroConfigMensalidade.cantina_chave_pix || 'Não configurada';
             }
