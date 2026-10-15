@@ -563,9 +563,22 @@
                         <!-- Relatório de Rifa -->
                         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 md:p-6">
                             <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
-                        <h3 class="text-base font-bold text-gray-800"><i class="fas fa-ticket-alt text-indigo-500 mr-2"></i> Relatório de Rifas (Compradores)</h3>
-                        <span id="totalArrecadadoGeralRifas" class="bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs font-black px-3 py-1 rounded-xl shadow-sm">Total Geral: R$ 0,00</span>
+                        <h3 class="text-base font-bold text-gray-800">
+                            <i class="fas fa-ticket-alt text-indigo-500 mr-2"></i>
+                            Relatório de Rifas (Compradores)
+                        </h3>
+
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span id="totalArrecadadoGeralRifas" class="bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs font-black px-3 py-1 rounded-xl shadow-sm">
+                                Total Geral: R$ 0,00
+                            </span>
+
+                            <span id="totalArrecadadoRifaSelecionada" class="bg-green-50 text-green-700 border border-green-200 text-xs font-black px-3 py-1 rounded-xl shadow-sm">
+                                Total da Rifa: R$ 0,00
+                            </span>
+                        </div>
                     </div>
+
                             <select id="selectRifaFinanceiro" class="w-full mb-4 px-3 py-2 border border-gray-300 rounded-xl text-sm bg-white outline-none focus:ring-2 focus:ring-indigo-500">
                                 <option value="">Selecione uma rifa...</option>
                             </select>
