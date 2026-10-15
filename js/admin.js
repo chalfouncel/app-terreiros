@@ -1482,7 +1482,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 pendenciasGerais.forEach(item => {
                     const valFmt = Number(item.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                    const dataEnvio = new Date(item.data).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+                    
+                    // Forçando o fuso horário de Brasília (UTC-3)
+                    const dataEnvio = new Date(item.data).toLocaleString('pt-BR', { 
+                        timeZone: 'America/Sao_Paulo', 
+                        day: '2-digit', 
+                        month: '2-digit', 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                    });
 
                     let btnAcao = '';
                     let iconeCard = '';
