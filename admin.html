@@ -1673,5 +1673,259 @@ window.limparImagemRifa = function() {
 };
         
     </script>
+    <script>
+// =========================================================================
+// MÓDULO DE VALIDAÇÃO DE COMPROVANTES (RIFAS E MENSALIDADES)
+// =========================================================================
+
+// Função auxiliar para evitar injeção de código (XSS) via nome de comprador
+const escapeHTML = (str) => String(str).replace(/[&<>'"]/g, 
+    match => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[match])
+);
+
+// Dispara a busca assim que clicar no menu "Validar Pagamentos"
+document.getElementById('menuComprovantes').addEventListener('click', () => {
+    carregarComprovantesPendentes();
+});
+
+async function carregarComprovantesPendentes() {
+    const divLista = document.getElementById('listaComprovantesPendentes');
+    divLista.innerHTML = '<div class="col-span-full p-8 text-center text-gray-500 bg-white rounded-2xl shadow-sm border border-gray-100"><i class="fas fa-spinner fa-spin mr-2 text-xl"></i> Buscando comprovantes aguardando análise...</div>';
+
+    try {
+        let comprovantes = [];
+
+        // 1. BUSCAR RIFAS
+        const { data: rifasPendentes, error: errR } = await supabaseClient
+            .from('rifa_numeros')
+            .select('*, rifas(titulo, valor_numero)')
+            .eq('terreiro_id', idTerreiro) // Variável global do admin
+            .eq('status_pagamento', 'pendente')
+            .not('comprovante_url', 'is', null);
+
+        if (rifasPendentes && !errR) {
+            rifasPendentes.forEach(r => {
+                comprovantes.push({
+                    tipo: 'rifa',
+                    id: r.id,
+                    referencia_id: r.rifa_id,
+                    titulo: r.rifas?.titulo || 'Rifa',
+                    subtitulo: `Número: ${String(r.numero).padStart(2,'0')}`,
+                    nome: r.nome_comprador,
+                    valor: r.rifas?.valor_numero || 0,
+                    url: r.comprovante_url,
+                    data: r.created_at
+                });
+            });
+        }
+
+        // 2. BUSCAR MENSALIDADES
+        const { data: mensPendentes, error: errM } = await supabaseClient
+            .from('mensalidades')
+            .select('*, mediuns(nome)')
+            .eq('terreiro_id', idTerreiro)
+            .eq('status', 'pendente')
+            .not('comprovante_url', 'is', null);
+
+        if (mensPendentes && !errM) {
+            const meses = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+            mensPendentes.forEach(m => {
+                comprovantes.push({
+                    tipo: 'mensalidade',
+                    id: m.id,
+                    referencia_id: m.medium_id,
+                    titulo: 'Mensalidade',
+                    subtitulo: `Ref: ${meses[m.mes-1]}/${m.ano}`,
+                    nome: m.mediuns?.nome || 'Médium',
+                    valor: m.valor,
+                    url: m.comprovante_url,
+                    data: m.created_at || m.data_pagamento || new Date()
+                });
+            });
+        }
+
+        // Se estiver tudo vazio
+        if (comprovantes.length === 0) {
+            divLista.innerHTML = `
+                <div class="col-span-full py-12 px-4 text-center flex flex-col items-center justify-center bg-white rounded-2xl border border-dashed border-gray-300">
+                    <div class="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center text-emerald-500 mb-3 text-2xl">
+                        <i class="fas fa-check-double"></i>
+                    </div>
+                    <p class="text-gray-800 font-bold text-lg">Tudo limpo por aqui!</p>
+                    <p class="text-sm text-gray-500 mt-1">Não há nenhum comprovante aguardando validação.</p>
+                </div>`;
+            return;
+        }
+
+        // Ordena do mais antigo para o mais novo
+        comprovantes.sort((a, b) => new Date(a.data) - new Date(b.data)); 
+        divLista.innerHTML = '';
+
+        // Renderiza os Cards (com dados limpos)
+        comprovantes.forEach(item => {
+            const isRifa = item.tipo === 'rifa';
+            const corBadge = isRifa ? 'bg-indigo-100 text-indigo-700 border-indigo-200' : 'bg-emerald-100 text-emerald-700 border-emerald-200';
+            const iconeBadge = isRifa ? 'fa-ticket-alt' : 'fa-calendar-check';
+            const labelBadge = isRifa ? 'RIFA' : 'MENSALIDADE';
+            
+            const nomeLimpo = escapeHTML(item.nome);
+            const tituloLimpo = escapeHTML(item.titulo);
+            const subtituloLimpo = escapeHTML(item.subtitulo);
+
+            divLista.innerHTML += `
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex flex-col relative overflow-hidden hover:border-blue-400 hover:shadow-md transition">
+                    <div class="flex justify-between items-start mb-3">
+                        <span class="text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded border ${corBadge} flex items-center gap-1">
+                            <i class="fas ${iconeBadge}"></i> ${labelBadge}
+                        </span>
+                        <p class="text-[10px] text-yellow-600 font-bold bg-yellow-50 px-2 py-0.5 rounded flex items-center">
+                            <i class="fas fa-clock mr-1"></i> Pendente
+                        </p>
+                    </div>
+                    
+                    <p class="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Pagador:</p>
+                    <h4 class="font-black text-gray-800 text-sm leading-tight mb-2 truncate" title="${nomeLimpo}">${nomeLimpo}</h4>
+                    
+                    <div class="bg-gray-50 p-2 rounded-lg border border-gray-100 mb-4">
+                        <p class="text-xs font-bold text-gray-700">${tituloLimpo}</p>
+                        <p class="text-[11px] text-gray-500">${subtituloLimpo}</p>
+                    </div>
+                    
+                    <div class="mt-auto pt-3 border-t border-gray-100 flex items-center justify-between">
+                        <p class="text-lg font-black text-gray-800">R$ ${item.valor.toFixed(2).replace('.',',')}</p>
+                        <button onclick='abrirModalComprovante(${JSON.stringify(item).replace(/'/g, "&#39;")})' class="bg-blue-600 text-white hover:bg-blue-700 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 active:scale-95 shadow-sm">
+                            <i class="fas fa-search-plus"></i> Analisar
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+
+    } catch (error) {
+        console.error("Erro ao buscar comprovantes:", error);
+        divLista.innerHTML = `<div class="col-span-full p-4 text-center text-red-500 font-bold"><i class="fas fa-exclamation-triangle mr-2"></i>Erro ao carregar lista.</div>`;
+    }
+}
+
+// Lógica de abertura do Modal (Conectando com o HTML já existente)
+let comprovanteAtualParaAcao = null;
+
+window.abrirModalComprovante = (item) => {
+    comprovanteAtualParaAcao = item;
+    
+    // Atualiza o modal que você já tem no HTML
+    document.getElementById('modalComprovanteSubtitulo').textContent = `${escapeHTML(item.nome)} - R$ ${item.valor.toFixed(2).replace('.',',')}`;
+    
+    const loader = document.getElementById('loaderComprovante');
+    const imgFrame = document.getElementById('imgComprovante');
+    const iframeDoc = document.getElementById('frameComprovante'); // Para PDFs
+    
+    loader.classList.remove('hidden');
+    
+    // Verifica se é PDF para exibir corretamente
+    const isPdf = item.url.toLowerCase().includes('.pdf');
+    
+    if (isPdf) {
+        imgFrame.classList.add('hidden');
+        iframeDoc.src = item.url;
+        iframeDoc.classList.remove('hidden');
+        iframeDoc.onload = () => loader.classList.add('hidden');
+    } else {
+        iframeDoc.classList.add('hidden');
+        imgFrame.src = item.url;
+        imgFrame.classList.remove('hidden');
+        imgFrame.onload = () => loader.classList.add('hidden');
+    }
+
+    document.getElementById('modalVerComprovante').classList.remove('hidden');
+    
+    // Adiciona as ações aos botões do seu HTML
+    document.getElementById('btnAprovarModal').onclick = () => processarAcaoComprovante('aprovar');
+    document.getElementById('btnRejeitarModal').onclick = () => processarAcaoComprovante('rejeitar');
+};
+
+async function processarAcaoComprovante(acao) {
+    if (!comprovanteAtualParaAcao) return;
+    
+    const btnAprovar = document.getElementById('btnAprovarModal');
+    const btnRejeitar = document.getElementById('btnRejeitarModal');
+    const item = comprovanteAtualParaAcao;
+    
+    // Trava os botões
+    btnAprovar.disabled = true;
+    btnRejeitar.disabled = true;
+    
+    if(acao === 'aprovar') btnAprovar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Aprovando...';
+    else btnRejeitar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Rejeitando...';
+
+    try {
+        if (acao === 'aprovar') {
+            if (item.tipo === 'rifa') {
+                const { error: err1 } = await supabaseClient.from('rifa_numeros').update({ status_pagamento: 'aprovado' }).eq('id', item.id);
+                if (err1) throw err1;
+
+                const { error: err2 } = await supabaseClient.from('caixa_terreiro').insert([{
+                    terreiro_id: idTerreiro,
+                    tipo_transacao: 'RIFA',
+                    descricao: `Venda Rifa - ${item.subtitulo} (${item.nome})`,
+                    valor: item.valor,
+                    metodo_pagamento: 'pix',
+                    pagador_nome: item.nome,
+                    status: 'pago',
+                    referencia_id: item.referencia_id
+                }]);
+                if (err2) throw err2;
+
+            } else if (item.tipo === 'mensalidade') {
+                const { error: err3 } = await supabaseClient.from('mensalidades').update({ status: 'pago', metodo_pagamento: 'pix' }).eq('id', item.id);
+                if (err3) throw err3;
+
+                const { error: err4 } = await supabaseClient.from('caixa_terreiro').insert([{
+                    terreiro_id: idTerreiro,
+                    tipo_transacao: 'MENSALIDADE',
+                    descricao: `Mensalidade (${item.subtitulo}) - ${item.nome}`,
+                    valor: item.valor,
+                    metodo_pagamento: 'pix',
+                    pagador_nome: item.nome,
+                    status: 'pago',
+                    referencia_id: item.referencia_id
+                }]);
+                if (err4) throw err4;
+            }
+            alert("✅ Pagamento APROVADO com sucesso!");
+        } 
+        else if (acao === 'rejeitar') {
+            const conf = confirm("Tem certeza que deseja REJEITAR este pagamento?");
+            if (!conf) throw new Error("Cancelado");
+            
+            if (item.tipo === 'rifa') {
+                // Rifa rejeitada: apaga a reserva, número volta a ficar livre (Branco)
+                const { error: errDel } = await supabaseClient.from('rifa_numeros').delete().eq('id', item.id);
+                if (errDel) throw errDel;
+            } else if (item.tipo === 'mensalidade') {
+                // Mensalidade rejeitada: apaga a imagem e volta pra pendente
+                const { error: errUpd } = await supabaseClient.from('mensalidades').update({ comprovante_url: null, status: 'pendente' }).eq('id', item.id);
+                if (errUpd) throw errUpd;
+            }
+            alert("❌ Pagamento REJEITADO.");
+        }
+
+        document.getElementById('modalVerComprovante').classList.add('hidden');
+        carregarComprovantesPendentes(); // Atualiza a tela
+        
+    } catch (error) {
+        if(error.message !== "Cancelado") {
+            alert("Erro: " + (error.message || "Falha de comunicação com o banco."));
+            console.error(error);
+        }
+    } finally {
+        // Destrava os botões
+        btnAprovar.disabled = false;
+        btnRejeitar.disabled = false;
+        btnAprovar.innerHTML = '<i class="fas fa-check"></i> Aprovar Baixa';
+        btnRejeitar.innerHTML = '<i class="fas fa-times"></i> Rejeitar Falha';
+    }
+}
+</script>
 </body>
 </html>
