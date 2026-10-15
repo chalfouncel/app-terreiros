@@ -4662,7 +4662,7 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-// ============================================================================
+    // ============================================================================
     // ABAS DO FINANCEIRO E RELATÓRIO DE ARRECADAÇÃO (RIFAS COM MÉDIUNS EM VERDE)
     // ============================================================================
     const btnTabFinMensalidades = document.getElementById('btnTabFinMensalidades');
@@ -4686,8 +4686,6 @@ window.addEventListener('DOMContentLoaded', () => {
             abaFinArrecadacao.classList.remove('hidden');
             abaFinMensalidades.classList.add('hidden');
             carregarSelectRifasFinanceiro();
-        });
-    }
         });
     }
 
@@ -4743,14 +4741,12 @@ window.addEventListener('DOMContentLoaded', () => {
 
             tbody.innerHTML = '';
             Object.values(agrupado).forEach(comp => {
-                // Valida se o comprador é médium pelo número de telefone
                 const ehMedium = listaMediunsGlobal.find(m => m.telefone && m.telefone.replace(/\D/g, '') === comp.telefoneLimpo);
                 
                 const nomeExibicao = ehMedium 
                     ? `<span class="text-green-600 font-bold" title="Médium da Casa">${comp.nome} <i class="fas fa-check-circle text-[10px]"></i></span>` 
                     : `<span class="text-gray-800 font-medium">${comp.nome}</span>`;
 
-                // Exibe o Nome Social (ou o primeiro nome) de quem passou a rifa
                 let vendedorNome = '-';
                 if (comp.vendedor_id) {
                     const v = listaMediunsGlobal.find(m => m.id === comp.vendedor_id);
