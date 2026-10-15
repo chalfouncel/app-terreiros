@@ -7,12 +7,12 @@
 const SUPABASE_URL = 'https://pbjwqhfzsvdougeksztq.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_Ri0hesG16fjM1mxdk2LoLQ_zLFbAmLT';
 
-// Usa o supabaseClient global se já existir (do supabase.js) ou cria a conexão
-let supabaseClient = window.supabaseClient;
-if (!supabaseClient && window.supabase) {
+// Usa o supabaseClient global se já existir (do supabase.js) ou inicializa sem redeclarar
+if (!window.supabaseClient && window.supabase) {
     const { createClient } = window.supabase;
-    supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    window.supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 }
+var supabaseClient = window.supabaseClient;
 
 // 2. Parâmetros e Estado da Aplicação
 const urlParams = new URLSearchParams(window.location.search);
@@ -27,8 +27,7 @@ let numerosSelecionados = new Set(); // Set de números escolhidos pelo usuário
 const TAXA_FIXA_ASAAS = 1.99; // R$ 1,99 fixo
 
 // 3. Inicialização ao carregar a página
-document.addEventListener('DOMContentLoaded', async () => {
-    // Garante referência ao cliente
+async function iniciarApp() {
     if (!supabaseClient && window.supabaseClient) {
         supabaseClient = window.supabaseClient;
     }
@@ -40,7 +39,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     await carregarDadosRifa();
     configurarRealtime();
-});
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', iniciarApp);
+} else {
+    iniciarApp();
+}
 
 // 4. Buscar dados da Rifa e do Terreiro
 async function carregarDadosRifa() {
