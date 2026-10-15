@@ -62,10 +62,14 @@
             <div class="text-center md:text-left flex-1">
                 <h2 id="rifaTitulo" class="text-xl md:text-2xl font-black text-gray-800 leading-tight mb-2">Título da Rifa</h2>
                 <p id="rifaDescricao" class="text-xs md:text-sm text-gray-500 mb-3 leading-relaxed">...</p>
-                <div class="flex items-center justify-center md:justify-start gap-4">
+                <div class="flex flex-wrap items-center justify-center md:justify-start gap-3">
                     <span class="bg-white border border-gray-200 px-3 py-1.5 rounded-lg text-sm font-bold text-gray-700 shadow-sm">
                         R$ <span id="rifaValor">0,00</span> <span class="text-[10px] text-gray-400 font-normal uppercase">/ Número</span>
                     </span>
+                    <!-- Botão Compartilhar Link Público -->
+                    <button type="button" onclick="compartilharRifaPublica(dadosRifaGlobal.id, dadosRifaGlobal.titulo)" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm active:scale-95">
+                        <i class="fas fa-share-alt"></i> Compartilhar Link Público
+                    </button>
                 </div>
             </div>
             <button onclick="voltarParaLista()" class="hidden md:flex text-gray-400 hover:text-gray-800 transition p-2 bg-white rounded-xl shadow-sm border border-gray-200">
@@ -135,13 +139,20 @@
                         <input type="tel" id="compradorTelefone" required class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-tema-primaria outline-none text-sm bg-white shadow-sm" placeholder="(11) 99999-9999">
                     </div>
 
-                    <button type="button" id="btnConfirmarReserva" class="w-full mt-6 bg-tema-primaria hover:opacity-90 active:scale-95 text-white font-bold py-4 rounded-xl shadow-lg transition text-sm flex items-center justify-center gap-2">
-                        <i class="fas fa-check-circle"></i> Confirmar Reserva
+                    <!-- Botão 1: Pagamento via PIX Manual com Comprovante (Fluxo Tradicional) -->
+                    <button type="button" id="btnConfirmarReserva" class="w-full mt-4 bg-tema-primaria hover:opacity-90 active:scale-95 text-white font-bold py-3.5 rounded-xl shadow-lg transition text-sm flex items-center justify-center gap-2">
+                        <i class="fas fa-receipt"></i> Pagar via PIX com Comprovante
                     </button>
+
+                    <!-- Botão 2: Redirecionamento para Pagamento Automático Asaas -->
+                    <button type="button" id="btnPagarViaAsaas" onclick="irParaCheckoutAsaas()" class="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold py-3.5 rounded-xl shadow-md transition text-sm flex items-center justify-center gap-2">
+                        <i class="fas fa-credit-card"></i> Pagar Online Automático (Cartão / PIX Asaas)
+                    </button>
+
                     <p id="msgCheckout" class="hidden text-xs font-bold text-center mt-3 text-red-600 block"></p>
                 </form>
 
-                <!-- PASSO 2: PIX E COMPROVANTE -->
+                <!-- PASSO 2: PIX E COMPROVANTE (FLUXO MANUAL) -->
                 <div id="boxUploadComprovante" class="hidden flex flex-col items-center">
                     
                     <div class="w-full bg-yellow-50 border border-yellow-200 p-4 rounded-2xl text-center shadow-inner mb-5 relative overflow-hidden">
@@ -265,6 +276,31 @@
             window.location.href = v ? `rifas.html?t=${idTerreiro}&v=${v}` : `rifas.html?t=${idTerreiro}`;
         };
 
+        // Função para Compartilhar o Link Público da Rifa (Passo 5)
+        window.compartilharRifaPublica = (rifaId, titulo) => {
+            const baseUrl = window.location.origin;
+            const vend = vendedorIdParaBD ? `&v=${vendedorIdParaBD}` : '';
+            const link = `${baseUrl}/rifa-publica.html?r=${rifaId}${vend}`;
+
+            if (navigator.share) {
+                navigator.share({
+                    title: titulo || 'Participe da nossa Rifa Solidária!',
+                    text: `Olá! Participe da nossa Rifa "${titulo || 'Solidária'}" e escolha seus números pelo link:`,
+                    url: link
+                }).catch(() => {});
+            } else {
+                navigator.clipboard.writeText(link).then(() => {
+                    alert(`✅ Link Público copiado com sucesso!\n\n${link}\n\nEnvie para os seus contatos pelo WhatsApp!`);
+                });
+            }
+        };
+
+        // Redirecionamento para a página oficial do Asaas (Passo 5)
+        window.irParaCheckoutAsaas = () => {
+            const vend = vendedorIdParaBD ? `&v=${vendedorIdParaBD}` : '';
+            window.location.href = `rifa-publica.html?r=${dadosRifaGlobal.id}${vend}`;
+        };
+
         async function carregarListaDeRifas() {
             document.getElementById('estadoListaRifas').classList.remove('hidden');
             document.getElementById('estadoListaRifas').classList.add('flex');
@@ -282,15 +318,25 @@
             rifas.forEach(r => {
                 const img = r.imagem_url ? `<div class="w-full h-40 mb-3 rounded-xl overflow-hidden bg-gray-50 p-2"><img src="${r.imagem_url}" class="w-full h-full object-contain"></div>` : '';
                 grid.innerHTML += `
-                    <div onclick="window.location.href='rifas.html?t=${idTerreiro}&r=${r.id}${vendedorIdParaBD ? '&v=' + vendedorIdParaBD : ''}'" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 hover:border-tema-primaria cursor-pointer active:scale-[0.98] flex flex-col h-full transition">
-                        ${img}
-                        <div class="flex-1 flex flex-col">
-                            <h3 class="font-black text-gray-800 text-sm mb-2">${r.titulo}</h3>
+                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full transition">
+                        <div onclick="window.location.href='rifas.html?t=${idTerreiro}&r=${r.id}${vendedorIdParaBD ? '&v=' + vendedorIdParaBD : ''}'" class="cursor-pointer">
+                            ${img}
+                            <h3 class="font-black text-gray-800 text-sm mb-2 hover:text-tema-primaria transition">${r.titulo}</h3>
                             <p class="text-[11px] text-gray-500 line-clamp-2 mb-4">${r.descricao || 'Apoie nossa causa.'}</p>
-                            <div class="flex justify-between border-t border-gray-100 pt-3 mt-auto">
+                            <div class="flex justify-between border-t border-gray-100 pt-3">
                                 <span class="text-[10px] font-bold text-gray-400">${r.quantidade_numeros} Números</span>
                                 <span class="text-sm font-black text-tema-primaria">R$ ${r.valor_numero.toFixed(2).replace('.', ',')}</span>
                             </div>
+                        </div>
+                        
+                        <!-- BOTÃO COMPARTILHAR LINK PÚBLICO ASAAS (Passo 5) -->
+                        <div class="mt-3 pt-3 border-t border-gray-100 flex gap-2">
+                            <button onclick="compartilharRifaPublica('${r.id}', '${r.titulo.replace(/'/g, "\\'")}')" class="flex-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 active:scale-95 shadow-sm">
+                                <i class="fas fa-share-alt"></i> Compartilhar Link
+                            </button>
+                            <button onclick="window.location.href='rifa-publica.html?r=${r.id}${vendedorIdParaBD ? '&v=' + vendedorIdParaBD : ''}'" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 active:scale-95 shadow-sm" title="Abrir Cartela Pública">
+                                <i class="fas fa-external-link-alt"></i>
+                            </button>
                         </div>
                     </div>
                 `;
@@ -351,8 +397,8 @@
                 let btnC = "", acao = "", cursor = "", tooltip = "";
 
                 if (c) {
-                    if (c.status_pagamento === 'aprovado') {
-                        // VERDE - Vendido definitivo
+                    if (c.status_pagamento === 'aprovado' || c.status_pagamento === 'pago') {
+                        // VERDE - Vendido definitivo (Manual aprovado ou Asaas pago)
                         cursor = "cursor-not-allowed opacity-90";
                         btnC = "border-green-600 bg-green-500 text-white shadow-sm"; 
                         tooltip = "Vendido / Aprovado";
@@ -439,7 +485,7 @@
             
             const btnConf = document.getElementById('btnConfirmarReserva');
             btnConf.disabled = false;
-            btnConf.innerHTML = '<i class="fas fa-check-circle"></i> Confirmar Reserva';
+            btnConf.innerHTML = '<i class="fas fa-receipt"></i> Pagar via PIX com Comprovante';
             
             const btnEnv = document.getElementById('btnEnviarComprovante');
             btnEnv.disabled = false;
@@ -456,7 +502,7 @@
             if(timerInterval) clearInterval(timerInterval);
             
             const btnConf = document.getElementById('btnConfirmarReserva');
-            if(btnConf) { btnConf.disabled = false; btnConf.innerHTML = '<i class="fas fa-check-circle"></i> Confirmar Reserva'; }
+            if(btnConf) { btnConf.disabled = false; btnConf.innerHTML = '<i class="fas fa-receipt"></i> Pagar via PIX com Comprovante'; }
             
             const btnEnv = document.getElementById('btnEnviarComprovante');
             if(btnEnv) { btnEnv.disabled = false; btnEnv.innerHTML = '<i class="fas fa-upload"></i> Enviar Comprovante para Validação'; }
@@ -584,7 +630,7 @@
                 msg.textContent = err.message || "Erro desconhecido ao processar."; 
                 msg.classList.remove('hidden');
                 btnConf.disabled = false; 
-                btnConf.innerHTML = '<i class="fas fa-check-circle"></i> Confirmar Reserva';
+                btnConf.innerHTML = '<i class="fas fa-receipt"></i> Pagar via PIX com Comprovante';
             }
         });
 
