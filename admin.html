@@ -475,10 +475,16 @@
             <div id="secFinanceiro" class="secao-painel hidden">
                 
                 
-                <!-- MENU INTERNO DE ABAS -->
-                <div class="flex mb-6 space-x-2 border-b border-gray-200 overflow-x-auto text-sm font-bold no-scrollbar">
-                    <button id="btnTabFinMensalidades" class="py-3 px-4 border-b-2 border-tema-secundaria text-tema-secundaria whitespace-nowrap transition"><i class="fas fa-list mr-2"></i>Mensalidades</button>
-                    <button id="btnTabFinArrecadacao" class="py-3 px-4 border-b-2 border-transparent text-gray-500 hover:text-gray-800 whitespace-nowrap transition"><i class="fas fa-chart-pie mr-2"></i>Painel de Arrecadação (Rifas / Cantina)</button>
+                <!-- MENU INTERNO DE ABAS (PADRÃO DE DOAÇÕES) -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                    <button id="btnTabFinMensalidades" class="relative py-3 md:py-4 px-4 md:px-6 rounded-2xl font-black text-xs md:text-base transition-all duration-300 shadow-md bg-tema-secundaria text-white transform hover:-translate-y-1 active:scale-95 border-b-4 border-black/20 flex flex-col items-center justify-center gap-1.5 w-full">
+                        <i class="fas fa-list text-xl md:text-3xl mb-1"></i>
+                        <span class="text-center leading-tight">Mensalidades</span>
+                    </button>
+                    <button id="btnTabFinArrecadacao" class="relative py-3 md:py-4 px-4 md:px-6 rounded-2xl font-bold text-xs md:text-base transition-all duration-300 shadow-sm bg-white text-gray-500 hover:text-gray-800 border border-gray-200 hover:border-gray-300 hover:shadow-md transform hover:-translate-y-1 active:scale-95 flex flex-col items-center justify-center gap-1.5 w-full">
+                        <i class="fas fa-chart-pie text-xl md:text-3xl mb-1 opacity-70"></i>
+                        <span class="text-center leading-tight">Painel de Arrecadação (Rifas / Cantina)</span>
+                    </button>
                 </div>
 
                 <!-- ABA 1: MENSALIDADES -->
