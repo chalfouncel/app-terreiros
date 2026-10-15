@@ -946,7 +946,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                 }
 
-                if (btnGerarHistorico && selectRelatorio) {
+                if (btnGerarHistorico && selectRelatorio && btnGerarHistorico.parentNode) {
                     const novoBtn = btnGerarHistorico.cloneNode(true);
                     btnGerarHistorico.parentNode.replaceChild(novoBtn, btnGerarHistorico);
 
@@ -4052,15 +4052,18 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         });
         
-        if (abaAtiva === 'rifas') carregarRifasAdmin();
-        if (abaAtiva === 'doacoes') {
-            if (typeof window.carregarDoacoesPrometidas === 'function') window.carregarDoacoesPrometidas();
-            if (typeof window.carregarDoacoesCatalogo === 'function') window.carregarDoacoesCatalogo();
-        }
-        if (abaAtiva === 'cantina') {
-            if (typeof carregarConfigCantina === 'function') carregarConfigCantina();
-            if (typeof window.carregarDoacoesCatalogo === 'function') window.carregarDoacoesCatalogo();
-        }
+        // Dispara o carregamento dos itens com um pequeno timeout para dar tempo da aba abrir visualmente
+        setTimeout(() => {
+            if (abaAtiva === 'rifas') carregarRifasAdmin();
+            if (abaAtiva === 'doacoes') {
+                if (typeof window.carregarDoacoesPrometidas === 'function') window.carregarDoacoesPrometidas();
+                if (typeof window.carregarDoacoesCatalogo === 'function') window.carregarDoacoesCatalogo();
+            }
+            if (abaAtiva === 'cantina') {
+                if (typeof carregarConfigCantina === 'function') carregarConfigCantina();
+                if (typeof window.carregarDoacoesCatalogo === 'function') window.carregarDoacoesCatalogo();
+            }
+        }, 50);
     }
 
     if(btnsTab.doacoes) btnsTab.doacoes.addEventListener('click', () => alternarAbaCampanha('doacoes'));
