@@ -364,18 +364,19 @@
             </div>
 
             <!-- Conteúdo: Rifas -->
-            <div id="conteudoAbaRifas" class="hidden flex-1 flex flex-col justify-between items-center py-4 text-center px-2">
-                <div class="w-full flex-1 flex flex-col items-center justify-center overflow-y-auto">
-                    <div id="cardRifaThumbContainer" class="w-full max-w-xs mb-3">
+                <div id="conteudoAbaRifas" class="hidden flex-1 flex flex-col py-2 px-1 overflow-hidden">
+                    <div class="text-center mb-3 shrink-0">
+                        <h4 class="font-black text-gray-800 text-base">Rifas e Campanhas Ativas</h4>
+                        <p class="text-[11px] text-gray-500">Selecione uma rifa para ver a cartela e adquirir números.</p>
+                    </div>
+
+                    <!-- Container com rolagem vertical para comportar todas as rifas abertas -->
+                    <div id="cardRifaThumbContainer" class="flex-1 overflow-y-auto space-y-3 px-1 pb-4">
                         <div class="p-6 text-center text-gray-400 text-xs">
-                            <i class="fas fa-spinner fa-spin text-2xl mb-2"></i><br>Buscando rifa ativa...
+                            <i class="fas fa-spinner fa-spin text-2xl mb-2"></i><br>Buscando rifas ativas...
                         </div>
                     </div>
-                    <h4 class="font-black text-gray-800 text-base mb-1">Rifas e Sorteios</h4>
-                    <p class="text-[11px] text-gray-500 leading-snug px-2">Clique na imagem acima para abrir o portal de rifas, reservar números ou registrar vendas.</p>
                 </div>
-            </div>
-
             <!-- Rodapé (Apenas para Doações e Cantina) -->
             <div id="rodapeDoacao" class="flex-shrink-0 pt-3 border-t border-gray-100 bg-white">
                 <button id="btnConfirmarDoacao" class="hidden w-full bg-green-600 text-white font-bold py-3.5 px-4 rounded-xl hover:bg-green-700 transition flex items-center justify-center shadow-lg active:scale-95 mb-2">
