@@ -4902,6 +4902,12 @@ window.addEventListener('DOMContentLoaded', () => {
             
             if (!idRifa) {
                 tbody.innerHTML = '<tr><td colspan="3" class="text-center p-6 text-gray-500">Selecione uma rifa para visualizar.</td></tr>';
+
+                const elTotalRifa = document.getElementById('totalArrecadadoRifaSelecionada');
+                if (elTotalRifa) {
+                    elTotalRifa.textContent = `Total da Rifa: ${Number(0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`;
+                }
+
                 return;
             }
             tbody.innerHTML = '<tr><td colspan="3" class="text-center p-6 text-gray-500"><i class="fas fa-spinner fa-spin"></i> Buscando dados da rifa...</td></tr>';
@@ -4911,6 +4917,14 @@ window.addEventListener('DOMContentLoaded', () => {
             const valorUnitarioRifa = rifaInfo ? (parseFloat(rifaInfo.valor_numero) || 0) : 0;
 
             const { data: numeros } = await supabaseClient.from('rifa_numeros').select('*').eq('rifa_id', idRifa).order('numero', {ascending: true});
+            const totalRifaSelecionada = (numeros || [])
+                .filter(n => n.status_pagamento === 'aprovado')
+                .length * valorUnitarioRifa;
+
+            const elTotalRifa = document.getElementById('totalArrecadadoRifaSelecionada');
+            if (elTotalRifa) {
+                elTotalRifa.textContent = `Total da Rifa: ${totalRifaSelecionada.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`;
+            }
             
             if (!numeros || numeros.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="3" class="text-center p-6 text-gray-500">Nenhum número vendido nesta rifa ainda.</td></tr>';
