@@ -2571,21 +2571,6 @@ function renderizarTagsConfiguracao() {
             }
         };
 
-        window.carregarDoacoesCatalogo = async () => {
-            if (!idTerreiroGlobal) return;
-            const tbody = document.getElementById('tabelaItensDoacao');
-            if(!tbody) return;
-            const { data, error } = await supabaseClient.from('itens_doacao').select('*').eq('terreiro_id', idTerreiroGlobal).order('nome');
-            if (error) return;
-            tbody.innerHTML = '';
-            if (data && data.length > 0) {
-                data.forEach(item => {
-                    const btn = item.ativo ? `<button onclick="alternarStatusCatalogo('${item.id}', false)" class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded font-bold">Ocultar</button>` : `<button onclick="alternarStatusCatalogo('${item.id}', true)" class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-bold">Ativar</button>`;
-                    tbody.innerHTML += `<tr class="border-b border-gray-100 ${item.ativo ? '' : 'opacity-40'}"><td class="p-3 text-sm">${item.nome}</td><td class="p-3 text-xs text-gray-500">${item.descricao || '-'}</td><td class="p-3 text-center">${btn}</td></tr>`;
-                });
-            }
-        };
-
         let cacheTerreirosSaaS = [];
 
         function renderizarCardsTerreirosSaaS(lista) {
