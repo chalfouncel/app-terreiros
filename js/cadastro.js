@@ -115,7 +115,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (btnSalvar) {
                 btnSalvar.disabled = true;
-                btnSalvar.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> A criar acesso...';
+                btnSalvar.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Criando acesso...';
             }
             if (msgErro) msgErro.classList.add('hidden');
 
@@ -132,14 +132,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                     if (errAuth) {
                         if (errAuth.message.includes('already registered')) {
-                            throw new Error("Este número de WhatsApp já possui acesso registado no sistema.");
+                            throw new Error("Este número de WhatsApp já possui acesso registrado no sistema.");
                         }
                         throw new Error("Erro na criação do acesso: " + errAuth.message);
                     }
                     novoAuthId = authData.user.id;
                 }
 
-                // CORREÇÃO: "cadastro_completo: true" foi restaurado na payload de envio
                 const updateData = {
                     nome_social: valNomeSocial,
                     telefone: telefoneLimpo,
@@ -156,7 +155,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 if (errBd) {
                     if (errBd.message.includes('unique constraint')) {
-                        throw new Error("O número de WhatsApp informado já está a ser utilizado por outro médium.");
+                        throw new Error("O número de WhatsApp informado já está sendo utilizado por outro médium.");
                     }
                     throw errBd;
                 }
@@ -170,7 +169,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 localStorage.setItem('telefone_acesso', telefoneLimpo);
 
-                exibirMensagem('✅ Acesso ativado com sucesso! A entrar no painel...', 'green');
+                exibirMensagem('✅ Acesso ativado com sucesso! Entrando no painel...', 'green');
 
                 setTimeout(() => {
                     window.location.replace('presenca.html');
