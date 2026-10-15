@@ -4240,57 +4240,88 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     async function carregarRifasAdmin() {
-        if (!idTerreiroGlobal) return;
-        const grid = document.getElementById('gridRifas');
-        if (!grid) return;
-        grid.innerHTML = '<div class="col-span-full text-center p-8 text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i> Carregando rifas...</div>';
+            if (!idTerreiroGlobal) return;
+            const grid = document.getElementById('gridRifas');
+            if (!grid) return;
+            grid.innerHTML = '<div class="col-span-full text-center p-8 text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i> Carregando rifas...</div>';
 
-        const { data: rifas, error } = await supabaseClient.from('rifas')
-            .select('*').eq('terreiro_id', idTerreiroGlobal).order('created_at', { ascending: false });
+            const { data: rifas, error } = await supabaseClient.from('rifas')
+                .select('*').eq('terreiro_id', idTerreiroGlobal).order('created_at', { ascending: false });
 
-        if (error || !rifas || rifas.length === 0) {
-            grid.innerHTML = '<div class="col-span-full p-6 text-center text-gray-400 bg-gray-50 rounded-xl border border-dashed border-gray-200">Nenhuma rifa cadastrada ainda.</div>';
-            return;
-        }
+            if (error || !rifas || rifas.length === 0) {
+                grid.innerHTML = '<div class="col-span-full p-6 text-center text-gray-400 bg-gray-50 rounded-xl border border-dashed border-gray-200">Nenhuma rifa cadastrada ainda.</div>';
+                return;
+            }
 
-        grid.innerHTML = '';
-        rifas.forEach(r => {
-            const isEncerrada = r.status === 'encerrada';
-            const bgCor = isEncerrada ? 'bg-gray-100 opacity-80' : 'bg-white border-t-4 border-indigo-500';
-            const badge = isEncerrada 
-                ? `<span class="bg-gray-200 text-gray-600 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">Encerrada</span>`
-                : `<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider"><i class="fas fa-circle text-[8px] animate-pulse"></i> Aberta</span>`;
-
-            grid.innerHTML += `
-                <div class="${bgCor} border border-gray-200 rounded-2xl p-5 shadow-sm flex flex-col justify-between hover:shadow-md transition">
-                    <div>
-                        <div class="flex justify-between items-start mb-2">
-                            <h4 class="font-bold text-gray-800 text-sm leading-tight pr-2">${r.titulo}</h4>${badge}
-                        </div>
-                        <p class="text-[11px] text-gray-500 mb-4 line-clamp-2">${r.descricao || 'Sem descrição'}</p>
-                        
-                        <div class="flex items-center gap-4 mb-4">
-                            <div class="text-center">
-                                <p class="text-[10px] text-gray-400 font-bold uppercase">Números</p>
-                                <p class="text-lg font-black text-indigo-600">${r.quantidade_numeros}</p>
-                            </div>
-                            <div class="w-px h-8 bg-gray-200"></div>
-                            <div class="text-center">
-                                <p class="text-[10px] text-gray-400 font-bold uppercase">Valor</p>
-                                <p class="text-sm font-bold text-gray-700">R$ ${r.valor_numero.toFixed(2)}</p>
-                            </div>
-                        </div>
-                        ${isEncerrada && r.numero_vencedor ? `<div class="bg-yellow-100 border border-yellow-300 text-yellow-800 text-xs font-bold p-2 rounded-lg text-center mb-3"><i class="fas fa-trophy mr-1 text-yellow-600"></i> Número Vencedor: ${r.numero_vencedor}</div>` : ''}
-                    </div>
+            // Busca os detalhes dos ganhadores (nome e telefone) das rifas encerradas
+            const closedRifas = rifas.filter(r => r.status === 'encerrada' && r.numero_vencedor);
+            let vencedoresMap = {};
+            if (closedRifas.length > 0) {
+                const rifaIds = closedRifas.map(r => r.id);
+                const { data: numVendidos } = await supabaseClient.from('rifa_numeros')
+                    .select('rifa_id, numero, nome_comprador, telefone_comprador')
+                    .in('rifa_id', rifaIds);
                     
-                    <button onclick="abrirCartelaAdmin('${r.id}', '${r.titulo.replace(/'/g, "\\'")}', ${r.quantidade_numeros},${r.valor_numero})" class="w-full bg-gray-800 hover:bg-gray-900 text-white font-bold py-2.5 rounded-xl text-xs shadow-sm transition flex items-center justify-center gap-2 active:scale-95">
-                        <i class="fas fa-th"></i> Ver Cartela / Gerenciar
-                    </button>
-                </div>
-            `;
-        });
-    }
+                if (numVendidos) {
+                    closedRifas.forEach(r => {
+                        const ganhador = numVendidos.find(n => n.rifa_id === r.id && n.numero === r.numero_vencedor);
+                        if (ganhador) vencedoresMap[r.id] = ganhador;
+                    });
+                }
+            }
 
+            grid.innerHTML = '';
+            rifas.forEach(r => {
+                const isEncerrada = r.status === 'encerrada';
+                const bgCor = isEncerrada ? 'bg-gray-100 opacity-80' : 'bg-white border-t-4 border-indigo-500';
+                const badge = isEncerrada 
+                    ? `<span class="bg-gray-200 text-gray-600 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">Encerrada</span>`
+                    : `<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider"><i class="fas fa-circle text-[8px] animate-pulse"></i> Aberta</span>`;
+
+                let boxVencedor = '';
+                if (isEncerrada && r.numero_vencedor) {
+                    const ganhador = vencedoresMap[r.id];
+                    const nomeGanhador = ganhador ? ganhador.nome_comprador : 'Não identificado';
+                    const telGanhador = ganhador && ganhador.telefone_comprador ? ganhador.telefone_comprador : '';
+                    
+                    boxVencedor = `
+                        <div class="bg-yellow-100 border border-yellow-300 text-yellow-800 text-xs font-bold p-3 rounded-lg flex flex-col items-center mb-3">
+                            <div class="flex items-center text-sm mb-1"><i class="fas fa-trophy mr-1 text-yellow-600"></i> Número Vencedor: ${r.numero_vencedor}</div>
+                            <span class="text-gray-700 uppercase tracking-wide text-center">${nomeGanhador}</span>
+                            ${telGanhador ? `<span class="text-[10px] font-mono text-gray-500 mt-0.5"><i class="fab fa-whatsapp mr-1 text-green-600"></i>${telGanhador}</span>` : ''}
+                        </div>
+                    `;
+                }
+
+                grid.innerHTML += `
+                    <div class="${bgCor} border border-gray-200 rounded-2xl p-5 shadow-sm flex flex-col justify-between hover:shadow-md transition">
+                        <div>
+                            <div class="flex justify-between items-start mb-2">
+                                <h4 class="font-bold text-gray-800 text-sm leading-tight pr-2">${r.titulo}</h4>${badge}
+                            </div>
+                            <p class="text-[11px] text-gray-500 mb-4 line-clamp-2">${r.descricao || 'Sem descrição'}</p>
+                            
+                            <div class="flex items-center gap-4 mb-4">
+                                <div class="text-center">
+                                    <p class="text-[10px] text-gray-400 font-bold uppercase">Números</p>
+                                    <p class="text-lg font-black text-indigo-600">${r.quantidade_numeros}</p>
+                                </div>
+                                <div class="w-px h-8 bg-gray-200"></div>
+                                <div class="text-center">
+                                    <p class="text-[10px] text-gray-400 font-bold uppercase">Valor</p>
+                                    <p class="text-sm font-bold text-gray-700">R$ ${r.valor_numero.toFixed(2)}</p>
+                                </div>
+                            </div>
+                            ${boxVencedor}
+                        </div>
+                        
+                        <button onclick="abrirCartelaAdmin('${r.id}', '${r.titulo.replace(/'/g, "\\'")}', ${r.quantidade_numeros},${r.valor_numero})" class="w-full bg-gray-800 hover:bg-gray-900 text-white font-bold py-2.5 rounded-xl text-xs shadow-sm transition flex items-center justify-center gap-2 active:scale-95">
+                            <i class="fas fa-th"></i> Ver Cartela / Gerenciar
+                        </button>
+                    </div>
+                `;
+            });
+        }
     // Modal da Cartela Visual e Sorteio
     window.rifaAtivaId = null;
     window.abrirCartelaAdmin = async (idRifa, titulo, qtdNumeros, valorNum) => {
