@@ -216,6 +216,8 @@
         
         let arrayIdsReservados = [];
         let timerInterval = null;
+        let inscricaoRealtime = null; // Guardamos a inscrição aqui para limpar se precisar
+
 
         document.addEventListener('DOMContentLoaded', async () => {
             try { await supabaseClient.rpc('limpar_reservas_expiradas'); } catch(e) { }
@@ -444,8 +446,10 @@
 
                 grid.innerHTML += `<button type="button" ${acao} class="aspect-square rounded-xl border-2 font-black text-sm md:text-base flex items-center justify-center transition-all ${btnC} ${cursor}" title="${tooltip}">${String(i).padStart(2, '0')}</button>`;
             }
+            // Ativa a escuta em tempo real para esta rifa
+                iniciarRealtimeRifa(idRifa);
         }
-
+        
         window.toggleNumeroRifa = (numero, btn) => {
             const idx = numerosSelecionadosArray.indexOf(numero);
             if (idx > -1) {
@@ -720,6 +724,48 @@
                 iniciarTimer(300, 120); 
             }
         });
+
+        function iniciarRealtimeRifa(idRifa) {
+            // Remove inscrição anterior se houver
+            if (inscricaoRealtime) {
+                supabaseClient.removeChannel(inscricaoRealtime);
+            }
+
+            inscricaoRealtime = supabaseClient
+                .channel(`mudancas_rifa_${idRifa}`)
+                .on(
+                    'postgres_changes',
+                    {
+                        event: '*', 
+                        schema: 'public',
+                        table: 'rifa_numeros',
+                        filter: `rifa_id=eq.${idRifa}` 
+                    },
+                    (payload) => {
+                        console.log('Atualização via Realtime detectada. Recarregando grade...');
+                        
+                        // Guarda temporariamente os números que o usuário já clicou para não perder a seleção dele
+                        const selecionadosAtuais = [...numerosSelecionadosArray];
+                        
+                        // Chama a sua própria função para buscar os dados de novo e repintar os botões
+                        carregarCartelaRifa(idRifa).then(() => {
+                            // Devolve os números que estavam selecionados
+                            numerosSelecionadosArray = selecionadosAtuais;
+                            atualizarBarraSelecao();
+                            
+                            // Re-pinta os botões que o usuário já tinha selecionado de azul primário
+                            numerosSelecionadosArray.forEach(num => {
+                                const btn = document.querySelector(`button[onclick*="toggleNumeroRifa(${num}"]`);
+                                if(btn) {
+                                    btn.classList.remove('bg-white', 'text-gray-500', 'border-gray-200');
+                                    btn.classList.add('bg-tema-primaria', 'text-white', 'border-tema-primaria');
+                                }
+                            });
+                        });
+                    }
+                )
+                .subscribe();
+        }
 
     </script>
 </body>
