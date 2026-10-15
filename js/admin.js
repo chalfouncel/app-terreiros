@@ -4691,14 +4691,39 @@ window.addEventListener('DOMContentLoaded', () => {
 
     async function carregarSelectRifasFinanceiro() {
         const select = document.getElementById('selectRifaFinanceiro');
-        if (!select || select.options.length > 1) return; 
+        if (!select) return; 
 
-        const { data } = await supabaseClient.from('rifas').select('id, titulo').eq('terreiro_id', idTerreiroGlobal).order('created_at', {ascending: false});
-        if (data) {
+        // Busca todas as rifas do terreiro para calcular o total geral de arrecadação de todas as rifas
+        const { data: todasRifas } = await supabaseClient.from('rifas').select('id, titulo, valor_numero').eq('terreiro_id', idTerreiroGlobal);
+        
+        if (todasRifas) {
             select.innerHTML = '<option value="">Selecione uma rifa...</option>';
-            data.forEach(r => {
-                select.innerHTML += `<option value="${r.id}">${r.titulo}</option>`;
+            todasRifas.forEach(r => {
+                select.innerHTML += `<option value="${r.id}">${r.titulo} (R$ ${r.valor_numero.toFixed(2)})</option>`;
             });
+
+            // Calcula o total geral arrecadado em TODAS as rifas (apenas números aprovados ou todos vendidos)
+            const idsRifas = todasRifas.map(r => r.id);
+            if (idsRifas.length > 0) {
+                const { data: todosNumerosVendidos } = await supabaseClient.from('rifa_numeros')
+                    .select('rifa_id, status_pagamento')
+                    .in('rifa_id', idsRifas);
+
+                let somaGeralTodasRifas = 0;
+                if (todosNumerosVendidos) {
+                    todosNumerosVendidos.forEach(num => {
+                        // Considera apenas os aprovados ou todos conforme regra da casa (vamos somar os aprovados ou todos válidos)
+                        const rifaObj = todasRifas.find(r => r.id === num.rifa_id);
+                        if (rifaObj && num.status_pagamento === 'aprovado') {
+                            somaGeralTodasRifas += (rifaObj.valor_numero || 0);
+                        }
+                    });
+                }
+                const elTotalGeral = document.getElementById('totalArrecadadoGeralRifas');
+                if (elTotalGeral) {
+                    elTotalGeral.textContent = `Total Geral: ${somaGeralTodasRifas.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`;
+                }
+            }
         }
     }
 
@@ -4714,6 +4739,10 @@ window.addEventListener('DOMContentLoaded', () => {
             }
             tbody.innerHTML = '<tr><td colspan="3" class="text-center p-6 text-gray-500"><i class="fas fa-spinner fa-spin"></i> Buscando dados da rifa...</td></tr>';
             
+            // Busca os dados da rifa selecionada para pegar o valor do número
+            const { data: rifaInfo } = await supabaseClient.from('rifas').select('valor_numero').eq('id', idRifa).single();
+            const valorUnitarioRifa = rifaInfo ? (parseFloat(rifaInfo.valor_numero) || 0) : 0;
+
             const { data: numeros } = await supabaseClient.from('rifa_numeros').select('*').eq('rifa_id', idRifa).order('numero', {ascending: true});
             
             if (!numeros || numeros.length === 0) {
@@ -4747,6 +4776,10 @@ window.addEventListener('DOMContentLoaded', () => {
                     ? `<span class="text-green-600 font-bold" title="Médium da Casa">${comp.nome} <i class="fas fa-check-circle text-[10px]"></i></span>` 
                     : `<span class="text-gray-800 font-medium">${comp.nome}</span>`;
 
+                // Calcula o valor total arrecadado por este comprador nesta rifa (Qtd de números * valor unitário)
+                const valorTotalComprador = comp.numeros.length * valorUnitarioRifa;
+                const valorFmt = valorTotalComprador.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
                 let vendedorNome = '-';
                 if (comp.vendedor_id) {
                     const v = listaMediunsGlobal.find(m => m.id === comp.vendedor_id);
@@ -4767,8 +4800,9 @@ window.addEventListener('DOMContentLoaded', () => {
                         <td class="p-3 font-mono text-xs text-indigo-600 font-bold break-words max-w-[150px]">
                             ${numsStr} ${badgePendente}
                         </td>
-                        <td class="p-3 text-xs">
-                            ${vendedorNome}
+                        <td class="p-3 text-xs flex justify-between items-center">
+                            <span>${vendedorNome}</span>
+                            <span class="font-black text-green-600 bg-green-50 px-2 py-0.5 rounded border border-green-200 ml-2">${valorFmt}</span>
                         </td>
                     </tr>
                 `;
