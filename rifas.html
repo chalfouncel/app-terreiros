@@ -630,15 +630,18 @@
                 const { data: publicUrlData } = supabaseClient.storage.from('comprovantes').getPublicUrl(`rifas/${fileName}`);
                 const comprovanteUrl = publicUrlData.publicUrl;
 
-                const { error: updError } = await supabaseClient.from('rifa_numeros')
+                const { error: updError } = await supabaseClient
+                    .from('rifa_numeros')
                     .update({ comprovante_url: comprovanteUrl, locked_at: null })
                     .in('id', arrayIdsReservados);
 
                 if (updError) throw new Error("Erro ao salvar o comprovante no banco.");
 
-                alert("✅ Comprovante enviado! Seus números já estão reservados e aguardam validação da equipe.");
+                if (timerInterval) clearInterval(timerInterval);
+
+                alert("✅ Comprovante enviado! Seus números aguardam validação da equipe.");
                 fecharCheckout();
-                carregarCartelaRifa(dadosRifaGlobal.id);
+                await carregarCartelaRifa(dadosRifaGlobal.id);
 
             } catch (err) {
                 msg.textContent = err.message || "Erro no envio."; 
