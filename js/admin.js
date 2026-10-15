@@ -4329,8 +4329,25 @@ window.addEventListener('DOMContentLoaded', () => {
                 } else {
                     qtdPendente++;
                     btnClass = "border-yellow-500 bg-yellow-400 text-yellow-900 shadow-sm animate-pulse hover:bg-yellow-500";
-                    tooltip = `PENDENTE (Clique para Aprovar)\nNome: ${comprado.nome_comprador}`;
-                    acao = `onclick="aprovarNumeroRifaAdmin('${comprado.id}', ${i}, '${comprado.nome_comprador.replace(/'/g, "\\'")}', ${valorNum})"`;
+                    
+                    if (comprado.comprovante_url) {
+                        tooltip = `PENDENTE (Analisar Comprovante)\nNome: ${comprado.nome_comprador}`;
+                        const itemData = {
+                            tipo: 'rifa',
+                            id: comprado.id,
+                            referencia_id: idRifa,
+                            titulo: titulo,
+                            subtitulo: `Número: ${String(i).padStart(2,'0')}`,
+                            nome: comprado.nome_comprador,
+                            valor: valorNum,
+                            url: comprado.comprovante_url
+                        };
+                        const jsonStr = JSON.stringify(itemData).replace(/'/g, "\\'").replace(/"/g, "&quot;");
+                        acao = `onclick="abrirModalComprovante(JSON.parse('${jsonStr}'))"`;
+                    } else {
+                        tooltip = `AGUARDANDO COMPROVANTE\nNome: ${comprado.nome_comprador}`;
+                        acao = `onclick="alert('Aguardando envio do comprovante pelo comprador. O processo está travado até a anexação do arquivo.')"`;
+                    }
                 }
             }
 
