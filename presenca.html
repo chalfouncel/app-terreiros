@@ -364,15 +364,16 @@
             </div>
 
             <!-- Conteúdo: Rifas -->
-            <div id="conteudoAbaRifas" class="hidden flex-1 flex flex-col justify-center items-center py-6 text-center px-4">
-                <div class="w-20 h-20 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-4xl mb-5 shadow-inner">
-                    <i class="fas fa-ticket-alt"></i>
+            <div id="conteudoAbaRifas" class="hidden flex-1 flex flex-col justify-between items-center py-4 text-center px-2">
+                <div class="w-full flex-1 flex flex-col items-center justify-center overflow-y-auto">
+                    <div id="cardRifaThumbContainer" class="w-full max-w-xs mb-3">
+                        <div class="p-6 text-center text-gray-400 text-xs">
+                            <i class="fas fa-spinner fa-spin text-2xl mb-2"></i><br>Buscando rifa ativa...
+                        </div>
+                    </div>
+                    <h4 class="font-black text-gray-800 text-base mb-1">Rifas e Sorteios</h4>
+                    <p class="text-[11px] text-gray-500 leading-snug px-2">Clique na imagem acima para abrir o portal de rifas, reservar números ou registrar vendas.</p>
                 </div>
-                <h4 class="font-black text-gray-800 text-xl mb-2">Rifas e Sorteios</h4>
-                <p class="text-xs text-gray-500 mb-8 leading-relaxed">Acesse a nossa página exclusiva de rifas. Você pode reservar números para você ou registrar vendas realizadas presencialmente para amigos.</p>
-                <button onclick="window.location.href='rifas.html?t=' + idTerreiroGlobal" class="w-full bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold py-4 px-4 rounded-xl shadow-md transition text-sm flex items-center justify-center gap-2">
-                    <i class="fas fa-external-link-alt"></i> Acessar Portal de Rifas
-                </button>
             </div>
 
             <!-- Rodapé (Apenas para Doações e Cantina) -->
