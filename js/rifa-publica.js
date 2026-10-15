@@ -1,11 +1,16 @@
+/**
+ * rifa-publica.js
+ * Gerenciamento da cartela unificada e checkout da Rifa com Asaas
+ */
+
 // 1. Configuração do Supabase com as suas credenciais oficiais
 const SUPABASE_URL = 'https://pbjwqhfzsvdougeksztq.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_Ri0hesG16fjM1mxdk2LoLQ_zLFbAmLT';
 
+// Inicializa o cliente na window APENAS se ainda não existir
 if (!window.supabaseClient && window.supabase) {
     window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 }
-var supabaseClient = window.supabaseClient;
 
 // 2. Parâmetros e Estado da Aplicação
 const urlParams = new URLSearchParams(window.location.search);
@@ -21,10 +26,6 @@ const TAXA_FIXA_ASAAS = 1.99; // R$ 1,99 fixo
 
 // 3. Inicialização ao carregar a página
 async function iniciarApp() {
-    if (!supabaseClient && window.supabaseClient) {
-        supabaseClient = window.supabaseClient;
-    }
-
     if (!rifaId) {
         renderizarErro('Rifa não encontrada', 'O link informado não contém o identificador da rifa. Abra o link completo com "?r=ID".');
         return;
@@ -43,14 +44,14 @@ if (document.readyState === 'loading') {
 // 4. Buscar dados da Rifa e do Terreiro
 async function carregarDadosRifa() {
     try {
-        if (!supabaseClient) {
+        if (!window.supabaseClient) {
             console.error('Supabase client não inicializado.');
             renderizarErro('Erro de Conexão', 'Não foi possível conectar ao banco de dados.');
             return;
         }
 
         // Buscar dados da rifa
-        const { data: rifa, error: errRifa } = await supabaseClient
+        const { data: rifa, error: errRifa } = await window.supabaseClient
             .from('rifas')
             .select('*')
             .eq('id', rifaId)
@@ -64,7 +65,7 @@ async function carregarDadosRifa() {
 
         // Buscar dados do terreiro correspondente
         if (rifa.terreiro_id) {
-            const { data: terreiro } = await supabaseClient
+            const { data: terreiro } = await window.supabaseClient
                 .from('terreiros')
                 .select('*')
                 .eq('id', rifa.terreiro_id)
@@ -103,7 +104,7 @@ function preencherDadosCabecalho() {
 // 6. Carregar números já vendidos ou reservados
 async function carregarNumerosCartela() {
     try {
-        const { data: registros, error } = await supabaseClient
+        const { data: registros, error } = await window.supabaseClient
             .from('rifa_numeros')
             .select('numero, status_pagamento, nome_comprador')
             .eq('rifa_id', rifaId);
@@ -328,9 +329,9 @@ async function processarPagamentoAsaas(event) {
 
 // 14. Realtime do Supabase: Atualizar cartela se outra pessoa comprar
 function configurarRealtime() {
-    if (!supabaseClient || !rifaId) return;
+    if (!window.supabaseClient || !rifaId) return;
 
-    supabaseClient
+    window.supabaseClient
         .channel(`rifa_realtime_${rifaId}`)
         .on(
             'postgres_changes',
