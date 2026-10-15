@@ -631,7 +631,7 @@
                 const comprovanteUrl = publicUrlData.publicUrl;
 
                 const { error: updError } = await supabaseClient.from('rifa_numeros')
-                    .update({ comprovante_url: comprovanteUrl })
+                    .update({ comprovante_url: comprovanteUrl, locked_at: null })
                     .in('id', arrayIdsReservados);
 
                 if (updError) throw new Error("Erro ao salvar o comprovante no banco.");
