@@ -1695,28 +1695,33 @@ async function carregarComprovantesPendentes() {
     try {
         let comprovantes = [];
 
-        // 1. BUSCAR RIFAS
-        const { data: rifasPendentes, error: errR } = await supabaseClient
+        // 1. BUSCAR RIFAS (Modo Seguro sem JOIN implícito)
+        const { data: rifasPendentesRaw, error: errR } = await supabaseClient
             .from('rifa_numeros')
-            .select('*, rifas(titulo, valor_numero)')
-            .eq('terreiro_id', idTerreiro) // Variável global do admin
-            .eq('status_pagamento', 'pendente')
-            .not('comprovante_url', 'is', null);
+            .select('*')
+            .eq('terreiro_id', idTerreiro)
+            .eq('status_pagamento', 'pendente');
 
-        if (rifasPendentes && !errR) {
-            rifasPendentes.forEach(r => {
+        if (errR) console.error("Erro busca rifas:", errR);
+
+        if (rifasPendentesRaw && !errR) {
+            // Filtra localmente garantindo que pega os que têm URL preenchida
+            const rifasPendentes = rifasPendentesRaw.filter(r => r.comprovante_url && r.comprovante_url.trim() !== '');
+            for (let r of rifasPendentes) {
+                // Busca tabela secundária de forma segura
+                const { data: dadosRifa } = await supabaseClient.from('rifas').select('titulo, valor_numero').eq('id', r.rifa_id).single();
                 comprovantes.push({
                     tipo: 'rifa',
                     id: r.id,
                     referencia_id: r.rifa_id,
-                    titulo: r.rifas?.titulo || 'Rifa',
+                    titulo: dadosRifa?.titulo || 'Rifa (S/ Título)',
                     subtitulo: `Número: ${String(r.numero).padStart(2,'0')}`,
                     nome: r.nome_comprador,
-                    valor: r.rifas?.valor_numero || 0,
+                    valor: dadosRifa?.valor_numero || 0,
                     url: r.comprovante_url,
-                    data: r.created_at
+                    data: r.created_at || new Date()
                 });
-            });
+            }
         }
 
         // 2. BUSCAR MENSALIDADES
