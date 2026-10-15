@@ -754,11 +754,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!listaItensDoacao) return;
 
         const itensFiltrados = window.todosItensDoacaoCache.filter(item => {
-            // Qualquer coisa que NÃO seja cantina vai para a aba Terreiro
-            if (aba === 'doacao') return item.categoria !== 'cantina';
+            // Padroniza a categoria para minúsculas para não falhar na filtragem
+            const cat = (item.categoria || '').toLowerCase().trim();
+            
+            // Tudo o que NÃO for cantina vai para a aba Terreiro
+            if (aba === 'doacao') return cat !== 'cantina';
             
             // Apenas itens da cantina vão para a aba Cantina
-            if (aba === 'cantina') return item.categoria === 'cantina';
+            if (aba === 'cantina') return cat === 'cantina';
             
             return false;
         });
@@ -770,9 +773,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         let html = '';
         itensFiltrados.forEach(item => {
-            const valSugerido = item.valor_sugerido ? `<span class="text-green-600 font-bold text-[10px] bg-green-50 border border-green-100 px-1.5 py-0.5 rounded">R$ ${item.valor_sugerido.toFixed(2)}</span>` : '';
+            // Conversão segura do valor para evitar erro do '.toFixed' quando for nulo ou texto
+            const valorParsed = parseFloat(item.valor_sugerido);
+            const valSugerido = !isNaN(valorParsed) && valorParsed > 0 
+                ? `<span class="text-green-600 font-bold text-[10px] bg-green-50 border border-green-100 px-1.5 py-0.5 rounded">R$ ${valorParsed.toFixed(2)}</span>` 
+                : '';
             
-            // Corrige valores nulos no carrinho se houver
             const qtdCarrinho = carrinhoDoacoes[item.id] || 0;
 
             html += `
