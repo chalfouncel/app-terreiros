@@ -4672,10 +4672,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
     if (btnTabFinMensalidades) {
         btnTabFinMensalidades.addEventListener('click', () => {
-            btnTabFinMensalidades.classList.replace('border-transparent', 'border-tema-secundaria');
-            btnTabFinMensalidades.classList.replace('text-gray-500', 'text-tema-secundaria');
-            btnTabFinArrecadacao.classList.replace('border-tema-secundaria', 'border-transparent');
-            btnTabFinArrecadacao.classList.replace('text-tema-secundaria', 'text-gray-500');
+            btnTabFinMensalidades.className = "relative py-3 md:py-4 px-4 md:px-6 rounded-2xl font-black text-xs md:text-base transition-all duration-300 shadow-md bg-tema-secundaria text-white transform hover:-translate-y-1 active:scale-95 border-b-4 border-black/20 flex flex-col items-center justify-center gap-1.5 w-full";
+            btnTabFinArrecadacao.className = "relative py-3 md:py-4 px-4 md:px-6 rounded-2xl font-bold text-xs md:text-base transition-all duration-300 shadow-sm bg-white text-gray-500 hover:text-gray-800 border border-gray-200 hover:border-gray-300 hover:shadow-md transform hover:-translate-y-1 active:scale-95 flex flex-col items-center justify-center gap-1.5 w-full";
             abaFinMensalidades.classList.remove('hidden');
             abaFinArrecadacao.classList.add('hidden');
         });
@@ -4683,13 +4681,13 @@ window.addEventListener('DOMContentLoaded', () => {
 
     if (btnTabFinArrecadacao) {
         btnTabFinArrecadacao.addEventListener('click', () => {
-            btnTabFinArrecadacao.classList.replace('border-transparent', 'border-tema-secundaria');
-            btnTabFinArrecadacao.classList.replace('text-gray-500', 'text-tema-secundaria');
-            btnTabFinMensalidades.classList.replace('border-tema-secundaria', 'border-transparent');
-            btnTabFinMensalidades.classList.replace('text-tema-secundaria', 'text-gray-500');
+            btnTabFinArrecadacao.className = "relative py-3 md:py-4 px-4 md:px-6 rounded-2xl font-black text-xs md:text-base transition-all duration-300 shadow-md bg-tema-secundaria text-white transform hover:-translate-y-1 active:scale-95 border-b-4 border-black/20 flex flex-col items-center justify-center gap-1.5 w-full";
+            btnTabFinMensalidades.className = "relative py-3 md:py-4 px-4 md:px-6 rounded-2xl font-bold text-xs md:text-base transition-all duration-300 shadow-sm bg-white text-gray-500 hover:text-gray-800 border border-gray-200 hover:border-gray-300 hover:shadow-md transform hover:-translate-y-1 active:scale-95 flex flex-col items-center justify-center gap-1.5 w-full";
             abaFinArrecadacao.classList.remove('hidden');
             abaFinMensalidades.classList.add('hidden');
             carregarSelectRifasFinanceiro();
+        });
+    }
         });
     }
 
