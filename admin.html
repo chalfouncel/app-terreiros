@@ -1870,7 +1870,7 @@ async function processarAcaoComprovante(acao) {
                 if (err1) throw err1;
 
                 const { error: err2 } = await supabaseClient.from('caixa_terreiro').insert([{
-                    terreiro_id: idTerreiro,
+                    terreiro_id: idTerreiroGlobal,
                     tipo_transacao: 'RIFA',
                     descricao: `Venda Rifa - ${item.subtitulo} (${item.nome})`,
                     valor: item.valor,
@@ -1886,7 +1886,7 @@ async function processarAcaoComprovante(acao) {
                 if (err3) throw err3;
 
                 const { error: err4 } = await supabaseClient.from('caixa_terreiro').insert([{
-                    terreiro_id: idTerreiro,
+                    terreiro_id: idTerreiroGlobal,
                     tipo_transacao: 'MENSALIDADE',
                     descricao: `Mensalidade (${item.subtitulo}) - ${item.nome}`,
                     valor: item.valor,
@@ -1898,7 +1898,7 @@ async function processarAcaoComprovante(acao) {
                 if (err4) throw err4;
             }
             alert("✅ Pagamento APROVADO com sucesso!");
-        } 
+        }
         else if (acao === 'rejeitar') {
             const conf = confirm("Tem certeza que deseja REJEITAR este pagamento?");
             if (!conf) throw new Error("Cancelado");
