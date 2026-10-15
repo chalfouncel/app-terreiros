@@ -23,9 +23,8 @@ let terreiroAtual = null;
 let numerosOcupados = new Map(); // numero -> { status, nome }
 let numerosSelecionados = new Set(); // Set de números escolhidos pelo usuário
 
-// Regra da Maior Taxa Asaas (Cartão de Crédito à vista Asaas: 3.99% + R$ 0,49)
-const TAXA_PERCENTUAL_ASAAS = 0.0399; // 3.99%
-const TAXA_FIXA_ASAAS = 0.49;         // R$ 0,49
+// Taxa fixa operacional do Asaas definida para o SaaS
+const TAXA_FIXA_ASAAS = 1.99; // R$ 1,99 fixo
 
 // 3. Inicialização ao carregar a página
 document.addEventListener('DOMContentLoaded', async () => {
@@ -219,7 +218,7 @@ function atualizarBarraFlutuante() {
     const valorUnitario = Number(rifaAtual?.valor_numero || 0);
     const subtotal = qtd * valorUnitario;
 
-    // Cálculo da maior taxa (cartão Asaas: 3.99% + R$ 0,49)
+    // Cálculo da taxa fixa de R$ 1,99
     const taxa = calcularTaxaAsaas(subtotal);
     const totalComTaxa = subtotal + taxa;
 
@@ -227,11 +226,10 @@ function atualizarBarraFlutuante() {
     txtTotal.textContent = formatarMoeda(totalComTaxa);
 }
 
-// 11. Função de Cálculo da Taxa do Asaas
+// 11. Função de Cálculo da Taxa do Asaas (R$ 1,99 fixo)
 function calcularTaxaAsaas(subtotal) {
     if (subtotal <= 0) return 0;
-    // (Subtotal * 3.99%) + R$ 0,49
-    return (subtotal * TAXA_PERCENTUAL_ASAAS) + TAXA_FIXA_ASAAS;
+    return TAXA_FIXA_ASAAS;
 }
 
 // 12. Modal de Checkout
@@ -288,13 +286,13 @@ async function processarPagamentoAsaas(event) {
 
     try {
         const payload = {
-            rifaId: rifaAtual.id,
-            terreiroId: rifaAtual.terreiro_id,
+            rifa_id: rifaAtual.id,
+            terreiro_id: rifaAtual.terreiro_id,
             numeros: arrayNumeros,
-            nome,
-            telefone,
-            cpf,
-            valorTotal: valorCobrado
+            comprador_nome: nome,
+            comprador_telefone: telefone,
+            comprador_cpf: cpf,
+            valor_total: valorCobrado
         };
 
         const response = await fetch('https://pbjwqhfzsvdougeksztq.supabase.co/functions/v1/asaas-gerar-cobranca-rifa', {
@@ -313,9 +311,10 @@ async function processarPagamentoAsaas(event) {
         }
 
         // Sucesso: Redireciona o comprador diretamente para a página de pagamento oficial do Asaas
-        if (resultado.invoiceUrl) {
+        const urlDestino = resultado.invoice_url || resultado.invoiceUrl;
+        if (urlDestino) {
             fecharModalCheckout();
-            window.location.href = resultado.invoiceUrl;
+            window.location.href = urlDestino;
         } else {
             alert('Cobrança gerada com sucesso!');
         }
