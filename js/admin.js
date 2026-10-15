@@ -4564,6 +4564,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
     // Modal da Cartela Visual e Sorteio
     window.rifaAtivaId = null;
+    window.canalRealtimeAdminRifa = null; // <-- NOVO: Guardará a conexão Realtime
     window.abrirCartelaAdmin = async (idRifa, titulo, qtdNumeros, valorNum) => {
         window.rifaAtivaId = idRifa;
         document.getElementById('cartelaTituloRifa').textContent = titulo;
@@ -4607,7 +4608,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
             if (comprado) {
                 qtdLivre--;
-                if (comprado.status_pagamento === 'aprovado') {
+                // NOVO: Adicionado verificação para 'pago' (Webhook Asaas)
+                if (comprado.status_pagamento === 'aprovado' || comprado.status_pagamento === 'pago') {
                     qtdPago++;
                     btnClass = "border-green-600 bg-green-500 text-white shadow-sm cursor-not-allowed";
                     tooltip = `PAGO\nNome: ${comprado.nome_comprador}`;
@@ -4644,11 +4646,6 @@ window.addEventListener('DOMContentLoaded', () => {
         }
 
         document.getElementById('cartelaQtdLivres').textContent = qtdLivre;
-        document.getElementById('cartelaQtdPagos').textContent = qtdPago;
-        document.getElementById('cartelaQtdPendentes').textContent = qtdPendente;
-    };
-
-    window.aprovarNumeroRifaAdmin = async (registroId, numero, nome, valor) => {
         if(!confirm(`Confirmar o recebimento do Número ${numero} comprado por ${nome}? \nO valor de R$ ${valor.toFixed(2)} será lançado como pago no Caixa do Terreiro.`)) return;
 
         try {
