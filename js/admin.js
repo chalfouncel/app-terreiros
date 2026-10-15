@@ -132,7 +132,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const temAcessoPainel = perfil.is_admin || perfil.perm_visao_geral || perfil.perm_quadro_mediuns || perfil.perm_agenda || perfil.perm_grau || perfil.perm_financeiro || perfil.perm_doacoes || perfil.perm_admin || perfil.perm_ata || perfil.is_master;
 
         if (!temAcessoPainel) {
-            alert('Acesso negado. Não possui permissão para aceder ao Painel de Gestão.');
+            alert('Acesso negado. Você não possui permissão para acessar o Painel de Gestão.');
             return w.location.replace('presenca.html');
         }
         
@@ -519,7 +519,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const { data: listaExistente, error: errBusca } = await supabaseClient
                         .from('mediuns')
                         .select('id')
-                        .eq('terreiro_id', idTerreiroGlobal)
                         .order('id', { ascending: false })
                         .limit(1);
 
@@ -676,65 +675,149 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (btnAprovarModal) {
             btnAprovarModal.addEventListener('click', async () => {
-                if (!w.comprovanteAtualId) return;
-                if (!confirm("Aprovar este comprovante? Os meses associados serão marcados como pagos.")) return;
+                if (!w.comprovanteAtualId && !w.comprovanteRifaItemAtual) return;
+                if (!confirm("Aprovar este comprovante e confirmar a baixa do pagamento?")) return;
 
                 const btnHtml = btnAprovarModal.innerHTML;
                 btnAprovarModal.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
                 btnAprovarModal.disabled = true;
+                if (btnRejeitarModal) btnRejeitarModal.disabled = true;
 
                 try {
-                    const { data: comp, error: errComp } = await supabaseClient
-                        .from('comprovantes_mensalidade')
-                        .select('detalhes_pagamento')
-                        .eq('id', w.comprovanteAtualId)
-                        .eq('terreiro_id', idTerreiroGlobal)
-                        .single();
+                    if (w.comprovanteRifaItemAtual) {
+                        const item = w.comprovanteRifaItemAtual;
+                        const { error: err1 } = await supabaseClient
+                            .from('rifa_numeros')
+                            .update({ status_pagamento: 'aprovado' })
+                            .eq('id', item.id);
+                        if (err1) throw err1;
 
-                    if (errComp) throw errComp;
+                        const { error: err2 } = await supabaseClient.from('caixa_terreiro').insert([{
+                            terreiro_id: idTerreiroGlobal,
+                            tipo_transacao: 'RIFA',
+                            descricao: `Venda Rifa - ${item.subtitulo} (${item.nome})`,
+                            valor: item.valor,
+                            metodo_pagamento: 'pix',
+                            pagador_nome: item.nome,
+                            status: 'pago',
+                            referencia_id: item.id
+                        }]);
+                        if (err2) throw err2;
 
-                    let upserts = [];
-                    if (comp.detalhes_pagamento && Array.isArray(comp.detalhes_pagamento)) {
-                        comp.detalhes_pagamento.forEach(det => {
-                            if (det.meses && Array.isArray(det.meses)) {
-                                det.meses.forEach(mes => {
-                                    upserts.push({
-                                        medium_id: det.medium_id,
-                                        mes: mes,
-                                        ano: det.ano,
-                                        pago: true,
-                                        isento: false,
-                                        origem: 'pix_sistema'
+                        alert("✅ Pagamento da Rifa aprovado com sucesso!");
+                        window.fecharModalVerComprovante();
+                        carregarValidadorPagamentos();
+
+                        if (window.rifaAtivaId && typeof abrirCartelaAdmin === 'function') {
+                            const tituloAtual = document.getElementById('cartelaTituloRifa').textContent;
+                            const qtdNum = document.querySelectorAll('#gridNumerosRifa button').length;
+                            abrirCartelaAdmin(window.rifaAtivaId, tituloAtual, qtdNum, item.valor);
+                        }
+                    } else if (w.comprovanteAtualId) {
+                        const { data: comp, error: errComp } = await supabaseClient
+                            .from('comprovantes_mensalidade')
+                            .select('detalhes_pagamento')
+                            .eq('id', w.comprovanteAtualId)
+                            .eq('terreiro_id', idTerreiroGlobal)
+                            .single();
+
+                        if (errComp) throw errComp;
+
+                        let upserts = [];
+                        if (comp.detalhes_pagamento && Array.isArray(comp.detalhes_pagamento)) {
+                            comp.detalhes_pagamento.forEach(det => {
+                                if (det.meses && Array.isArray(det.meses)) {
+                                    det.meses.forEach(mes => {
+                                        upserts.push({
+                                            medium_id: det.medium_id,
+                                            mes: mes,
+                                            ano: det.ano,
+                                            pago: true,
+                                            isento: false,
+                                            origem: 'pix_sistema'
+                                        });
                                     });
-                                });
-                            }
-                        });
+                                }
+                            });
+                        }
+
+                        if (upserts.length > 0) {
+                            const { error: errUpsert } = await supabaseClient
+                                .from('financeiro')
+                                .upsert(upserts, { onConflict: 'medium_id,mes,ano' });
+                            if (errUpsert) throw errUpsert;
+                        }
+
+                        const { error: errStatus } = await supabaseClient
+                            .from('comprovantes_mensalidade')
+                            .update({ status: 'aprovado' })
+                            .eq('id', window.comprovanteAtualId)
+                            .eq('terreiro_id', idTerreiroGlobal);
+                        if (errStatus) throw errStatus;
+
+                        alert("✅ Comprovante aprovado com sucesso! Baixas realizadas.");
+                        window.fecharModalVerComprovante();
+                        carregarValidadorPagamentos();
                     }
-
-                    if (upserts.length > 0) {
-                        const { error: errUpsert } = await supabaseClient
-                            .from('financeiro')
-                            .upsert(upserts, { onConflict: 'medium_id,mes,ano' });
-                        if (errUpsert) throw errUpsert;
-                    }
-
-                    const { error: errStatus } = await supabaseClient
-                        .from('comprovantes_mensalidade')
-                        .update({ status: 'aprovado' })
-                        .eq('id', window.comprovanteAtualId)
-                        .eq('terreiro_id', idTerreiroGlobal);
-                    if (errStatus) throw errStatus;
-
-                    alert("Comprovante aprovado com sucesso! Baixas realizadas.");
-                    window.fecharModalVerComprovante();
-                    carregarValidadorPagamentos();
-
                 } catch (err) {
                     console.error(err);
                     alert("Erro ao aprovar comprovante: " + err.message);
                 } finally {
                     btnAprovarModal.innerHTML = btnHtml;
                     btnAprovarModal.disabled = false;
+                    if (btnRejeitarModal) btnRejeitarModal.disabled = false;
+                }
+            });
+        }
+
+        if (btnRejeitarModal) {
+            btnRejeitarModal.addEventListener('click', async () => {
+                if (!window.comprovanteAtualId && !window.comprovanteRifaItemAtual) return;
+                if (!confirm("Tem certeza que deseja REJEITAR este comprovante?")) return;
+
+                const btnHtml = btnRejeitarModal.innerHTML;
+                btnRejeitarModal.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Rejeitando...';
+                btnRejeitarModal.disabled = true;
+                if (btnAprovarModal) btnAprovarModal.disabled = true;
+
+                try {
+                    if (window.comprovanteRifaItemAtual) {
+                        const item = window.comprovanteRifaItemAtual;
+                        const { error: errDel } = await supabaseClient
+                            .from('rifa_numeros')
+                            .delete()
+                            .eq('id', item.id);
+                        if (errDel) throw errDel;
+
+                        alert("❌ Pagamento rejeitado. O número da rifa voltou a ficar livre.");
+                        window.fecharModalVerComprovante();
+                        carregarValidadorPagamentos();
+
+                        if (window.rifaAtivaId && typeof abrirCartelaAdmin === 'function') {
+                            const tituloAtual = document.getElementById('cartelaTituloRifa').textContent;
+                            const qtdNum = document.querySelectorAll('#gridNumerosRifa button').length;
+                            abrirCartelaAdmin(window.rifaAtivaId, tituloAtual, qtdNum, item.valor);
+                        }
+                    } else if (window.comprovanteAtualId) {
+                        const { error } = await supabaseClient
+                            .from('comprovantes_mensalidade')
+                            .update({ status: 'rejeitado' })
+                            .eq('id', window.comprovanteAtualId)
+                            .eq('terreiro_id', idTerreiroGlobal);
+
+                        if (error) throw error;
+                        
+                        alert("❌ Comprovante rejeitado.");
+                        window.fecharModalVerComprovante();
+                        carregarValidadorPagamentos();
+                    }
+                } catch (err) {
+                    console.error(err);
+                    alert("Erro ao rejeitar comprovante: " + err.message);
+                } finally {
+                    btnRejeitarModal.innerHTML = btnHtml;
+                    btnRejeitarModal.disabled = false;
+                    if (btnAprovarModal) btnAprovarModal.disabled = false;
                 }
             });
         }
@@ -1416,11 +1499,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             const listaCards = document.getElementById('listaComprovantesPendentes');
             if (!listaCards) return;
 
-            // Loading Skeleton
             listaCards.innerHTML = '<div class="col-span-full p-8 text-center text-gray-500 bg-white rounded-2xl shadow-sm border border-gray-100"><i class="fas fa-spinner fa-spin mr-2 text-xl"></i> Buscando pendências financeiras...</div>';
 
             try {
-                // 1. Busca Comprovantes de Mensalidade (Antigo)
+                // 1. Busca Comprovantes de Mensalidade
                 const { data: mensalidades } = await supabaseClient
                     .from('comprovantes_mensalidade')
                     .select('*')
@@ -1428,7 +1510,19 @@ document.addEventListener('DOMContentLoaded', async () => {
                     .eq('status', 'pendente')
                     .order('data_envio', { ascending: true });
 
-                // 2. Busca Caixa Terreiro Pendentes (Novo: Rifas, Doações, Cantina)
+                // 2. Busca Rifas Pendentes com Comprovante Anexado
+                const { data: rifasPendentesRaw } = await supabaseClient
+                    .from('rifa_numeros')
+                    .select('*')
+                    .eq('terreiro_id', idTerreiroGlobal)
+                    .eq('status_pagamento', 'pendente');
+
+                const { data: todasRifasCasa } = await supabaseClient
+                    .from('rifas')
+                    .select('id, titulo, valor_numero')
+                    .eq('terreiro_id', idTerreiroGlobal);
+
+                // 3. Busca Caixa Terreiro Pendentes (Doações, Cantina, etc.)
                 const { data: caixaPendentes } = await supabaseClient
                     .from('caixa_terreiro')
                     .select('*')
@@ -1457,7 +1551,33 @@ document.addEventListener('DOMContentLoaded', async () => {
                     });
                 });
 
-                // Formata Caixa (Rifas, Doações, etc)
+                // Formata Rifas com Comprovante Anexo
+                const rifasComAnexo = (rifasPendentesRaw || []).filter(r => r.comprovante_url && r.comprovante_url.trim() !== '');
+                rifasComAnexo.forEach(r => {
+                    const dadosRifa = (todasRifasCasa || []).find(rf => String(rf.id) === String(r.rifa_id));
+                    const valorUnit = dadosRifa ? (parseFloat(dadosRifa.valor_numero) || 0) : 0;
+                    const tituloRifa = dadosRifa?.titulo || 'Rifa';
+                    pendenciasGerais.push({
+                        tipoObj: 'rifa_comprovante',
+                        id: r.id,
+                        nomeExibicao: r.nome_comprador || 'Comprador',
+                        descricao: `[RIFA] ${tituloRifa} - Nº ${String(r.numero).padStart(2, '0')}`,
+                        valor: valorUnit,
+                        data: r.locked_at || new Date().toISOString(),
+                        extra: {
+                            tipo: 'rifa',
+                            id: r.id,
+                            referencia_id: r.rifa_id,
+                            titulo: tituloRifa,
+                            subtitulo: `Número: ${String(r.numero).padStart(2, '0')}`,
+                            nome: r.nome_comprador || 'Comprador',
+                            valor: valorUnit,
+                            url: r.comprovante_url
+                        }
+                    });
+                });
+
+                // Formata Caixa (Doações, Cantina, etc.)
                 (caixaPendentes || []).forEach(cx => {
                     pendenciasGerais.push({
                         tipoObj: 'caixa',
@@ -1470,7 +1590,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     });
                 });
 
-                // Ordena tudo por data (mais antigos primeiro)
                 pendenciasGerais.sort((a, b) => new Date(a.data) - new Date(b.data));
 
                 if (pendenciasGerais.length === 0) {
@@ -1483,15 +1602,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 pendenciasGerais.forEach(item => {
                     const valFmt = Number(item.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
                     
-                    // Cria a data e recua 3 horas explicitamente
                     let dataObj = new Date(item.data);
-                    if (!isNaN(dataObj)) {
-                        dataObj.setHours(dataObj.getHours() - 3);
-                    } else {
-                        dataObj = new Date(); // Fallback de segurança se a data vier quebrada
-                    }
+                    if (isNaN(dataObj)) dataObj = new Date();
                     
-                    const dataEnvio = dataObj.toLocaleDateString('pt-BR', { 
+                    const dataEnvio = dataObj.toLocaleString('pt-BR', { 
+                        timeZone: 'America/Sao_Paulo',
                         day: '2-digit', 
                         month: '2-digit', 
                         hour: '2-digit', 
@@ -1505,8 +1620,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                     if (item.tipoObj === 'mensalidade') {
                         corBorda = 'border-t-yellow-400';
                         iconeCard = '<i class="fas fa-file-invoice text-yellow-500 mr-1.5"></i>';
-                        btnAcao = `<button onclick="abrirModalVerComprovante('${item.id}', '${item.extra.url_comprovante}', '${item.nomeExibicao} - ${valFmt}')" class="w-full bg-gray-800 hover:bg-gray-900 active:scale-95 text-white font-bold py-2.5 px-4 rounded-xl shadow-sm transition text-sm flex justify-center items-center gap-2">
+                        const nomeSeguro = String(item.nomeExibicao).replace(/'/g, "\\'");
+                        btnAcao = `<button onclick="abrirModalVerComprovante('${item.id}', '${item.extra.url_comprovante}', '${nomeSeguro} - ${valFmt}')" class="w-full bg-gray-800 hover:bg-gray-900 active:scale-95 text-white font-bold py-2.5 px-4 rounded-xl shadow-sm transition text-sm flex justify-center items-center gap-2">
                             <i class="fas fa-search"></i> Analisar Comprovante
+                        </button>`;
+                    } else if (item.tipoObj === 'rifa_comprovante') {
+                        corBorda = 'border-t-indigo-500';
+                        iconeCard = '<i class="fas fa-ticket-alt text-indigo-500 mr-1.5"></i>';
+                        const jsonStr = JSON.stringify(item.extra).replace(/'/g, "\\'").replace(/"/g, "&quot;");
+                        btnAcao = `<button onclick="abrirModalComprovante(JSON.parse('${jsonStr}'))" class="w-full bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold py-2.5 px-4 rounded-xl shadow-sm transition text-sm flex justify-center items-center gap-2">
+                            <i class="fas fa-search-plus"></i> Analisar Comprovante Rifa
                         </button>`;
                     } else {
                         corBorda = 'border-t-blue-500';
@@ -1533,7 +1656,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             <div>
                                 <div class="flex justify-between items-start mb-3">
                                     <h4 class="font-bold text-gray-800 text-sm truncate pr-2" title="${item.nomeExibicao}">${iconeCard} ${item.nomeExibicao}</h4>
-                                    <span class="bg-gray-100 text-gray-600 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">Aguardando PIX</span>
+                                    <span class="bg-gray-100 text-gray-600 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">Pendente</span>
                                 </div>
                                 <div class="text-xs text-gray-600 mb-3 bg-gray-50 p-2.5 rounded-lg border border-gray-100">
                                     <span class="font-bold text-gray-700">${item.descricao}</span>
@@ -1561,18 +1684,35 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
 
-       window.aprovarCaixaPendente = async (caixaId, referenciaId, tipoTransacao) => {
+        window.aprovarCaixaPendente = async (caixaId, referenciaId, tipoTransacao) => {
             if(!confirm("Confirmar que este PIX (Direto na Conta do Terreiro) já foi recebido e compensado?")) return;
 
             try {
-                // 1. Atualiza o caixa para 'pago'
-                const { error: err1 } = await supabaseClient.from('caixa_terreiro').update({ status: 'pago' }).eq('id', caixaId);
+                // 1. Atualiza o caixa para 'pago' e retorna a linha para sabermos quem foi o médium
+                const { data: cxRow, error: err1 } = await supabaseClient
+                    .from('caixa_terreiro')
+                    .update({ status: 'pago' })
+                    .eq('id', caixaId)
+                    .select('*')
+                    .single();
                 if (err1) throw err1;
 
                 // 2. Se for Rifa, dá baixa nos números para mudar a cor da cartela
                 if (tipoTransacao === 'RIFA' && referenciaId && referenciaId !== 'null') {
-                    const arrayIds = String(referenciaId).split(',').map(n => parseInt(n.trim()));
-                    await supabaseClient.from('rifa_numeros').update({ status_pagamento: 'aprovado' }).in('id', arrayIds);
+                    const arrayIds = String(referenciaId).split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n));
+                    if (arrayIds.length > 0) {
+                        await supabaseClient.from('rifa_numeros').update({ status_pagamento: 'aprovado' }).in('id', arrayIds);
+                    }
+                } else if ((tipoTransacao === 'DOACAO' || tipoTransacao === 'CANTINA') && cxRow && cxRow.medium_responsavel_id) {
+                    // Atualiza status_pagamento em doacoes_registradas do médium
+                    const md = listaMediunsGlobal.find(m => m.id === cxRow.medium_responsavel_id);
+                    if (md && md.auth_id) {
+                        await supabaseClient.from('doacoes_registradas')
+                            .update({ status_pagamento: 'aprovado' })
+                            .eq('terreiro_id', idTerreiroGlobal)
+                            .eq('medium_auth_id', md.auth_id)
+                            .eq('status_pagamento', 'pendente');
+                    }
                 }
 
                 alert("Pagamento confirmado com sucesso!");
@@ -1586,14 +1726,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             if(!confirm("Tem certeza que deseja CANCELAR/REJEITAR esta reserva de pagamento? O registro de pendência será excluído.")) return;
 
             try {
-                // 1. Apaga do caixa
                 const { error: err1 } = await supabaseClient.from('caixa_terreiro').delete().eq('id', caixaId);
                 if (err1) throw err1;
 
-                // 2. Se for rifa, apaga os números reservados (para voltar a ficar "Livre" na cartela)
                 if (tipoTransacao === 'RIFA' && referenciaId && referenciaId !== 'null') {
-                    const arrayIds = String(referenciaId).split(',').map(n => parseInt(n.trim()));
-                    await supabaseClient.from('rifa_numeros').delete().in('id', arrayIds);
+                    const arrayIds = String(referenciaId).split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n));
+                    if (arrayIds.length > 0) {
+                        await supabaseClient.from('rifa_numeros').delete().in('id', arrayIds);
+                    }
                 }
 
                 alert("Transação pendente cancelada e removida com sucesso.");
@@ -1609,7 +1749,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (!tbody) return;
 
             try {
-                // Busca Histórico de Mensalidades
                 const { data: comprovantes } = await supabaseClient
                     .from('comprovantes_mensalidade')
                     .select('*')
@@ -1618,7 +1757,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     .order('data_envio', { ascending: false }) 
                     .limit(10);
 
-                // Busca Histórico do Novo Caixa (Excluindo Mensalidades)
                 const { data: caixaResolvidos } = await supabaseClient
                     .from('caixa_terreiro')
                     .select('*')
@@ -1691,20 +1829,22 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
 
+        window.comprovanteRifaItemAtual = null;
+
         window.abrirModalVerComprovante = (id, url, subtitulo) => {
             window.comprovanteAtualId = id;
+            window.comprovanteRifaItemAtual = null;
             document.getElementById('modalComprovanteSubtitulo').textContent = subtitulo;
             
             const frame = document.getElementById('frameComprovante');
             const img = document.getElementById('imgComprovante');
             const loader = document.getElementById('loaderComprovante');
             
-            loader.classList.remove('hidden');
+            if (loader) loader.classList.remove('hidden');
+            if (frame) frame.classList.add('hidden');
+            if (img) img.classList.add('hidden');
             
-            if(frame) frame.classList.add('hidden');
-            if(img) img.classList.add('hidden');
-            
-            if(url.toLowerCase().endsWith('.pdf')) {
+            if(url && url.toLowerCase().includes('.pdf')) {
                 if(frame) {
                     frame.src = `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
                     frame.classList.remove('hidden');
@@ -1722,6 +1862,32 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.getElementById('modalVerComprovante').classList.remove('hidden');
         };
 
+        window.abrirModalComprovante = (item) => {
+            window.comprovanteAtualId = null;
+            window.comprovanteRifaItemAtual = item;
+            const valFmt = Number(item.valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            document.getElementById('modalComprovanteSubtitulo').textContent = `${item.nome} - ${valFmt} (${item.subtitulo || ''})`;
+            
+            const frame = document.getElementById('frameComprovante');
+            const img = document.getElementById('imgComprovante');
+            const loader = document.getElementById('loaderComprovante');
+            
+            if (loader) loader.classList.remove('hidden');
+            if (frame) frame.classList.add('hidden');
+            if (img) img.classList.add('hidden');
+
+            if (item.url && item.url.toLowerCase().includes('.pdf')) {
+                if (frame) {
+                    frame.src = `https://docs.google.com/viewer?url=${encodeURIComponent(item.url)}&embedded=true`;
+                    frame.classList.remove('hidden');
+                }
+            } else if (img) {
+                img.src = item.url;
+                img.classList.remove('hidden');
+            }
+            document.getElementById('modalVerComprovante').classList.remove('hidden');
+        };
+
         window.fecharModalVerComprovante = () => {
             document.getElementById('modalVerComprovante').classList.add('hidden');
             const frame = document.getElementById('frameComprovante');
@@ -1730,6 +1896,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if(frame) frame.src = '';
             if(img) img.src = '';
             window.comprovanteAtualId = null;
+            window.comprovanteRifaItemAtual = null;
         };
 
         async function carregarFinanceiro(ano) {
@@ -1998,7 +2165,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (!idTerreiroGlobal) return;
 
             // Gera e exibe o QR Code estático da Assistência
-            const linkAssistencia = `https://app-terreiros.vercel.app/assistencia.html?t=${idTerreiroGlobal}`;
+            const linkAssistencia = `${window.location.origin}/assistencia.html?t=${idTerreiroGlobal}`;
             const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=10&data=${encodeURIComponent(linkAssistencia)}`;
 
             const imgQr = document.getElementById('imgQrCodeAssistencia');
@@ -2087,8 +2254,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 <div class="qr-box">
                                     <img class="qr" src="${qrCodeUrl}" alt="QR Code">
                                 </div>
-                                <div class="instrucao">Aponte a câmara do seu celular aqui</div>
-                                <div class="subtexto">Registe a sua presença na sessão de hoje de forma rápida e segura.</div>
+                                    <div class="instrucao">Aponte a câmera do seu celular aqui</div>
+                                    <div class="subtexto">Registre a sua presença na sessão de hoje de forma rápida e segura.</div>
                             </div>
                             <script>
                                 window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); };
@@ -2207,7 +2374,7 @@ function renderizarTagsConfiguracao() {
                         ${g}
                         <button type="button" onclick="removerGrauTag(${idx})" class="text-indigo-400 hover:text-red-500 transition"><i class="fas fa-times text-[10px]"></i></button>
                     </span>
-                `).join('') || '<span class="text-xs text-gray-400 p-1">Nenhum grau registado.</span>';
+                `).join('') || '<span class="text-xs text-gray-400 p-1">Nenhum grau registrado.</span>';
             }
 
             if (containerFuncoes) {
@@ -2216,7 +2383,7 @@ function renderizarTagsConfiguracao() {
                         ${f}
                         <button type="button" onclick="removerFuncaoTag(${idx})" class="text-purple-400 hover:text-red-500 transition"><i class="fas fa-times text-[10px]"></i></button>
                     </span>
-                `).join('') || '<span class="text-xs text-gray-400 p-1">Nenhuma função registada.</span>';
+                `).join('') || '<span class="text-xs text-gray-400 p-1">Nenhuma função registrada.</span>';
             }
         }
 
@@ -2300,7 +2467,7 @@ function renderizarTagsConfiguracao() {
             btnSalvarGrausFuncoes.dataset.bound = 'true';
             btnSalvarGrausFuncoes.addEventListener('click', async () => {
                 btnSalvarGrausFuncoes.disabled = true;
-                btnSalvarGrausFuncoes.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i> A guardar...';
+                btnSalvarGrausFuncoes.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i> Salvando...';
                 if (msgGrausFuncoes) msgGrausFuncoes.classList.add('hidden');
 
                 try {
@@ -2314,7 +2481,7 @@ function renderizarTagsConfiguracao() {
                     if (error) throw error;
 
                     if (msgGrausFuncoes) {
-                        msgGrausFuncoes.textContent = '✅ Denominações guardadas com sucesso!';
+                        msgGrausFuncoes.textContent = '✅ Denominações salvas com sucesso!';
                         msgGrausFuncoes.className = 'text-xs font-bold text-green-600 block';
                         msgGrausFuncoes.classList.remove('hidden');
                         setTimeout(() => msgGrausFuncoes.classList.add('hidden'), 3500);
@@ -2325,7 +2492,7 @@ function renderizarTagsConfiguracao() {
 
                 } catch (err) {
                     if (msgGrausFuncoes) {
-                        msgGrausFuncoes.textContent = 'Erro ao guardar: ' + err.message;
+                        msgGrausFuncoes.textContent = 'Erro ao salvar: ' + err.message;
                         msgGrausFuncoes.className = 'text-xs font-bold text-red-600 block';
                         msgGrausFuncoes.classList.remove('hidden');
                     }
@@ -2460,7 +2627,7 @@ function renderizarTagsConfiguracao() {
                 const msg = document.getElementById('msgLogo');
                 if(!input.files || input.files.length === 0) { alert('Selecione uma imagem.'); return; }
                 btnLogo.disabled = true; btnLogo.textContent = 'Otimizando e enviando...'; msg?.classList.remove('hidden');
-                if (msg) { msg.textContent = 'Processando ficheiro...'; msg.className = 'text-xs font-bold mt-2 text-tema-primaria'; }
+                if (msg) { msg.textContent = 'Processando arquivo...'; msg.className = 'text-xs font-bold mt-2 text-tema-primaria'; }
                 
                 try {
                     const arquivoOriginal = input.files[0];
