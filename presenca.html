@@ -226,6 +226,14 @@
                 </div>
 
             </div>
+
+            <!-- Botão Voltar para o Início -->
+            <div class="flex-shrink-0 pt-4 mt-2 border-t border-gray-100 bg-white">
+                <button type="button" onclick="document.getElementById('modalPerfilMedium').classList.add('hidden')" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3.5 px-4 rounded-xl transition flex items-center justify-center shadow-sm active:scale-95 text-sm border border-gray-200">
+                    <i class="fas fa-arrow-left mr-2"></i> Voltar para o Início
+                </button>
+            </div>
+
         </div>
     </div>
 
@@ -294,9 +302,14 @@
                     <span class="text-3xl font-black text-gray-900 leading-none">R$ <span id="valorTotalMensalidade">0,00</span></span>
                 </div>
 
-                <button id="btnFinalizarMensalidade" class="w-full bg-tema-secundaria text-white font-bold py-4 px-4 rounded-xl hover:bg-green-700 transition flex items-center justify-center shadow-lg active:scale-95 text-base opacity-50 cursor-not-allowed" disabled>
-                    Selecionar Meses
-                </button>
+                <div class="flex flex-col gap-2">
+                    <button id="btnFinalizarMensalidade" class="w-full bg-tema-secundaria text-white font-bold py-4 px-4 rounded-xl hover:bg-green-700 transition flex items-center justify-center shadow-lg active:scale-95 text-base opacity-50 cursor-not-allowed" disabled>
+                        Selecionar Meses
+                    </button>
+                    <button type="button" onclick="document.getElementById('modalMensalidade').classList.add('hidden')" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3.5 px-4 rounded-xl transition flex items-center justify-center shadow-sm active:scale-95 text-sm border border-gray-200">
+                        <i class="fas fa-arrow-left mr-2"></i> Voltar para o Início
+                    </button>
+                </div>
                 <p id="msgErroMensalidade" class="text-xs font-bold text-red-600 mt-2 hidden text-center"></p>
             </div>
         </div>
@@ -364,8 +377,15 @@
 
             <!-- Rodapé (Apenas para Doações e Cantina) -->
             <div id="rodapeDoacao" class="flex-shrink-0 pt-3 border-t border-gray-100 bg-white">
-                <button id="btnConfirmarDoacao" class="hidden w-full bg-green-600 text-white font-bold py-3.5 px-4 rounded-xl hover:bg-green-700 transition flex items-center justify-center shadow-lg active:scale-95">
+                <button id="btnConfirmarDoacao" class="hidden w-full bg-green-600 text-white font-bold py-3.5 px-4 rounded-xl hover:bg-green-700 transition flex items-center justify-center shadow-lg active:scale-95 mb-2">
                     <i class="fas fa-check-circle mr-2"></i> Lançar Pedido (<span id="qtdTotalDoacao">0</span>)
+                </button>
+            </div>
+            
+            <!-- Botão Voltar para o Início Fixo -->
+            <div class="flex-shrink-0 pt-2 bg-white">
+                <button type="button" onclick="document.getElementById('modalDoacao').classList.add('hidden')" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3.5 px-4 rounded-xl transition flex items-center justify-center shadow-sm active:scale-95 text-sm border border-gray-200">
+                    <i class="fas fa-arrow-left mr-2"></i> Voltar para o Início
                 </button>
             </div>
             
