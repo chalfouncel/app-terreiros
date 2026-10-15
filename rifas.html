@@ -433,7 +433,7 @@
         };
 
         // NOVA FUNÇÃO: REABRIR O NÚMERO AMARELO COM O CRONÔMETRO
-        window.reabrirPendente = (numero, locked_at, id_reserva) => {
+        window.reabrirPendente = async (numero, locked_at, id_reserva) => {
             if (!locked_at) { carregarCartelaRifa(dadosRifaGlobal.id); return; }
 
             const lockTime = new Date(locked_at).getTime();
@@ -444,6 +444,7 @@
             // Se já passou de 5 minutos, avisa e atualiza a tela para ele voltar a ser livre
             if (tempoRestante <= 0) {
                 alert("⏳ O tempo de reserva deste número já expirou. Ele está livre novamente.");
+                await supabaseClient.from('rifa_numeros').delete().eq('id', id_reserva);
                 carregarCartelaRifa(dadosRifaGlobal.id);
                 return;
             }
@@ -579,10 +580,13 @@
                 document.getElementById('timerVisual').innerText = `0${m}:${s.toString().padStart(2, '0')}`;
                 bar.style.width = `${(tempo/segundosTotais)*100}%`;
                 
-                if (tempo <= 0) {
+               if (tempo <= 0) {
                     clearInterval(timerInterval);
                     alert("⏳ Tempo esgotado! A reserva foi cancelada e os números estão livres novamente.");
                     fecharCheckout();
+                    if (arrayIdsReservados.length > 0) {
+                        await supabaseClient.from('rifa_numeros').delete().in('id', arrayIdsReservados);
+                    }
                     try { await supabaseClient.rpc('limpar_reservas_expiradas'); } catch(e) {}
                     carregarCartelaRifa(dadosRifaGlobal.id);
                 }
