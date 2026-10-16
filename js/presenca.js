@@ -837,10 +837,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                         
                         return `
                             <div onclick="window.location.href='rifas.html?t=${idTerreiroGlobal}&r=${r.id}'" class="group relative bg-white rounded-2xl border-2 border-indigo-100 hover:border-indigo-500 overflow-hidden shadow-sm hover:shadow-md cursor-pointer transition-all transform hover:-translate-y-0.5 active:scale-95 text-left">
-                                <div class="h-32 w-full overflow-hidden bg-gray-100 relative">
-                                    <img src="${imgSrc}" class="w-full h-full object-cover group-hover:scale-105 transition duration-500" alt="${r.titulo}">
-                                    <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent flex items-end p-2.5">
-                                        <span class="bg-indigo-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider shadow">Rifa Ativa</span>
+                                <div class="h-48 w-full overflow-hidden bg-gray-50 relative flex items-center justify-center p-2 border-b border-gray-100">
+                                    <img src="${imgSrc}" class="w-full h-full object-contain group-hover:scale-105 transition duration-500" alt="${r.titulo}">
+                                    <div class="absolute bottom-2 left-2.5">
+                                        <span class="bg-indigo-600 text-white text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider shadow-md">Rifa Ativa</span>
                                     </div>
                                 </div>
                                 <div class="p-3">
