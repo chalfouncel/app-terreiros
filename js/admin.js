@@ -3423,7 +3423,8 @@ setTimeout(() => {
             const { data: pgtos, error: errPgtos } = await supabaseClient.from('financeiro')
                 .select('medium_id, mes, ano, pago, isento')
                 .eq('ano', anoBusca)
-                .in('medium_id', idsMediuns);
+                .in('medium_id', idsMediuns)
+                .range(0, 4999);
 
             if (errPgtos) throw errPgtos;
 
