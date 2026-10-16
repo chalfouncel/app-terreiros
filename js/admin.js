@@ -4564,51 +4564,28 @@ window.addEventListener('DOMContentLoaded', () => {
     }
     // Modal da Cartela Visual e Sorteio
     window.rifaAtivaId = null;
-    window.canalRealtimeAdminRifa = null; // <-- NOVO: Guardará a conexão Realtime
-    window.abrirCartelaAdmin = async (idRifa, titulo, qtdNumeros, valorNum) => {
-        window.rifaAtivaId = idRifa;
-        document.getElementById('cartelaTituloRifa').textContent = titulo;
+    window.canalRealtimeAdminRifa = null;
+
+    window.renderizarNumerosCartelaAdmin = async (idRifa, titulo, qtdNumeros, valorNum) => {
         const grid = document.getElementById('gridNumerosRifa');
-        grid.innerHTML = '<div class="col-span-full text-center text-gray-500 py-10"><i class="fas fa-spinner fa-spin text-3xl"></i></div>';
-        document.getElementById('modalCartelaRifa').classList.remove('hidden');
-
-        // Botão de copiar link de venda
-        const btnLink = document.getElementById('btnCopiarLinkRifa');
-        btnLink.onclick = () => {
-            // Usa o link absoluto da hospedagem para poder enviar no WhatsApp
-            const linkBase = window.location.origin;
-            const linkPublico = `${linkBase}/rifas.html?t=${idTerreiroGlobal}&r=${idRifa}`;
-            navigator.clipboard.writeText(linkPublico).then(() => {
-                const ori = btnLink.innerHTML;
-                btnLink.innerHTML = '<i class="fas fa-check text-green-400"></i> Link Copiado!';
-                setTimeout(() => { btnLink.innerHTML = ori; }, 2500);
-            });
-        };
-
-        // Botão de sortear
-        const btnSorteio = document.getElementById('btnRealizarSorteio');
-        btnSorteio.onclick = () => {
-            if(!confirm("Atenção! Ao sortear, a rifa será ENCERRADA e nenhum número a mais poderá ser vendido. Deseja prosseguir?")) return;
-            sortearRifa(idRifa, qtdNumeros);
-        };
+        if (!grid) return;
 
         const { data: comprados } = await supabaseClient.from('rifa_numeros').select('*').eq('rifa_id', idRifa);
         
         let qtdLivre = qtdNumeros;
         let qtdPago = 0;
         let qtdPendente = 0;
-        grid.innerHTML = '';
+        let htmlGrid = '';
 
-        for(let i = 1; i <= qtdNumeros; i++) {
+        for (let i = 1; i <= qtdNumeros; i++) {
             const comprado = comprados ? comprados.find(c => c.numero === i) : null;
             
-            let btnClass = "border-gray-200 text-gray-500 bg-white hover:bg-gray-50 hover:border-gray-300"; // Livre
+            let btnClass = "border-gray-200 text-gray-500 bg-white hover:bg-gray-50 hover:border-gray-300";
             let acao = ``;
             let tooltip = `Livre (R$ ${valorNum.toFixed(2)})`;
 
             if (comprado) {
                 qtdLivre--;
-                // NOVO: Adicionado verificação para 'pago' (Webhook Asaas)
                 if (comprado.status_pagamento === 'aprovado' || comprado.status_pagamento === 'pago') {
                     qtdPago++;
                     btnClass = "border-green-600 bg-green-500 text-white shadow-sm cursor-not-allowed";
@@ -4638,43 +4615,67 @@ window.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            grid.innerHTML += `
+            htmlGrid += `
                 <button ${acao} class="aspect-square rounded-xl border-2 font-black text-sm md:text-base flex items-center justify-center transition-all ${btnClass}" title="${tooltip}">
                     ${String(i).padStart(2, '0')}
                 </button>
             `;
         }
 
-        document.getElementById('cartelaQtdLivres').textContent = qtdLivre;
-        if(!confirm(`Confirmar o recebimento do Número ${numero} comprado por ${nome}? \nO valor de R$ ${valor.toFixed(2)} será lançado como pago no Caixa do Terreiro.`)) return;
+        grid.innerHTML = htmlGrid;
 
-        try {
-            // 1. Atualiza o status na tabela da rifa
-            const { error: err1 } = await supabaseClient.from('rifa_numeros')
-                .update({ status_pagamento: 'aprovado' }).eq('id', registroId);
-            if (err1) throw err1;
+        const elLivres = document.getElementById('cartelaQtdLivres');
+        const elPagos = document.getElementById('cartelaQtdPagos');
+        const elPendentes = document.getElementById('cartelaQtdPendentes');
+        if (elLivres) elLivres.textContent = qtdLivre;
+        if (elPagos) elPagos.textContent = qtdPago;
+        if (elPendentes) elPendentes.textContent = qtdPendente;
+    };
 
-            // 2. Lança a entrada de receita no Caixa Unificado
-            const desc = `Rifa - Número ${numero}`;
-            await supabaseClient.from('caixa_terreiro').insert([{
-                terreiro_id: idTerreiroGlobal,
-                tipo_transacao: 'RIFA',
-                descricao: desc,
-                valor: valor,
-                metodo_pagamento: 'baixado_admin',
-                pagador_nome: nome,
-                status: 'pago',
-                referencia_id: registroId
-            }]);
+    window.abrirCartelaAdmin = async (idRifa, titulo, qtdNumeros, valorNum) => {
+        window.rifaAtivaId = idRifa;
+        document.getElementById('cartelaTituloRifa').textContent = titulo;
+        const grid = document.getElementById('gridNumerosRifa');
+        grid.innerHTML = '<div class="col-span-full text-center text-gray-500 py-10"><i class="fas fa-spinner fa-spin text-3xl"></i></div>';
+        document.getElementById('modalCartelaRifa').classList.remove('hidden');
 
-            // Recarrega visualmente a cartela atual
-            const tituloAtual = document.getElementById('cartelaTituloRifa').textContent;
-            const qtdNum = document.querySelectorAll('#gridNumerosRifa button').length;
-            abrirCartelaAdmin(window.rifaAtivaId, tituloAtual, qtdNum, valor);
+        const btnLink = document.getElementById('btnCopiarLinkRifa');
+        btnLink.onclick = () => {
+            const linkBase = window.location.origin;
+            const linkPublico = `${linkBase}/rifas.html?t=${idTerreiroGlobal}&r=${idRifa}`;
+            navigator.clipboard.writeText(linkPublico).then(() => {
+                const ori = btnLink.innerHTML;
+                btnLink.innerHTML = '<i class="fas fa-check text-green-400"></i> Link Copiado!';
+                setTimeout(() => { btnLink.innerHTML = ori; }, 2500);
+            });
+        };
 
-        } catch(e) {
-            alert("Erro ao baixar pagamento: " + e.message);
+        const btnSorteio = document.getElementById('btnRealizarSorteio');
+        btnSorteio.onclick = () => {
+            if(!confirm("Atenção! Ao sortear, a rifa será ENCERRADA e nenhum número a mais poderá ser vendido. Deseja prosseguir?")) return;
+            sortearRifa(idRifa, qtdNumeros);
+        };
+
+        await window.renderizarNumerosCartelaAdmin(idRifa, titulo, qtdNumeros, valorNum);
+
+        if (window.canalRealtimeAdminRifa) {
+            supabaseClient.removeChannel(window.canalRealtimeAdminRifa);
         }
+
+        window.canalRealtimeAdminRifa = supabaseClient
+            .channel(`admin_rifa_${idRifa}`)
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'rifa_numeros' },
+                (payload) => {
+                    if (payload.new && payload.new.rifa_id && String(payload.new.rifa_id) !== String(idRifa)) return;
+                    const modalVisivel = !document.getElementById('modalCartelaRifa').classList.contains('hidden');
+                    if (modalVisivel && window.rifaAtivaId === idRifa) {
+                        window.renderizarNumerosCartelaAdmin(idRifa, titulo, qtdNumeros, valorNum);
+                    }
+                }
+            )
+            .subscribe();
     };
 
     async function sortearRifa(idRifa, maxNumeros) {
