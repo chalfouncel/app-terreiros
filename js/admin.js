@@ -930,6 +930,34 @@ document.addEventListener('DOMContentLoaded', async () => {
                         return [medium, itemNome, String(d.quantidade), dataFormatada, status];
                     });
 
+                    const btnPDFCantina = document.getElementById('btnGerarPDF_cantina');
+            if (btnPDFCantina) {
+                const novoBtnCantina = btnPDFCantina.cloneNode(true);
+                btnPDFCantina.parentNode.replaceChild(novoBtnCantina, btnPDFCantina);
+
+                novoBtnCantina.addEventListener('click', () => {
+                    if (!window.dadosCantinaParaPDF || !window.dadosCantinaParaPDF.doacoes || window.dadosCantinaParaPDF.doacoes.length === 0) {
+                        alert('Nenhum pedido da cantina para exportar.');
+                        return;
+                    }
+
+                    const { doacoes, mediuns, itens } = window.dadosCantinaParaPDF;
+                    const dados = doacoes.map(d => {
+                        const mdEncontrado = mediuns?.find(m => m.auth_id === d.medium_auth_id || String(m.id) === String(d.medium_auth_id));
+                        const medium = mdEncontrado ? mdEncontrado.nome_completo : 'Médium Desconhecido';
+                        const itemObj = itens?.find(i => String(i.id) === String(d.item_id));
+                        const itemNome = itemObj ? itemObj.nome : 'Item Desconhecido';
+                        const dataFormatada = new Date(d.data_registro).toLocaleDateString('pt-BR');
+                        const status = d.entregue ? 'Entregue' : 'Pendente';
+                        return [medium, itemNome, String(d.quantidade), dataFormatada, status];
+                    });
+
+                    dados.sort((a, b) => a[0].localeCompare(b[0], 'pt-BR'));
+
+                    window.gerarPDFRelatorio('Relatório de Pedidos da Cantina', ['Médium / Cliente', 'Produto', 'Qtd', 'Data', 'Status'], dados);
+                });
+            }
+
                     dados.sort((a, b) => a[0].localeCompare(b[0], 'pt-BR'));
 
                     window.gerarPDFRelatorio('Relatório de Doações Registradas', ['Médium', 'Item', 'Qtd', 'Data', 'Status'], dados);
@@ -2688,56 +2716,99 @@ function renderizarTagsConfiguracao() {
 
         window.carregarDoacoesPrometidas = async () => {
             if (!idTerreiroGlobal) return;
-            const tbody = document.getElementById('tabelaDoacoesPrometidas');
-            if(tbody) tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-gray-500">Buscando...</td></tr>';
-            try {
-                const { data: doacoes, error: errD } = await supabaseClient.from('doacoes_registradas').select('*').eq('terreiro_id', idTerreiroGlobal).order('entregue', { ascending: true }).order('data_registro', { ascending: false }); 
-                if (errD) throw errD;
-                const { data: mediuns } = await supabaseClient.from('mediuns').select('id, auth_id, nome_completo, nome_social').eq('terreiro_id', idTerreiroGlobal);
-                const { data: itens } = await supabaseClient.from('itens_doacao').select('id, nome, descricao').eq('terreiro_id', idTerreiroGlobal);
-                window.dadosDoacoesParaPDF = { doacoes, mediuns, itens };
+            const tbodyDoacoes = document.getElementById('tabelaDoacoesPrometidas');
+            const tbodyCantina = document.getElementById('tabelaPedidosCantina');
+            
+            if (tbodyDoacoes) tbodyDoacoes.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-gray-500">Buscando doações...</td></tr>';
+            if (tbodyCantina) tbodyCantina.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-gray-500">Buscando pedidos...</td></tr>';
 
-                if (!doacoes || doacoes.length === 0) {
-                    if(tbody) tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-gray-500">Nenhum registro.</td></tr>';
+            try {
+                const { data: registrosGlobais, error: errD } = await supabaseClient.from('doacoes_registradas').select('*').eq('terreiro_id', idTerreiroGlobal).order('entregue', { ascending: true }).order('data_registro', { ascending: false }); 
+                if (errD) throw errD;
+                
+                const { data: mediuns } = await supabaseClient.from('mediuns').select('id, auth_id, nome_completo, nome_social').eq('terreiro_id', idTerreiroGlobal);
+                const { data: itens } = await supabaseClient.from('itens_doacao').select('id, nome, descricao, categoria').eq('terreiro_id', idTerreiroGlobal);
+                
+                window.dadosDoacoesParaPDF = { doacoes: [], mediuns, itens };
+                window.dadosCantinaParaPDF = { doacoes: [], mediuns, itens };
+
+                if (!registrosGlobais || registrosGlobais.length === 0) {
+                    if (tbodyDoacoes) tbodyDoacoes.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-gray-500">Nenhuma doação da casa registrada.</td></tr>';
+                    if (tbodyCantina) tbodyCantina.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-gray-500">Nenhum pedido da cantina registrado.</td></tr>';
                     return;
                 }
-                if(tbody) {
-                    tbody.innerHTML = '';
-                    doacoes.forEach(d => {
-                        const mdEncontrado = mediuns?.find(m => m.auth_id === d.medium_auth_id || String(m.id) === String(d.medium_auth_id));
-                        const medium = mdEncontrado ? mdEncontrado.nome_completo : 'Médium Desconhecido';
-                        const itemObj = itens?.find(i => String(i.id) === String(d.item_id));
-                        const itemNome = itemObj ? `${itemObj.nome}` : 'Item';
-                        const data = new Date(d.data_registro).toLocaleDateString('pt-BR');
-                        const statusHtml = d.entregue ? '<span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded font-bold">Entregue</span>' : '<span class="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded font-bold">Pendente</span>';
-                        
-                        const acaoBaixa = d.entregue 
-                            ? `<button onclick="marcarDoacao('${d.id}', false)" class="text-xs text-gray-400 hover:text-gray-800 underline mt-1">Desfazer</button>` 
-                            : `<button onclick="marcarDoacao('${d.id}', true)" class="bg-tema-secundaria hover:opacity-90 text-white text-xs font-bold py-1.5 px-3 rounded shadow-sm mt-1">Dar Baixa</button>`;
-                        
-                        const btnExcluir = `<button onclick="excluirDoacao('${d.id}')" class="text-xs text-red-500 hover:text-red-700 ml-2" title="Excluir Registro"><i class="fas fa-trash"></i></button>`;
 
-                        const estilo = d.entregue ? 'bg-gray-50 opacity-80' : 'bg-white';
-                        tbody.innerHTML += `
-                            <tr class="border-b border-gray-100 ${estilo}">
-                                <td class="p-3 text-sm">${medium}</td>
-                                <td class="p-3 text-sm">${itemNome}</td>
-                                <td class="p-3 text-center font-bold">${d.quantidade}</td>
-                                <td class="p-3 text-xs text-gray-500">${data}</td>
-                                <td class="p-3 text-center">
-                                    <div class="flex items-center justify-center gap-2">
-                                        <div class="flex flex-col items-center">${statusHtml}${acaoBaixa}</div>
-                                        ${btnExcluir}
+                if (tbodyDoacoes) tbodyDoacoes.innerHTML = '';
+                if (tbodyCantina) tbodyCantina.innerHTML = '';
+
+                let countDoacoes = 0;
+                let countCantina = 0;
+
+                registrosGlobais.forEach(d => {
+                    const mdEncontrado = mediuns?.find(m => m.auth_id === d.medium_auth_id || String(m.id) === String(d.medium_auth_id));
+                    const medium = mdEncontrado ? mdEncontrado.nome_completo : 'Médium Desconhecido';
+                    const itemObj = itens?.find(i => String(i.id) === String(d.item_id));
+                    const itemNome = itemObj ? `${itemObj.nome}` : 'Item Excluído';
+                    
+                    // Lógica para separar Doações (Terreiro) da Cantina
+                    const isCantina = itemObj && itemObj.categoria && itemObj.categoria.toLowerCase().trim() === 'cantina';
+
+                    if (isCantina) {
+                        window.dadosCantinaParaPDF.doacoes.push(d);
+                    } else {
+                        window.dadosDoacoesParaPDF.doacoes.push(d);
+                    }
+
+                    const dataRegistro = new Date(d.data_registro).toLocaleDateString('pt-BR');
+                    
+                    // Na cantina mudamos o texto de status: "Pendente" ou "Entregue"
+                    const statusText = d.entregue ? 'Entregue' : 'Pendente';
+                    const bgStatus = d.entregue ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800';
+                    const statusHtml = `<span class="text-xs ${bgStatus} px-2 py-1 rounded font-bold">${statusText}</span>`;
+                    
+                    const acaoBaixaHtml = d.entregue 
+                        ? `<button onclick="marcarDoacao('${d.id}', false)" class="text-[10px] text-gray-400 hover:text-gray-800 underline mt-1 block w-full text-center">Desfazer</button>` 
+                        : `<button onclick="marcarDoacao('${d.id}', true)" class="${isCantina ? 'bg-orange-500' : 'bg-tema-secundaria'} hover:opacity-90 text-white text-[10px] font-bold py-1.5 px-3 rounded shadow-sm mt-1 w-full">Dar Baixa</button>`;
+                    
+                    const btnExcluirHtml = `<button onclick="excluirDoacao('${d.id}')" class="text-xs text-red-500 hover:text-red-700 ml-2 shrink-0" title="Excluir Registro"><i class="fas fa-trash"></i></button>`;
+
+                    const estiloLinha = d.entregue ? 'bg-gray-50 opacity-80' : 'bg-white';
+                    
+                    const trHtml = `
+                        <tr class="border-b border-gray-100 ${estiloLinha} hover:bg-gray-50 transition-colors">
+                            <td class="p-3 text-sm text-gray-800 font-medium">${medium}</td>
+                            <td class="p-3 text-xs text-gray-600">${itemNome}<br><span class="text-[9px] text-gray-400">${dataRegistro}</span></td>
+                            <td class="p-3 text-center font-bold text-gray-800">${d.quantidade}</td>
+                            <td class="p-3 text-center">
+                                <div class="flex items-center justify-center gap-2">
+                                    <div class="flex flex-col items-center w-20">
+                                        ${statusHtml}
+                                        ${acaoBaixaHtml}
                                     </div>
-                                </td>
-                            </tr>`;
-                    });
-                }
+                                    ${btnExcluirHtml}
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+
+                    if (isCantina) {
+                        if (tbodyCantina) tbodyCantina.innerHTML += trHtml;
+                        countCantina++;
+                    } else {
+                        if (tbodyDoacoes) tbodyDoacoes.innerHTML += trHtml;
+                        countDoacoes++;
+                    }
+                });
+
+                if (countDoacoes === 0 && tbodyDoacoes) tbodyDoacoes.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-gray-500 text-sm">Nenhuma doação pendente.</td></tr>';
+                if (countCantina === 0 && tbodyCantina) tbodyCantina.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-gray-500 text-sm">Nenhum pedido pendente.</td></tr>';
+
             } catch (error) {
-                if(tbody) tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-red-500">Erro ao carregar doações.</td></tr>`;
+                console.error("Erro ao carregar doações:", error);
+                if (tbodyDoacoes) tbodyDoacoes.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-red-500 text-xs">Erro: ${error.message}</td></tr>`;
+                if (tbodyCantina) tbodyCantina.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-red-500 text-xs">Erro: ${error.message}</td></tr>`;
             }
         };
-
         let cacheTerreirosSaaS = [];
 
         function renderizarCardsTerreirosSaaS(lista) {
