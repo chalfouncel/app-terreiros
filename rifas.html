@@ -227,14 +227,46 @@
             idRifaSelecionada = urlParams.get('r'); 
             usuarioLogadoId = localStorage.getItem('medium_id');
 
-            vendedorIdParaBD = urlParams.get('v') ? urlParams.get('v') : usuarioLogadoId;
-
             if (!idTerreiro) {
                 mostrarErro("Link inválido. O identificador da Instituição não foi encontrado.");
                 return;
             }
 
             try {
+                // Garante a identificação do médium logado pela sessão ativa do Supabase
+                const { data: { session } } = await supabaseClient.auth.getSession();
+                if (session && session.user) {
+                    const { data: pAuth } = await supabaseClient.from('mediuns').select('id, nome_completo, telefone').eq('auth_id', session.user.id).maybeSingle();
+                    if (pAuth) {
+                        usuarioLogadoId = String(pAuth.id);
+                        localStorage.setItem('medium_id', usuarioLogadoId);
+                        document.getElementById('compradorNome').value = pAuth.nome_completo || '';
+                        usuarioLogadoTelefone = pAuth.telefone ? pAuth.telefone.replace(/\D/g, '') : '';
+                        document.getElementById('compradorTelefone').value = usuarioLogadoTelefone;
+                    } else if (session.user.email) {
+                        const possivelId = session.user.email.split('@')[0];
+                        if (!isNaN(possivelId)) {
+                            const { data: pId } = await supabaseClient.from('mediuns').select('id, nome_completo, telefone').eq('id', possivelId).maybeSingle();
+                            if (pId) {
+                                usuarioLogadoId = String(pId.id);
+                                localStorage.setItem('medium_id', usuarioLogadoId);
+                                document.getElementById('compradorNome').value = pId.nome_completo || '';
+                                usuarioLogadoTelefone = pId.telefone ? pId.telefone.replace(/\D/g, '') : '';
+                                document.getElementById('compradorTelefone').value = usuarioLogadoTelefone;
+                            }
+                        }
+                    }
+                } else if (usuarioLogadoId) {
+                    const { data: mData } = await supabaseClient.from('mediuns').select('nome_completo, telefone').eq('id', usuarioLogadoId).maybeSingle();
+                    if (mData) {
+                        document.getElementById('compradorNome').value = mData.nome_completo || '';
+                        usuarioLogadoTelefone = mData.telefone ? mData.telefone.replace(/\D/g, '') : '';
+                        document.getElementById('compradorTelefone').value = usuarioLogadoTelefone;
+                    }
+                }
+
+                vendedorIdParaBD = urlParams.get('v') ? urlParams.get('v') : usuarioLogadoId;
+
                 const { data: terreiro, error: errT } = await supabaseClient.from('terreiros').select('*').eq('id', idTerreiro).single();
                 if (errT || !terreiro) throw new Error("Instituição não encontrada.");
                 
@@ -245,15 +277,6 @@
                 if(terreiro.cor_primaria) root.style.setProperty('--cor-primaria', terreiro.cor_primaria);
                 const imgLogo = document.getElementById('logoTerreiro');
                 if (terreiro.logo_url) { imgLogo.src = terreiro.logo_url; imgLogo.classList.remove('hidden'); }
-
-                if (usuarioLogadoId) {
-                    const { data: mData } = await supabaseClient.from('mediuns').select('nome_completo, telefone').eq('id', usuarioLogadoId).single();
-                    if (mData) {
-                        document.getElementById('compradorNome').value = mData.nome_completo || '';
-                        usuarioLogadoTelefone = mData.telefone ? mData.telefone.replace(/\D/g, '') : '';
-                        document.getElementById('compradorTelefone').value = usuarioLogadoTelefone;
-                    }
-                }
 
                 if (idRifaSelecionada) {
                     await carregarCartelaRifa(idRifaSelecionada);
@@ -489,7 +512,11 @@
             
             const btnConf = document.getElementById('btnConfirmarReserva');
             btnConf.disabled = false;
-            btnConf.innerHTML = '<i class="fas fa-receipt"></i> Pagar via PIX com Comprovante';
+            if (isVendedorAutorizado) {
+                btnConf.innerHTML = '<i class="fas fa-check-circle"></i> Confirmar Venda (Equipe de Vendas)';
+            } else {
+                btnConf.innerHTML = '<i class="fas fa-receipt"></i> Pagar via PIX com Comprovante';
+            }
             
             const btnEnv = document.getElementById('btnEnviarComprovante');
             btnEnv.disabled = false;
@@ -569,8 +596,8 @@
                 btnConf.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
                 msg.classList.add('hidden');
 
-                const isAutoCompra = (usuarioLogadoTelefone && telDigitado === usuarioLogadoTelefone);
-                const isVendaAprovada = isVendedorAutorizado && !isAutoCompra;
+                // Regra: Se o ID do login consta em vendedores_ids, aprova direto (verde) sem pedir comprovante
+                const isVendaAprovada = isVendedorAutorizado === true;
                 
                 const statusPgt = isVendaAprovada ? 'aprovado' : 'pendente';
                 const bloqueioTempo = isVendaAprovada ? null : new Date().toISOString(); 
