@@ -725,11 +725,16 @@
             }
         });
 
+        let canalRifaAtivoId = null;
+
         function iniciarRealtimeRifa(idRifa) {
-            // Remove inscrição anterior se houver
+            if (inscricaoRealtime && canalRifaAtivoId === idRifa) return;
+
             if (inscricaoRealtime) {
                 supabaseClient.removeChannel(inscricaoRealtime);
             }
+
+            canalRifaAtivoId = idRifa;
 
             inscricaoRealtime = supabaseClient
                 .channel(`mudancas_rifa_${idRifa}`)
@@ -738,29 +743,24 @@
                     {
                         event: '*', 
                         schema: 'public',
-                        table: 'rifa_numeros',
-                        filter: `rifa_id=eq.${idRifa}` 
+                        table: 'rifa_numeros'
                     },
                     (payload) => {
-                        console.log('Atualização via Realtime detectada. Recarregando grade...');
-                        
-                        // Guarda temporariamente os números que o usuário já clicou para não perder a seleção dele
+                        if (payload.new && payload.new.rifa_id && String(payload.new.rifa_id) !== String(idRifa)) return;
+
                         const selecionadosAtuais = [...numerosSelecionadosArray];
                         
-                        // Chama a sua própria função para buscar os dados de novo e repintar os botões
                         carregarCartelaRifa(idRifa).then(() => {
-                            // Devolve os números que estavam selecionados
-                            numerosSelecionadosArray = selecionadosAtuais;
-                            atualizarBarraSelecao();
-                            
-                            // Re-pinta os botões que o usuário já tinha selecionado de azul primário
-                            numerosSelecionadosArray.forEach(num => {
-                                const btn = document.querySelector(`button[onclick*="toggleNumeroRifa(${num}"]`);
-                                if(btn) {
+                            numerosSelecionadosArray = [];
+                            selecionadosAtuais.forEach(num => {
+                                const btn = document.querySelector(`button[onclick*="toggleNumeroRifa(${num},"]`);
+                                if (btn) {
+                                    numerosSelecionadosArray.push(num);
                                     btn.classList.remove('bg-white', 'text-gray-500', 'border-gray-200');
                                     btn.classList.add('bg-tema-primaria', 'text-white', 'border-tema-primaria');
                                 }
                             });
+                            atualizarBarraSelecao();
                         });
                     }
                 )
