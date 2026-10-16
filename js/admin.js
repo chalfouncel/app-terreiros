@@ -2005,7 +2005,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             const { data: pgtos } = await supabaseClient.from('financeiro')
                 .select('medium_id, mes, ano, pago, isento, origem')
                 .eq('ano', anoBusca)
-                .in('medium_id', idsMediuns);
+                .in('medium_id', idsMediuns)
+                .range(0, 4999);
 
             const { data: configs } = await supabaseClient.from('config_mensalidades')
                 .select('grau, valor')
