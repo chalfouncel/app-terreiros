@@ -4397,31 +4397,29 @@ window.addEventListener('DOMContentLoaded', () => {
             
             const cat = 'cantina';
             const nome = document.getElementById('doacaoNomeCantina').value.trim();
-            const val = document.getElementById('doacaoValorCantina').value;
 
             try {
                 const { error } = await supabaseClient.from('itens_doacao').insert([{
                     terreiro_id: idTerreiroGlobal,
                     categoria: cat,
                     nome: nome,
-                    valor_sugerido: val ? parseFloat(val) : null,
+                    valor_sugerido: null,
                     ativo: true
                 }]);
                 if (error) throw error;
                 
                 formNovoItemCantina.reset();
                 window.carregarDoacoesCatalogo();
-                msg.textContent = "Produto adicionado!"; msg.className = "text-xs font-bold text-green-600 block mt-2";
+                msg.textContent = "Item adicionado com sucesso!"; msg.className = "text-xs font-bold text-green-600 block mt-2";
                 msg.classList.remove('hidden'); setTimeout(()=> msg.classList.add('hidden'), 3000);
             } catch (err) {
                 msg.textContent = "Erro: " + err.message; msg.className = "text-xs font-bold text-red-600 block mt-2";
                 msg.classList.remove('hidden');
             } finally {
-                btn.disabled = false; btn.innerHTML = 'Adicionar à Cantina';
+                btn.disabled = false; btn.innerHTML = 'Adicionar item para doação';
             }
         });
     }
-
     // REDEFINE A FUNÇÃO DE CARREGAR AS DUAS TABELAS (TERREIRO E CANTINA)
     window.carregarDoacoesCatalogo = async () => {
         if (!idTerreiroGlobal) return;
