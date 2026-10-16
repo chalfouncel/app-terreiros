@@ -1213,11 +1213,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         const idsNoCarrinho = carrinhoMensalidadesState.map(c => c.mediumId);
         
         // 1. Busca os meses que JÁ FORAM PAGOS/APROVADOS
+        // 1. Busca os meses que JÁ FORAM PAGOS OU ISENTOS
         const { data: pgtosFeitos } = await supabaseClient.from('financeiro')
-            .select('medium_id, mes, pago')
+            .select('medium_id, mes, pago, isento')
             .eq('ano', anoSelecionado)
-            .in('medium_id', idsNoCarrinho)
-            .eq('pago', true);
+            .in('medium_id', idsNoCarrinho);
 
         // 2. Busca os comprovantes PENDENTES para travar os meses que aguardam validação
         const { data: comprovantesPendentes } = await supabaseClient.from('comprovantes_mensalidade')
@@ -1246,14 +1246,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         carrinhoMensalidadesState.forEach((itemCarrinho, indexCarrinho) => {
             const pgtosMedium = pgtosFeitos ? pgtosFeitos.filter(p => p.medium_id === itemCarrinho.mediumId) : [];
-            const mesesPagos = pgtosMedium.map(p => p.mes);
-            itemCarrinho.mesesPagosNoAno = mesesPagos;
+            const mesesPagos = pgtosMedium.filter(p => p.pago === true).map(p => p.mes);
+            const mesesIsentos = pgtosMedium.filter(p => p.isento === true).map(p => p.mes);
+            itemCarrinho.mesesPagosNoAno = [...mesesPagos, ...mesesIsentos];
 
             const nomesMeses = ['', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
             
             let gridMesesHtml = '';
             for (let m = 1; m <= 12; m++) {
                 const jaPago = mesesPagos.includes(m);
+                const ehIsento = mesesIsentos.includes(m);
                 const estaPendente = mesesPendentesMap[itemCarrinho.mediumId]?.has(m);
                 const selecionado = itemCarrinho.mesesSelecionados.includes(m);
                 
@@ -1263,6 +1265,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <div class="bg-green-50 border border-green-200 text-green-700 rounded-lg p-2 text-center text-xs font-bold flex flex-col justify-between opacity-80 cursor-not-allowed" title="Mês já pago">
                             <span>${nomesMeses[m]}</span>
                             <i class="fas fa-check-circle text-green-600 mt-1"></i>
+                        </div>
+                    `;
+                } else if (ehIsento) {
+                    // MÊS ISENTO (Roxo Suave)
+                    gridMesesHtml += `
+                        <div class="bg-purple-50 border border-purple-200 text-purple-700 rounded-lg p-2 text-center text-xs font-bold flex flex-col justify-between opacity-90 cursor-not-allowed" title="Mensalidade Isenta">
+                            <span>${nomesMeses[m]}</span>
+                            <span class="text-[9px] font-semibold text-purple-600 mt-1 flex items-center justify-center gap-1">
+                                <i class="fas fa-shield-alt text-[10px]"></i> Isento
+                            </span>
                         </div>
                     `;
                 } else if (estaPendente) {
@@ -1927,14 +1939,19 @@ async function verificarPendenciaMensalidade(mediumId) {
 
         botoes.forEach(btn => {
             if (!btn) return;
+            const spanTexto = btn.querySelector('span') || btn;
+            const icone = btn.querySelector('i');
+
             if (temMensalidadeVencida) {
                 btn.classList.add('alerta-mensalidade-pendente');
-                const spanTexto = btn.querySelector('span');
-                if (spanTexto) {
-                    spanTexto.textContent = 'Mensalidade Pendente';
-                }
+                btn.classList.remove('bg-green-50', 'text-green-700', 'border-green-300');
+                if (spanTexto) spanTexto.textContent = 'Mensalidade Pendente';
+                if (icone) icone.className = 'fas fa-exclamation-circle mr-1.5';
             } else {
                 btn.classList.remove('alerta-mensalidade-pendente');
+                btn.classList.add('bg-green-50', 'text-green-700', 'border-green-300');
+                if (spanTexto) spanTexto.textContent = 'Mensalidade em Dia';
+                if (icone) icone.className = 'fas fa-check-circle mr-1.5 text-green-600';
             }
         });
 
