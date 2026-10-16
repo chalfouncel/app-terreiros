@@ -2002,11 +2002,30 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             const idsMediuns = mediuns.map(m => m.id);
 
-            const { data: pgtos } = await supabaseClient.from('financeiro')
-                .select('medium_id, mes, ano, pago, isento, origem')
-                .eq('ano', anoBusca)
-                .in('medium_id', idsMediuns)
-                .range(0, 4999);
+            let pgtos = [];
+            let deLinha = 0;
+            const tamanhoBloco = 1000;
+
+            while (true) {
+                const { data: blocoPgtos, error: errBloco } = await supabaseClient.from('financeiro')
+                    .select('medium_id, mes, ano, pago, isento, origem')
+                    .eq('ano', anoBusca)
+                    .in('medium_id', idsMediuns)
+                    .range(deLinha, deLinha + tamanhoBloco - 1);
+
+                if (errBloco) {
+                    console.error('Erro ao buscar bloco financeiro:', errBloco);
+                    break;
+                }
+
+                if (blocoPgtos && blocoPgtos.length > 0) {
+                    pgtos.push(...blocoPgtos);
+                    if (blocoPgtos.length < tamanhoBloco) break;
+                    deLinha += tamanhoBloco;
+                } else {
+                    break;
+                }
+            }
 
             const { data: configs } = await supabaseClient.from('config_mensalidades')
                 .select('grau, valor')
@@ -3420,11 +3439,27 @@ setTimeout(() => {
 
             const idsMediuns = mediuns.map(m => m.id);
 
-            const { data: pgtos, error: errPgtos } = await supabaseClient.from('financeiro')
-                .select('medium_id, mes, ano, pago, isento')
-                .eq('ano', anoBusca)
-                .in('medium_id', idsMediuns)
-                .range(0, 4999);
+            let pgtos = [];
+            let deLinha = 0;
+            const tamanhoBloco = 1000;
+
+            while (true) {
+                const { data: blocoPgtos, error: errBloco } = await supabaseClient.from('financeiro')
+                    .select('medium_id, mes, ano, pago, isento')
+                    .eq('ano', anoBusca)
+                    .in('medium_id', idsMediuns)
+                    .range(deLinha, deLinha + tamanhoBloco - 1);
+
+                if (errBloco) throw errBloco;
+
+                if (blocoPgtos && blocoPgtos.length > 0) {
+                    pgtos.push(...blocoPgtos);
+                    if (blocoPgtos.length < tamanhoBloco) break;
+                    deLinha += tamanhoBloco;
+                } else {
+                    break;
+                }
+            }
 
             if (errPgtos) throw errPgtos;
 
