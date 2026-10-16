@@ -76,6 +76,28 @@ async function carregarDadosRifa() {
         preencherDadosCabecalho();
         await carregarNumerosCartela();
 
+        // NOVA LÓGICA: Capturar números selecionados enviados pelo presenca.js
+        const numsParam = urlParams.get('n');
+        if (numsParam) {
+            const numerosParaSelecionar = numsParam.split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n));
+            let selecionouAlgum = false;
+            
+            numerosParaSelecionar.forEach(num => {
+                // Se o número ainda estiver livre, seleciona-o automaticamente
+                if (!numerosOcupados.has(num)) {
+                    numerosSelecionados.add(num);
+                    selecionouAlgum = true;
+                }
+            });
+            
+            if (selecionouAlgum) {
+                renderizarGradeNumeros();
+                atualizarBarraFlutuante();
+                // Abre o modal de checkout automaticamente após meio segundo
+                setTimeout(() => abrirModalCheckout(), 500);
+            }
+        }
+
     } catch (err) {
         console.error('Erro ao carregar rifa:', err);
         renderizarErro('Ops!', err.message || 'Erro ao carregar dados da rifa.');
