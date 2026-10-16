@@ -320,10 +320,11 @@
             }
         };
 
-        // Redirecionamento para a página oficial do Asaas (Passo 5)
+        // Redirecionamento para a página oficial do Asaas com os números (Passo 5)
         window.irParaCheckoutAsaas = () => {
             const vend = vendedorIdParaBD ? `&v=${vendedorIdParaBD}` : '';
-            window.location.href = `rifa-publica.html?r=${dadosRifaGlobal.id}${vend}`;
+            const numsStr = numerosSelecionadosArray.join(',');
+            window.location.href = `rifa-publica.html?r=${dadosRifaGlobal.id}${vend}&n=${numsStr}`;
         };
 
         async function carregarListaDeRifas() {
