@@ -597,7 +597,7 @@
                 msg.classList.add('hidden');
 
                 // Regra: Se o ID do login consta em vendedores_ids, aprova direto (verde) sem pedir comprovante
-                const isVendaAprovada = isVendedorAutorizado === true;
+                const isVendaAprovada = (isVendedorAutorizado === true) && (telDigitado !== usuarioLogadoTelefone);
                 
                 const statusPgt = isVendaAprovada ? 'aprovado' : 'pendente';
                 const bloqueioTempo = isVendaAprovada ? null : new Date().toISOString(); 
