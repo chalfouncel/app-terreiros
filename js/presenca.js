@@ -1045,14 +1045,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     const modalDoacao = document.getElementById('modalDoacao');
-    const btnAbrirDoacao = document.getElementById('btnAbrirDoacao');
-    const btnAbrirDoacaoSucesso = document.getElementById('btnAbrirDoacaoSucesso');
     const btnFecharDoacao = document.getElementById('btnFecharDoacao');
     const btnCopiarPix = document.getElementById('btnCopiarPix');
 
-    const abrirModalDoacaoApp = () => {
+    // Mapeamento dos 6 novos botões da tela inicial
+    const btnAcaoDoacao = document.getElementById('btnAcaoDoacao');
+    const btnAcaoCantina = document.getElementById('btnAcaoCantina');
+    const btnAcaoRifa = document.getElementById('btnAcaoRifa');
+
+    const btnAcaoDoacaoSucesso = document.getElementById('btnAcaoDoacaoSucesso');
+    const btnAcaoCantinaSucesso = document.getElementById('btnAcaoCantinaSucesso');
+    const btnAcaoRifaSucesso = document.getElementById('btnAcaoRifaSucesso');
+
+    // Função que abre o modal já na aba clicada
+    const abrirModalDiretoNaAba = (abaAlvo) => {
         if(modalDoacao) {
-            alternarAbaCampanhaApp('doacao'); // Reseta a aba sempre pra Doação geral ao abrir
+            alternarAbaCampanhaApp(abaAlvo); 
             modalDoacao.classList.remove('hidden');
             setTimeout(() => {
                 modalDoacao.querySelector('div').classList.remove('scale-95');
@@ -1061,8 +1069,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     };
 
-    if(btnAbrirDoacao) btnAbrirDoacao.addEventListener('click', abrirModalDoacaoApp);
-    if(btnAbrirDoacaoSucesso) btnAbrirDoacaoSucesso.addEventListener('click', abrirModalDoacaoApp);
+    // Eventos da Área Bater Ponto
+    if(btnAcaoDoacao) btnAcaoDoacao.addEventListener('click', () => abrirModalDiretoNaAba('doacao'));
+    if(btnAcaoCantina) btnAcaoCantina.addEventListener('click', () => abrirModalDiretoNaAba('cantina'));
+    if(btnAcaoRifa) btnAcaoRifa.addEventListener('click', () => abrirModalDiretoNaAba('rifas'));
+
+    // Eventos da Área Sucesso
+    if(btnAcaoDoacaoSucesso) btnAcaoDoacaoSucesso.addEventListener('click', () => abrirModalDiretoNaAba('doacao'));
+    if(btnAcaoCantinaSucesso) btnAcaoCantinaSucesso.addEventListener('click', () => abrirModalDiretoNaAba('cantina'));
+    if(btnAcaoRifaSucesso) btnAcaoRifaSucesso.addEventListener('click', () => abrirModalDiretoNaAba('rifas'));
 
     if(btnFecharDoacao) {
         btnFecharDoacao.addEventListener('click', () => {
