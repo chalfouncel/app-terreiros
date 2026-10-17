@@ -90,6 +90,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         const txtNome = document.getElementById('nomeMedium');
         if (txtNome) txtNome.textContent = 'Olá, ' + nomeCurto;
 
+        // Preenche imediatamente os inputs do formulário com os dados carregados do Supabase
+        const inpNome = document.getElementById('perfilNomeCompleto');
+        const inpSocial = document.getElementById('perfilNomeSocial');
+        const inpTel = document.getElementById('perfilTelefone');
+
+        if (inpNome) inpNome.value = perfil.nome_completo || '';
+        if (inpSocial) inpSocial.value = perfil.nome_social || '';
+        if (inpTel) inpTel.value = perfil.telefone || '';
+
         // Inicializa dados do Modal de Perfil e Vínculos Familiares
         configurarModalPerfil();
         await carregarVinculosFamiliares();
