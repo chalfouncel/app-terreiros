@@ -312,17 +312,23 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         });
                 if (!emModoMasterPuro) {
-                            setTimeout(() => {
-                                // Encontra qual é o primeiro menu lateral que NÃO está invisível (hidden)
-                                const primeiroMenuVisivel = Array.from(menus).find(menu => !menu.classList.contains('hidden'));
-                
-                                if (primeiroMenuVisivel) {
-                                    primeiroMenuVisivel.click(); // O sistema clica automaticamente para abrir a tela certa
-                                } else {
-                                    secoes.forEach(s => s.classList.add('hidden')); // Tela em branco se não tiver nenhum acesso
-                                }
-                            }, 100);
+                    setTimeout(() => {
+                        const urlParams = new URLSearchParams(window.location.search);
+                        const secaoParam = urlParams.get('secao');
+                        const menuAlvo = secaoParam ? document.getElementById(secaoParam) : null;
+
+                        if (menuAlvo && !menuAlvo.classList.contains('hidden')) {
+                            menuAlvo.click();
+                        } else {
+                            const primeiroMenuVisivel = Array.from(menus).find(menu => !menu.classList.contains('hidden'));
+                            if (primeiroMenuVisivel) {
+                                primeiroMenuVisivel.click();
+                            } else {
+                                secoes.forEach(s => s.classList.add('hidden'));
+                            }
                         }
+                    }, 100);
+                }
         
         const formNovaGira = document.getElementById('formNovaGira');
         if (formNovaGira) {
@@ -2980,7 +2986,13 @@ function renderizarTagsConfiguracao() {
             }
         }
 
-        if (emModoMasterPuro) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const secaoParam = urlParams.get('secao');
+        const menuAlvo = secaoParam ? document.getElementById(secaoParam) : null;
+
+        if (menuAlvo && !menuAlvo.classList.contains('hidden')) {
+            menuAlvo.click();
+        } else if (emModoMasterPuro) {
             document.getElementById('menuMaster')?.click();
         } else if (perfilAdminLogado.is_admin || perfilAdminLogado.perm_visao_geral) {
             document.getElementById('menuVisaoGeral')?.click();
