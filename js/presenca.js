@@ -103,9 +103,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         configurarModalPerfil();
         await carregarVinculosFamiliares();
 
-        // Permissão de acesso ao botão do Painel Admin
+        // Permissão de acesso e botões dinâmicos do Painel Admin
         const temAcessoAoPainel = perfil.is_admin === true || 
                                   perfil.perm_visao_geral === true ||
+                                  perfil.perm_quadro_mediuns === true ||
                                   perfil.perm_agenda === true || 
                                   perfil.perm_ata === true ||
                                   perfil.perm_grau === true || 
@@ -116,12 +117,41 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (temAcessoAoPainel) {
             const areaAdmin = document.getElementById('areaAdmin');
-            if (areaAdmin) areaAdmin.classList.remove('hidden');
-        }
+            if (areaAdmin) {
+                areaAdmin.classList.remove('hidden');
 
-        const btnPainel = document.getElementById('btnPainelAdmin');
-        if (btnPainel) {
-            btnPainel.addEventListener('click', () => window.location.href = 'admin.html');
+                const permissoesMapeadas = [
+                    { chave: 'perm_visao_geral', menu: 'menuVisaoGeral', label: 'Visão Geral', icone: 'fa-home' },
+                    { chave: 'perm_quadro_mediuns', menu: 'menuQuadroMediuns', label: 'Quadro de Médiuns', icone: 'fa-users' },
+                    { chave: 'perm_agenda', menu: 'menuAgendaGiras', label: 'Agenda de Eventos', icone: 'fa-calendar-alt' },
+                    { chave: 'perm_ata', menu: 'menuLivroAta', label: 'Livro de Presença (ATA)', icone: 'fa-book-open' },
+                    { chave: 'perm_grau', menu: 'menuGrau', label: 'Alteração de Grau', icone: 'fa-graduation-cap' },
+                    { chave: 'perm_financeiro', menu: 'menuFinanceiro', label: 'Controle Financeiro', icone: 'fa-file-invoice-dollar' },
+                    { chave: 'perm_doacoes', menu: 'menuDoacoes', label: 'Doações / Campanhas', icone: 'fa-hand-holding-heart' },
+                    { chave: 'perm_admin', menu: 'menuAdmin', label: 'Configurações da Casa', icone: 'fa-cog' }
+                ];
+
+                const permsAtivas = permissoesMapeadas.filter(p => perfil[p.chave] === true);
+
+                // Se tiver de 1 a 3 permissões específicas (e não for Admin Geral nem Master)
+                if (permsAtivas.length >= 1 && permsAtivas.length <= 3 && !perfil.is_admin && !perfil.is_master) {
+                    areaAdmin.innerHTML = `
+                        <div class="space-y-2.5">
+                            ${permsAtivas.map(p => `
+                                <button type="button" onclick="window.location.href='admin.html?secao=${p.menu}'" class="w-full bg-gray-800 text-white text-base md:text-lg font-bold py-3.5 md:py-4 rounded-xl shadow-lg hover:bg-gray-700 active:scale-95 transition-all flex items-center justify-center gap-2">
+                                    <i class="fas ${p.icone}"></i> <span>${p.label}</span>
+                                </button>
+                            `).join('')}
+                        </div>
+                    `;
+                } else {
+                    areaAdmin.innerHTML = `
+                        <button type="button" onclick="window.location.href='admin.html'" class="w-full bg-gray-800 text-white text-lg font-bold py-4 rounded-xl shadow-lg hover:bg-gray-700 active:scale-95 transition-all flex items-center justify-center gap-2">
+                            <i class="fas fa-cog"></i> <span>Acessar Painel de Gestão</span>
+                        </button>
+                    `;
+                }
+            }
         }
 
         // Carrega dados e tema do terreiro
