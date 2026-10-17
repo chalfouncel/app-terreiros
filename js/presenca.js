@@ -135,11 +135,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 // Se tiver de 1 a 3 permissões específicas (e não for Admin Geral nem Master)
                 if (permsAtivas.length >= 1 && permsAtivas.length <= 3 && !perfil.is_admin && !perfil.is_master) {
+                    const gridCols = permsAtivas.length === 1 ? 'grid-cols-1' : (permsAtivas.length === 2 ? 'grid-cols-2' : 'grid-cols-3');
+
                     areaAdmin.innerHTML = `
-                        <div class="space-y-2.5">
+                        <div class="grid ${gridCols} gap-2 w-full">
                             ${permsAtivas.map(p => `
-                                <button type="button" onclick="window.location.href='admin.html?secao=${p.menu}'" class="w-full bg-gray-800 text-white text-base md:text-lg font-bold py-3.5 md:py-4 rounded-xl shadow-lg hover:bg-gray-700 active:scale-95 transition-all flex items-center justify-center gap-2">
-                                    <i class="fas ${p.icone}"></i> <span>${p.label}</span>
+                                <button type="button" onclick="window.location.href='admin.html?secao=${p.menu}'" class="flex flex-col items-center justify-center py-3 px-2 rounded-xl bg-gray-800 hover:bg-gray-700 active:scale-95 text-white shadow-md transition-all text-center">
+                                    <i class="fas ${p.icone} text-2xl mb-1 text-gray-200"></i>
+                                    <span class="text-[11px] md:text-xs font-bold leading-tight">${p.label}</span>
                                 </button>
                             `).join('')}
                         </div>
