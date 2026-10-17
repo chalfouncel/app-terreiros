@@ -326,7 +326,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ====================================================================
     function configurarModalPerfil() {
         const modalPerfil = document.getElementById('modalPerfilMedium');
-        const btnAbrirPerfil = document.getElementById('btnAbrirPerfil');
         const btnFecharPerfil = document.getElementById('btnFecharPerfil');
 
         const tabDados = document.getElementById('tabPerfilDados');
@@ -337,14 +336,37 @@ document.addEventListener('DOMContentLoaded', async () => {
         const secSenha = document.getElementById('conteudoAbaSenha');
         const secFamilia = document.getElementById('conteudoAbaFamilia');
 
-        const abrirPerfil = () => {
+        const abrirPerfil = async () => {
             if (!modalPerfil) return;
-            // Carrega dados atuais nos inputs
-            if (perfilMediumLogado) {
-                document.getElementById('perfilNomeCompleto').value = perfilMediumLogado.nome_completo || '';
-                document.getElementById('perfilNomeSocial').value = perfilMediumLogado.nome_social || '';
-                document.getElementById('perfilTelefone').value = perfilMediumLogado.telefone || '';
+
+            // Busca os dados atualizados diretamente no Supabase ao abrir
+            try {
+                if (perfilMediumLogado && perfilMediumLogado.id) {
+                    const { data: medAtual, error: errMed } = await supabaseClient
+                        .from('mediuns')
+                        .select('nome_completo, nome_social, telefone')
+                        .eq('id', perfilMediumLogado.id)
+                        .single();
+
+                    if (!errMed && medAtual) {
+                        perfilMediumLogado.nome_completo = medAtual.nome_completo;
+                        perfilMediumLogado.nome_social = medAtual.nome_social;
+                        perfilMediumLogado.telefone = medAtual.telefone;
+                    }
+                }
+            } catch (e) {
+                console.error("Erro ao carregar dados do perfil:", e);
             }
+
+            // Preenche os inputs garantindo que os dados chegam à interface
+            const elNome = document.getElementById('perfilNomeCompleto');
+            const elSocial = document.getElementById('perfilNomeSocial');
+            const elTel = document.getElementById('perfilTelefone');
+
+            if (elNome) elNome.value = (perfilMediumLogado && perfilMediumLogado.nome_completo) ? perfilMediumLogado.nome_completo : '';
+            if (elSocial) elSocial.value = (perfilMediumLogado && perfilMediumLogado.nome_social) ? perfilMediumLogado.nome_social : '';
+            if (elTel) elTel.value = (perfilMediumLogado && perfilMediumLogado.telefone) ? perfilMediumLogado.telefone : '';
+
             modalPerfil.classList.remove('hidden');
             setTimeout(() => {
                 const painel = modalPerfil.querySelector('div');
@@ -365,7 +387,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             setTimeout(() => modalPerfil.classList.add('hidden'), 200);
         };
 
-        if (btnAbrirPerfil) btnAbrirPerfil.addEventListener('click', abrirPerfil);
+        // Escuta o clique no botão Meu Perfil mesmo com recriação de DOM
+        document.addEventListener('click', (e) => {
+            const btn = e.target.closest('#btnAbrirPerfil, [data-acao="abrir-perfil"]');
+            if (btn) {
+                e.preventDefault();
+                abrirPerfil();
+            }
+        });
+
         if (btnFecharPerfil) btnFecharPerfil.addEventListener('click', fecharPerfil);
 
         // Alternância de Abas
