@@ -3905,10 +3905,16 @@ window.gerarPDF_ATA = async (eventoId) => {
 
         const dataEv = new Date(evento.data_hora_inicio);
         const dia = dataEv.getDate().toString().padStart(2, '0');
+        const mesNum = (dataEv.getMonth() + 1).toString().padStart(2, '0');
         const meses = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
         const mesExtenso = meses[dataEv.getMonth()];
         const ano = dataEv.getFullYear();
         const hora = dataEv.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+        const dataEventoFormatada = `${dia}/${mesNum}/${ano}`;
+        const horaEncerramento = evento.data_hora_fim 
+            ? new Date(evento.data_hora_fim).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) 
+            : hora;
 
         if (presencas && presencas.length > 0) {
             presencas.sort((a, b) => {
@@ -4071,7 +4077,7 @@ window.gerarPDF_ATA = async (eventoId) => {
                     <p style="margin: 0;">________________________________________________________</p>
                     <p style="font-size: 14px; margin-top: 5px;"><strong>Direção / Presidência</strong></p>
                     <p style="font-size: 9px; color: #64748b; margin-top: 18px; line-height: 1.5; max-width: 92%; margin-left: auto; margin-right: auto;">
-                        Documento gerado eletronicamente em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}. As presenças foram validadas digitalmente mediante credencial individual de acesso e comprovação de presença física presencial por geolocalização (GPS no perímetro da sede), em conformidade com a Lei Federal nº 14.063/2020 e art. 107 do Código Civil.
+                        Documento e presenças registrados e encerrados eletronicamente em ${dataEventoFormatada} às ${horaEncerramento}. As presenças foram validadas digitalmente mediante credencial individual de acesso e comprovação de presença física presencial por geolocalização (GPS no perímetro da sede), em conformidade com a Lei Federal nº 14.063/2020 e art. 107 do Código Civil.
                     </p>
                 </div>
             </div>
