@@ -4067,11 +4067,11 @@ window.gerarPDF_ATA = async (eventoId) => {
                     </table>
                 </div>
                 
-                <div style="margin-top: 50px; text-align: center; page-break-inside: avoid;">
+                <div style="margin-top: 40px; text-align: center; page-break-inside: avoid;">
                     <p style="margin: 0;">________________________________________________________</p>
                     <p style="font-size: 14px; margin-top: 5px;"><strong>Direção / Presidência</strong></p>
-                    <p style="font-size: 10px; color: #777; margin-top: 20px;">
-                        ATA gerada eletronicamente pelo Sistema de Gestão em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}
+                    <p style="font-size: 9px; color: #64748b; margin-top: 18px; line-height: 1.5; max-width: 92%; margin-left: auto; margin-right: auto;">
+                        Documento gerado eletronicamente em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}. As presenças foram validadas digitalmente mediante credencial individual de acesso e comprovação de presença física presencial por geolocalização (GPS no perímetro da sede), em conformidade com a Lei Federal nº 14.063/2020 e art. 107 do Código Civil.
                     </p>
                 </div>
             </div>
