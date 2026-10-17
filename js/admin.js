@@ -1224,18 +1224,49 @@ document.addEventListener('DOMContentLoaded', async () => {
                     linkWhats = `<a href="https://wa.me/${ddi}${numeroLimpo}" target="_blank" class="text-green-600 hover:text-green-700 hover:underline flex items-center gap-1 font-medium" title="Chamar no WhatsApp"><i class="fab fa-whatsapp text-lg"></i> ${m.telefone}</a>`;
                 }
 
-                const nomeHtml = m.nome_social 
-                    ? `${m.nome_completo}<br><span class="text-[10px] text-gray-500">Social: ${m.nome_social}</span>`
-                    : m.nome_completo;
+                // Identificação visual de permissões ativas
+                const badgesPermissao = (() => {
+                    if (m.is_admin === true || m.is_master === true) {
+                        return `
+                            <div class="flex flex-wrap gap-1 mt-1.5">
+                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-300 shadow-sm">
+                                    <i class="fas fa-crown text-[9px] text-amber-600"></i> Admin Geral
+                                </span>
+                            </div>
+                        `;
+                    }
+
+                    const b = [];
+                    if (m.perm_visao_geral) b.push('<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200">Visão Geral</span>');
+                    if (m.perm_quadro_mediuns) b.push('<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">Quadro</span>');
+                    if (m.perm_agenda) b.push('<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-50 text-purple-700 border border-purple-200">Agenda</span>');
+                    if (m.perm_ata) b.push('<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-violet-50 text-violet-700 border border-violet-200">Livro Ata</span>');
+                    if (m.perm_grau) b.push('<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-cyan-50 text-cyan-700 border border-cyan-200">Graus</span>');
+                    if (m.perm_financeiro) b.push('<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Financeiro</span>');
+                    if (m.perm_doacoes) b.push('<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-50 text-rose-700 border border-rose-200">Campanhas</span>');
+                    if (m.perm_admin) b.push('<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-200">Config Casa</span>');
+
+                    return b.length > 0 ? `<div class="flex flex-wrap gap-1 mt-1.5 max-w-[280px]">${b.join('')}</div>` : '';
+                })();
+
+                const socialHtml = m.nome_social 
+                    ? `<span class="text-[10px] text-gray-500 block">Social: ${m.nome_social}</span>` 
+                    : '';
+
+                const nomeHtml = `
+                    <div class="font-bold text-gray-800 leading-snug">${m.nome_completo}</div>
+                    ${socialHtml}
+                    ${badgesPermissao}
+                `;
 
                 tbody.innerHTML += `
                     <tr class="hover:bg-gray-50 transition-colors group">
-                        <td class="p-4 text-gray-800 font-medium whitespace-nowrap">${nomeHtml}</td>
-                        <td class="p-4 text-gray-600 text-center whitespace-nowrap">${dataNascFormatada}</td>
-                        <td class="p-4 text-gray-600 whitespace-nowrap">${cargo}</td>
-                        <td class="p-4 text-gray-600">${linkWhats}</td>
-                        <td class="p-4 text-center">${status}</td>
-                        <td class="p-4 text-center no-print">${acoesHtml}</td>
+                        <td class="p-4 align-top">${nomeHtml}</td>
+                        <td class="p-4 text-gray-600 text-center whitespace-nowrap align-top">${dataNascFormatada}</td>
+                        <td class="p-4 text-gray-600 whitespace-nowrap align-top">${cargo}</td>
+                        <td class="p-4 text-gray-600 align-top">${linkWhats}</td>
+                        <td class="p-4 text-center align-top">${status}</td>
+                        <td class="p-4 text-center no-print align-top">${acoesHtml}</td>
                     </tr>`;
             });
         }
