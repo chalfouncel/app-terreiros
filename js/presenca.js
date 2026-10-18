@@ -107,6 +107,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const temAcessoAoPainel = perfil.is_admin === true || 
                                   perfil.perm_visao_geral === true ||
                                   perfil.perm_quadro_mediuns === true ||
+                                  perfil.perm_guias === true ||
                                   perfil.perm_agenda === true || 
                                   perfil.perm_ata === true ||
                                   perfil.perm_grau === true || 
@@ -123,6 +124,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const permissoesMapeadas = [
                     { chave: 'perm_visao_geral', menu: 'menuVisaoGeral', label: 'Visão Geral', icone: 'fa-home' },
                     { chave: 'perm_quadro_mediuns', menu: 'menuQuadroMediuns', label: 'Quadro de Médiuns', icone: 'fa-users' },
+                    { chave: 'perm_guias', menu: 'menuGuiasMediuns', label: 'Guias dos Médiuns', icone: 'fa-feather-alt' },
                     { chave: 'perm_agenda', menu: 'menuAgendaGiras', label: 'Agenda de Eventos', icone: 'fa-calendar-alt' },
                     { chave: 'perm_ata', menu: 'menuLivroAta', label: 'Livro de Presença (ATA)', icone: 'fa-book-open' },
                     { chave: 'perm_grau', menu: 'menuGrau', label: 'Alteração de Grau', icone: 'fa-graduation-cap' },
