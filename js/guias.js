@@ -363,34 +363,49 @@
 
         selecionados.sort((a, b) => (a.nome_completo || '').localeCompare(b.nome_completo || '', 'pt-BR'));
 
+        // Cabeçalhos de Coluna com Emojis (Deixando claro as linhas de trabalho)
         const colunas = [
-            'Médium / Grau',
-            'Padrinhos (Batismo / Consagração / Coroação)',
-            'Caboclo / Boiadeiro',
-            'Preto(a) Velho(a)',
-            'Exu / Pombagira / Malandro',
-            'Criança / Oriental / Cigano'
+            'MÉDIUM / GRAU',
+            '🕊️ PADRINHOS',
+            '🌿 CABOCLOS / BOIADEIROS',
+            '☕ PRETOS VELHOS',
+            '🔱 EXUS E POMBAGIRAS',
+            '🍭 LINHAS DIVERSAS'
         ];
 
+        const formatGuiaLine = (text) => text && text !== '-' ? text.replace(/\n/g, '<br>') : '<span style="color:#cbd5e1; font-weight:normal;">-</span>';
+
         const dados = selecionados.map(m => {
-            const cargo = [m.grau, m.funcao].filter(v => v && v !== '-').join('/');
-            const colNome = `<strong>${m.nome_completo}</strong>${cargo ? `<br><span style="font-size:7pt;color:#64748b;">Grau: ${cargo}</span>` : ''}`;
+            const cargo = [m.grau, m.funcao].filter(v => v && v !== '-').join(' / ');
+            
+            // Coluna 1: Nome (Destacado Escuro) e Grau (Cinza Claro)
+            const colNome = `<div style="text-align:left; line-height:1.3;">
+                                <div style="font-size: 9pt; color: #0f172a; font-weight: 900;">${m.nome_completo}</div>
+                                ${cargo ? `<div style="font-size:7pt; color:#64748b; margin-top:3px; font-weight: bold; text-transform: uppercase;">Grau: ${cargo}</div>` : ''}
+                             </div>`;
 
-            const colPadrinhos = [
-                `<strong>Bat.:</strong> ${m.padrinhos_batismo || '-'}`,
-                `<strong>Cons.:</strong> ${m.padrinhos_consagracao || '-'}`,
-                `<strong>Cor.:</strong> ${m.padrinhos_coroacao || '-'}`
-            ].join('<br>');
+            // Coluna 2: Padrinhos (Cores suaves para cada ritual)
+            const colPadrinhos = `
+                <div style="font-size: 7.5pt; line-height: 1.5; text-align: left;">
+                    <div><span style="color:#0284c7; font-weight:bold;">Batismo:</span> <span style="color:#334155; font-weight:600;">${m.padrinhos_batismo || '<span style="color:#cbd5e1; font-weight:normal;">-</span>'}</span></div>
+                    <div><span style="color:#d97706; font-weight:bold;">Consagração:</span> <span style="color:#334155; font-weight:600;">${m.padrinhos_consagracao || '<span style="color:#cbd5e1; font-weight:normal;">-</span>'}</span></div>
+                    <div><span style="color:#eab308; font-weight:bold;">Coroação:</span> <span style="color:#334155; font-weight:600;">${m.padrinhos_coroacao || '<span style="color:#cbd5e1; font-weight:normal;">-</span>'}</span></div>
+                </div>
+            `;
 
-            const colCaboclo = (m.guia_caboclo || '-').replace(/\n/g, '<br>');
-            const colPretoVelho = (m.guia_preto_velho || '-').replace(/\n/g, '<br>');
-            const colExu = (m.guia_exu_pombagira || '-').replace(/\n/g, '<br>');
+            // Colunas 3, 4 e 5: Linhas Principais (Com cores que representam a energia)
+            const colCaboclo = `<div style="color:#059669; font-weight:800; font-size: 8pt; line-height:1.4;">${formatGuiaLine(m.guia_caboclo)}</div>`;
+            const colPretoVelho = `<div style="color:#78350f; font-weight:800; font-size: 8pt; line-height:1.4;">${formatGuiaLine(m.guia_preto_velho)}</div>`;
+            const colExu = `<div style="color:#b91c1c; font-weight:800; font-size: 8pt; line-height:1.4;">${formatGuiaLine(m.guia_exu_pombagira)}</div>`;
 
-            const colOutros = [
-                `<strong>Criança:</strong> ${(m.guia_crianca || '-').replace(/\n/g, ' / ')}`,
-                `<strong>Oriental:</strong> ${(m.guia_oriental || '-').replace(/\n/g, ' / ')}`,
-                `<strong>Cigano:</strong> ${(m.guia_cigano || '-').replace(/\n/g, ' / ')}`
-            ].join('<br>');
+            // Coluna 6: Diversas (Colorido)
+            const colOutros = `
+                <div style="font-size: 7.5pt; line-height: 1.5; text-align: left;">
+                    <div><span style="color:#db2777;">🍭</span> <span style="color:#475569; font-weight:bold;">Criança:</span> <span style="color:#334155; font-weight:600;">${(m.guia_crianca || '<span style="color:#cbd5e1; font-weight:normal;">-</span>').replace(/\n/g, ' / ')}</span></div>
+                    <div><span style="color:#4f46e5;">☯️</span> <span style="color:#475569; font-weight:bold;">Oriental:</span> <span style="color:#334155; font-weight:600;">${(m.guia_oriental || '<span style="color:#cbd5e1; font-weight:normal;">-</span>').replace(/\n/g, ' / ')}</span></div>
+                    <div><span style="color:#7e22ce;">⛺</span> <span style="color:#475569; font-weight:bold;">Cigano(a):</span> <span style="color:#334155; font-weight:600;">${(m.guia_cigano || '<span style="color:#cbd5e1; font-weight:normal;">-</span>').replace(/\n/g, ' / ')}</span></div>
+                </div>
+            `;
 
             return [colNome, colPadrinhos, colCaboclo, colPretoVelho, colExu, colOutros];
         });
