@@ -276,19 +276,94 @@
 
             <!-- ABA 4: GUIAS E PADRINHOS -->
                 <div id="conteudoAbaGuias" class="space-y-3 hidden">
-                    <div class="bg-gray-50 p-3 rounded-xl border border-gray-200 space-y-2.5">
-                        <p class="text-[11px] font-black text-tema-primaria uppercase tracking-wider"><i class="fas fa-hands-helping mr-1"></i> Padrinhos</p>
-                        <div>
-                            <label class="block text-[11px] font-bold text-gray-600 mb-0.5">Padrinhos de Batismo</label>
-                            <input type="text" id="perfilPadrinhosBatismo" class="w-full px-3 py-1.5 text-xs border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-tema-primaria bg-white" placeholder="Nome dos padrinhos de batismo">
+                    <div class="bg-gray-50 p-3 rounded-xl border border-gray-200 space-y-3">
+                        <p class="text-[11px] font-black text-tema-primaria uppercase tracking-wider"><i class="fas fa-hands-helping mr-1"></i> Padrinhos e Madrinhas</p>
+
+                        <!-- 1. BATISMO (Todos os Graus: Guia ou Médium) -->
+                        <div class="bg-white p-2.5 rounded-xl border border-gray-200 space-y-2.5">
+                            <p class="text-[10px] font-black text-sky-700 uppercase tracking-wider border-b border-gray-100 pb-1">🕊️ Batismo</p>
+                            
+                            <!-- Padrinho de Batismo -->
+                            <div class="space-y-1.5">
+                                <div class="flex items-center justify-between">
+                                    <label class="text-[11px] font-bold text-gray-700">Padrinho</label>
+                                    <select id="perfilBatismoPadrinhoTipo" onchange="alternarTipoPadrinhoBatismo('perfil', 'Padrinho')" class="text-[10px] font-bold px-2 py-0.5 border border-gray-300 rounded-lg bg-gray-50 outline-none">
+                                        <option value="guia">Guia Espiritual</option>
+                                        <option value="medium">Médium da Casa</option>
+                                    </select>
+                                </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5" id="gridPerfilBatismoPadrinho">
+                                    <input type="text" id="perfilBatismoPadrinhoNome" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg outline-none focus:ring-1 focus:ring-tema-primaria" placeholder="Nome do Guia">
+                                    <input type="text" id="perfilBatismoPadrinhoMedium" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg outline-none focus:ring-1 focus:ring-tema-primaria" placeholder="Médium do Guia">
+                                </div>
+                            </div>
+
+                            <!-- Madrinha de Batismo -->
+                            <div class="space-y-1.5 pt-1 border-t border-dashed border-gray-100">
+                                <div class="flex items-center justify-between">
+                                    <label class="text-[11px] font-bold text-gray-700">Madrinha</label>
+                                    <select id="perfilBatismoMadrinhaTipo" onchange="alternarTipoPadrinhoBatismo('perfil', 'Madrinha')" class="text-[10px] font-bold px-2 py-0.5 border border-gray-300 rounded-lg bg-gray-50 outline-none">
+                                        <option value="guia">Guia Espiritual</option>
+                                        <option value="medium">Médium da Casa</option>
+                                    </select>
+                                </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5" id="gridPerfilBatismoMadrinha">
+                                    <input type="text" id="perfilBatismoMadrinhaNome" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg outline-none focus:ring-1 focus:ring-tema-primaria" placeholder="Nome da Guia">
+                                    <input type="text" id="perfilBatismoMadrinhaMedium" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg outline-none focus:ring-1 focus:ring-tema-primaria" placeholder="Médium da Guia">
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <label class="block text-[11px] font-bold text-gray-600 mb-0.5">Padrinhos de Consagração</label>
-                            <input type="text" id="perfilPadrinhosConsagracao" class="w-full px-3 py-1.5 text-xs border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-tema-primaria bg-white" placeholder="Nome dos padrinhos de consagração">
+
+                        <!-- Aviso de bloqueio para graus anteriores a CT -->
+                        <div id="avisoBloqueioGrauPerfil" class="hidden bg-amber-50 border border-amber-200 rounded-xl p-2.5 text-center">
+                            <p class="text-[11px] font-bold text-amber-800"><i class="fas fa-lock mr-1"></i> Consagração e Coroação habilitados a partir do grau CT</p>
                         </div>
-                        <div>
-                            <label class="block text-[11px] font-bold text-gray-600 mb-0.5">Padrinhos de Coroação</label>
-                            <input type="text" id="perfilPadrinhosCoroacao" class="w-full px-3 py-1.5 text-xs border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-tema-primaria bg-white" placeholder="Nome dos padrinhos de coroação">
+
+                        <!-- 2. CONSAGRAÇÃO E COROAÇÃO (Apenas Guias - A partir de CT) -->
+                        <div id="boxConsagracaoCoroacaoPerfil" class="space-y-3">
+                            <!-- Consagração -->
+                            <div class="bg-white p-2.5 rounded-xl border border-gray-200 space-y-2">
+                                <div class="flex items-center justify-between border-b border-gray-100 pb-1">
+                                    <p class="text-[10px] font-black text-amber-700 uppercase tracking-wider">🔥 Consagração</p>
+                                    <span class="text-[9px] font-bold text-gray-400 uppercase">Apenas Guias</span>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-gray-600 mb-1">Padrinho (Guia + Médium)</label>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                                        <input type="text" id="perfilConsagracaoPadrinhoGuia" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg outline-none focus:ring-1 focus:ring-tema-primaria" placeholder="Nome do Guia">
+                                        <input type="text" id="perfilConsagracaoPadrinhoMedium" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg outline-none focus:ring-1 focus:ring-tema-primaria" placeholder="Médium do Guia">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-gray-600 mb-1">Madrinha (Guia + Médium)</label>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                                        <input type="text" id="perfilConsagracaoMadrinhaGuia" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg outline-none focus:ring-1 focus:ring-tema-primaria" placeholder="Nome da Guia">
+                                        <input type="text" id="perfilConsagracaoMadrinhaMedium" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg outline-none focus:ring-1 focus:ring-tema-primaria" placeholder="Médium da Guia">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Coroação -->
+                            <div class="bg-white p-2.5 rounded-xl border border-gray-200 space-y-2">
+                                <div class="flex items-center justify-between border-b border-gray-100 pb-1">
+                                    <p class="text-[10px] font-black text-yellow-600 uppercase tracking-wider">👑 Coroação</p>
+                                    <span class="text-[9px] font-bold text-gray-400 uppercase">Apenas Guias</span>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-gray-600 mb-1">Padrinho (Guia + Médium)</label>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                                        <input type="text" id="perfilCoroacaoPadrinhoGuia" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg outline-none focus:ring-1 focus:ring-tema-primaria" placeholder="Nome do Guia">
+                                        <input type="text" id="perfilCoroacaoPadrinhoMedium" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg outline-none focus:ring-1 focus:ring-tema-primaria" placeholder="Médium do Guia">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-gray-600 mb-1">Madrinha (Guia + Médium)</label>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                                        <input type="text" id="perfilCoroacaoMadrinhaGuia" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg outline-none focus:ring-1 focus:ring-tema-primaria" placeholder="Nome da Guia">
+                                        <input type="text" id="perfilCoroacaoMadrinhaMedium" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg outline-none focus:ring-1 focus:ring-tema-primaria" placeholder="Médium da Guia">
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
