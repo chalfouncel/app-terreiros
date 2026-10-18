@@ -1534,9 +1534,53 @@ document.addEventListener('DOMContentLoaded', async () => {
             const tbody = document.getElementById('tabelaGraus');
             if (!tbody) return;
             tbody.innerHTML = '';
+            
+            // Oculta o cabeçalho original da tabela no celular
+            const thead = document.querySelector('#tabelaGraus').closest('table').querySelector('thead');
+            if(thead) {
+                thead.classList.add('hidden', 'md:table-header-group');
+            }
+
             lista.forEach(m => {
                 const nomeStr = m.nome_completo;
-                tbody.innerHTML += `<tr class="border-b border-gray-100 hover:bg-gray-50 transition"><td class="py-2 px-3 text-gray-800 font-medium">${nomeStr}</td><td class="py-2 px-3"><select id="grau_${m.id}" class="border border-gray-300 rounded px-2 py-1 bg-white text-sm focus:ring-tema-primaria outline-none w-full max-w-[120px]">${renderizarOpcoes(opcoesGrau, m.grau || '-')}</select></td><td class="py-2 px-3"><select id="func_${m.id}" class="border border-gray-300 rounded px-2 py-1 bg-white text-sm focus:ring-tema-primaria outline-none w-full max-w-[120px]">${renderizarOpcoes(opcoesFuncao, m.funcao || '-')}</select></td><td class="py-2 px-3 text-center"><button onclick="salvarGrau(${m.id})" id="btnGrau_${m.id}" class="bg-tema-primaria hover:opacity-90 text-white px-3 py-1 rounded text-xs font-bold transition">Salvar</button></td></tr>`;
+                tbody.innerHTML += `
+                    <tr class="block md:table-row border border-gray-200 md:border-0 border-b-gray-100 hover:bg-gray-50 transition p-4 md:p-0 bg-white mb-4 md:mb-0 rounded-xl md:rounded-none shadow-sm md:shadow-none">
+                        
+                        <!-- NOME -->
+                        <td class="block md:table-cell py-2 px-3 text-gray-800 font-bold text-base md:text-sm mb-3 md:mb-0 md:font-medium">
+                            <span class="inline-block md:hidden text-[10px] text-gray-400 font-bold uppercase mb-1 w-full border-b border-gray-100 pb-1">Médium</span>
+                            ${nomeStr}
+                        </td>
+                        
+                        <!-- GRAU -->
+                        <td class="block md:table-cell py-2 px-3 mb-2 md:mb-0">
+                            <div class="flex flex-col md:block">
+                                <span class="inline-block md:hidden text-[10px] text-gray-500 font-bold uppercase mb-1">Grau</span>
+                                <select id="grau_${m.id}" class="border border-gray-300 rounded md:rounded px-3 py-2 md:py-1 bg-white text-sm focus:ring-tema-primaria outline-none w-full md:max-w-[120px]">
+                                    ${renderizarOpcoes(opcoesGrau, m.grau || '-')}
+                                </select>
+                            </div>
+                        </td>
+                        
+                        <!-- FUNÇÃO -->
+                        <td class="block md:table-cell py-2 px-3 mb-4 md:mb-0">
+                            <div class="flex flex-col md:block">
+                                <span class="inline-block md:hidden text-[10px] text-gray-500 font-bold uppercase mb-1">Função</span>
+                                <select id="func_${m.id}" class="border border-gray-300 rounded md:rounded px-3 py-2 md:py-1 bg-white text-sm focus:ring-tema-primaria outline-none w-full md:max-w-[120px]">
+                                    ${renderizarOpcoes(opcoesFuncao, m.funcao || '-')}
+                                </select>
+                            </div>
+                        </td>
+                        
+                        <!-- AÇÃO (BOTÃO) -->
+                        <td class="block md:table-cell py-2 px-3 text-center mt-2 md:mt-0">
+                            <button onclick="salvarGrau(${m.id})" id="btnGrau_${m.id}" class="w-full md:w-auto bg-tema-primaria hover:opacity-90 text-white px-4 py-2.5 md:px-3 md:py-1 rounded md:rounded text-sm md:text-xs font-bold transition active:scale-95 flex items-center justify-center gap-2">
+                                <i class="fas fa-save md:hidden"></i> Salvar
+                            </button>
+                        </td>
+                        
+                    </tr>
+                `;
             });
         }
 
