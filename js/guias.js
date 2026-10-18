@@ -3,6 +3,64 @@
 // ============================================================================
 
 (function () {
+    // Helper de Verificação de Grau (Libera Consagração/Coroação a partir de CT)
+    window.grauPermiteConsagracao = (grauStr) => {
+        if (!grauStr) return false;
+        const g = String(grauStr).trim().toUpperCase();
+        // Graus bloquados: -, I, IJ, B, BJ, T, TJ, SCT, Escola de CT
+        const bloqueados = ['-', 'I', 'IJ', 'B', 'BJ', 'T', 'TJ', 'SCT', 'ESCOLA DE CT'];
+        if (bloqueados.includes(g)) return false;
+        // Liberados: CT, SCCT, Escola de CCT, CCT, Dirigente e afins
+        return true;
+    };
+
+    // Alternar visualização entre Guia e Médium no Batismo
+    window.alternarTipoPadrinhoBatismo = (prefixo, tipoPadrinho) => {
+        const select = document.getElementById(`${prefixo}Batismo${tipoPadrinho}Tipo`);
+        const grid = document.getElementById(`grid${prefixo === 'perfil' ? 'Perfil' : 'Edit'}Batismo${tipoPadrinho}`);
+        if (!select || !grid) return;
+
+        const inputNome = grid.children[0];
+        const inputMedium = grid.children[1];
+
+        if (select.value === 'medium') {
+            inputNome.placeholder = "Nome do Médium";
+            inputMedium.style.display = 'none';
+            inputMedium.value = '';
+        } else {
+            inputNome.placeholder = `Nome do ${tipoPadrinho === 'Padrinho' ? 'Guia' : 'da Guia'}`;
+            inputMedium.style.display = 'block';
+            inputMedium.placeholder = "Médium do Guia";
+        }
+    };
+
+    // Serializador e Desserializador de Padrinhos
+    function parsePadrinhoJson(jsonStr) {
+        if (!jsonStr) return { tipo: 'guia', nome: '', medium: '' };
+        try {
+            if (jsonStr.startsWith('{')) {
+                return JSON.parse(jsonStr);
+            }
+        } catch (e) {}
+        // Fallback para texto simples antigo
+        return { tipo: 'guia', nome: jsonStr, medium: '' };
+    }
+
+    function stringifyPadrinho(tipo, nome, medium) {
+        if (!nome && !medium) return null;
+        return JSON.stringify({ tipo, nome: nome.trim(), medium: medium.trim() });
+    }
+
+    function formatarExibicaoPadrinho(jsonStr) {
+        if (!jsonStr || !jsonStr.trim()) return '-';
+        const obj = parsePadrinhoJson(jsonStr);
+        if (!obj.nome) return '-';
+        if (obj.tipo === 'medium') {
+            return `${obj.nome} <span style="font-size:7pt; color:#64748b;">(Médium)</span>`;
+        }
+        return obj.medium ? `${obj.nome} <span style="font-size:7pt; color:#475569;">(Méd.: ${obj.medium})</span>` : obj.nome;
+    }
+
     // ------------------------------------------------------------------------
     // 1. INTEGRAÇÃO COM "MEU PERFIL" (presenca.html)
     // ------------------------------------------------------------------------
@@ -47,7 +105,6 @@
             await carregarDadosGuiasNoPerfil();
         });
 
-        // Sempre que abrir o botão Meu Perfil, sincroniza os dados
         document.addEventListener('click', (e) => {
             if (e.target.closest('#btnAbrirPerfil, [data-acao="abrir-perfil"]')) {
                 setTimeout(carregarDadosGuiasNoPerfil, 150);
@@ -65,10 +122,29 @@
                 btnSalvar.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Salvando...';
                 if (msg) msg.classList.add('hidden');
 
+                const batPadrinho = stringifyPadrinho(
+                    document.getElementById('perfilBatismoPadrinhoTipo').value,
+                    document.getElementById('perfilBatismoPadrinhoNome').value,
+                    document.getElementById('perfilBatismoPadrinhoMedium').value
+                );
+                const batMadrinha = stringifyPadrinho(
+                    document.getElementById('perfilBatismoMadrinhaTipo').value,
+                    document.getElementById('perfilBatismoMadrinhaNome').value,
+                    document.getElementById('perfilBatismoMadrinhaMedium').value
+                );
+
+                const permiteCT = window.grauPermiseConsagracao ? window.grauPermiseConsagracao(perfilMediumLogado.grau) : true;
+
                 const payload = {
-                    padrinhos_batismo: document.getElementById('perfilPadrinhosBatismo')?.value.trim() || null,
-                    padrinhos_consagracao: document.getElementById('perfilPadrinhosConsagracao')?.value.trim() || null,
-                    padrinhos_coroacao: document.getElementById('perfilPadrinhosCoroacao')?.value.trim() || null,
+                    padrinhos_batismo: JSON.stringify({ padrinho: parsePadrinhoJson(batPadrinho), madrinha: parsePadrinhoJson(batMadrinha) }),
+                    padrinhos_consagracao: permiteCT ? JSON.stringify({
+                        padrinho: { tipo: 'guia', nome: document.getElementById('perfilConsagracaoPadrinhoGuia')?.value.trim() || '', medium: document.getElementById('perfilConsagracaoPadrinhoMedium')?.value.trim() || '' },
+                        madrinha: { tipo: 'guia', nome: document.getElementById('perfilConsagracaoMadrinhaGuia')?.value.trim() || '', medium: document.getElementById('perfilConsagracaoMadrinhaMedium')?.value.trim() || '' }
+                    }) : null,
+                    padrinhos_coroacao: permiteCT ? JSON.stringify({
+                        padrinho: { tipo: 'guia', nome: document.getElementById('perfilCoroacaoPadrinhoGuia')?.value.trim() || '', medium: document.getElementById('perfilCoroacaoPadrinhoMedium')?.value.trim() || '' },
+                        madrinha: { tipo: 'guia', nome: document.getElementById('perfilCoroacaoMadrinhaGuia')?.value.trim() || '', medium: document.getElementById('perfilCoroacaoMadrinhaMedium')?.value.trim() || '' }
+                    }) : null,
                     guia_caboclo: document.getElementById('perfilGuiaCaboclo')?.value.trim() || null,
                     guia_preto_velho: document.getElementById('perfilGuiaPretoVelho')?.value.trim() || null,
                     guia_exu_pombagira: document.getElementById('perfilGuiaExuPombagira')?.value.trim() || null,
@@ -85,7 +161,6 @@
                         .eq('terreiro_id', idTerreiroGlobal);
 
                     if (error) throw error;
-
                     Object.assign(perfilMediumLogado, payload);
 
                     if (msg) {
@@ -113,27 +188,79 @@
         try {
             const { data, error } = await supabaseClient
                 .from('mediuns')
-                .select('padrinhos_batismo, padrinhos_consagracao, padrinhos_coroacao, guia_caboclo, guia_preto_velho, guia_exu_pombagira, guia_crianca, guia_oriental, guia_cigano')
+                .select('grau, padrinhos_batismo, padrinhos_consagracao, padrinhos_coroacao, guia_caboclo, guia_preto_velho, guia_exu_pombagira, guia_crianca, guia_oriental, guia_cigano')
                 .eq('id', perfilMediumLogado.id)
                 .single();
 
             if (!error && data) {
                 Object.assign(perfilMediumLogado, data);
-                const mapCampos = {
-                    perfilPadrinhosBatismo: data.padrinhos_batismo,
-                    perfilPadrinhosConsagracao: data.padrinhos_consagracao,
-                    perfilPadrinhosCoroacao: data.padrinhos_coroacao,
-                    perfilGuiaCaboclo: data.guia_caboclo,
-                    perfilGuiaPretoVelho: data.guia_preto_velho,
-                    perfilGuiaExuPombagira: data.guia_exu_pombagira,
-                    perfilGuiaCrianca: data.guia_crianca,
-                    perfilGuiaOriental: data.guia_oriental,
-                    perfilGuiaCigano: data.guia_cigano
-                };
-                Object.keys(mapCampos).forEach(idEl => {
-                    const el = document.getElementById(idEl);
-                    if (el) el.value = mapCampos[idEl] || '';
-                });
+
+                // Gerenciamento de Trava de Grau para Consagração e Coroação
+                const permite = window.grauPermiseConsagracao ? window.grauPermiseConsagracao(data.grau) : true;
+                const avisoGrau = document.getElementById('avisoBloqueioGrauPerfil');
+                const boxConsCor = document.getElementById('boxConsagracaoCoroacaoPerfil');
+                if (avisoGrau && boxConsCor) {
+                    if (permite) {
+                        avisoGrau.classList.add('hidden');
+                        boxConsCor.classList.remove('hidden');
+                    } else {
+                        avisoGrau.classList.remove('hidden');
+                        boxConsCor.classList.add('hidden');
+                    }
+                }
+
+                // Padrinhos de Batismo
+                try {
+                    const bat = JSON.parse(data.padrinhos_batismo || '{}');
+                    if (bat.padrinho) {
+                        document.getElementById('perfilBatismoPadrinhoTipo').value = bat.padrinho.tipo || 'guia';
+                        document.getElementById('perfilBatismoPadrinhoNome').value = bat.padrinho.nome || '';
+                        document.getElementById('perfilBatismoPadrinhoMedium').value = bat.padrinho.medium || '';
+                    }
+                    if (bat.madrinha) {
+                        document.getElementById('perfilBatismoMadrinhaTipo').value = bat.madrinha.tipo || 'guia';
+                        document.getElementById('perfilBatismoMadrinhaNome').value = bat.madrinha.nome || '';
+                        document.getElementById('perfilBatismoMadrinhaMedium').value = bat.madrinha.medium || '';
+                    }
+                } catch (e) {
+                    document.getElementById('perfilBatismoPadrinhoNome').value = data.padrinhos_batismo || '';
+                }
+                alternarTipoPadrinhoBatismo('perfil', 'Padrinho');
+                alternarTipoPadrinhoBatismo('perfil', 'Madrinha');
+
+                // Consagração e Coroação
+                if (permite) {
+                    try {
+                        const cons = JSON.parse(data.padrinhos_consagracao || '{}');
+                        if (cons.padrinho) {
+                            document.getElementById('perfilConsagracaoPadrinhoGuia').value = cons.padrinho.nome || '';
+                            document.getElementById('perfilConsagracaoPadrinhoMedium').value = cons.padrinho.medium || '';
+                        }
+                        if (cons.madrinha) {
+                            document.getElementById('perfilConsagracaoMadrinhaGuia').value = cons.madrinha.nome || '';
+                            document.getElementById('perfilConsagracaoMadrinhaMedium').value = cons.madrinha.medium || '';
+                        }
+                    } catch (e) {}
+
+                    try {
+                        const coro = JSON.parse(data.padrinhos_coroacao || '{}');
+                        if (coro.padrinho) {
+                            document.getElementById('perfilCoroacaoPadrinhoGuia').value = coro.padrinho.nome || '';
+                            document.getElementById('perfilCoroacaoPadrinhoMedium').value = coro.padrinho.medium || '';
+                        }
+                        if (coro.madrinha) {
+                            document.getElementById('perfilCoroacaoMadrinhaGuia').value = coro.madrinha.nome || '';
+                            document.getElementById('perfilCoroacaoMadrinhaMedium').value = coro.madrinha.medium || '';
+                        }
+                    } catch (e) {}
+                }
+
+                document.getElementById('perfilGuiaCaboclo').value = data.guia_caboclo || '';
+                document.getElementById('perfilGuiaPretoVelho').value = data.guia_preto_velho || '';
+                document.getElementById('perfilGuiaExuPombagira').value = data.guia_exu_pombagira || '';
+                document.getElementById('perfilGuiaCrianca').value = data.guia_crianca || '';
+                document.getElementById('perfilGuiaOriental').value = data.guia_oriental || '';
+                document.getElementById('perfilGuiaCigano').value = data.guia_cigano || '';
             }
         } catch (err) {
             console.error('Erro ao carregar guias do perfil:', err);
@@ -154,7 +281,6 @@
         tbody.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i> Carregando guias e padrinhos da corrente...</td></tr>';
 
         try {
-            // Atualiza opções do filtro de Grau conforme graus da Casa
             const selGrau = document.getElementById('filtroGrauGuias');
             if (selGrau && typeof grausAtuaisTerreiro !== 'undefined') {
                 const valorAtual = selGrau.value;
@@ -200,15 +326,8 @@
 
             if (termoGuia) {
                 const textoUnificado = [
-                    m.guia_caboclo,
-                    m.guia_preto_velho,
-                    m.guia_exu_pombagira,
-                    m.guia_crianca,
-                    m.guia_oriental,
-                    m.guia_cigano,
-                    m.padrinhos_batismo,
-                    m.padrinhos_consagracao,
-                    m.padrinhos_coroacao
+                    m.guia_caboclo, m.guia_preto_velho, m.guia_exu_pombagira, m.guia_crianca, m.guia_oriental, m.guia_cigano,
+                    m.padrinhos_batismo, m.padrinhos_consagracao, m.padrinhos_coroacao
                 ].filter(Boolean).join(' ').toLowerCase();
 
                 if (!textoUnificado.includes(termoGuia)) return false;
@@ -222,9 +341,9 @@
         atualizarContadorSelecionadosGuias();
     };
 
-    function formatarBlocoTexto(txt) {
-        if (!txt || !txt.trim()) return '<span class="text-gray-300">-</span>';
-        return txt.trim().split('\n').map(l => `<div class="leading-snug">${l}</div>`).join('');
+    function formatarBlocoTexto(txt, simbolo = '•') {
+        if (!txt || !txt.trim()) return '<span style="color:#cbd5e1;">-</span>';
+        return txt.trim().split('\n').map(l => `<div style="margin-bottom: 2px;"><span style="color:#64748b; margin-right:4px;">${simbolo}</span>${l}</div>`).join('');
     }
 
     function renderizarTabelaGuias(lista) {
@@ -241,27 +360,58 @@
             const cargo = [m.grau, m.funcao].filter(v => v && v !== '-').join(' / ') || '-';
             const socialHtml = m.nome_social ? `<span class="text-[10px] text-gray-500 block">Social: ${m.nome_social}</span>` : '';
 
+            // Renderização Formatada de Padrinhos na Tabela Admin
+            let batismoDisplay = '-';
+            try {
+                const bat = JSON.parse(m.padrinhos_batismo || '{}');
+                const pad = bat.padrinho?.nome ? `${bat.padrinho.nome}${bat.padrinho.medium ? ` (Méd.: ${bat.padrinho.medium})` : ''}` : '-';
+                const mad = bat.madrinha?.nome ? `${bat.madrinha.nome}${bat.madrinha.medium ? ` (Méd.: ${bat.madrinha.medium})` : ''}` : '-';
+                batismoDisplay = `Padrinho: ${pad} | Madrinha: ${mad}`;
+            } catch (e) {
+                batismoDisplay = m.padrinhos_batismo || '-';
+            }
+
+            let consagracaoDisplay = '-';
+            try {
+                const cons = JSON.parse(m.padrinhos_consagracao || '{}');
+                const pad = cons.padrinho?.nome ? `${cons.padrinho.nome}${cons.padrinho.medium ? ` (${cons.padrinho.medium})` : ''}` : '-';
+                const mad = cons.madrinha?.nome ? `${cons.madrinha.nome}${cons.madrinha.medium ? ` (${cons.madrinha.medium})` : ''}` : '-';
+                consagracaoDisplay = `P.: ${pad} | M.: ${mad}`;
+            } catch (e) {
+                consagracaoDisplay = m.padrinhos_consagracao || '-';
+            }
+
+            let coroacaoDisplay = '-';
+            try {
+                const coro = JSON.parse(m.padrinhos_coroacao || '{}');
+                const pad = coro.padrinho?.nome ? `${coro.padrinho.nome}${coro.padrinho.medium ? ` (${coro.padrinho.medium})` : ''}` : '-';
+                const mad = coro.madrinha?.nome ? `${coro.madrinha.nome}${coro.madrinha.medium ? ` (${coro.madrinha.medium})` : ''}` : '-';
+                coroacaoDisplay = `P.: ${pad} | M.: ${mad}`;
+            } catch (e) {
+                coroacaoDisplay = m.padrinhos_coroacao || '-';
+            }
+
             const padrinhosHtml = `
                 <div class="space-y-1 text-xs">
-                    <div><strong class="text-gray-500 uppercase text-[10px]">Batismo:</strong> <span class="text-gray-800">${m.padrinhos_batismo || '-'}</span></div>
-                    <div><strong class="text-gray-500 uppercase text-[10px]">Consagração:</strong> <span class="text-gray-800">${m.padrinhos_consagracao || '-'}</span></div>
-                    <div><strong class="text-gray-500 uppercase text-[10px]">Coroação:</strong> <span class="text-gray-800">${m.padrinhos_coroacao || '-'}</span></div>
+                    <div><strong class="text-sky-700 uppercase text-[9px]">Batismo:</strong> <span class="text-gray-800">${batismoDisplay}</span></div>
+                    <div><strong class="text-amber-700 uppercase text-[9px]">Consagração:</strong> <span class="text-gray-800">${consagracaoDisplay}</span></div>
+                    <div><strong class="text-yellow-600 uppercase text-[9px]">Coroação:</strong> <span class="text-gray-800">${coroacaoDisplay}</span></div>
                 </div>
             `;
 
             const guiasCol1 = `
                 <div class="space-y-1.5 text-xs">
-                    <div><span class="font-bold text-emerald-700 text-[10px] uppercase block">Caboclo(a) / Boiadeiro:</span>${formatarBlocoTexto(m.guia_caboclo)}</div>
-                    <div><span class="font-bold text-amber-800 text-[10px] uppercase block">Preto(a) Velho(a):</span>${formatarBlocoTexto(m.guia_preto_velho)}</div>
-                    <div><span class="font-bold text-red-700 text-[10px] uppercase block">Exu / Pombagira / Malandro:</span>${formatarBlocoTexto(m.guia_exu_pombagira)}</div>
+                    <div><span class="font-bold text-emerald-700 text-[10px] uppercase block">🌿 Caboclo(a) / Boiadeiro:</span>${formatarBlocoTexto(m.guia_caboclo, '➔')}</div>
+                    <div><span class="font-bold text-amber-800 text-[10px] uppercase block">☕ Preto(a) Velho(a):</span>${formatarBlocoTexto(m.guia_preto_velho, '➔')}</div>
+                    <div><span class="font-bold text-red-700 text-[10px] uppercase block">🔱 Exu / Pombagira / Malandro:</span>${formatarBlocoTexto(m.guia_exu_pombagira, '➔')}</div>
                 </div>
             `;
 
             const guiasCol2 = `
                 <div class="space-y-1.5 text-xs">
-                    <div><span class="font-bold text-pink-600 text-[10px] uppercase block">Criança(s):</span>${formatarBlocoTexto(m.guia_crianca)}</div>
-                    <div><span class="font-bold text-indigo-700 text-[10px] uppercase block">Oriental:</span>${formatarBlocoTexto(m.guia_oriental)}</div>
-                    <div><span class="font-bold text-purple-700 text-[10px] uppercase block">Cigano(a):</span>${formatarBlocoTexto(m.guia_cigano)}</div>
+                    <div><span class="font-bold text-pink-600 text-[10px] uppercase block">🍭 Criança(s):</span>${formatarBlocoTexto(m.guia_crianca, '•')}</div>
+                    <div><span class="font-bold text-indigo-700 text-[10px] uppercase block">☯️ Oriental:</span>${formatarBlocoTexto(m.guia_oriental, '•')}</div>
+                    <div><span class="font-bold text-purple-700 text-[10px] uppercase block">⛺ Cigano(a):</span>${formatarBlocoTexto(m.guia_cigano, '•')}</div>
                 </div>
             `;
 
@@ -316,7 +466,7 @@
     }
 
     // ------------------------------------------------------------------------
-    // 3. EDIÇÃO DE GUIAS E PADRINHOS POR QUALQUER MÉDIUM COM ACESSO À ABA
+    // 3. EDIÇÃO DE GUIAS E PADRINHOS (admin.html)
     // ------------------------------------------------------------------------
     window.abrirModalEditarGuiasMedium = (id) => {
         const m = listaGuiasMediunsCache.find(item => item.id === id);
@@ -325,9 +475,65 @@
         document.getElementById('editGuiaMediumId').value = m.id;
         document.getElementById('editGuiaMediumNomeTitulo').textContent = m.nome_completo;
 
-        document.getElementById('editPadrinhosBatismo').value = m.padrinhos_batismo || '';
-        document.getElementById('editPadrinhosConsagracao').value = m.padrinhos_consagracao || '';
-        document.getElementById('editPadrinhosCoroacao').value = m.padrinhos_coroacao || '';
+        // Trava de Grau
+        const permite = window.grauPermiseConsagracao ? window.grauPermiseConsagracao(m.grau) : true;
+        const avisoGrau = document.getElementById('avisoBloqueioGrauEdit');
+        const boxConsCor = document.getElementById('boxConsagracaoCoroacaoEdit');
+        if (avisoGrau && boxConsCor) {
+            if (permite) {
+                avisoGrau.classList.add('hidden');
+                boxConsCor.classList.remove('hidden');
+            } else {
+                avisoGrau.classList.remove('hidden');
+                boxConsCor.classList.add('hidden');
+            }
+        }
+
+        // Batismo
+        try {
+            const bat = JSON.parse(m.padrinhos_batismo || '{}');
+            if (bat.padrinho) {
+                document.getElementById('editBatismoPadrinhoTipo').value = bat.padrinho.tipo || 'guia';
+                document.getElementById('editBatismoPadrinhoNome').value = bat.padrinho.nome || '';
+                document.getElementById('editBatismoPadrinhoMedium').value = bat.padrinho.medium || '';
+            }
+            if (bat.madrinha) {
+                document.getElementById('editBatismoMadrinhaTipo').value = bat.madrinha.tipo || 'guia';
+                document.getElementById('editBatismoMadrinhaNome').value = bat.madrinha.nome || '';
+                document.getElementById('editBatismoMadrinhaMedium').value = bat.madrinha.medium || '';
+            }
+        } catch (e) {
+            document.getElementById('editBatismoPadrinhoNome').value = m.padrinhos_batismo || '';
+        }
+        alternarTipoPadrinhoBatismo('edit', 'Padrinho');
+        alternarTipoPadrinhoBatismo('edit', 'Madrinha');
+
+        // Consagração e Coroação
+        if (permite) {
+            try {
+                const cons = JSON.parse(m.padrinhos_consagracao || '{}');
+                if (cons.padrinho) {
+                    document.getElementById('editConsagracaoPadrinhoGuia').value = cons.padrinho.nome || '';
+                    document.getElementById('editConsagracaoPadrinhoMedium').value = cons.padrinho.medium || '';
+                }
+                if (cons.madrinha) {
+                    document.getElementById('editConsagracaoMadrinhaGuia').value = cons.madrinha.nome || '';
+                    document.getElementById('editConsagracaoMadrinhaMedium').value = cons.madrinha.medium || '';
+                }
+            } catch (e) {}
+
+            try {
+                const coro = JSON.parse(m.padrinhos_coroacao || '{}');
+                if (coro.padrinho) {
+                    document.getElementById('editCoroacaoPadrinhoGuia').value = coro.padrinho.nome || '';
+                    document.getElementById('editCoroacaoPadrinhoMedium').value = coro.padrinho.medium || '';
+                }
+                if (coro.madrinha) {
+                    document.getElementById('editCoroacaoMadrinhaGuia').value = coro.madrinha.nome || '';
+                    document.getElementById('editCoroacaoMadrinhaMedium').value = coro.madrinha.medium || '';
+                }
+            } catch (e) {}
+        }
 
         document.getElementById('editGuiaCaboclo').value = m.guia_caboclo || '';
         document.getElementById('editGuiaPretoVelho').value = m.guia_preto_velho || '';
@@ -345,7 +551,7 @@
     };
 
     // ------------------------------------------------------------------------
-    // 4. IMPRESSÃO PDF A4 (PADRÃO OFICIAL DOS FORMULÁRIOS DA CASA)
+    // 4. IMPRESSÃO PDF A4 (LAYOUT RICO E ELEGANTE)
     // ------------------------------------------------------------------------
     window.imprimirGuiasSelecionadosPDF = () => {
         const filtrados = window.guiasMediunsFiltrados || [];
@@ -363,47 +569,69 @@
 
         selecionados.sort((a, b) => (a.nome_completo || '').localeCompare(b.nome_completo || '', 'pt-BR'));
 
-        // Cabeçalhos de Coluna com Emojis (Deixando claro as linhas de trabalho)
         const colunas = [
             'MÉDIUM / GRAU',
-            '🕊️ PADRINHOS',
+            '🕊️ PADRINHOS (BATISMO / CONSAGRAÇÃO / COROAÇÃO)',
             '🌿 CABOCLOS / BOIADEIROS',
             '☕ PRETOS VELHOS',
             '🔱 EXUS E POMBAGIRAS',
             '🍭 LINHAS DIVERSAS'
         ];
 
-        const formatGuiaLine = (text) => text && text !== '-' ? text.replace(/\n/g, '<br>') : '<span style="color:#cbd5e1; font-weight:normal;">-</span>';
+        const fmtPdfLinhas = (txt, simbolo = '•') => {
+            if (!txt || !txt.trim()) return '<span style="color:#cbd5e1;">-</span>';
+            return txt.trim().split('\n').map(l => `<div style="margin-bottom:2px;"><span style="color:#059669; font-weight:bold; margin-right:3px;">${simbolo}</span>${l}</div>`).join('');
+        };
 
         const dados = selecionados.map(m => {
             const cargo = [m.grau, m.funcao].filter(v => v && v !== '-').join(' / ');
-            
-            // Coluna 1: Nome (Destacado Escuro) e Grau (Cinza Claro)
             const colNome = `<div style="text-align:left; line-height:1.3;">
-                                <div style="font-size: 9pt; color: #0f172a; font-weight: 900;">${m.nome_completo}</div>
-                                ${cargo ? `<div style="font-size:7pt; color:#64748b; margin-top:3px; font-weight: bold; text-transform: uppercase;">Grau: ${cargo}</div>` : ''}
+                                <div style="font-size: 8.5pt; color: #0f172a; font-weight: 900;">${m.nome_completo}</div>
+                                ${cargo ? `<div style="font-size:6.5pt; color:#475569; margin-top:3px; font-weight:bold; text-transform:uppercase;">${cargo}</div>` : ''}
                              </div>`;
 
-            // Coluna 2: Padrinhos (Cores suaves para cada ritual)
+            // Padrinhos Formatados PDF
+            let batStr = '-';
+            try {
+                const bat = JSON.parse(m.padrinhos_batismo || '{}');
+                const p = bat.padrinho?.nome ? `${bat.padrinho.nome}${bat.padrinho.medium ? ` (Méd.: ${bat.padrinho.medium})` : ''}` : '-';
+                const md = bat.madrinha?.nome ? `${bat.madrinha.nome}${bat.madrinha.medium ? ` (Méd.: ${bat.madrinha.medium})` : ''}` : '-';
+                batStr = `P.: ${p} | M.: ${md}`;
+            } catch(e) { batStr = m.padrinhos_batismo || '-'; }
+
+            let conStr = '-';
+            try {
+                const con = JSON.parse(m.padrinhos_consagracao || '{}');
+                const p = con.padrinho?.nome ? `${con.padrinho.nome}${con.padrinho.medium ? ` (${con.padrinho.medium})` : ''}` : '-';
+                const md = con.madrinha?.nome ? `${con.madrinha.nome}${con.madrinha.medium ? ` (${con.madrinha.medium})` : ''}` : '-';
+                conStr = `P.: ${p} | M.: ${md}`;
+            } catch(e) { conStr = m.padrinhos_consagracao || '-'; }
+
+            let corStr = '-';
+            try {
+                const cor = JSON.parse(m.padrinhos_coroacao || '{}');
+                const p = cor.padrinho?.nome ? `${cor.padrinho.nome}${cor.padrinho.medium ? ` (${cor.padrinho.medium})` : ''}` : '-';
+                const md = cor.madrinha?.nome ? `${cor.madrinha.nome}${cor.madrinha.medium ? ` (${cor.madrinha.medium})` : ''}` : '-';
+                corStr = `P.: ${p} | M.: ${md}`;
+            } catch(e) { corStr = m.padrinhos_coroacao || '-'; }
+
             const colPadrinhos = `
-                <div style="font-size: 7.5pt; line-height: 1.5; text-align: left;">
-                    <div><span style="color:#0284c7; font-weight:bold;">Batismo:</span> <span style="color:#334155; font-weight:600;">${m.padrinhos_batismo || '<span style="color:#cbd5e1; font-weight:normal;">-</span>'}</span></div>
-                    <div><span style="color:#d97706; font-weight:bold;">Consagração:</span> <span style="color:#334155; font-weight:600;">${m.padrinhos_consagracao || '<span style="color:#cbd5e1; font-weight:normal;">-</span>'}</span></div>
-                    <div><span style="color:#eab308; font-weight:bold;">Coroação:</span> <span style="color:#334155; font-weight:600;">${m.padrinhos_coroacao || '<span style="color:#cbd5e1; font-weight:normal;">-</span>'}</span></div>
+                <div style="font-size: 7pt; line-height: 1.4; text-align: left;">
+                    <div><span style="color:#0284c7; font-weight:bold;">Bat.:</span> <span style="color:#334155;">${batStr}</span></div>
+                    <div><span style="color:#d97706; font-weight:bold;">Cons.:</span> <span style="color:#334155;">${conStr}</span></div>
+                    <div><span style="color:#ca8a04; font-weight:bold;">Cor.:</span> <span style="color:#334155;">${corStr}</span></div>
                 </div>
             `;
 
-            // Colunas 3, 4 e 5: Linhas Principais (Com cores que representam a energia)
-            const colCaboclo = `<div style="color:#059669; font-weight:800; font-size: 8pt; line-height:1.4;">${formatGuiaLine(m.guia_caboclo)}</div>`;
-            const colPretoVelho = `<div style="color:#78350f; font-weight:800; font-size: 8pt; line-height:1.4;">${formatGuiaLine(m.guia_preto_velho)}</div>`;
-            const colExu = `<div style="color:#b91c1c; font-weight:800; font-size: 8pt; line-height:1.4;">${formatGuiaLine(m.guia_exu_pombagira)}</div>`;
+            const colCaboclo = `<div style="text-align:left; font-size: 7.5pt; line-height:1.4;">${fmtPdfLinhas(m.guia_caboclo, '➔')}</div>`;
+            const colPretoVelho = `<div style="text-align:left; font-size: 7.5pt; line-height:1.4;">${fmtPdfLinhas(m.guia_preto_velho, '➔')}</div>`;
+            const colExu = `<div style="text-align:left; font-size: 7.5pt; line-height:1.4;">${fmtPdfLinhas(m.guia_exu_pombagira, '➔')}</div>`;
 
-            // Coluna 6: Diversas (Colorido)
             const colOutros = `
-                <div style="font-size: 7.5pt; line-height: 1.5; text-align: left;">
-                    <div><span style="color:#db2777;">🍭</span> <span style="color:#475569; font-weight:bold;">Criança:</span> <span style="color:#334155; font-weight:600;">${(m.guia_crianca || '<span style="color:#cbd5e1; font-weight:normal;">-</span>').replace(/\n/g, ' / ')}</span></div>
-                    <div><span style="color:#4f46e5;">☯️</span> <span style="color:#475569; font-weight:bold;">Oriental:</span> <span style="color:#334155; font-weight:600;">${(m.guia_oriental || '<span style="color:#cbd5e1; font-weight:normal;">-</span>').replace(/\n/g, ' / ')}</span></div>
-                    <div><span style="color:#7e22ce;">⛺</span> <span style="color:#475569; font-weight:bold;">Cigano(a):</span> <span style="color:#334155; font-weight:600;">${(m.guia_cigano || '<span style="color:#cbd5e1; font-weight:normal;">-</span>').replace(/\n/g, ' / ')}</span></div>
+                <div style="font-size: 7pt; line-height: 1.4; text-align: left;">
+                    <div><span style="color:#db2777;">🍭</span> <span style="color:#475569; font-weight:bold;">Criança:</span> <span style="color:#334155;">${(m.guia_crianca || '-').replace(/\n/g, ' / ')}</span></div>
+                    <div><span style="color:#4f46e5;">☯️</span> <span style="color:#475569; font-weight:bold;">Oriental:</span> <span style="color:#334155;">${(m.guia_oriental || '-').replace(/\n/g, ' / ')}</span></div>
+                    <div><span style="color:#7e22ce;">⛺</span> <span style="color:#475569; font-weight:bold;">Cigano:</span> <span style="color:#334155;">${(m.guia_cigano || '-').replace(/\n/g, ' / ')}</span></div>
                 </div>
             `;
 
@@ -411,14 +639,14 @@
         });
 
         if (typeof window.gerarPDFRelatorio === 'function') {
-            window.gerarPDFRelatorio('Relação de Guias e Padrinhos dos Médiuns', colunas, dados, 'landscape');
+            window.gerarPDFRelatorio('Relação Oficial de Guias e Padrinhos dos Médiuns', colunas, dados, 'landscape');
         } else {
             alert('Função geradora de PDF não encontrada.');
         }
     };
 
     // ------------------------------------------------------------------------
-    // 5. IMPORTADOR DIRETO DE PLANILHA EXCEL (.XLSX) POR TERREIRO
+    // 5. IMPORTADOR DE PLANILHA EXCEL (.XLSX)
     // ------------------------------------------------------------------------
     async function importarPlanilhaGuiasExcel(file) {
         if (!file || !idTerreiroGlobal) return;
@@ -522,10 +750,30 @@
                 btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Salvando...';
                 if (msg) msg.classList.add('hidden');
 
+                const batPadrinho = stringifyPadrinho(
+                    document.getElementById('editBatismoPadrinhoTipo').value,
+                    document.getElementById('editBatismoPadrinhoNome').value,
+                    document.getElementById('editBatismoPadrinhoMedium').value
+                );
+                const batMadrinha = stringifyPadrinho(
+                    document.getElementById('editBatismoMadrinhaTipo').value,
+                    document.getElementById('editBatismoMadrinhaNome').value,
+                    document.getElementById('editBatismoMadrinhaMedium').value
+                );
+
+                const medRef = listaGuiasMediunsCache.find(x => x.id === idMedium);
+                const permiteCT = medRef && window.grauPermiseConsagracao ? window.grauPermiseConsagracao(medRef.grau) : true;
+
                 const payload = {
-                    padrinhos_batismo: document.getElementById('editPadrinhosBatismo').value.trim() || null,
-                    padrinhos_consagracao: document.getElementById('editPadrinhosConsagracao').value.trim() || null,
-                    padrinhos_coroacao: document.getElementById('editPadrinhosCoroacao').value.trim() || null,
+                    padrinhos_batismo: JSON.stringify({ padrinho: parsePadrinhoJson(batPadrinho), madrinha: parsePadrinhoJson(batMadrinha) }),
+                    padrinhos_consagracao: permiteCT ? JSON.stringify({
+                        padrinho: { tipo: 'guia', nome: document.getElementById('editConsagracaoPadrinhoGuia')?.value.trim() || '', medium: document.getElementById('editConsagracaoPadrinhoMedium')?.value.trim() || '' },
+                        madrinha: { tipo: 'guia', nome: document.getElementById('editConsagracaoMadrinhaGuia')?.value.trim() || '', medium: document.getElementById('editConsagracaoMadrinhaMedium')?.value.trim() || '' }
+                    }) : null,
+                    padrinhos_coroacao: permiteCT ? JSON.stringify({
+                        padrinho: { tipo: 'guia', nome: document.getElementById('editCoroacaoPadrinhoGuia')?.value.trim() || '', medium: document.getElementById('editCoroacaoPadrinhoMedium')?.value.trim() || '' },
+                        madrinha: { tipo: 'guia', nome: document.getElementById('editCoroacaoMadrinhaGuia')?.value.trim() || '', medium: document.getElementById('editCoroacaoMadrinhaMedium')?.value.trim() || '' }
+                    }) : null,
                     guia_caboclo: document.getElementById('editGuiaCaboclo').value.trim() || null,
                     guia_preto_velho: document.getElementById('editGuiaPretoVelho').value.trim() || null,
                     guia_exu_pombagira: document.getElementById('editGuiaExuPombagira').value.trim() || null,
