@@ -86,6 +86,9 @@
             <a href="#" id="menuQuadroMediuns" class="menu-item py-3 px-4 rounded-xl hover:bg-white/10 active:scale-[0.98] transition flex items-center text-sm font-semibold">
                 <i class="fas fa-users w-6 mr-3 text-base"></i> Quadro de Médiuns
             </a>
+            <a href="#" id="menuGuiasMediuns" class="menu-item py-3 px-4 rounded-xl hover:bg-white/10 active:scale-[0.98] transition flex items-center text-sm font-semibold">
+                <i class="fas fa-feather-alt w-6 mr-3 text-base"></i> Guias dos Médiuns
+            </a>
             <a href="#" id="menuAgendaGiras" class="menu-item py-3 px-4 rounded-xl hover:bg-white/10 active:scale-[0.98] transition flex items-center text-sm font-semibold">
                 <i class="fas fa-calendar-alt w-6 mr-3 text-base"></i> Agenda de Eventos
             </a>
@@ -339,6 +342,66 @@
                                 <li class="p-4 text-center text-gray-500 text-sm">Carregando...</li>
                             </ul>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SEÇÃO GUIAS DOS MÉDIUNS -->
+            <div id="secGuiasMediuns" class="secao-painel hidden">
+                <div class="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+                    <div>
+                        <h2 class="text-xl md:text-2xl font-bold text-gray-800">Guias e Padrinhos dos Médiuns</h2>
+                        <p class="text-gray-500 text-xs md:text-sm mt-1">Consulte, filtre, edite e imprima em PDF A4 os guias e padrinhos da corrente.</p>
+                    </div>
+                    <div class="flex flex-wrap gap-2 w-full sm:w-auto">
+                        <input type="file" id="inputImportarExcelGuias" accept=".xlsx,.xls,.csv" class="hidden">
+                        <button type="button" onclick="document.getElementById('inputImportarExcelGuias').click()" class="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl font-bold shadow transition flex items-center justify-center gap-2 text-xs md:text-sm active:scale-95">
+                            <i class="fas fa-file-excel"></i> Importar Planilha (.xlsx)
+                        </button>
+                        <button type="button" onclick="imprimirGuiasSelecionadosPDF()" class="flex-1 sm:flex-none bg-gray-800 hover:bg-gray-900 text-white px-4 py-2.5 rounded-xl font-bold shadow transition flex items-center justify-center gap-2 text-xs md:text-sm active:scale-95">
+                            <i class="fas fa-print text-red-400"></i> Imprimir PDF A4 (<span id="contadorSelecionadosGuias">0</span>)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filtros: Médium, Grau e Guia Específico -->
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 mb-6 grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 border-t-4 border-tema-primaria">
+                    <div>
+                        <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Filtrar por Médium</label>
+                        <input type="text" id="filtroMediumGuias" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-tema-primaria outline-none" placeholder="Nome completo ou social...">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Filtrar por Grau</label>
+                        <select id="filtroGrauGuias" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-tema-primaria bg-white">
+                            <option value="">Todos os Graus</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Buscar Guia ou Padrinho Específico</label>
+                        <input type="text" id="filtroBuscaGuiaEspecifico" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-tema-primaria outline-none" placeholder="Ex: Sete Flechas, Maria Padilha...">
+                    </div>
+                </div>
+
+                <!-- Tabela de Guias e Padrinhos -->
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse min-w-[900px]">
+                            <thead>
+                                <tr class="bg-gray-100 text-gray-500 text-[10px] uppercase tracking-wider border-b border-gray-200">
+                                    <th class="p-4 text-center w-12">
+                                        <input type="checkbox" id="chkSelecionarTodosGuias" class="w-4 h-4 rounded text-tema-primaria cursor-pointer" title="Selecionar todos os filtrados" onchange="alternarSelecionarTodosGuias(this.checked)">
+                                    </th>
+                                    <th class="p-4 font-bold w-56">Médium / Grau</th>
+                                    <th class="p-4 font-bold w-64">Padrinhos</th>
+                                    <th class="p-4 font-bold">Caboclo / Preto Velho / Exu</th>
+                                    <th class="p-4 font-bold">Criança / Oriental / Cigano</th>
+                                    <th class="p-4 font-bold text-center w-28">Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabelaGuiasMediuns" class="text-sm divide-y divide-gray-100">
+                                <tr><td colspan="6" class="p-6 text-center text-gray-500">Carregando...</td></tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -1228,7 +1291,7 @@
                     <div class="bg-white rounded-2xl shadow-sm border-t-4 border-tema-secundaria p-5 md:p-6 flex flex-col justify-between">
                         <div>
                             <h3 class="text-base font-bold text-tema-texto mb-1"><i class="fas fa-palette mr-2 text-tema-secundaria"></i> Identidade Visual (Cores)</h3>
-                            <p class="text-xs text-gray-500 mb-4">Cores de cabeçalho, ações, texto e fundo.</p>
+                            <p class="text-xs text-gray-500 mb-4">Cores de cabeçalho, actions, texto e fundo.</p>
 
                             <div class="grid grid-cols-2 gap-3 mb-4">
                                 <div class="p-2.5 border border-gray-100 rounded-xl bg-gray-50 flex justify-between items-center">
@@ -1445,6 +1508,10 @@
                 <label class="flex items-center space-x-3 cursor-pointer p-2 hover:bg-gray-50 rounded-xl">
                     <input type="checkbox" id="chkPermQuadro" class="w-4 h-4 text-tema-primaria rounded">
                     <span>Quadro de Médiuns</span>
+                </label>
+                <label class="flex items-center space-x-3 cursor-pointer p-2 hover:bg-gray-50 rounded-xl">
+                    <input type="checkbox" id="chkPermGuias" class="w-4 h-4 text-tema-primaria rounded">
+                    <span>Guias dos Médiuns</span>
                 </label>
                 <label class="flex items-center space-x-3 cursor-pointer p-2 hover:bg-gray-50 rounded-xl">
                     <input type="checkbox" id="chkPermAgenda" class="w-4 h-4 text-tema-primaria rounded">
@@ -1764,6 +1831,77 @@
             </div>
         </div>
     </div>
+
+    <!-- MODAL EDITAR GUIAS E PADRINHOS DO MÉDIUM -->
+    <div id="modalEditarGuiasMedium" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[75]">
+        <div class="bg-white rounded-3xl shadow-xl w-full max-w-2xl p-6 transform transition-all max-h-[92vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-4 border-b pb-2">
+                <div>
+                    <h3 class="text-lg md:text-xl font-bold text-tema-texto"><i class="fas fa-feather-alt text-tema-secundaria mr-2"></i> Guias e Padrinhos</h3>
+                    <p id="editGuiaMediumNomeTitulo" class="text-xs font-bold text-tema-primaria mt-0.5"></p>
+                </div>
+                <button type="button" onclick="fecharModalEditarGuiasMedium()" class="text-gray-400 hover:text-gray-600 p-1"><i class="fas fa-times text-xl"></i></button>
+            </div>
+
+            <form id="formEditarGuiasMedium" class="space-y-4">
+                <input type="hidden" id="editGuiaMediumId">
+
+                <div class="bg-gray-50 p-4 rounded-2xl border border-gray-200">
+                    <h4 class="text-xs font-black text-gray-700 uppercase tracking-wider mb-3"><i class="fas fa-hands-helping text-tema-primaria mr-1"></i> Padrinhos</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 mb-1">Batismo</label>
+                            <input type="text" id="editPadrinhosBatismo" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs bg-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 mb-1">Consagração</label>
+                            <input type="text" id="editPadrinhosConsagracao" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs bg-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 mb-1">Coroação</label>
+                            <input type="text" id="editPadrinhosCoroacao" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs bg-white">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-gray-50 p-4 rounded-2xl border border-gray-200">
+                    <h4 class="text-xs font-black text-gray-700 uppercase tracking-wider mb-3"><i class="fas fa-feather-alt text-tema-secundaria mr-1"></i> Linhas de Trabalho (Guias)</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 mb-1">Caboclo(a) de Pena ou Couro / Boiadeiro</label>
+                            <textarea id="editGuiaCaboclo" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs bg-white"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 mb-1">Preto ou Preta Velha</label>
+                            <textarea id="editGuiaPretoVelho" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs bg-white"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 mb-1">Exu / Pombagira / Malandro(a)</label>
+                            <textarea id="editGuiaExuPombagira" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs bg-white"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 mb-1">Criança(s)</label>
+                            <input type="text" id="editGuiaCrianca" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs bg-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 mb-1">Oriental</label>
+                            <input type="text" id="editGuiaOriental" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs bg-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 mb-1">Cigano(a)</label>
+                            <input type="text" id="editGuiaCigano" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs bg-white">
+                        </div>
+                    </div>
+                </div>
+
+                <p id="msgEditGuiasModal" class="hidden text-center"></p>
+
+                <button type="submit" id="btnSalvarEditGuiasModal" class="w-full bg-tema-secundaria hover:opacity-90 active:scale-95 text-white font-bold py-3 px-4 rounded-xl shadow transition text-sm mt-2">
+                    Salvar Alterações
+                </button>
+            </form>
+        </div>
+    </div>
     
     <!-- ============================================== -->
     <!-- MODAL APOIO AO DESENVOLVEDOR (Mario Chalfoun Jr) -->
@@ -1795,6 +1933,7 @@
 
     <script src="js/supabase.js"></script>
     <script src="js/admin.js"></script>
+    <script src="js/guias.js"></script>
 
     <!-- PWA Service Worker Registration e Modal Apoio -->
     <script>
