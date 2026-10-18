@@ -238,8 +238,6 @@
 
                 <!-- ABA 3: FAMÍLIA -->
                 <div id="conteudoAbaFamilia" class="space-y-4 hidden">
-                    
-                    <!-- Convites Recebidos Pendentes -->
                     <div id="boxConvitesRecebidos" class="hidden bg-amber-50 border border-amber-200 rounded-xl p-3">
                         <p class="text-xs font-bold text-amber-800 mb-2 flex items-center gap-1">
                             <i class="fas fa-bell"></i> Pedidos de Vínculo Recebidos
@@ -247,7 +245,6 @@
                         <ul id="listaConvitesRecebidos" class="space-y-2"></ul>
                     </div>
 
-                    <!-- Familiares Ativos / Aprovados -->
                     <div>
                         <p class="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Meus Familiares Aprovados</p>
                         <ul id="listaFamiliaresAprovados" class="space-y-1.5 divide-y divide-gray-100 bg-gray-50 rounded-xl p-2.5 border border-gray-200">
@@ -255,13 +252,11 @@
                         </ul>
                     </div>
 
-                    <!-- Convites Enviados Aguardando Resposta -->
                     <div id="boxConvitesEnviados" class="hidden">
                         <p class="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Aguardando Aprovação deles</p>
                         <ul id="listaConvitesEnviados" class="space-y-1 text-xs"></ul>
                     </div>
 
-                    <!-- Buscar e Adicionar Familiar -->
                     <div class="border-t border-gray-200 pt-3">
                         <p class="text-xs font-bold text-gray-700 mb-1">Adicionar Familiar</p>
                         <p class="text-[11px] text-gray-500 mb-2">O familiar receberá o convite no painel dele e precisará autorizar.</p>
@@ -272,18 +267,15 @@
                     </div>
                 </div>
 
-            </div>
-
-            <!-- ABA 4: GUIAS E PADRINHOS -->
+                <!-- ABA 4: GUIAS E PADRINHOS (AGORA DENTRO DA ÁREA ROLÁVEL) -->
                 <div id="conteudoAbaGuias" class="space-y-3 hidden">
                     <div class="bg-gray-50 p-3 rounded-xl border border-gray-200 space-y-3">
                         <p class="text-[11px] font-black text-tema-primaria uppercase tracking-wider"><i class="fas fa-hands-helping mr-1"></i> Padrinhos e Madrinhas</p>
 
-                        <!-- 1. BATISMO (Todos os Graus: Guia ou Médium) -->
+                        <!-- Batismo -->
                         <div class="bg-white p-2.5 rounded-xl border border-gray-200 space-y-2.5">
                             <p class="text-[10px] font-black text-sky-700 uppercase tracking-wider border-b border-gray-100 pb-1">🕊️ Batismo</p>
                             
-                            <!-- Padrinho de Batismo -->
                             <div class="space-y-1.5">
                                 <div class="flex items-center justify-between">
                                     <label class="text-[11px] font-bold text-gray-700">Padrinho</label>
@@ -293,12 +285,11 @@
                                     </select>
                                 </div>
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5" id="gridPerfilBatismoPadrinho">
-                                    <input type="text" id="perfilBatismoPadrinhoNome" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg outline-none focus:ring-1 focus:ring-tema-primaria" placeholder="Nome do Guia">
-                                    <input type="text" id="perfilBatismoPadrinhoMedium" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg outline-none focus:ring-1 focus:ring-tema-primaria" placeholder="Médium do Guia">
+                                    <input type="text" id="perfilBatismoPadrinhoNome" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg outline-none" placeholder="Nome do Guia">
+                                    <input type="text" id="perfilBatismoPadrinhoMedium" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg outline-none" placeholder="Médium do Guia">
                                 </div>
                             </div>
 
-                            <!-- Madrinha de Batismo -->
                             <div class="space-y-1.5 pt-1 border-t border-dashed border-gray-100">
                                 <div class="flex items-center justify-between">
                                     <label class="text-[11px] font-bold text-gray-700">Madrinha</label>
@@ -308,8 +299,8 @@
                                     </select>
                                 </div>
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5" id="gridPerfilBatismoMadrinha">
-                                    <input type="text" id="perfilBatismoMadrinhaNome" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg outline-none focus:ring-1 focus:ring-tema-primaria" placeholder="Nome da Guia">
-                                    <input type="text" id="perfilBatismoMadrinhaMedium" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg outline-none focus:ring-1 focus:ring-tema-primaria" placeholder="Médium da Guia">
+                                    <input type="text" id="perfilBatismoMadrinhaNome" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg outline-none" placeholder="Nome da Guia">
+                                    <input type="text" id="perfilBatismoMadrinhaMedium" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg outline-none" placeholder="Médium da Guia">
                                 </div>
                             </div>
                         </div>
@@ -319,9 +310,8 @@
                             <p class="text-[11px] font-bold text-amber-800"><i class="fas fa-lock mr-1"></i> Consagração e Coroação habilitados a partir do grau CT</p>
                         </div>
 
-                        <!-- 2. CONSAGRAÇÃO E COROAÇÃO (Apenas Guias - A partir de CT) -->
+                        <!-- Consagração e Coroação -->
                         <div id="boxConsagracaoCoroacaoPerfil" class="space-y-3">
-                            <!-- Consagração -->
                             <div class="bg-white p-2.5 rounded-xl border border-gray-200 space-y-2">
                                 <div class="flex items-center justify-between border-b border-gray-100 pb-1">
                                     <p class="text-[10px] font-black text-amber-700 uppercase tracking-wider">🔥 Consagração</p>
@@ -330,20 +320,19 @@
                                 <div>
                                     <label class="block text-[10px] font-bold text-gray-600 mb-1">Padrinho (Guia + Médium)</label>
                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                                        <input type="text" id="perfilConsagracaoPadrinhoGuia" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg outline-none focus:ring-1 focus:ring-tema-primaria" placeholder="Nome do Guia">
-                                        <input type="text" id="perfilConsagracaoPadrinhoMedium" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg outline-none focus:ring-1 focus:ring-tema-primaria" placeholder="Médium do Guia">
+                                        <input type="text" id="perfilConsagracaoPadrinhoGuia" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg" placeholder="Nome do Guia">
+                                        <input type="text" id="perfilConsagracaoPadrinhoMedium" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg" placeholder="Médium do Guia">
                                     </div>
                                 </div>
                                 <div>
                                     <label class="block text-[10px] font-bold text-gray-600 mb-1">Madrinha (Guia + Médium)</label>
                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                                        <input type="text" id="perfilConsagracaoMadrinhaGuia" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg outline-none focus:ring-1 focus:ring-tema-primaria" placeholder="Nome da Guia">
-                                        <input type="text" id="perfilConsagracaoMadrinhaMedium" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg outline-none focus:ring-1 focus:ring-tema-primaria" placeholder="Médium da Guia">
+                                        <input type="text" id="perfilConsagracaoMadrinhaGuia" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg" placeholder="Nome da Guia">
+                                        <input type="text" id="perfilConsagracaoMadrinhaMedium" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg" placeholder="Médium da Guia">
                                     </div>
                                 </div>
                             </div>
 
-                            <!-- Coroação -->
                             <div class="bg-white p-2.5 rounded-xl border border-gray-200 space-y-2">
                                 <div class="flex items-center justify-between border-b border-gray-100 pb-1">
                                     <p class="text-[10px] font-black text-yellow-600 uppercase tracking-wider">👑 Coroação</p>
@@ -352,15 +341,15 @@
                                 <div>
                                     <label class="block text-[10px] font-bold text-gray-600 mb-1">Padrinho (Guia + Médium)</label>
                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                                        <input type="text" id="perfilCoroacaoPadrinhoGuia" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg outline-none focus:ring-1 focus:ring-tema-primaria" placeholder="Nome do Guia">
-                                        <input type="text" id="perfilCoroacaoPadrinhoMedium" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg outline-none focus:ring-1 focus:ring-tema-primaria" placeholder="Médium do Guia">
+                                        <input type="text" id="perfilCoroacaoPadrinhoGuia" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg" placeholder="Nome do Guia">
+                                        <input type="text" id="perfilCoroacaoPadrinhoMedium" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg" placeholder="Médium do Guia">
                                     </div>
                                 </div>
                                 <div>
                                     <label class="block text-[10px] font-bold text-gray-600 mb-1">Madrinha (Guia + Médium)</label>
                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                                        <input type="text" id="perfilCoroacaoMadrinhaGuia" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg outline-none focus:ring-1 focus:ring-tema-primaria" placeholder="Nome da Guia">
-                                        <input type="text" id="perfilCoroacaoMadrinhaMedium" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg outline-none focus:ring-1 focus:ring-tema-primaria" placeholder="Médium da Guia">
+                                        <input type="text" id="perfilCoroacaoMadrinhaGuia" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg" placeholder="Nome da Guia">
+                                        <input type="text" id="perfilCoroacaoMadrinhaMedium" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg" placeholder="Médium da Guia">
                                     </div>
                                 </div>
                             </div>
@@ -370,28 +359,28 @@
                     <div class="bg-gray-50 p-3 rounded-xl border border-gray-200 space-y-2.5">
                         <p class="text-[11px] font-black text-tema-primaria uppercase tracking-wider"><i class="fas fa-feather-alt mr-1"></i> Meus Guias de Trabalho</p>
                         <div>
-                            <label class="block text-[11px] font-bold text-gray-600 mb-0.5">Caboclo(a) de Pena ou de Couro / Boiadeiro</label>
-                            <textarea id="perfilGuiaCaboclo" rows="2" class="w-full px-3 py-1.5 text-xs border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-tema-primaria bg-white"></textarea>
+                            <label class="block text-[11px] font-bold text-gray-600 mb-0.5">Caboclo(a) de Pena ou Couro / Boiadeiro</label>
+                            <textarea id="perfilGuiaCaboclo" rows="2" class="w-full px-3 py-1.5 text-xs border border-gray-300 rounded-xl outline-none bg-white"></textarea>
                         </div>
                         <div>
                             <label class="block text-[11px] font-bold text-gray-600 mb-0.5">Preto ou Preta Velha</label>
-                            <textarea id="perfilGuiaPretoVelho" rows="2" class="w-full px-3 py-1.5 text-xs border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-tema-primaria bg-white"></textarea>
+                            <textarea id="perfilGuiaPretoVelho" rows="2" class="w-full px-3 py-1.5 text-xs border border-gray-300 rounded-xl outline-none bg-white"></textarea>
                         </div>
                         <div>
                             <label class="block text-[11px] font-bold text-gray-600 mb-0.5">Exu / Pombagira / Malandro(a)</label>
-                            <textarea id="perfilGuiaExuPombagira" rows="2" class="w-full px-3 py-1.5 text-xs border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-tema-primaria bg-white"></textarea>
+                            <textarea id="perfilGuiaExuPombagira" rows="2" class="w-full px-3 py-1.5 text-xs border border-gray-300 rounded-xl outline-none bg-white"></textarea>
                         </div>
                         <div>
                             <label class="block text-[11px] font-bold text-gray-600 mb-0.5">Criança(s)</label>
-                            <input type="text" id="perfilGuiaCrianca" class="w-full px-3 py-1.5 text-xs border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-tema-primaria bg-white">
+                            <input type="text" id="perfilGuiaCrianca" class="w-full px-3 py-1.5 text-xs border border-gray-300 rounded-xl outline-none bg-white">
                         </div>
                         <div>
                             <label class="block text-[11px] font-bold text-gray-600 mb-0.5">Oriental</label>
-                            <input type="text" id="perfilGuiaOriental" class="w-full px-3 py-1.5 text-xs border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-tema-primaria bg-white">
+                            <input type="text" id="perfilGuiaOriental" class="w-full px-3 py-1.5 text-xs border border-gray-300 rounded-xl outline-none bg-white">
                         </div>
                         <div>
-                            <label class="block text-[11px] font-bold text-gray-600 mb-0.5">Cigano(a)</label>
-                            <input type="text" id="perfilGuiaCigano" class="w-full px-3 py-1.5 text-xs border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-tema-primaria bg-white">
+                            <label class="block text-[11px] font-bold text-gray-600 mb-1">Cigano(a)</label>
+                            <input type="text" id="perfilGuiaCigano" class="w-full px-3 py-1.5 text-xs border border-gray-300 rounded-xl outline-none bg-white">
                         </div>
                     </div>
 
@@ -400,6 +389,8 @@
                     </button>
                     <p id="msgPerfilGuias" class="text-xs font-bold text-center hidden"></p>
                 </div>
+
+            </div> <!-- Fim da div de scroll -->
 
             <!-- Botão Voltar para o Início -->
             <div class="flex-shrink-0 pt-4 mt-2 border-t border-gray-100 bg-white">
