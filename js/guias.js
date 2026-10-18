@@ -3,15 +3,28 @@
 // ============================================================================
 
 (function () {
-    // Helper de Verificação de Grau (Libera Consagração/Coroação a partir de CT)
+   // Helper de Verificação de Grau
     window.grauPermiteConsagracao = (grauStr) => {
         if (!grauStr) return false;
         const g = String(grauStr).trim().toUpperCase();
-        // Graus bloquados: -, I, IJ, B, BJ, T, TJ, SCT, Escola de CT
-        const bloqueados = ['-', 'I', 'IJ', 'B', 'BJ', 'T', 'TJ', 'SCT', 'ESCOLA DE CT'];
-        if (bloqueados.includes(g)) return false;
-        // Liberados: CT, SCCT, Escola de CCT, CCT, Dirigente e afins
-        return true;
+        // Liberados: Escola de CT, CT, SCCT, Escola de CCT, CCT, Dirigente
+        const permitidos = ['ESCOLA DE CT', 'CT', 'SCCT', 'ESCOLA DE CCT', 'CCT', 'DIRIGENTE'];
+        return permitidos.includes(g);
+    };
+
+    // Função para copiar padrinhos de uma aba para outra
+    window.copiarPadrinhos = (origem, destino) => {
+        if (origem === 'batismo' && destino === 'consagracao') {
+            document.getElementById('perfilConsagracaoPadrinhoGuia').value = document.getElementById('perfilBatismoPadrinhoNome').value;
+            document.getElementById('perfilConsagracaoPadrinhoMedium').value = document.getElementById('perfilBatismoPadrinhoMedium').value;
+            document.getElementById('perfilConsagracaoMadrinhaGuia').value = document.getElementById('perfilBatismoMadrinhaNome').value;
+            document.getElementById('perfilConsagracaoMadrinhaMedium').value = document.getElementById('perfilBatismoMadrinhaMedium').value;
+        } else if (origem === 'consagracao' && destino === 'coroacao') {
+            document.getElementById('perfilCoroacaoPadrinhoGuia').value = document.getElementById('perfilConsagracaoPadrinhoGuia').value;
+            document.getElementById('perfilCoroacaoPadrinhoMedium').value = document.getElementById('perfilConsagracaoPadrinhoMedium').value;
+            document.getElementById('perfilCoroacaoMadrinhaGuia').value = document.getElementById('perfilConsagracaoMadrinhaGuia').value;
+            document.getElementById('perfilCoroacaoMadrinhaMedium').value = document.getElementById('perfilConsagracaoMadrinhaMedium').value;
+        }
     };
 
     // Alternar visualização entre Guia e Médium no Batismo
@@ -195,17 +208,22 @@
             if (!error && data) {
                 Object.assign(perfilMediumLogado, data);
 
-                // Gerenciamento de Trava de Grau para Consagração e Coroação
-                const permite = window.grauPermiseConsagracao ? window.grauPermiseConsagracao(data.grau) : true;
+                // Gerenciamento de Trava de Grau para Consagração, Coroação e Guias de Trabalho
+                const permite = window.grauPermiteConsagracao ? window.grauPermiteConsagracao(data.grau) : true;
                 const avisoGrau = document.getElementById('avisoBloqueioGrauPerfil');
                 const boxConsCor = document.getElementById('boxConsagracaoCoroacaoPerfil');
+                const boxGuiasTrabalho = document.getElementById('boxMeusGuiasTrabalhoPerfil');
+                
                 if (avisoGrau && boxConsCor) {
                     if (permite) {
                         avisoGrau.classList.add('hidden');
                         boxConsCor.classList.remove('hidden');
+                        if (boxGuiasTrabalho) boxGuiasTrabalho.classList.remove('hidden');
                     } else {
+                        avisoGrau.innerHTML = '<p class="text-[11px] font-bold text-amber-800"><i class="fas fa-lock mr-1"></i> O registro de Guias de Trabalho, Consagração e Coroação é habilitado apenas para graus mais avançados (Escola de CT em diante).</p>';
                         avisoGrau.classList.remove('hidden');
                         boxConsCor.classList.add('hidden');
+                        if (boxGuiasTrabalho) boxGuiasTrabalho.classList.add('hidden');
                     }
                 }
 
