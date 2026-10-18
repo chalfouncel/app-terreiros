@@ -454,20 +454,30 @@
                 return k ? String(r[k] || '').trim() : '';
             };
 
-            const nomePlanilha = getVal('nome');
-            if (!nomePlanilha) continue;
+            const nomePrincipal = String(r['Nome'] || getVal('nome completo') || getVal('nome') || '').trim();
+            const nomeFormulario = String(r['Nome no Formulário (Base)'] || '').trim();
+            if (!nomePrincipal && !nomeFormulario) continue;
 
-            const nomeNorm = normalizar(nomePlanilha);
-            const mediumMatch = listaGuiasMediunsCache.find(m => normalizar(m.nome_completo) === nomeNorm);
+            const n1 = normalizar(nomePrincipal);
+            const n2 = normalizar(nomeFormulario);
+
+            const mediumMatch = listaGuiasMediunsCache.find(m => {
+                const mComp = normalizar(m.nome_completo);
+                const mSoc = normalizar(m.nome_social);
+                return (n1 && (mComp === n1 || mSoc === n1)) ||
+                       (n2 && (mComp === n2 || mSoc === n2)) ||
+                       (n1 && mComp.startsWith(n1)) ||
+                       (n2 && mComp.startsWith(n2));
+            });
 
             if (mediumMatch) {
                 const payload = {
-                    guia_caboclo: getVal('caboclo') || mediumMatch.guia_caboclo || null,
-                    guia_preto_velho: getVal('preto') || mediumMatch.guia_preto_velho || null,
-                    guia_exu_pombagira: getVal('exu') || mediumMatch.guia_exu_pombagira || null,
-                    guia_crianca: getVal('crianca') || mediumMatch.guia_crianca || null,
-                    guia_oriental: getVal('oriental') || mediumMatch.guia_oriental || null,
-                    guia_cigano: getVal('cigano') || mediumMatch.guia_cigano || null
+                    guia_caboclo: getVal('caboclo') || null,
+                    guia_preto_velho: getVal('preto') || null,
+                    guia_exu_pombagira: getVal('exu') || null,
+                    guia_crianca: getVal('crianca') || null,
+                    guia_oriental: getVal('oriental') || null,
+                    guia_cigano: getVal('cigano') || null
                 };
 
                 const { error } = await supabaseClient
@@ -478,13 +488,13 @@
 
                 if (!error) atualizados++;
             } else {
-                naoEncontrados.push(nomePlanilha);
+                naoEncontrados.push(nomePrincipal || nomeFormulario);
             }
         }
 
         let resumo = `✅ Importação concluída!\n\nMédiuns atualizados neste terreiro: ${atualizados}`;
         if (naoEncontrados.length > 0) {
-            resumo += `\nNão encontrados no cadastro atual (${naoEncontrados.length}): ${naoEncontrados.slice(0, 10).join(', ')}${naoEncontrados.length > 10 ? '...' : ''}`;
+            resumo += `\n\nNão encontrados no cadastro atual (${naoEncontrados.length}):\n- ${naoEncontrados.join('\n- ')}`;
         }
         alert(resumo);
         window.carregarGuiasMediuns();
