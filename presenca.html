@@ -701,5 +701,53 @@
             });
         });
     </script>
+        <!-- SCRIPT CORRETIVO PARA FORÇAR RENDERIZAÇÃO IMEDIATA DOS MODAIS -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const modalCampanhas = document.getElementById('modalDoacao');
+            const boxInterior = modalCampanhas ? modalCampanhas.querySelector('.transform') : null;
+
+            function abrirCampanhaNaMarra(idAba) {
+                if (!modalCampanhas) return;
+                
+                // 1. Tira o hidden na marra
+                modalCampanhas.classList.remove('hidden');
+                
+                // 2. O SEGREDO: Ler a largura (offsetWidth) obriga o celular a redesenhar a tela imediatamente!
+                void modalCampanhas.offsetWidth;
+                
+                // 3. Aplica a animação de "pular pra frente" na caixa branca
+                if (boxInterior) {
+                    boxInterior.classList.remove('scale-95');
+                    boxInterior.classList.add('scale-100');
+                }
+
+                // 4. Já clica na aba certinha que o usuário escolheu
+                if (idAba) {
+                    const aba = document.getElementById(idAba);
+                    if (aba) aba.click();
+                }
+            }
+
+            // Liga o clique forçado nos 3 botões da Tela Principal
+            document.getElementById('btnAcaoDoacao')?.addEventListener('click', (e) => { e.preventDefault(); abrirCampanhaNaMarra('tabDoacaoGeral'); });
+            document.getElementById('btnAcaoCantina')?.addEventListener('click', (e) => { e.preventDefault(); abrirCampanhaNaMarra('tabDoacaoCantina'); });
+            document.getElementById('btnAcaoRifa')?.addEventListener('click', (e) => { e.preventDefault(); abrirCampanhaNaMarra('tabDoacaoRifas'); });
+
+            // Liga o clique forçado nos 3 botões da Tela de Sucesso (após check-in)
+            document.getElementById('btnAcaoDoacaoSucesso')?.addEventListener('click', (e) => { e.preventDefault(); abrirCampanhaNaMarra('tabDoacaoGeral'); });
+            document.getElementById('btnAcaoCantinaSucesso')?.addEventListener('click', (e) => { e.preventDefault(); abrirCampanhaNaMarra('tabDoacaoCantina'); });
+            document.getElementById('btnAcaoRifaSucesso')?.addEventListener('click', (e) => { e.preventDefault(); abrirCampanhaNaMarra('tabDoacaoRifas'); });
+            
+            // Garante que o botão de fechar recolha a caixa antes de sumir com ela
+            document.getElementById('btnFecharDoacao')?.addEventListener('click', () => {
+                if (boxInterior) {
+                    boxInterior.classList.remove('scale-100');
+                    boxInterior.classList.add('scale-95');
+                }
+                setTimeout(() => modalCampanhas.classList.add('hidden'), 150);
+            });
+        });
+    </script>
 </body>
 </html>
