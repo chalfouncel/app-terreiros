@@ -358,14 +358,43 @@
                         <h2 class="text-xl md:text-2xl font-bold text-gray-800">Guias e Padrinhos dos Médiuns</h2>
                         <p class="text-gray-500 text-xs md:text-sm mt-1">Consulte, filtre, edite e imprima em PDF A4 os guias e padrinhos da corrente.</p>
                     </div>
-                    <div class="flex flex-wrap gap-2 w-full sm:w-auto">
-                        <input type="file" id="inputImportarExcelGuias" accept=".xlsx,.xls,.csv" class="hidden">
-                        <button type="button" onclick="document.getElementById('inputImportarExcelGuias').click()" class="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl font-bold shadow transition flex items-center justify-center gap-2 text-xs md:text-sm active:scale-95">
-                            <i class="fas fa-file-excel"></i> Importar Planilha (.xlsx)
+                    <div class="flex items-center gap-3 w-full sm:w-auto">
+                        <!-- Botão de Impressão Isolado e Destacado -->
+                        <button type="button" onclick="imprimirGuiasSelecionadosPDF()" class="w-full sm:w-auto bg-tema-primaria hover:opacity-90 text-white px-5 py-2.5 rounded-xl font-bold shadow transition flex items-center justify-center gap-2 text-xs md:text-sm active:scale-95">
+                            <i class="fas fa-print"></i> Imprimir PDF A4 (<span id="contadorSelecionadosGuias">0</span>)
                         </button>
-                        <button type="button" onclick="imprimirGuiasSelecionadosPDF()" class="flex-1 sm:flex-none bg-gray-800 hover:bg-gray-900 text-white px-4 py-2.5 rounded-xl font-bold shadow transition flex items-center justify-center gap-2 text-xs md:text-sm active:scale-95">
-                            <i class="fas fa-print text-red-400"></i> Imprimir PDF A4 (<span id="contadorSelecionadosGuias">0</span>)
-                        </button>
+                    </div>
+                </div>
+
+                <!-- Filtros + Botão de Importar bem discreto no canto -->
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 mb-6 border-t-4 border-tema-primaria space-y-4">
+                    <div class="flex justify-between items-center border-b border-gray-100 pb-2">
+                        <span class="text-xs font-bold text-gray-500 uppercase tracking-wider"><i class="fas fa-filter mr-1"></i> Filtros de Pesquisa</span>
+                        
+                        <!-- Input e Botão de Importar Discreto e Afastado -->
+                        <div>
+                            <input type="file" id="inputImportarExcelGuias" accept=".xlsx,.xls,.csv" class="hidden">
+                            <button type="button" onclick="document.getElementById('inputImportarExcelGuias').click()" class="text-[10px] font-bold text-gray-400 hover:text-emerald-700 transition flex items-center gap-1 px-2.5 py-1 bg-gray-50 hover:bg-emerald-50 rounded-lg border border-gray-200 active:scale-95">
+                                <i class="fas fa-file-excel text-emerald-600"></i> Importar Planilha (.xlsx)
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+                        <div>
+                            <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Filtrar por Médium</label>
+                            <input type="text" id="filtroMediumGuias" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-tema-primaria outline-none" placeholder="Nome completo ou social...">
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Filtrar por Grau</label>
+                            <select id="filtroGrauGuias" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-tema-primaria bg-white">
+                                <option value="">Todos os Graus</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Buscar Guia ou Padrinho Específico</label>
+                            <input type="text" id="filtroBuscaGuiaEspecifico" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-tema-primaria outline-none" placeholder="Ex: Sete Flechas, Maria Padilha...">
+                        </div>
                     </div>
                 </div>
 
