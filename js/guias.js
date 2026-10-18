@@ -456,7 +456,9 @@
 
     function atualizarContadorSelecionadosGuias() {
         const elCount = document.getElementById('contadorSelecionadosGuias');
-        if (elCount) elCount.textContent = idsSelecionadosGuias.size;
+        if (elCount) {
+            elCount.textContent = idsSelecionadosGuias.size;
+        }
 
         const chkTodos = document.getElementById('chkSelecionarTodosGuias');
         const filtrados = window.guiasMediunsFiltrados || [];
