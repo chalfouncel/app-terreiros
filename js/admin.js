@@ -262,6 +262,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     document.getElementById('secGuiasMediuns')?.classList.remove('hidden');
                     aplicarTitulos('Guias dos Médiuns');
                     if (typeof carregarGuiasMediuns === 'function') carregarGuiasMediuns();
+                } else if (menu.id === 'menuIA') {
+                    document.getElementById('secIA')?.classList.remove('hidden');
+                    aplicarTitulos('Assistente IA');
                 } else if (menu.id === 'menuAgendaGiras') {
                     document.getElementById('secAgendaGiras')?.classList.remove('hidden');
                     aplicarTitulos('Agenda de Eventos');
