@@ -1,5 +1,5 @@
 // ============================================================================
-// MÓDULO: ASSISTENTE IA & CONSULTAS ANALÍTICAS (ia.html) - INTEGRAÇÃO EDGE FUNCTION
+// MÓDULO: ASSISTENTE IA & CONSULTAS ANALÍTICAS - INTEGRAÇÃO EDGE FUNCTION
 // ============================================================================
 
 (function () {
@@ -15,7 +15,12 @@
         const btnCancelarVoz = document.getElementById('btnCancelarVoz');
         const elSubtitulo = document.getElementById('subtituloTerreiro');
 
-        // 1. Checa Sessão do Usuário
+        // Se os elementos do chat não existirem nesta tela, encerra sem dar erro no console
+        if (!hist || !inputPergunta || !formChat) {
+            return;
+        }
+
+        // 1. Validação de Sessão do Usuário
         const { data: { session } } = await supabaseClient.auth.getSession();
         if (!session) {
             window.location.href = 'index.html';
@@ -99,19 +104,20 @@
             btnMic?.classList.remove('animate-pulse');
         }
 
-        // 4. Atalhos de Perguntas Rápidas
-        document.querySelectorAll('.btn-sugestao').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const txt = btn.textContent.replace(/^[^a-zA-ZÀ-ÿ0-9]+/, '').trim();
+        // 4. Atalhos de Perguntas Rápidas (Delegação Global)
+        document.addEventListener('click', (e) => {
+            const btnSugestao = e.target.closest('.btn-sugestao');
+            if (btnSugestao) {
+                const txt = btnSugestao.textContent.replace(/^[^a-zA-ZÀ-ÿ0-9]+/, '').trim();
                 if (inputPergunta) {
                     inputPergunta.value = txt;
                     formChat.dispatchEvent(new Event('submit'));
                 }
-            });
+            }
         });
 
         // 5. Submissão do Formulário de Pergunta
-        formChat?.addEventListener('submit', async (e) => {
+        formChat.addEventListener('submit', async (e) => {
             e.preventDefault();
             const pergunta = inputPergunta.value.trim();
             if (!pergunta) return;
@@ -125,7 +131,7 @@
             adicionarLoader(idLoader);
 
             try {
-                // Invocação segura da Supabase Edge Function 'consulta-ia'
+                // Invocação da Supabase Edge Function 'consulta-ia'
                 const { data, error } = await supabaseClient.functions.invoke('consulta-ia', {
                     body: { pergunta: pergunta }
                 });
