@@ -150,15 +150,25 @@
             adicionarLoader(idLoader);
 
             try {
-                // Invocação da Supabase Edge Function 'consulta-ia'
-                const { data, error } = await supabaseClient.functions.invoke('consulta-ia', {
-                    body: { pergunta: pergunta }
+                const { data: { session } } = await supabaseClient.auth.getSession();
+                if (!session) throw new Error("Sessão expirada. Faça login novamente.");
+
+                // Chamada direta via Fetch para garantir passagem correta do token Bearer
+                const response = await fetch(`${supabaseClient.supabaseUrl}/functions/v1/consulta-ia`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${session.access_token}`,
+                        'apikey': supabaseClient.supabaseKey
+                    },
+                    body: JSON.stringify({ pergunta: pergunta })
                 });
 
+                const data = await response.json();
                 removerLoader(idLoader);
 
-                if (error) {
-                    throw new Error(error.message || 'Falha na resposta do servidor.');
+                if (!response.ok) {
+                    throw new Error(data.error || 'Erro na resposta do servidor.');
                 }
 
                 if (data && data.resposta) {
@@ -173,7 +183,7 @@
                 adicionarBalao('ia', `⚠️ Ocorreu um erro ao consultar o assistente: ${err.message}`);
             }
         });
-
+        
         // 6. Funções Visuais de Renderização
         function adicionarBalao(remetente, conteudoHtml) {
             const div = document.createElement('div');
