@@ -15,6 +15,27 @@
         const btnCancelarVoz = document.getElementById('btnCancelarVoz');
         const elSubtitulo = document.getElementById('subtituloTerreiro');
 
+        // Ativa a exibição da seção secIA quando clicar no menu lateral do admin.html
+        const menuIA = document.getElementById('menuIA');
+        const secIA = document.getElementById('secIA');
+        if (menuIA && secIA) {
+            menuIA.addEventListener('click', (e) => {
+                e.preventDefault();
+                // Esconde todas as outras seções do painel
+                document.querySelectorAll('.secao-painel').forEach(s => s.classList.add('hidden'));
+                // Mostra a seção do Assistente IA
+                secIA.classList.remove('hidden');
+                // Atualiza os títulos do topo no Desktop e Mobile
+                const tDesktop = document.getElementById('tituloSecao');
+                const tMobile = document.getElementById('tituloMobile');
+                if (tDesktop) tDesktop.textContent = 'Assistente IA';
+                if (tMobile) tMobile.textContent = 'Assistente IA';
+                // Fecha o menu gaveta se estiver no celular
+                document.getElementById('sidebar')?.classList.add('-translate-x-full');
+                document.getElementById('overlayMobile')?.classList.add('hidden');
+            });
+        }
+
         // Se os elementos do chat não existirem nesta tela, encerra sem dar erro no console
         if (!hist || !inputPergunta || !formChat) {
             return;
