@@ -6,6 +6,7 @@
     <title>Assistente IA - Painel de Consultas</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
@@ -14,7 +15,7 @@
             --cor-secundaria: #16a34a;
             --cor-fundo: #0f172a;
         }
-        body { background-color: var(--cor-fundo); color: #f8fafc; }
+        body { background-color: var(--cor-fundo); color: #f8fafc; -webkit-tap-highlight-color: transparent; }
         .bg-tema-primaria { background-color: var(--cor-primaria) !important; }
         .text-tema-primaria { color: var(--cor-primaria) !important; }
         .border-tema-primaria { border-color: var(--cor-primaria) !important; }
@@ -89,7 +90,7 @@
             <span class="flex items-center gap-2">
                 <span class="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping"></span> Ouvindo sua voz... fale agora
             </span>
-            <button id="btnCancelarVoz" class="text-xs text-rose-400 hover:text-white underline">Cancelar</button>
+            <button id="btnCancelarVoz" type="button" class="text-xs text-rose-400 hover:text-white underline">Cancelar</button>
         </div>
 
         <!-- FORMULÁRIO DE ENTRADA (TEXTO + MICROFONE) -->
