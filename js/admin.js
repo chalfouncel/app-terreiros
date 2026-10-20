@@ -1549,10 +1549,22 @@ document.addEventListener('DOMContentLoaded', async () => {
                 tbody.innerHTML += `
                     <tr class="block md:table-row border border-gray-200 md:border-0 border-b-gray-100 hover:bg-gray-50 transition p-4 md:p-0 bg-white mb-4 md:mb-0 rounded-xl md:rounded-none shadow-sm md:shadow-none">
                         
+                        <!-- CAIXINHA DE SELEÇÃO (NOVA COLUNA DESKTOP) -->
+                        <td class="hidden md:table-cell py-2 px-3 text-center align-middle">
+                            <input type="checkbox" class="chk-medium-print w-4 h-4 rounded text-tema-primaria cursor-pointer" value="${m.id}">
+                        </td>
+
                         <!-- NOME -->
                         <td class="block md:table-cell py-2 px-3 text-gray-800 font-bold text-base md:text-sm mb-3 md:mb-0 md:font-medium">
-                            <span class="inline-block md:hidden text-[10px] text-gray-400 font-bold uppercase mb-1 w-full border-b border-gray-100 pb-1">Médium</span>
-                            ${nomeStr}
+                            <div class="flex items-center gap-2">
+                                <!-- CAIXINHA DE SELEÇÃO (CELULAR) -->
+                                <input type="checkbox" class="md:hidden chk-medium-print w-5 h-5 rounded text-tema-primaria cursor-pointer" value="${m.id}">
+                                
+                                <div class="w-full">
+                                    <span class="inline-block md:hidden text-[10px] text-gray-400 font-bold uppercase mb-1 w-full border-b border-gray-100 pb-1">Médium</span>
+                                    ${nomeStr}
+                                </div>
+                            </div>
                         </td>
                         
                         <!-- GRAU -->
