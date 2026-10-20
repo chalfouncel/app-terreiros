@@ -4235,20 +4235,31 @@ window.imprimirHistoricoGraus = async () => {
     }
 
     try {
-        // 1. Busca todos os médiuns do Terreiro
-        const { data: mediuns } = await supabaseClient
+        // 1. Verifica quais checkboxes estão marcados na tela
+        const checkboxesMarcados = document.querySelectorAll('.chk-medium-print:checked');
+        const idsSelecionados = Array.from(checkboxesMarcados).map(cb => cb.value);
+
+        // 2. Busca os médiuns do Terreiro (filtrando se houver seleção)
+        let queryMediuns = supabaseClient
             .from('mediuns')
             .select('id, nome_completo')
             .eq('terreiro_id', idTerreiroGlobal);
             
+        // Se tem gente selecionada, filtra. Se não tem (tamanho 0), traz todos.
+        if (idsSelecionados.length > 0) {
+            queryMediuns = queryMediuns.in('id', idsSelecionados);
+        }
+
+        const { data: mediuns } = await queryMediuns;
+            
         const idsMediuns = (mediuns || []).map(m => m.id);
 
         if (idsMediuns.length === 0) {
-            alert("Não há médiuns cadastrados para buscar o histórico.");
+            alert("Não há médiuns na seleção para buscar o histórico.");
             return;
         }
 
-        // 2. Busca as alterações ligadas a estes médiuns
+        // 3. Busca as alterações ligadas a estes médiuns
         const { data: historico, error } = await supabaseClient
             .from('historico_graus')
             .select('*')
@@ -4257,11 +4268,11 @@ window.imprimirHistoricoGraus = async () => {
         if (error) throw error;
 
         if (!historico || historico.length === 0) {
-            alert("Ainda não há registros de alterações de graus ou funções.");
+            alert("Ainda não há registros de alterações de graus ou funções para a seleção atual.");
             return;
         }
 
-        // 3. Agrupa, enriquece com o nome e ordena
+        // 4. Agrupa, enriquece com o nome e ordena
         const historicoEnriquecido = historico.map(h => {
             const medium = mediuns.find(m => m.id === h.medium_id);
             return {
@@ -4280,7 +4291,7 @@ window.imprimirHistoricoGraus = async () => {
             return dataA - dataB; // Crescente: do mais antigo para o mais novo
         });
 
-        // 4. Monta os dados para o PDF
+        // 5. Monta os dados para o PDF
         const dadosPdf = historicoEnriquecido.map(h => {
             const dataFormatada = new Date(h.data_alteracao).toLocaleString('pt-BR');
             const cargoAnterior = `${h.grau_anterior || '-'} / ${h.funcao_anterior || '-'}`;
@@ -4295,7 +4306,7 @@ window.imprimirHistoricoGraus = async () => {
             ];
         });
 
-        // 5. Aciona a geração do PDF (A4 retrato, com o Médium na 1ª coluna)
+        // 6. Aciona a geração do PDF
         window.gerarPDFRelatorio(
             'Auditoria: Histórico de Alterações de Grau/Função', 
             ['Médium', 'Data e Hora', 'De (Anterior)', 'Para (Novo)', 'Responsável'], 
@@ -4312,6 +4323,17 @@ window.imprimirHistoricoGraus = async () => {
             btn.disabled = false;
         }
     }
+};
+
+// =======================================================
+// ADICIONE ESTA NOVA FUNÇÃO LOGO ABAIXO:
+// Ela serve para a caixinha que marca/desmarca todos
+// =======================================================
+window.toggleTodosGraus = (source) => {
+    const checkboxes = document.querySelectorAll('.chk-medium-print');
+    checkboxes.forEach(cb => {
+        cb.checked = source.checked;
+    });
 };
 
 window.isentarAnoTodo = async (mediumId, ano) => {
