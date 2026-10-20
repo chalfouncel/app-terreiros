@@ -4146,15 +4146,143 @@ window.salvarGrau = async (id) => {
     const btn = document.getElementById(`btnGrau_${id}`);
     const grau = document.getElementById(`grau_${id}`).value;
     const funcao = document.getElementById(`func_${id}`).value;
-    btn.innerHTML = 'Salvando...'; btn.disabled = true;
-    const { error } = await supabaseClient.from('mediuns').update({ grau, funcao }).eq('id', id).eq('terreiro_id', idTerreiroGlobal);
-    btn.disabled = false;
-    if (error) { btn.innerHTML = 'Erro!'; btn.classList.replace('bg-tema-primaria', 'bg-red-500'); } 
-    else {
-        btn.innerHTML = 'Salvo <i class="fas fa-check"></i>'; btn.classList.replace('bg-tema-primaria', 'bg-green-600');
-        setTimeout(() => { btn.innerHTML = 'Salvar'; btn.classList.replace('bg-green-600', 'bg-tema-primaria'); }, 2000);
-        const md = mediunsGrauCache.find(m => m.id === id);
-        if(md) { md.grau = grau; md.funcao = funcao; }
+    
+    // Captura os dados anteriores antes da alteração
+    const md = mediunsGrauCache.find(m => m.id === id);
+    const grauAnterior = md ? (md.grau || '-') : '-';
+    const funcaoAnterior = md ? (md.funcao || '-') : '-';
+
+    // Se não houve alteração, avisa o usuário e evita rodar o banco à toa
+    if (grauAnterior === grau && funcaoAnterior === funcao) {
+        btn.innerHTML = 'Sem mudança';
+        setTimeout(() => { btn.innerHTML = 'Salvar'; }, 1500);
+        return;
+    }
+
+    btn.innerHTML = 'Salvando...'; 
+    btn.disabled = true;
+    
+    // Atualiza o médium (mesmo comportamento original)
+    const { error } = await supabaseClient
+        .from('mediuns')
+        .update({ grau, funcao })
+        .eq('id', id)
+        .eq('terreiro_id', idTerreiroGlobal);
+    
+    if (error) { 
+        btn.innerHTML = 'Erro!'; 
+        btn.classList.replace('bg-tema-primaria', 'bg-red-500'); 
+        btn.disabled = false;
+    } else {
+        // NOVIDADE: Grava no histórico (Auditoria) os dados de quem alterou e o que mudou
+        try {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            const responsavelId = session?.user?.id || null;
+            const responsavelNome = perfilAdminLogado?.nome_completo || 'Administrador';
+
+            await supabaseClient.from('historico_graus').insert([{
+                medium_id: id,
+                grau_anterior: grauAnterior,
+                grau_novo: grau,
+                funcao_anterior: funcaoAnterior,
+                funcao_nova: funcao,
+                responsavel_id: responsavelId,
+                responsavel_nome: responsavelNome
+            }]);
+        } catch (errHist) {
+            console.error("Erro ao registrar auditoria de grau:", errHist);
+        }
+
+        // Feedback de Sucesso
+        btn.innerHTML = 'Salvo <i class="fas fa-check"></i>'; 
+        btn.classList.replace('bg-tema-primaria', 'bg-green-600');
+        
+        setTimeout(() => { 
+            btn.innerHTML = 'Salvar'; 
+            btn.classList.replace('bg-green-600', 'bg-tema-primaria'); 
+            btn.disabled = false;
+        }, 2000);
+        
+        if (md) { 
+            md.grau = grau; 
+            md.funcao = funcao; 
+        }
+    }
+};
+window.imprimirHistoricoGraus = async () => {
+    const btn = document.getElementById('btnImprimirHistoricoGraus');
+    const originalHtml = btn ? btn.innerHTML : '';
+    
+    if (btn) {
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Gerando...';
+        btn.disabled = true;
+    }
+
+    try {
+        // 1. Busca os médiuns do Terreiro atual
+        const { data: mediuns } = await supabaseClient
+            .from('mediuns')
+            .select('id, nome_completo')
+            .eq('terreiro_id', idTerreiroGlobal);
+            
+        const idsMediuns = (mediuns || []).map(m => m.id);
+
+        if (idsMediuns.length === 0) {
+            alert("Não há médiuns cadastrados para buscar o histórico.");
+            return;
+        }
+
+        // 2. Busca o histórico de alterações (Auditoria)
+        const { data: historico, error } = await supabaseClient
+            .from('historico_graus')
+            .select('*')
+            .in('medium_id', idsMediuns)
+            .order('data_alteracao', { ascending: false });
+
+        if (error) throw error;
+
+        if (!historico || historico.length === 0) {
+            alert("Ainda não há registros de alterações de graus ou funções.");
+            return;
+        }
+
+        // 3. Monta os dados para o PDF
+        const dadosPdf = historico.map(h => {
+            const medium = mediuns.find(m => m.id === h.medium_id);
+            const nomeMedium = medium ? medium.nome_completo : 'Médium Excluído';
+            
+            // Converte a data do banco para o formato Brasileiro (DD/MM/AAAA HH:MM)
+            const dataFormatada = new Date(h.data_alteracao).toLocaleString('pt-BR');
+            
+            const cargoAnterior = `${h.grau_anterior || '-'} / ${h.funcao_anterior || '-'}`;
+            const cargoNovo = `${h.grau_novo || '-'} / ${h.funcao_nova || '-'}`;
+            
+            return [
+                dataFormatada,
+                nomeMedium,
+                cargoAnterior,
+                cargoNovo,
+                h.responsavel_nome || 'Sistema'
+            ];
+        });
+
+        // 4. Aciona a função de PDF que já existe no seu sistema (modo paisagem/landscape)
+        window.gerarPDFRelatorio(
+            'Auditoria: Histórico de Alterações de Grau/Função', 
+            ['Data e Hora', 'Médium', 'De (Anterior)', 'Para (Novo)', 'Responsável (Login)'], 
+            dadosPdf,
+            'landscape'
+        );
+
+    } catch (err) {
+        console.error("Erro na emissão do relatório de auditoria:", err);
+        alert("Erro ao gerar histórico: " + err.message);
+    } finally {
+        // Restaura o botão
+        if (btn) {
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        }
     }
 };
 
