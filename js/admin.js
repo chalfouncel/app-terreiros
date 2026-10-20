@@ -4219,7 +4219,7 @@ window.imprimirHistoricoGraus = async () => {
     }
 
     try {
-        // 1. Busca os médiuns do Terreiro atual
+        // 1. Busca todos os médiuns do Terreiro
         const { data: mediuns } = await supabaseClient
             .from('mediuns')
             .select('id, nome_completo')
@@ -4232,12 +4232,11 @@ window.imprimirHistoricoGraus = async () => {
             return;
         }
 
-        // 2. Busca o histórico de alterações (Auditoria)
+        // 2. Busca as alterações ligadas a estes médiuns
         const { data: historico, error } = await supabaseClient
             .from('historico_graus')
             .select('*')
-            .in('medium_id', idsMediuns)
-            .order('data_alteracao', { ascending: false });
+            .in('medium_id', idsMediuns);
 
         if (error) throw error;
 
@@ -4246,39 +4245,52 @@ window.imprimirHistoricoGraus = async () => {
             return;
         }
 
-        // 3. Monta os dados para o PDF
-        const dadosPdf = historico.map(h => {
+        // 3. Agrupa, enriquece com o nome e ordena
+        const historicoEnriquecido = historico.map(h => {
             const medium = mediuns.find(m => m.id === h.medium_id);
-            const nomeMedium = medium ? medium.nome_completo : 'Médium Excluído';
+            return {
+                ...h,
+                nomeMedium: medium ? medium.nome_completo : 'Médium Excluído'
+            };
+        });
+
+        // NOVIDADE: Ordenação: 1º Nome do Médium (A-Z), 2º Data da Alteração (Crescente / Linha do Tempo)
+        historicoEnriquecido.sort((a, b) => {
+            if (a.nomeMedium < b.nomeMedium) return -1;
+            if (a.nomeMedium > b.nomeMedium) return 1;
             
-            // Converte a data do banco para o formato Brasileiro (DD/MM/AAAA HH:MM)
+            const dataA = new Date(a.data_alteracao).getTime();
+            const dataB = new Date(b.data_alteracao).getTime();
+            return dataA - dataB; // Crescente: do mais antigo para o mais novo
+        });
+
+        // 4. Monta os dados para o PDF
+        const dadosPdf = historicoEnriquecido.map(h => {
             const dataFormatada = new Date(h.data_alteracao).toLocaleString('pt-BR');
-            
             const cargoAnterior = `${h.grau_anterior || '-'} / ${h.funcao_anterior || '-'}`;
             const cargoNovo = `${h.grau_novo || '-'} / ${h.funcao_nova || '-'}`;
             
-            return [
+            return [ // NOVIDADE: Médium é a 1ª coluna
+                h.nomeMedium,
                 dataFormatada,
-                nomeMedium,
                 cargoAnterior,
                 cargoNovo,
                 h.responsavel_nome || 'Sistema'
             ];
         });
 
-        // 4. Aciona a função de PDF que já existe no seu sistema (modo paisagem/landscape)
+        // 5. Aciona a geração do PDF (A4 retrato, padrão do sistema)
         window.gerarPDFRelatorio(
-            'Auditoria: Histórico de Alterações de Grau/Função', 
-            ['Data e Hora', 'Médium', 'De (Anterior)', 'Para (Novo)', 'Responsável (Login)'], 
+            'Histórico de Evolução de Graus e Funções', 
+            ['Médium', 'Data e Hora', 'De (Anterior)', 'Para (Novo)', 'Responsável'], 
             dadosPdf,
-            'landscape'
+            'portrait' // NOVIDADE: Impressão A4 normal (Retrato)
         );
 
     } catch (err) {
         console.error("Erro na emissão do relatório de auditoria:", err);
         alert("Erro ao gerar histórico: " + err.message);
     } finally {
-        // Restaura o botão
         if (btn) {
             btn.innerHTML = originalHtml;
             btn.disabled = false;
