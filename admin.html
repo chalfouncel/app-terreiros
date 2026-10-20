@@ -1939,7 +1939,13 @@
 
                     <!-- 1. BATISMO (Todos os Graus: Guia ou Médium) -->
                     <div class="bg-white p-3 rounded-xl border border-gray-200 space-y-2.5">
-                        <p class="text-[11px] font-black text-sky-700 uppercase tracking-wider border-b border-gray-100 pb-1">🕊️ Batismo</p>
+                        <div class="flex items-center justify-between border-b border-gray-100 pb-1 mb-1">
+                            <p class="text-[11px] font-black text-sky-700 uppercase tracking-wider">🕊️ Batismo</p>
+                            <div class="flex items-center gap-1.5">
+                                <label class="text-[9px] font-bold text-gray-500 uppercase">Data:</label>
+                                <input type="date" id="editDataBatismo" class="text-[10px] font-bold px-1.5 py-0.5 border border-gray-300 rounded bg-white outline-none text-gray-700">
+                            </div>
+                        </div>
                         
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                             <!-- Padrinho de Batismo -->
@@ -1983,9 +1989,14 @@
                     <div id="boxConsagracaoCoroacaoEdit" class="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <!-- Consagração -->
                         <div class="bg-white p-3 rounded-xl border border-gray-200 space-y-2">
-                            <div class="flex items-center justify-between border-b border-gray-100 pb-1">
+                            <div class="flex items-center justify-between border-b border-gray-100 pb-1 mb-1">
                                 <p class="text-[11px] font-black text-amber-700 uppercase tracking-wider">🔥 Consagração</p>
-                                <span class="text-[9px] font-bold text-gray-400 uppercase">Apenas Guias</span>
+                                <div class="flex items-center gap-2">
+                                    <div class="flex items-center gap-1">
+                                        <label class="text-[9px] font-bold text-gray-500 uppercase hidden sm:block">Data:</label>
+                                        <input type="date" id="editDataConsagracao" class="text-[10px] font-bold px-1.5 py-0.5 border border-gray-300 rounded bg-white outline-none text-gray-700">
+                                    </div>
+                                </div>
                             </div>
                             <div>
                                 <label class="block text-[10px] font-bold text-gray-600 mb-1">Padrinho (Guia + Médium)</label>
@@ -2005,9 +2016,14 @@
 
                         <!-- Coroação -->
                         <div class="bg-white p-3 rounded-xl border border-gray-200 space-y-2">
-                            <div class="flex items-center justify-between border-b border-gray-100 pb-1">
+                            <div class="flex items-center justify-between border-b border-gray-100 pb-1 mb-1">
                                 <p class="text-[11px] font-black text-yellow-600 uppercase tracking-wider">👑 Coroação</p>
-                                <span class="text-[9px] font-bold text-gray-400 uppercase">Apenas Guias</span>
+                                <div class="flex items-center gap-2">
+                                    <div class="flex items-center gap-1">
+                                        <label class="text-[9px] font-bold text-gray-500 uppercase hidden sm:block">Data:</label>
+                                        <input type="date" id="editDataCoroacao" class="text-[10px] font-bold px-1.5 py-0.5 border border-gray-300 rounded bg-white outline-none text-gray-700">
+                                    </div>
+                                </div>
                             </div>
                             <div>
                                 <label class="block text-[10px] font-bold text-gray-600 mb-1">Padrinho (Guia + Médium)</label>
