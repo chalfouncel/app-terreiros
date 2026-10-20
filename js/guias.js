@@ -146,9 +146,12 @@
                     document.getElementById('perfilBatismoMadrinhaMedium').value
                 );
 
-                const permiteCT = window.grauPermiseConsagracao ? window.grauPermiseConsagracao(perfilMediumLogado.grau) : true;
+                const permiteCT = window.grauPermiteConsagracao ? window.grauPermiteConsagracao(perfilMediumLogado.grau) : true;
 
                 const payload = {
+                    data_batismo: document.getElementById('perfilDataBatismo')?.value || null,
+                    data_consagracao: permiteCT ? (document.getElementById('perfilDataConsagracao')?.value || null) : null,
+                    data_coroacao: permiteCT ? (document.getElementById('perfilDataCoroacao')?.value || null) : null,
                     padrinhos_batismo: JSON.stringify({ padrinho: parsePadrinhoJson(batPadrinho), madrinha: parsePadrinhoJson(batMadrinha) }),
                     padrinhos_consagracao: permiteCT ? JSON.stringify({
                         padrinho: { tipo: 'guia', nome: document.getElementById('perfilConsagracaoPadrinhoGuia')?.value.trim() || '', medium: document.getElementById('perfilConsagracaoPadrinhoMedium')?.value.trim() || '' },
@@ -200,15 +203,20 @@
         if (typeof perfilMediumLogado === 'undefined' || !perfilMediumLogado?.id) return;
         try {
             const { data, error } = await supabaseClient
-                .from('mediuns')
-                .select('grau, padrinhos_batismo, padrinhos_consagracao, padrinhos_coroacao, guia_caboclo, guia_preto_velho, guia_exu_pombagira, guia_crianca, guia_oriental, guia_cigano')
-                .eq('id', perfilMediumLogado.id)
+                    .from('mediuns')
+                    .select('grau, padrinhos_batismo, padrinhos_consagracao, padrinhos_coroacao, data_batismo, data_consagracao, data_coroacao, guia_caboclo, guia_preto_velho, guia_exu_pombagira, guia_crianca, guia_oriental, guia_cigano')
+                    .eq('id', perfilMediumLogado.id)
                 .single();
 
             if (!error && data) {
-                Object.assign(perfilMediumLogado, data);
-
-                // Gerenciamento de Trava de Grau para Consagração, Coroação e Guias de Trabalho
+                    Object.assign(perfilMediumLogado, data);
+                    
+                    // Preenche as datas no HTML
+                    if (document.getElementById('perfilDataBatismo')) document.getElementById('perfilDataBatismo').value = data.data_batismo || '';
+                    if (document.getElementById('perfilDataConsagracao')) document.getElementById('perfilDataConsagracao').value = data.data_consagracao || '';
+                    if (document.getElementById('perfilDataCoroacao')) document.getElementById('perfilDataCoroacao').value = data.data_coroacao || '';
+    
+                    // Gerenciamento de Trava de Grau para Consagração, Coroação e Guias de Trabalho
                 const permite = window.grauPermiteConsagracao ? window.grauPermiteConsagracao(data.grau) : true;
                 const avisoGrau = document.getElementById('avisoBloqueioGrauPerfil');
                 const boxConsCor = document.getElementById('boxConsagracaoCoroacaoPerfil');
@@ -307,9 +315,9 @@
             }
 
             const { data, error } = await supabaseClient
-                .from('mediuns')
-                .select('id, nome_completo, nome_social, grau, funcao, status_ativo, padrinhos_batismo, padrinhos_consagracao, padrinhos_coroacao, guia_caboclo, guia_preto_velho, guia_exu_pombagira, guia_crianca, guia_oriental, guia_cigano')
-                .eq('terreiro_id', idTerreiroGlobal)
+                    .from('mediuns')
+                    .select('id, nome_completo, nome_social, grau, funcao, status_ativo, padrinhos_batismo, padrinhos_consagracao, padrinhos_coroacao, data_batismo, data_consagracao, data_coroacao, guia_caboclo, guia_preto_velho, guia_exu_pombagira, guia_crianca, guia_oriental, guia_cigano')
+                    .eq('terreiro_id', idTerreiroGlobal)
                 .neq('nome_completo', 'Administrador Sistema')
                 .neq('status_ativo', false)
                 .order('nome_completo');
@@ -496,7 +504,7 @@
         document.getElementById('editGuiaMediumNomeTitulo').textContent = m.nome_completo;
 
         // Trava de Grau
-        const permite = window.grauPermiseConsagracao ? window.grauPermiseConsagracao(m.grau) : true;
+        const permite = window.grauPermiteConsagracao ? window.grauPermiteConsagracao(m.grau) : true;
         const avisoGrau = document.getElementById('avisoBloqueioGrauEdit');
         const boxConsCor = document.getElementById('boxConsagracaoCoroacaoEdit');
         if (avisoGrau && boxConsCor) {
@@ -509,9 +517,14 @@
             }
         }
 
-        // Batismo
-        try {
-            const bat = JSON.parse(m.padrinhos_batismo || '{}');
+        // Preenche as datas no Modal do Admin
+            if (document.getElementById('editDataBatismo')) document.getElementById('editDataBatismo').value = m.data_batismo || '';
+            if (document.getElementById('editDataConsagracao')) document.getElementById('editDataConsagracao').value = m.data_consagracao || '';
+            if (document.getElementById('editDataCoroacao')) document.getElementById('editDataCoroacao').value = m.data_coroacao || '';
+
+            // Batismo
+            try {
+                const bat = JSON.parse(m.padrinhos_batismo || '{}');
             if (bat.padrinho) {
                 document.getElementById('editBatismoPadrinhoTipo').value = bat.padrinho.tipo || 'guia';
                 document.getElementById('editBatismoPadrinhoNome').value = bat.padrinho.nome || '';
@@ -782,11 +795,14 @@
                 );
 
                 const medRef = listaGuiasMediunsCache.find(x => x.id === idMedium);
-                const permiteCT = medRef && window.grauPermiseConsagracao ? window.grauPermiseConsagracao(medRef.grau) : true;
+                const permiteCT = medRef && window.grauPermiteConsagracao ? window.grauPermiteConsagracao(medRef.grau) : true;
 
                 const payload = {
-                    padrinhos_batismo: JSON.stringify({ padrinho: parsePadrinhoJson(batPadrinho), madrinha: parsePadrinhoJson(batMadrinha) }),
-                    padrinhos_consagracao: permiteCT ? JSON.stringify({
+                        data_batismo: document.getElementById('editDataBatismo')?.value || null,
+                        data_consagracao: permiteCT ? (document.getElementById('editDataConsagracao')?.value || null) : null,
+                        data_coroacao: permiteCT ? (document.getElementById('editDataCoroacao')?.value || null) : null,
+                        padrinhos_batismo: JSON.stringify({ padrinho: parsePadrinhoJson(batPadrinho), madrinha: parsePadrinhoJson(batMadrinha) }),
+                        padrinhos_consagracao: permiteCT ? JSON.stringify({
                         padrinho: { tipo: 'guia', nome: document.getElementById('editConsagracaoPadrinhoGuia')?.value.trim() || '', medium: document.getElementById('editConsagracaoPadrinhoMedium')?.value.trim() || '' },
                         madrinha: { tipo: 'guia', nome: document.getElementById('editConsagracaoMadrinhaGuia')?.value.trim() || '', medium: document.getElementById('editConsagracaoMadrinhaMedium')?.value.trim() || '' }
                     }) : null,
