@@ -4155,14 +4155,16 @@ window.salvarGrau = async (id) => {
     // Se não houve alteração, avisa o usuário e evita rodar o banco à toa
     if (grauAnterior === grau && funcaoAnterior === funcao) {
         btn.innerHTML = 'Sem mudança';
-        setTimeout(() => { btn.innerHTML = 'Salvar'; }, 1500);
+        setTimeout(() => { 
+            btn.innerHTML = '<i class="fas fa-save md:hidden"></i> Salvar'; 
+        }, 1500);
         return;
     }
 
     btn.innerHTML = 'Salvando...'; 
     btn.disabled = true;
     
-    // Atualiza o médium (mesmo comportamento original)
+    // Atualiza o médium
     const { error } = await supabaseClient
         .from('mediuns')
         .update({ grau, funcao })
@@ -4174,13 +4176,14 @@ window.salvarGrau = async (id) => {
         btn.classList.replace('bg-tema-primaria', 'bg-red-500'); 
         btn.disabled = false;
     } else {
-        // NOVIDADE: Grava no histórico (Auditoria) os dados de quem alterou e o que mudou
+        // Grava no histórico com tratamento de erro real
         try {
             const { data: { session } } = await supabaseClient.auth.getSession();
             const responsavelId = session?.user?.id || null;
             const responsavelNome = perfilAdminLogado?.nome_completo || 'Administrador';
 
-            await supabaseClient.from('historico_graus').insert([{
+            // Extraímos o erro da inserção
+            const { error: erroAuditoria } = await supabaseClient.from('historico_graus').insert([{
                 medium_id: id,
                 grau_anterior: grauAnterior,
                 grau_novo: grau,
@@ -4189,23 +4192,36 @@ window.salvarGrau = async (id) => {
                 responsavel_id: responsavelId,
                 responsavel_nome: responsavelNome
             }]);
+
+            // Se o Supabase retornar um erro, forçamos ele a ir para o bloco catch
+            if (erroAuditoria) throw erroAuditoria;
+
+            // Feedback de Sucesso (SÓ RODA SE A AUDITORIA GRAVAR COM SUCESSO)
+            btn.innerHTML = 'Salvo <i class="fas fa-check"></i>'; 
+            btn.classList.replace('bg-tema-primaria', 'bg-green-600');
+            
+            setTimeout(() => { 
+                btn.innerHTML = '<i class="fas fa-save md:hidden"></i> Salvar'; 
+                btn.classList.replace('bg-green-600', 'bg-tema-primaria'); 
+                btn.disabled = false;
+            }, 2000);
+            
+            if (md) { 
+                md.grau = grau; 
+                md.funcao = funcao; 
+            }
         } catch (errHist) {
             console.error("Erro ao registrar auditoria de grau:", errHist);
-        }
-
-        // Feedback de Sucesso
-        btn.innerHTML = 'Salvo <i class="fas fa-check"></i>'; 
-        btn.classList.replace('bg-tema-primaria', 'bg-green-600');
-        
-        setTimeout(() => { 
-            btn.innerHTML = 'Salvar'; 
-            btn.classList.replace('bg-green-600', 'bg-tema-primaria'); 
-            btn.disabled = false;
-        }, 2000);
-        
-        if (md) { 
-            md.grau = grau; 
-            md.funcao = funcao; 
+            
+            // Feedback de Erro no Histórico
+            btn.innerHTML = 'Erro Histórico'; 
+            btn.classList.replace('bg-tema-primaria', 'bg-orange-500');
+            
+            setTimeout(() => { 
+                btn.innerHTML = '<i class="fas fa-save md:hidden"></i> Salvar'; 
+                btn.classList.replace('bg-orange-500', 'bg-tema-primaria'); 
+                btn.disabled = false;
+            }, 3000);
         }
     }
 };
@@ -4254,7 +4270,7 @@ window.imprimirHistoricoGraus = async () => {
             };
         });
 
-        // NOVIDADE: Ordenação: 1º Nome do Médium (A-Z), 2º Data da Alteração (Crescente / Linha do Tempo)
+        // Ordenação: 1º Nome do Médium (A-Z), 2º Data da Alteração (Crescente / Linha do Tempo)
         historicoEnriquecido.sort((a, b) => {
             if (a.nomeMedium < b.nomeMedium) return -1;
             if (a.nomeMedium > b.nomeMedium) return 1;
@@ -4270,7 +4286,7 @@ window.imprimirHistoricoGraus = async () => {
             const cargoAnterior = `${h.grau_anterior || '-'} / ${h.funcao_anterior || '-'}`;
             const cargoNovo = `${h.grau_novo || '-'} / ${h.funcao_nova || '-'}`;
             
-            return [ // NOVIDADE: Médium é a 1ª coluna
+            return [
                 h.nomeMedium,
                 dataFormatada,
                 cargoAnterior,
@@ -4279,12 +4295,12 @@ window.imprimirHistoricoGraus = async () => {
             ];
         });
 
-        // 5. Aciona a geração do PDF (A4 retrato, padrão do sistema)
+        // 5. Aciona a geração do PDF (A4 retrato, com o Médium na 1ª coluna)
         window.gerarPDFRelatorio(
-            'Histórico de Evolução de Graus e Funções', 
+            'Auditoria: Histórico de Alterações de Grau/Função', 
             ['Médium', 'Data e Hora', 'De (Anterior)', 'Para (Novo)', 'Responsável'], 
             dadosPdf,
-            'portrait' // NOVIDADE: Impressão A4 normal (Retrato)
+            'portrait'
         );
 
     } catch (err) {
