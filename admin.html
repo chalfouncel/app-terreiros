@@ -625,16 +625,20 @@
                     <input type="text" id="buscaMediumGrau" placeholder="🔍 Pesquisar médium..." class="w-full mb-6 px-4 py-2.5 border border-gray-300 rounded-xl shadow-sm outline-none text-base">
 
                     <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="bg-gray-50 border-b border-gray-200">
-                                <th class="p-3 text-xs md:text-sm font-semibold text-gray-600 w-2/5">NOME COMPLETO</th>
-                                <th class="p-3 text-xs md:text-sm font-semibold text-gray-600">GRAU</th>
-                                <th class="p-3 text-xs md:text-sm font-semibold text-gray-600">FUNÇÃO</th>
-                                <th class="p-3 text-xs md:text-sm font-semibold text-gray-600 text-center w-28">AÇÃO</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tabelaGraus"></tbody>
-                    </table>
+    <thead>
+        <tr class="bg-gray-50 border-b border-gray-200">
+            <!-- CAIXINHA MESTRA ADICIONADA AQUI -->
+            <th class="p-3 text-center w-12">
+                <input type="checkbox" id="chkSelecionarTodosGraus" class="w-4 h-4 rounded text-tema-primaria cursor-pointer" title="Selecionar todos" onchange="toggleTodosGraus(this)">
+            </th>
+            <th class="p-3 text-xs md:text-sm font-semibold text-gray-600 w-2/5">NOME COMPLETO</th>
+            <th class="p-3 text-xs md:text-sm font-semibold text-gray-600">GRAU</th>
+            <th class="p-3 text-xs md:text-sm font-semibold text-gray-600">FUNÇÃO</th>
+            <th class="p-3 text-xs md:text-sm font-semibold text-gray-600 text-center w-28">AÇÃO</th>
+        </tr>
+    </thead>
+    <tbody id="tabelaGraus"></tbody>
+</table>
                 </div>
             </div>
 
