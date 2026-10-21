@@ -4257,13 +4257,11 @@ window.imprimirHistoricoGraus = async () => {
             .select('id, nome_completo')
             .eq('terreiro_id', idTerreiroGlobal);
             
-        // Se tem gente selecionada, filtra. Se não tem (tamanho 0), traz todos.
         if (idsSelecionados.length > 0) {
             queryMediuns = queryMediuns.in('id', idsSelecionados);
         }
 
         const { data: mediuns } = await queryMediuns;
-            
         const idsMediuns = (mediuns || []).map(m => m.id);
 
         if (idsMediuns.length === 0) {
@@ -4284,47 +4282,124 @@ window.imprimirHistoricoGraus = async () => {
             return;
         }
 
-        // 4. Agrupa, enriquece com o nome e ordena
-        const historicoEnriquecido = historico.map(h => {
+        // 4. Agrupa os registros por Médium
+        const historicoAgrupado = {};
+
+        historico.forEach(h => {
             const medium = mediuns.find(m => m.id === h.medium_id);
-            return {
-                ...h,
-                nomeMedium: medium ? medium.nome_completo : 'Médium Excluído'
-            };
-        });
-
-        // Ordenação: 1º Nome do Médium (A-Z), 2º Data da Alteração (Crescente / Linha do Tempo)
-        historicoEnriquecido.sort((a, b) => {
-            if (a.nomeMedium < b.nomeMedium) return -1;
-            if (a.nomeMedium > b.nomeMedium) return 1;
+            const nomeMedium = medium ? medium.nome_completo : 'Médium Excluído';
             
-            const dataA = new Date(a.data_alteracao).getTime();
-            const dataB = new Date(b.data_alteracao).getTime();
-            return dataA - dataB; // Crescente: do mais antigo para o mais novo
+            if (!historicoAgrupado[nomeMedium]) {
+                historicoAgrupado[nomeMedium] = [];
+            }
+            historicoAgrupado[nomeMedium].push(h);
         });
 
-        // 5. Monta os dados para o PDF
-        const dadosPdf = historicoEnriquecido.map(h => {
-            const dataFormatada = new Date(h.data_alteracao).toLocaleString('pt-BR');
-            const cargoAnterior = `${h.grau_anterior || '-'} / ${h.funcao_anterior || '-'}`;
-            const cargoNovo = `${h.grau_novo || '-'} / ${h.funcao_nova || '-'}`;
+        // 5. Ordena os nomes (A-Z) para o PDF
+        const nomesOrdenados = Object.keys(historicoAgrupado).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+        
+        let htmlBlocos = '';
+
+        // 6. Monta os blocos (caixas) por médium
+        nomesOrdenados.forEach(nome => {
+            // Ordena o histórico do médium por data (mais antigo para o mais novo)
+            const registros = historicoAgrupado[nome].sort((a, b) => new Date(a.data_alteracao).getTime() - new Date(b.data_alteracao).getTime());
             
-            return [
-                h.nomeMedium,
-                dataFormatada,
-                cargoAnterior,
-                cargoNovo,
-                h.responsavel_nome || 'Sistema'
-            ];
+            let linhasHtml = '';
+            
+            registros.forEach(h => {
+                const dataFormatada = new Date(h.data_alteracao).toLocaleString('pt-BR');
+                
+                // Formata o cargo: Remove o / - se a função estiver vazia
+                const formatarCargo = (grau, funcao) => {
+                    const g = (grau && grau !== '-') ? grau : '';
+                    const f = (funcao && funcao !== '-') ? funcao : '';
+                    if (g && f) return `${g} / ${f}`;
+                    if (g) return g;
+                    if (f) return f;
+                    return '-';
+                };
+
+                const cargoAnterior = formatarCargo(h.grau_anterior, h.funcao_anterior);
+                const cargoNovo = formatarCargo(h.grau_novo, h.funcao_nova);
+                const responsavel = h.responsavel_nome || 'Sistema';
+
+                linhasHtml += `
+                    <tr>
+                        <td style="padding: 8px 12px; border-bottom: 1px solid #f1f5f9; font-size: 11px; color: #475569; width: 25%;">${dataFormatada}</td>
+                        <td style="padding: 8px 12px; border-bottom: 1px solid #f1f5f9; font-size: 11px; color: #64748b; width: 25%;">${cargoAnterior}</td>
+                        <td style="padding: 8px 12px; border-bottom: 1px solid #f1f5f9; font-size: 11px; font-weight: bold; color: #16a34a; width: 25%;">${cargoNovo}</td>
+                        <td style="padding: 8px 12px; border-bottom: 1px solid #f1f5f9; font-size: 11px; color: #64748b; width: 25%; text-align: right;">${responsavel}</td>
+                    </tr>
+                `;
+            });
+
+            htmlBlocos += `
+                <div style="margin-bottom: 25px; page-break-inside: avoid; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                    <div style="background-color: #f8fafc; padding: 12px 15px; border-bottom: 1px solid #e2e8f0;">
+                        <h3 style="margin: 0; font-size: 13px; font-weight: bold; color: #0f172a; text-transform: uppercase;">
+                            <i class="fas fa-user-circle" style="color: #64748b; margin-right: 6px;"></i> ${nome}
+                        </h3>
+                    </div>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background-color: #ffffff;">
+                                <th style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; font-size: 10px; color: #94a3b8; text-align: left; text-transform: uppercase;">Data da Alteração</th>
+                                <th style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; font-size: 10px; color: #94a3b8; text-align: left; text-transform: uppercase;">Grau/Função Anterior</th>
+                                <th style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; font-size: 10px; color: #94a3b8; text-align: left; text-transform: uppercase;">Grau/Função Novo</th>
+                                <th style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; font-size: 10px; color: #94a3b8; text-align: right; text-transform: uppercase;">Responsável</th>
+                            </tr>
+                        </thead>
+                        <tbody style="background-color: #ffffff;">
+                            ${linhasHtml}
+                        </tbody>
+                    </table>
+                </div>
+            `;
         });
 
-        // 6. Aciona a geração do PDF
-        window.gerarPDFRelatorio(
-            'Auditoria: Histórico de Alterações de Grau/Função', 
-            ['Médium', 'Data e Hora', 'De (Anterior)', 'Para (Novo)', 'Responsável'], 
-            dadosPdf,
-            'portrait'
-        );
+        // 7. Monta o Documento Final
+        const watermark = logoTerreiroGlobal
+            ? `<div style="position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); opacity: 0.05; z-index: 0; pointer-events: none;">
+                 <img src="${logoTerreiroGlobal}" style="width: 350px; max-width: 80%;">
+               </div>`
+            : '';
+
+        const div = document.createElement('div');
+        div.style.padding = '30px';
+        div.style.fontFamily = 'Arial, sans-serif';
+        div.style.position = 'relative';
+
+        const dataEmissao = `${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+
+        div.innerHTML = `
+            ${watermark}
+            <div style="position: relative; z-index: 1;">
+                <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #2563eb; padding-bottom: 15px; margin-bottom: 25px;">
+                    <div style="width: 80px;">
+                        ${logoTerreiroGlobal ? `<img src="${logoTerreiroGlobal}" style="max-height: 60px; max-width: 80px; object-fit: contain;">` : ''}
+                    </div>
+                    <div style="text-align: center; flex: 1;">
+                        <h2 style="margin: 0; color: #1e3a8a; font-size: 16px; text-transform: uppercase; font-weight: bold;">${nomeTerreiroGlobal || 'Templo'}</h2>
+                        <h3 style="margin: 5px 0 0 0; color: #475569; font-size: 12px; letter-spacing: 1px; text-transform: uppercase;">Auditoria: Histórico de Alterações de Grau e Função</h3>
+                        <p style="margin: 6px 0 0 0; color: #64748b; font-size: 10px;">Emitido em: ${dataEmissao} | Total de Registros: ${historico.length}</p>
+                    </div>
+                    <div style="width: 80px;"></div>
+                </div>
+                ${htmlBlocos}
+            </div>
+        `;
+
+        const opt = {
+            margin:       [10, 10, 10, 10],
+            filename:     `Auditoria_Historico_Graus_${new Date().getTime()}.pdf`,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+            pagebreak:    { mode: ['css', 'legacy'] }
+        };
+
+        html2pdf().set(opt).from(div).save();
 
     } catch (err) {
         console.error("Erro na emissão do relatório de auditoria:", err);
