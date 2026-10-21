@@ -67,14 +67,16 @@ window.comprovanteAtualId = null;
         if (nomeMobileEl) nomeMobileEl.textContent = primeiroNome;
         
         if (idTerreiroGlobal) {
-            const { data: terreiros } = await supabaseClient
-                .from('terreiros')
-                .select('nome, logo_url, cor_primaria, cor_secundaria, cor_fundo, cor_texto, lista_graus, lista_funcoes')
-                .eq('id', idTerreiroGlobal)
-                .single();
-            
-            if (terreiro) {
-                nomeTerreiroGlobal = terreiro.nome;
+            const { data: terreiro, error: erroTerreiro } = await supabaseClient
+    .from('terreiros')
+    .select('nome, logo_url, cor_primaria, cor_secundaria, cor_fundo, cor_texto, lista_graus, lista_funcoes')
+    .eq('id', idTerreiroGlobal)
+    .single();
+
+if (erroTerreiro) throw erroTerreiro;
+
+if (terreiro) {
+    nomeTerreiroGlobal = terreiro.nome;
                 if (terreiro.lista_graus && terreiro.lista_graus.length > 0) {
                     grausAtuaisTerreiro = [...terreiro.lista_graus];
                     opcoesGrau = ['-', ...grausAtuaisTerreiro];
