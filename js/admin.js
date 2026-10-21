@@ -13,7 +13,7 @@ let listaMediunsGlobal = [];
 window.comprovanteAtualId = null;
 
 const GRAUS_PADRAO = ['I', 'IJ', 'B', 'BJ', 'T', 'TJ', 'SCT', 'Escola de CT', 'CT', 'SCCT', 'Escola de CCT', 'CCT', 'Dirigente', 'Outros'];
-const FUNCOES_PADRAO = ['MG', 'MGA', 'MC', 'MCA', 'MD', 'MDA', 'CC', 'CA', 'Cantina', 'Dirigente'];
+const FUNCOES_PADRAO = ['MG', 'MGA', 'MC', 'MCA', 'MD', 'MDA', 'CC', 'CAC', 'Cantina', 'Dirigente'];
 
 let opcoesGrau = ['-', ...GRAUS_PADRAO];
 let opcoesFuncao = ['-', ...FUNCOES_PADRAO];

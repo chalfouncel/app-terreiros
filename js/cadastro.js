@@ -56,7 +56,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             const funcoes = (terreiro && terreiro.lista_funcoes && terreiro.lista_funcoes.length > 0)
                 ? terreiro.lista_funcoes
-                : ['MG', 'MGA', 'MC', 'MCA', 'MD', 'MDA', 'CC', 'CA', 'Cantina', 'Dirigente'];
+                : ['MG', 'MGA', 'MC', 'MCA', 'MD', 'MDA', 'CC', 'CAC', 'Cantina', 'Dirigente'];
 
             const selGrau = document.getElementById('cadGrau');
             const selFuncao = document.getElementById('cadFuncao');
