@@ -915,6 +915,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const novoBtn = btnPDFDoacoes.cloneNode(true);
                 btnPDFDoacoes.parentNode.replaceChild(novoBtn, btnPDFDoacoes);
 
+                setTimeout(() => {
+            // ================== PDF DE DOAÇÕES ==================
+            const btnPDFDoacoes = document.getElementById('btnGerarPDF_doacoes');
+            if (btnPDFDoacoes) {
+                const novoBtn = btnPDFDoacoes.cloneNode(true);
+                btnPDFDoacoes.parentNode.replaceChild(novoBtn, btnPDFDoacoes);
+
                 novoBtn.addEventListener('click', () => {
                     if (!window.dadosDoacoesParaPDF || !window.dadosDoacoesParaPDF.doacoes || window.dadosDoacoesParaPDF.doacoes.length === 0) {
                         alert('Nenhuma doação registrada para exportar.');
@@ -932,7 +939,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                         return [medium, itemNome, String(d.quantidade), dataFormatada, status];
                     });
 
-                    const btnPDFCantina = document.getElementById('btnGerarPDF_cantina');
+                    dados.sort((a, b) => a[0].localeCompare(b[0], 'pt-BR'));
+                    window.gerarPDFRelatorio('Relatório de Doações Registradas', ['Médium', 'Item', 'Qtd', 'Data', 'Status'], dados);
+                });
+            }
+
+            // ================== PDF DA CANTINA ==================
+            const btnPDFCantina = document.getElementById('btnGerarPDF_cantina');
             if (btnPDFCantina) {
                 const novoBtnCantina = btnPDFCantina.cloneNode(true);
                 btnPDFCantina.parentNode.replaceChild(novoBtnCantina, btnPDFCantina);
@@ -955,14 +968,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     });
 
                     dados.sort((a, b) => a[0].localeCompare(b[0], 'pt-BR'));
-
                     window.gerarPDFRelatorio('Relatório de Pedidos da Cantina', ['Médium / Cliente', 'Produto', 'Qtd', 'Data', 'Status'], dados);
-                });
-            }
-
-                    dados.sort((a, b) => a[0].localeCompare(b[0], 'pt-BR'));
-
-                    window.gerarPDFRelatorio('Relatório de Doações Registradas', ['Médium', 'Item', 'Qtd', 'Data', 'Status'], dados);
                 });
             }
         }, 800);
@@ -1362,7 +1368,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const funcao = (m.funcao || '').trim().toUpperCase();
             const cargoCompleto = `${grau} ${funcao}`.trim();
 
-            if (['I', 'B', 'T', 'SCT', 'CT', 'CCT', 'DIRIGENTE'].includes(grauFiltro)) {
+           if (['I', 'B', 'T', 'SCT', 'CT', 'SCCT', 'CCT', 'DIRIGENTE'].includes(grauFiltro)) {
                 const bateGrau = grau === grauFiltro || grau.split(' ').includes(grauFiltro);
                 const bateFuncao = funcao === grauFiltro || funcao.split(' ').includes(grauFiltro);
                 if (!bateGrau && !bateFuncao) return false;
