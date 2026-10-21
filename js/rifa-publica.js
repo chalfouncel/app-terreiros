@@ -168,12 +168,13 @@ function renderizarGradeNumeros() {
         if (ocupado) {
             // Número ocupado
             disabledAttr = 'disabled';
-            if (ocupado.status === 'pago') {
+            if (ocupado.status === 'pago' || ocupado.status === 'aprovado') {
                 classes += 'bg-emerald-500 text-white cursor-not-allowed shadow-inner';
             } else {
                 // Reservado / Aguardando pagamento
                 classes += 'bg-amber-400 text-amber-950 cursor-not-allowed shadow-inner';
             }
+        }
         } else if (isSelecionado) {
             // Selecionado pelo usuário agora
             classes += 'bg-indigo-600 text-white shadow-lg ring-2 ring-indigo-400 scale-95';
