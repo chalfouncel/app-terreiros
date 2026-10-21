@@ -12,8 +12,130 @@ let listaMediunsGlobal = [];
 
 window.comprovanteAtualId = null;
 
-// ... [trechos omitidos] ...
+const GRAUS_PADRAO = ['I', 'IJ', 'B', 'BJ', 'T', 'TJ', 'SCT', 'Escola de CT', 'CT', 'SCCT', 'Escola de CCT', 'CCT', 'Dirigente', 'Outros'];
+const FUNCOES_PADRAO = ['MG', 'MGA', 'MC', 'MCA', 'MD', 'MDA', 'CC', 'CA', 'Cantina', 'Dirigente'];
 
+let opcoesGrau = ['-', ...GRAUS_PADRAO];
+let opcoesFuncao = ['-', ...FUNCOES_PADRAO];
+let grausAtuaisTerreiro = [...GRAUS_PADRAO];
+let funcoesAtuaisTerreiro = [...FUNCOES_PADRAO];
+
+function renderizarOpcoes(lista, valorAtual) { 
+    return lista.map(op => `<option value="${op === '-' ? '' : op}" ${op === valorAtual ? 'selected' : ''}>${op}</option>`).join(''); 
+}
+
+function comprimirImagem(file, maxWidth = 1200, maxHeight = 1200, quality = 0.82) {
+    return new Promise((resolve) => {
+        if (!file || !file.type || !file.type.match(/image.*/)) {
+            return resolve(file);
+        }
+
+        const reader = new FileReader();
+        reader.onload = (readerEvent) => {
+            const image = new Image();
+            image.onload = () => {
+                let width = image.width;
+                let height = image.height;
+
+                if (width > height) {
+                    if (width > maxWidth) {
+                        height = Math.round((height * maxWidth) / width);
+                        width = maxWidth;
+                    }
+                } else {
+                    if (height > maxHeight) {
+                        width = Math.round((width * maxHeight) / height);
+                        height = maxHeight;
+                    }
+                }
+
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(image, 0, 0, width, height);
+
+                canvas.toBlob((blob) => {
+                    if (!blob) return resolve(file);
+                    const ext = file.name.split('.').pop() || 'jpg';
+                    const novoArquivo = new File([blob], file.name.replace(/\.[^/.]+$/, `.${ext}`), {
+                        type: file.type.includes('png') ? 'image/png' : 'image/jpeg',
+                        lastModified: Date.now()
+                    });
+                    resolve(novoArquivo);
+                }, file.type.includes('png') ? 'image/png' : 'image/jpeg', quality);
+            };
+            image.onerror = () => resolve(file);
+            image.src = readerEvent.target.result;
+        };
+        reader.onerror = () => resolve(file);
+        reader.readAsDataURL(file);
+    });
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+    let emModoMasterPuro = false;
+    let terreiroSaaSForcado = null;
+
+    try {
+        const dataOpcoes = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        const dataStr = new Date().toLocaleDateString('pt-BR', dataOpcoes);
+        const elDataHoje = document.getElementById('dataHoje');
+        if (elDataHoje) elDataHoje.textContent = dataStr;
+        const elDataMobile = document.getElementById('dataHojeMobile');
+        if (elDataMobile) elDataMobile.textContent = dataStr;
+
+        const sidebar = document.getElementById('sidebar');
+        const overlayMobile = document.getElementById('overlayMobile');
+        const btnAbrirMenu = document.getElementById('btnAbrirMenu');
+        const btnFecharMenu = document.getElementById('btnFecharMenu');
+
+        function toggleMenu() {
+            if (!sidebar || !overlayMobile) return;
+            const isOpen = !sidebar.classList.contains('-translate-x-full');
+            if (isOpen) {
+                sidebar.classList.add('-translate-x-full');
+                overlayMobile.classList.add('hidden');
+            } else {
+                sidebar.classList.remove('-translate-x-full');
+                overlayMobile.classList.remove('hidden');
+            }
+        }
+
+        if(btnAbrirMenu) btnAbrirMenu.addEventListener('click', toggleMenu);
+        if(btnFecharMenu) btnFecharMenu.addEventListener('click', toggleMenu);
+        if(overlayMobile) overlayMobile.addEventListener('click', toggleMenu);
+
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (!session) return w.location.replace('index.html');
+
+        const btnSair = document.getElementById('btnSair');
+        if (btnSair) {
+            btnSair.addEventListener('click', async () => {
+                btnSair.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Saindo...';
+                await supabaseClient.auth.signOut(); 
+                localStorage.clear(); 
+                w.location.replace('index.html'); 
+            });
+        }
+
+        const { data: perfil, error: erroPerfil } = await supabaseClient
+            .from('mediuns')
+            .select('nome_completo, is_admin, terreiro_id, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin, is_master, perm_visao_geral, perm_ata, perm_quadro_mediuns, perm_guias')
+            .eq('auth_id', session.user.id)
+            .single();
+
+        if (erroPerfil) throw erroPerfil;
+        perfilAdminLogado = perfil;
+
+        const temAcessoPainel = perfil.is_admin || perfil.perm_visao_geral || perfil.perm_quadro_mediuns || perfil.perm_guias || perfil.perm_agenda || perfil.perm_grau || perfil.perm_financeiro || perfil.perm_doacoes || perfil.perm_admin || perfil.perm_ata || perfil.is_master;
+
+        if (!temAcessoPainel) {
+            alert('Acesso negado. Você não possui permissão para acessar o Painel de Gestão.');
+            return w.location.replace('presenca.html');
+        }
+        
         if (perfil.is_master) {
             const menuMaster = document.getElementById('menuMaster');
             if (menuMaster) menuMaster.classList.remove('hidden');
@@ -21,10 +143,7 @@ window.comprovanteAtualId = null;
             terreiroSaaSForcado = localStorage.getItem('terreiroAtivoSaaS');
             
             if (terreiroSaaSForcado) {
-                idTerreiroGlobal = terreiroSaaSForcado;
-                const bannerSaaS = document.getElementById('bannerSuporteSaaS');
-                if (bannerSaaS) bannerSaaS.classList.remove('hidden');
-                
+                // ... (código existente) ...
                 perfil.is_admin = true; perfil.perm_visao_geral = true; perfil.perm_agenda = true;
                 perfil.perm_ata = true; perfil.perm_grau = true; perfil.perm_financeiro = true;
                 perfil.perm_doacoes = true; perfil.perm_admin = true; perfil.perm_quadro_mediuns = true; perfil.perm_guias = true;
@@ -67,16 +186,14 @@ window.comprovanteAtualId = null;
         if (nomeMobileEl) nomeMobileEl.textContent = primeiroNome;
         
         if (idTerreiroGlobal) {
-            const { data: terreiro, error: erroTerreiro } = await supabaseClient
-    .from('terreiros')
-    .select('nome, logo_url, cor_primaria, cor_secundaria, cor_fundo, cor_texto, lista_graus, lista_funcoes')
-    .eq('id', idTerreiroGlobal)
-    .single();
-
-if (erroTerreiro) throw erroTerreiro;
-
-if (terreiro) {
-    nomeTerreiroGlobal = terreiro.nome;
+            const { data: terreiro } = await supabaseClient
+                .from('terreiros')
+                .select('nome, logo_url, cor_primaria, cor_secundaria, cor_fundo, cor_texto, lista_graus, lista_funcoes')
+                .eq('id', idTerreiroGlobal)
+                .single();
+            
+            if (terreiro) {
+                nomeTerreiroGlobal = terreiro.nome;
                 if (terreiro.lista_graus && terreiro.lista_graus.length > 0) {
                     grausAtuaisTerreiro = [...terreiro.lista_graus];
                     opcoesGrau = ['-', ...grausAtuaisTerreiro];
@@ -703,6 +820,37 @@ if (terreiro) {
                     btnRejeitarModal.innerHTML = btnHtml;
                     btnRejeitarModal.disabled = false;
                     if (btnAprovarModal) btnAprovarModal.disabled = false;
+                }
+            });
+        }
+
+        if (btnRejeitarModal) {
+            btnRejeitarModal.addEventListener('click', async () => {
+                if (!window.comprovanteAtualId) return;
+                if (!confirm("Rejeitar este comprovante? As mensalidades continuarão pendentes.")) return;
+
+                const btnHtml = btnRejeitarModal.innerHTML;
+                btnRejeitarModal.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Rejeitando...';
+                btnRejeitarModal.disabled = true;
+
+                try {
+                    const { error } = await supabaseClient
+                        .from('comprovantes_mensalidade')
+                        .update({ status: 'rejeitado' })
+                        .eq('id', window.comprovanteAtualId)
+                        .eq('terreiro_id', idTerreiroGlobal);
+
+                    if (error) throw error;
+                    
+                    alert("Comprovante rejeitado.");
+                    window.fecharModalVerComprovante();
+                    carregarValidadorPagamentos();
+                } catch (err) {
+                    console.error(err);
+                    alert("Erro ao rejeitar comprovante: " + err.message);
+                } finally {
+                    btnRejeitarModal.innerHTML = btnHtml;
+                    btnRejeitarModal.disabled = false;
                 }
             });
         }
