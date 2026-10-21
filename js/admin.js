@@ -67,7 +67,7 @@ window.comprovanteAtualId = null;
         if (nomeMobileEl) nomeMobileEl.textContent = primeiroNome;
         
         if (idTerreiroGlobal) {
-            const { data: terreiro } = await supabaseClient
+            const { data: terreiros } = await supabaseClient
                 .from('terreiros')
                 .select('nome, logo_url, cor_primaria, cor_secundaria, cor_fundo, cor_texto, lista_graus, lista_funcoes')
                 .eq('id', idTerreiroGlobal)
