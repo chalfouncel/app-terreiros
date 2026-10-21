@@ -572,7 +572,7 @@
             document.getElementById('formComprarNumero').classList.add('hidden');
             document.getElementById('boxUploadComprovante').classList.remove('hidden');
 
-            const chavePix = window.terreiroGlobal?.chave_pix_manual || window.terreiroGlobal?.cantina_chave_pix || 'Chave não informada no sistema';
+            const chavePix = dadosRifaGlobal?.chave_pix || window.terreiroGlobal?.chave_pix_manual || window.terreiroGlobal?.cantina_chave_pix || 'Chave não informada no sistema';
             document.getElementById('chavePixExibicao').textContent = chavePix;
 
             document.getElementById('modalCheckoutRifa').classList.remove('hidden');
