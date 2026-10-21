@@ -4303,7 +4303,7 @@ window.imprimirHistoricoGraus = async () => {
         // 6. Monta os blocos (caixas) por médium
         nomesOrdenados.forEach(nome => {
             // Ordena o histórico do médium por data (mais antigo para o mais novo)
-            const registros = historicoAgrupado[nome].sort((a, b) => new Date(a.data_alteracao).getTime() - new Date(b.data_alteracao).getTime());
+            const registros = historicoAgrupado[nome].sort((a, b) => new Date(b.data_alteracao).getTime() - new Date(a.data_alteracao).getTime());
             
             let linhasHtml = '';
             
