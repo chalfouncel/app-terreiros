@@ -4307,10 +4307,10 @@ window.imprimirHistoricoGraus = async () => {
             
             let linhasHtml = '';
             
-            registros.forEach(h => {
+            // Adicionamos o "index" para saber qual é a linha atual
+            registros.forEach((h, index) => {
                 const dataFormatada = new Date(h.data_alteracao).toLocaleString('pt-BR');
                 
-                // Formata o cargo: Remove o / - se a função estiver vazia
                 const formatarCargo = (grau, funcao) => {
                     const g = (grau && grau !== '-') ? grau : '';
                     const f = (funcao && funcao !== '-') ? funcao : '';
@@ -4324,11 +4324,16 @@ window.imprimirHistoricoGraus = async () => {
                 const cargoNovo = formatarCargo(h.grau_novo, h.funcao_nova);
                 const responsavel = h.responsavel_nome || 'Sistema';
 
+                // REGRA DE COR: Verde e negrito se for o mais recente (index 0) OU se contiver "MG"
+                const destaque = (index === 0 || cargoNovo.includes('MG'));
+                const corTexto = destaque ? '#16a34a' : '#475569'; // Verde ou Cinza
+                const pesoFonte = destaque ? 'bold' : 'normal';
+
                 linhasHtml += `
                     <tr>
                         <td style="padding: 8px 12px; border-bottom: 1px solid #f1f5f9; font-size: 11px; color: #475569; width: 25%;">${dataFormatada}</td>
                         <td style="padding: 8px 12px; border-bottom: 1px solid #f1f5f9; font-size: 11px; color: #64748b; width: 25%;">${cargoAnterior}</td>
-                        <td style="padding: 8px 12px; border-bottom: 1px solid #f1f5f9; font-size: 11px; font-weight: bold; color: #16a34a; width: 25%;">${cargoNovo}</td>
+                        <td style="padding: 8px 12px; border-bottom: 1px solid #f1f5f9; font-size: 11px; font-weight: ${pesoFonte}; color: ${corTexto}; width: 25%;">${cargoNovo}</td>
                         <td style="padding: 8px 12px; border-bottom: 1px solid #f1f5f9; font-size: 11px; color: #64748b; width: 25%; text-align: right;">${responsavel}</td>
                     </tr>
                 `;
