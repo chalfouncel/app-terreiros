@@ -325,6 +325,51 @@ document.addEventListener('DOMContentLoaded', async () => {
                         }
                     }, 100);
                 }
+
+        // === INTEGRAÇÃO: BARRA DE BUSCA RÁPIDA DA IA (VISÃO GERAL) ===
+        const inputIARapida = document.getElementById('inputBuscaRapidaIA');
+        const btnIARapida = document.getElementById('btnBuscaRapidaIA');
+
+        const dispararConsultaIARapida = () => {
+            if (!inputIARapida) return;
+            const pergunta = inputIARapida.value.trim();
+            if (!pergunta) return;
+
+            // 1. Simula o clique no menu lateral para abrir a aba IA
+            const menuAlvoIA = document.getElementById('menuIA');
+            if (menuAlvoIA) menuAlvoIA.click();
+            
+            // 2. Aguarda a transição de tela (200ms) e aciona o motor da IA
+            setTimeout(() => {
+                const inputIAReal = document.getElementById('inputPergunta');
+                const formIAReal = document.getElementById('formChat');
+                
+                if (inputIAReal && formIAReal) {
+                    inputIAReal.value = pergunta; // Insere a pergunta no chat real
+                    inputIARapida.value = '';     // Limpa a barra da visão geral
+                    
+                    // Dispara o envio nativo do formulário do chat
+                    formIAReal.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+                }
+            }, 200);
+        };
+
+        if (btnIARapida) {
+            // Failsafe: Remove o onclick do HTML para o JS assumir o controle total
+            btnIARapida.removeAttribute('onclick');
+            btnIARapida.addEventListener('click', dispararConsultaIARapida);
+        }
+
+        if (inputIARapida) {
+            // Failsafe: Ouve a tecla Enter dentro do campo
+            inputIARapida.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault(); // Impede que a página recarregue
+                    dispararConsultaIARapida();
+                }
+            });
+        }
+        // === FIM INTEGRAÇÃO IA ===
         
         const formNovaGira = document.getElementById('formNovaGira');
         if (formNovaGira) {
