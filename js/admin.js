@@ -5744,4 +5744,275 @@ window.addEventListener('DOMContentLoaded', () => {
             });
         });
     }
+    // ============================================================================
+    // NOVO MÓDULO: GESTÃO DE ESCALAS E MISSÕES (EXU E CORRENTE) E WHATSAPP
+    // ============================================================================
+
+    window.carregarEventosEscalas = async () => {
+        console.log("Iniciando carregamento de escalas para o terreiro:", idTerreiroGlobal);
+        if (!idTerreiroGlobal) return;
+        
+        const listaEventos = document.getElementById('listaEventosEscala');
+        const painelMontagem = document.getElementById('painelMontagemEscala');
+        
+        if (!listaEventos || !painelMontagem) {
+            console.error("Elementos da tela de escalas não encontrados no HTML.");
+            return;
+        }
+
+        listaEventos.innerHTML = '<p class="text-xs text-gray-500 text-center py-4"><i class="fas fa-spinner fa-spin"></i> Buscando eventos...</p>';
+        painelMontagem.classList.add('hidden');
+        
+        try {
+            const agora = new Date().toISOString();
+            
+            // Diagnóstico
+            const { data: checkTotal, error: errTotal } = await supabaseClient.from('agenda').select('titulo, req_escala_exu, req_escala_corrente').eq('terreiro_id', idTerreiroGlobal);
+            console.log("Todas as giras deste terreiro:", checkTotal);
+
+            const { data, error } = await supabaseClient.from('agenda')
+                .select('id, titulo, data_hora_inicio, especial, req_escala_exu, req_escala_corrente, escalas')
+                .eq('terreiro_id', idTerreiroGlobal)
+                .gte('data_hora_inicio', agora)
+                .or('req_escala_exu.eq.true,req_escala_corrente.eq.true')
+                .order('data_hora_inicio', { ascending: true });
+
+            console.log("Giras filtradas para escala:", data);
+
+            if (error) throw error;
+
+            if (!data || data.length === 0) {
+                listaEventos.innerHTML = '<p class="text-xs text-gray-500 text-center py-4 border border-dashed border-gray-200 rounded-xl bg-gray-50">Nenhum evento futuro com escalas configuradas.</p>';
+                return;
+            }
+
+            listaEventos.innerHTML = '';
+            data.forEach(ev => {
+                const dataFmt = new Date(ev.data_hora_inicio).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+                let badges = '';
+                
+                if (ev.req_escala_exu) badges += '<span class="text-[9px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-bold uppercase"><i class="fas fa-fire"></i> Exu</span> ';
+                if (ev.req_escala_corrente) badges += '<span class="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold uppercase"><i class="fas fa-hands-helping"></i> Corrente</span> ';
+                
+                const evJson = JSON.stringify(ev).replace(/'/g, "\\'").replace(/"/g, "&quot;");
+
+                listaEventos.innerHTML += `
+                    <div class="bg-gray-50 hover:bg-gray-100 border border-gray-200 p-3 rounded-xl cursor-pointer transition mb-3" onclick="abrirMontagemEscala(JSON.parse('${evJson}'))">
+                        <h4 class="font-bold text-gray-800 text-sm mb-1">${ev.titulo}</h4>
+                        <p class="text-[11px] text-gray-500 mb-2">${dataFmt}</p>
+                        <div>${badges}</div>
+                    </div>
+                `;
+            });
+
+        } catch (err) {
+            console.error("Erro na query de escalas:", err);
+            listaEventos.innerHTML = `<p class="text-xs text-red-500 text-center py-4">Erro: ${err.message}</p>`;
+        }
+    };
+
+    window.abrirMontagemEscala = (evento) => {
+        document.getElementById('painelMontagemEscala').classList.remove('hidden');
+        document.getElementById('painelMontagemEscala').classList.add('flex');
+        
+        document.getElementById('tituloMontagemEscala').textContent = evento.titulo;
+        document.getElementById('dataMontagemEscala').textContent = new Date(evento.data_hora_inicio).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        document.getElementById('escalaEventoId').value = evento.id;
+        document.getElementById('msgEscala').classList.add('hidden');
+
+        const container = document.getElementById('containerCamposEscala');
+        container.innerHTML = '';
+        
+        const objSalvo = evento.escalas && Object.keys(evento.escalas).length > 0 ? evento.escalas : {};
+        window.escalaAtualEmEdicao = objSalvo;
+
+        let html = '';
+        const opcoesMediuns = '<option value="">[ Selecione o Médium ]</option>' + listaMediunsGlobal.map(m => `<option value="${m.id}">${m.nome_completo}</option>`).join('');
+
+        if (evento.req_escala_exu) {
+            document.getElementById('escalaEventoTipo').value = 'exu';
+            document.getElementById('btnNotificarEscala').classList.remove('hidden');
+
+            html += `
+                <table class="w-full text-left border-collapse text-xs md:text-sm bg-gray-50 rounded-xl overflow-hidden border border-gray-200">
+                    <thead class="bg-blue-100 text-blue-900 border-b border-blue-200">
+                        <tr>
+                            <th class="p-3 font-bold uppercase tracking-wider w-1/3">Entidade</th>
+                            <th class="p-3 font-bold uppercase tracking-wider w-1/3"><i class="fas fa-image text-blue-600 mr-1"></i> Imagem (Condução)</th>
+                            <th class="p-3 font-bold uppercase tracking-wider w-1/3"><i class="fas fa-leaf text-green-600 mr-1"></i> Flores</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        <tr class="hover:bg-white transition">
+                            <td class="p-3 font-bold text-gray-800">Tranca Ruas das Almas</td>
+                            <td class="p-3"><select id="esc_img_tr" class="w-full p-2 border border-gray-300 rounded outline-none focus:ring-2 focus:ring-blue-500 bg-white">${opcoesMediuns}</select></td>
+                            <td class="p-3"><select id="esc_flores_tr" class="w-full p-2 border border-gray-300 rounded outline-none focus:ring-2 focus:ring-green-500 bg-white">${opcoesMediuns}</select></td>
+                        </tr>
+                        <tr class="hover:bg-white transition">
+                            <td class="p-3 font-bold text-gray-800">Cigana Rainha 7 Encruzas</td>
+                            <td class="p-3"><select id="esc_img_cigana" class="w-full p-2 border border-gray-300 rounded outline-none focus:ring-2 focus:ring-blue-500 bg-white">${opcoesMediuns}</select></td>
+                            <td class="p-3"><select id="esc_flores_cigana" class="w-full p-2 border border-gray-300 rounded outline-none focus:ring-2 focus:ring-green-500 bg-white">${opcoesMediuns}</select></td>
+                        </tr>
+                        <tr class="hover:bg-white transition">
+                            <td class="p-3 font-bold text-gray-800">M. Padilha Rainha 7 Encruzas</td>
+                            <td class="p-3"><select id="esc_img_padilha" class="w-full p-2 border border-gray-300 rounded outline-none focus:ring-2 focus:ring-blue-500 bg-white">${opcoesMediuns}</select></td>
+                            <td class="p-3"><select id="esc_flores_padilha" class="w-full p-2 border border-gray-300 rounded outline-none focus:ring-2 focus:ring-green-500 bg-white">${opcoesMediuns}</select></td>
+                        </tr>
+                    </tbody>
+                </table>
+            `;
+        } 
+        else if (evento.req_escala_corrente) {
+            document.getElementById('escalaEventoTipo').value = 'corrente';
+            document.getElementById('btnNotificarEscala').classList.remove('hidden');
+            
+            html += `
+                <div class="bg-emerald-50 p-5 rounded-xl border border-emerald-200">
+                    <h4 class="font-bold text-emerald-900 mb-4"><i class="fas fa-hands-helping mr-1"></i> Médiuns Escalados para o Passe (Corrente)</h4>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 mb-1">Médium 1</label>
+                            <select id="esc_corrente_1" class="w-full p-2.5 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 bg-white">${opcoesMediuns}</select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 mb-1">Médium 2</label>
+                            <select id="esc_corrente_2" class="w-full p-2.5 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 bg-white">${opcoesMediuns}</select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 mb-1">Médium 3</label>
+                            <select id="esc_corrente_3" class="w-full p-2.5 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 bg-white">${opcoesMediuns}</select>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        container.innerHTML = html;
+
+        if (evento.req_escala_exu) {
+            if (objSalvo.img_tr) document.getElementById('esc_img_tr').value = objSalvo.img_tr;
+            if (objSalvo.flores_tr) document.getElementById('esc_flores_tr').value = objSalvo.flores_tr;
+            if (objSalvo.img_cigana) document.getElementById('esc_img_cigana').value = objSalvo.img_cigana;
+            if (objSalvo.flores_cigana) document.getElementById('esc_flores_cigana').value = objSalvo.flores_cigana;
+            if (objSalvo.img_padilha) document.getElementById('esc_img_padilha').value = objSalvo.img_padilha;
+            if (objSalvo.flores_padilha) document.getElementById('esc_flores_padilha').value = objSalvo.flores_padilha;
+        } else if (evento.req_escala_corrente) {
+            if (objSalvo.corrente_1) document.getElementById('esc_corrente_1').value = objSalvo.corrente_1;
+            if (objSalvo.corrente_2) document.getElementById('esc_corrente_2').value = objSalvo.corrente_2;
+            if (objSalvo.corrente_3) document.getElementById('esc_corrente_3').value = objSalvo.corrente_3;
+        }
+    };
+
+    const formEscala = document.getElementById('formSalvarEscala');
+    if (formEscala) {
+        formEscala.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btnSalvarEscala');
+            const msg = document.getElementById('msgEscala');
+            const idEvento = document.getElementById('escalaEventoId').value;
+            const tipo = document.getElementById('escalaEventoTipo').value;
+
+            btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Salvando...';
+            msg.classList.add('hidden');
+
+            let jsonFinal = {};
+
+            if (tipo === 'exu') {
+                jsonFinal = {
+                    img_tr: document.getElementById('esc_img_tr').value,
+                    flores_tr: document.getElementById('esc_flores_tr').value,
+                    img_cigana: document.getElementById('esc_img_cigana').value,
+                    flores_cigana: document.getElementById('esc_flores_cigana').value,
+                    img_padilha: document.getElementById('esc_img_padilha').value,
+                    flores_padilha: document.getElementById('esc_flores_padilha').value,
+                };
+            } else if (tipo === 'corrente') {
+                jsonFinal = {
+                    corrente_1: document.getElementById('esc_corrente_1').value,
+                    corrente_2: document.getElementById('esc_corrente_2').value,
+                    corrente_3: document.getElementById('esc_corrente_3').value,
+                };
+            }
+
+            try {
+                const { error } = await supabaseClient.from('agenda').update({ escalas: jsonFinal }).eq('id', idEvento).eq('terreiro_id', idTerreiroGlobal);
+                if (error) throw error;
+
+                window.escalaAtualEmEdicao = jsonFinal;
+                
+                msg.textContent = 'Escala gravada com sucesso!';
+                msg.className = 'text-green-600 font-bold text-xs mt-2 block';
+                msg.classList.remove('hidden');
+                setTimeout(() => msg.classList.add('hidden'), 3000);
+                
+                window.carregarEventosEscalas(); 
+
+            } catch (err) {
+                msg.textContent = 'Erro ao salvar: ' + err.message;
+                msg.className = 'text-red-600 font-bold text-xs mt-2 block';
+                msg.classList.remove('hidden');
+            } finally {
+                btn.disabled = false; btn.innerHTML = '<i class="fas fa-save"></i> Gravar Escala';
+            }
+        });
+    }
+
+    const btnNotificar = document.getElementById('btnNotificarEscala');
+    if (btnNotificar) {
+        btnNotificar.addEventListener('click', (e) => {
+            e.preventDefault();
+            const obj = window.escalaAtualEmEdicao;
+            const tipo = document.getElementById('escalaEventoTipo').value;
+            const dataEvento = document.getElementById('dataMontagemEscala').textContent;
+            const tituloEvento = document.getElementById('tituloMontagemEscala').textContent;
+
+            if (!obj || Object.keys(obj).length === 0) {
+                alert('A escala está vazia. Selecione os médiuns e grave antes de notificar.');
+                return;
+            }
+
+            const disparos = [];
+
+            const pushDisparo = (idMedium, funcaoLocal) => {
+                if (!idMedium) return;
+                const md = listaMediunsGlobal.find(m => String(m.id) === String(idMedium));
+                if (md && md.telefone) {
+                    const num = md.telefone.replace(/\D/g, '');
+                    if (num.length >= 10) {
+                        const primeiroNome = md.nome_social || md.nome_completo.split(' ')[0];
+                        disparos.push({ num, primeiroNome, funcao: funcaoLocal });
+                    }
+                }
+            };
+
+            if (tipo === 'exu') {
+                pushDisparo(obj.img_tr, '*Imagem* de _Tranca Ruas das Almas_');
+                pushDisparo(obj.flores_tr, '*Flores* de _Tranca Ruas das Almas_');
+                pushDisparo(obj.img_cigana, '*Imagem* de _Cigana Rainha das 7 Encruzilhadas_');
+                pushDisparo(obj.flores_cigana, '*Flores* de _Cigana Rainha das 7 Encruzilhadas_');
+                pushDisparo(obj.img_padilha, '*Imagem* de _Maria Padilha Rainha das 7 Encruzilhadas_');
+                pushDisparo(obj.flores_padilha, '*Flores* de _Maria Padilha Rainha das 7 Encruzilhadas_');
+            } else if (tipo === 'corrente') {
+                pushDisparo(obj.corrente_1, 'Passe Específico na Corrente');
+                pushDisparo(obj.corrente_2, 'Passe Específico na Corrente');
+                pushDisparo(obj.corrente_3, 'Passe Específico na Corrente');
+            }
+
+            if (disparos.length === 0) {
+                alert('Não foi possível encontrar nenhum telefone válido nos médiuns escalados.');
+                return;
+            }
+
+            const confirmar = confirm(`Foram encontrados ${disparos.length} médiuns com WhatsApp na escala.\nAs abas do WhatsApp irão se abrir uma por uma. Autorize o seu navegador se perguntar por bloqueio de pop-ups.\n\nProsseguir?`);
+            if (!confirmar) return;
+
+            disparos.forEach((d, i) => {
+                setTimeout(() => {
+                    const msgTxt = `Olá, ${d.primeiroNome}! 🙏\nPassando para lembrar que você foi escalado(a) para a função de ${d.funcao} na gira de *${tituloEvento}* no dia *${dataEvento}*.\nContamos com a sua responsabilidade e pontualidade. Axé!`;
+                    const url = `https://wa.me/55${d.num}?text=${encodeURIComponent(msgTxt)}`;
+                    window.open(url, '_blank');
+                }, i * 800); 
+            });
+        });
+    }
 });
