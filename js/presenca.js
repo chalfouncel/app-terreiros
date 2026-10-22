@@ -1892,12 +1892,18 @@ if (btnCheckin) {
                 if (permissao.state === 'granted') {
                     executarCheckinGPS();
                 } else if (permissao.state === 'prompt') {
+                    // Mostra o seu modal para educar o usuário
                     mostrarModalGPS('prompt');
+                    // Tenta acionar a permissão nativa imediatamente por precaução
+                    navigator.geolocation.getCurrentPosition(
+                        () => executarCheckinGPS(), 
+                        () => mostrarModalGPS('denied')
+                    );
                 } else if (permissao.state === 'denied') {
                     mostrarModalGPS('denied');
                 }
             } catch (e) {
-                executarCheckinGPS();
+                executarCheckinGPS(); // Fallback para Safari antigo
             }
         } else {
             executarCheckinGPS();
