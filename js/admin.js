@@ -129,7 +129,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (erroPerfil) throw erroPerfil;
         perfilAdminLogado = perfil;
 
-        const temAcessoPainel = perfil.is_admin || perfil.perm_visao_geral || perfil.perm_quadro_mediuns || perfil.perm_guias || perfil.perm_agenda || perfil.perm_grau || perfil.perm_financeiro || perfil.perm_doacoes || perfil.perm_admin || perfil.perm_ata || perfil.perm_ia || perfil.is_master;
+        const temAcessoPainel = perfil.is_admin || perfil.perm_visao_geral || perfil.perm_quadro_mediuns || perfil.perm_guias || perfil.perm_agenda || perfil.perm_grau || perfil.perm_financeiro || perfil.perm_doacoes || perfil.perm_admin || perfil.perm_ata || perfil.perm_ia || perfil.perm_escalas || perfil.is_master;
 
         if (!temAcessoPainel) {
             alert('Acesso negado. Você não possui permissão para acessar o Painel de Gestão.');
@@ -166,9 +166,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (!perfil.perm_visao_geral && document.getElementById('menuVisaoGeral')) document.getElementById('menuVisaoGeral').classList.add('hidden');
                 if (!perfil.perm_quadro_mediuns && document.getElementById('menuQuadroMediuns')) document.getElementById('menuQuadroMediuns').classList.add('hidden');
                 if (!perfil.perm_guias && document.getElementById('menuGuiasMediuns')) document.getElementById('menuGuiasMediuns').classList.add('hidden');
-                if (!perfil.perm_ia && document.getElementById('menuIA')) document.getElementById('menuIA').classList.add('hidden'); // NOVA LINHA
+                if (!perfil.perm_ia && document.getElementById('menuIA')) document.getElementById('menuIA').classList.add('hidden');
                 if (!perfil.perm_agenda && document.getElementById('menuAgendaGiras')) document.getElementById('menuAgendaGiras').classList.add('hidden');
                 if (!perfil.perm_ata && document.getElementById('menuLivroAta')) document.getElementById('menuLivroAta').classList.add('hidden');
+                if (!perfil.perm_escalas && document.getElementById('menuEscalas')) document.getElementById('menuEscalas').classList.add('hidden');
                 if (!perfil.perm_grau && document.getElementById('menuGrau')) document.getElementById('menuGrau').classList.add('hidden');
                 if (!perfil.perm_doacoes && document.getElementById('menuDoacoes')) document.getElementById('menuDoacoes').classList.add('hidden');
                 if (!perfil.perm_admin && document.getElementById('menuAdmin')) document.getElementById('menuAdmin').classList.add('hidden');
@@ -274,6 +275,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                     document.getElementById('secLivroAta')?.classList.remove('hidden');
                     aplicarTitulos('Livro de Presença (ATA)');
                     if (typeof carregarLivroAta === 'function') carregarLivroAta();
+                } else if (menu.id === 'menuEscalas') {
+                    document.getElementById('secEscalas')?.classList.remove('hidden');
+                    aplicarTitulos('Escalas e Missões');
+                    if (typeof window.carregarEventosEscalas === 'function') window.carregarEventosEscalas();
                 } else if (menu.id === 'menuGrau') {
                     document.getElementById('secGrau')?.classList.remove('hidden');
                     aplicarTitulos('Alteração de Grau');
@@ -383,6 +388,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const fim = document.getElementById('giraFim').value;
                 const geraAta = document.getElementById('giraGeraAta')?.checked || false;
                 const especial = document.getElementById('giraEspecial')?.checked || false;
+                
+                // NOVO: Lê as checboxs de escalas do HTML
+                const reqEscalaExu = document.getElementById('giraReqExu')?.checked || false;
+                const reqEscalaCorrente = document.getElementById('giraReqCorrente')?.checked || false;
+                
                 const fileInput = document.getElementById('giraArquivo');
 
                 if (!titulo || !inicio || !fim) {
@@ -419,6 +429,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                         data_hora_fim: fim,
                         gera_ata: geraAta,
                         especial: especial,
+                        req_escala_exu: reqEscalaExu,
+                        req_escala_corrente: reqEscalaCorrente,
+                        escalas: {}, // Inicia o JsonB das escalas vazio
                         convocados: convocados,
                         imagem_url: imagemUrl
                     };
@@ -466,6 +479,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const fim = document.getElementById('editGiraFim').value;
                 const geraAta = document.getElementById('editGiraGeraAta')?.checked || false;
                 const especial = document.getElementById('editGiraEspecial')?.checked || false;
+                
+                // NOVO: Pega o estado das checboxs de escalas do modal HTML
+                const reqEscalaExu = document.getElementById('editGiraReqExu')?.checked || false;
+                const reqEscalaCorrente = document.getElementById('editGiraReqCorrente')?.checked || false;
+                
                 const convocados = especial ? (w['selecionados_editListaCheckConvocados'] || []) : [];
 
                 const btn = document.getElementById('btnSalvarEditGira');
@@ -481,6 +499,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                             data_hora_fim: fim,
                             gera_ata: geraAta,
                             especial: especial,
+                            req_escala_exu: reqEscalaExu,
+                            req_escala_corrente: reqEscalaCorrente,
                             convocados: convocados
                         })
                         .eq('id', id)
@@ -4119,6 +4139,10 @@ window.abrirModalEditarGira = async (id) => {
     document.getElementById('editGiraInicio').value = formataParaInput(data.data_hora_inicio);
     document.getElementById('editGiraFim').value = formataParaInput(data.data_hora_fim);
     if (document.getElementById('editGiraGeraAta')) document.getElementById('editGiraGeraAta').checked = data.gera_ata || false;
+    
+    // NOVO: Marca as caixas de escala baseadas na resposta do Banco de Dados
+    if (document.getElementById('editGiraReqExu')) document.getElementById('editGiraReqExu').checked = data.req_escala_exu || false;
+    if (document.getElementById('editGiraReqCorrente')) document.getElementById('editGiraReqCorrente').checked = data.req_escala_corrente || false;
 
     const chkEspecial = document.getElementById('editGiraEspecial');
     const boxEspecial = document.getElementById('editBoxConvocados');
