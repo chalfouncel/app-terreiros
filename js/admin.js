@@ -1244,6 +1244,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     if (m.perm_visao_geral) b.push('<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200">Visão Geral</span>');
                     if (m.perm_quadro_mediuns) b.push('<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">Quadro</span>');
                     if (m.perm_guias) b.push('<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-teal-50 text-teal-700 border border-teal-200">Guias</span>');
+                    if (m.perm_ia) b.push('<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-sky-50 text-sky-700 border border-sky-200"><i class="fas fa-brain mr-1"></i> IA</span>'); // NOVA LINHA AQUI
                     if (m.perm_agenda) b.push('<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-50 text-purple-700 border border-purple-200">Agenda</span>');
                     if (m.perm_ata) b.push('<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-violet-50 text-violet-700 border border-violet-200">Livro Ata</span>');
                     if (m.perm_grau) b.push('<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-cyan-50 text-cyan-700 border border-cyan-200">Graus</span>');
