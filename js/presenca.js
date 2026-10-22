@@ -1848,12 +1848,86 @@ function executarCheckinGPS() {
             if (msg) { msg.textContent = "Erro ao registrar: " + error.message; msg.className = "mt-3 text-sm font-bold text-red-500 block"; msg.classList.remove('hidden'); }
             restaurarBotao(btnCheckin);
         } else {
-            const areaPonto = document.getElementById('areaBaterPonto');
-            const areaSucesso = document.getElementById('areaSucesso');
-            const horaFeito = document.getElementById('horaCheckinFeito');
-            if (areaPonto) areaPonto.classList.add('hidden');
-            if (areaSucesso) areaSucesso.classList.remove('hidden');
-            if (horaFeito) horaFeito.textContent = new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+            // Check-in do responsável feito com sucesso! Agora verifica menores
+            const menores = familiaresAprovadosCache.filter(fam => fam.grau && fam.grau.toUpperCase().includes('J'));
+
+            if (menores.length > 0) {
+                // Abre o modal familiar
+                const modalFam = document.getElementById('modalCheckinFamiliar');
+                const listaFam = document.getElementById('listaFamiliaresCheckin');
+                const btnConfirmarFam = document.getElementById('btnConfirmarCheckinFamiliar');
+                const btnPularFam = document.getElementById('btnPularCheckinFamiliar');
+
+                if (modalFam && listaFam) {
+                    listaFam.innerHTML = menores.map(m => `
+                        <label class="flex items-center gap-3 p-2 hover:bg-gray-100 rounded-lg cursor-pointer transition">
+                            <input type="checkbox" value="${m.id}" class="chk-menor-checkin w-4 h-4 text-tema-primaria rounded focus:ring-tema-primaria" checked>
+                            <div>
+                                <p class="text-sm font-bold text-gray-800 leading-tight">${m.nome_completo}</p>
+                                <p class="text-[10px] text-gray-500 uppercase">${m.grau}</p>
+                            </div>
+                        </label>
+                    `).join('');
+
+                    // Função para mostrar tela de sucesso final
+                    const mostrarSucessoFinal = () => {
+                        modalFam.classList.add('hidden');
+                        const areaPonto = document.getElementById('areaBaterPonto');
+                        const areaSucesso = document.getElementById('areaSucesso');
+                        const horaFeito = document.getElementById('horaCheckinFeito');
+                        if (areaPonto) areaPonto.classList.add('hidden');
+                        if (areaSucesso) areaSucesso.classList.remove('hidden');
+                        if (horaFeito) horaFeito.textContent = new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+                    };
+
+                    // Pular (não fazer check-in dos menores)
+                    btnPularFam.onclick = () => mostrarSucessoFinal();
+
+                    // Confirmar presença dos selecionados
+                    btnConfirmarFam.onclick = async () => {
+                        btnConfirmarFam.disabled = true;
+                        btnConfirmarFam.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Registrando...';
+                        
+                        const checkboxes = document.querySelectorAll('.chk-menor-checkin:checked');
+                        const idsMenores = Array.from(checkboxes).map(cb => cb.value);
+
+                        if (idsMenores.length > 0) {
+                            const dataCheckin = new Date().toISOString();
+                            const insercoes = idsMenores.map(idMenor => ({
+                                evento_id: idGiraGlobal,
+                                usuario_id: familiaresAprovadosCache.find(f => String(f.id) === idMenor).auth_id, 
+                                data_hora_checkin: dataCheckin,
+                                localizacao_valida: true,
+                                distancia_metros: Math.round(distanciaMetros)
+                            })).filter(ins => ins.usuario_id); // Garante que o menor tem auth_id válido
+
+                            if(insercoes.length > 0) {
+                                await supabaseClient.from('presencas').insert(insercoes);
+                            }
+                        }
+                        mostrarSucessoFinal();
+                    };
+
+                    modalFam.classList.remove('hidden');
+                    setTimeout(() => modalFam.querySelector('div').classList.replace('scale-95', 'scale-100'), 10);
+                } else {
+                    // Fallback se o modal não existir
+                    const areaPonto = document.getElementById('areaBaterPonto');
+                    const areaSucesso = document.getElementById('areaSucesso');
+                    const horaFeito = document.getElementById('horaCheckinFeito');
+                    if (areaPonto) areaPonto.classList.add('hidden');
+                    if (areaSucesso) areaSucesso.classList.remove('hidden');
+                    if (horaFeito) horaFeito.textContent = new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+                }
+            } else {
+                // Se não tem menores, vai direto pra tela de sucesso normal
+                const areaPonto = document.getElementById('areaBaterPonto');
+                const areaSucesso = document.getElementById('areaSucesso');
+                const horaFeito = document.getElementById('horaCheckinFeito');
+                if (areaPonto) areaPonto.classList.add('hidden');
+                if (areaSucesso) areaSucesso.classList.remove('hidden');
+                if (horaFeito) horaFeito.textContent = new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+            }
         }
     }, (err) => {
         if (msg) { msg.textContent = "Erro ao acessar localização. Verifique o acesso ao GPS do celular."; msg.className = "mt-3 text-sm font-bold text-red-500 block"; msg.classList.remove('hidden'); }
@@ -1892,18 +1966,19 @@ if (btnCheckin) {
                 if (permissao.state === 'granted') {
                     executarCheckinGPS();
                 } else if (permissao.state === 'prompt') {
-                    // Mostra o seu modal para educar o usuário
+                    // Mostra o seu modal para educar o utilizador
                     mostrarModalGPS('prompt');
                     // Tenta acionar a permissão nativa imediatamente por precaução
                     navigator.geolocation.getCurrentPosition(
                         () => executarCheckinGPS(), 
-                        () => mostrarModalGPS('denied')
+                        () => mostrarModalGPS('denied'),
+                        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
                     );
                 } else if (permissao.state === 'denied') {
                     mostrarModalGPS('denied');
                 }
             } catch (e) {
-                executarCheckinGPS(); // Fallback para Safari antigo
+                executarCheckinGPS();
             }
         } else {
             executarCheckinGPS();
