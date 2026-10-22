@@ -2611,9 +2611,21 @@ document.addEventListener('DOMContentLoaded', async () => {
                                     box-sizing: border-box;
                                 }
                                 h1 { font-size: 24pt; margin: 0 0 8px 0; text-transform: uppercase; color: #1e3a8a; }
-                                h2 { font-size: 14pt; font-weight: normal; margin: 0 0 25px 0; color: #64748b; }
+                                h2 { font-size: 14pt; font-weight: normal; margin: 0 0 15px 0; color: #64748b; }
+                                .destaque {
+                                    background-color: #1e3a8a;
+                                    color: #ffffff;
+                                    font-size: 16pt;
+                                    font-weight: bold;
+                                    text-transform: uppercase;
+                                    padding: 10px 30px;
+                                    border-radius: 50px;
+                                    display: inline-block;
+                                    margin-bottom: 20px;
+                                    letter-spacing: 1px;
+                                }
                                 .qr-box {
-                                    margin: 20px auto;
+                                    margin: 0 auto;
                                     padding: 15px;
                                     background: #ffffff;
                                     border: 2px solid #e2e8f0;
@@ -2640,11 +2652,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 ${logoHtml}
                                 <h1>${nomeTerreiro}</h1>
                                 <h2>Recepção e Acolhimento • Assistência</h2>
+                                <div class="destaque">Registro de Presença Digital</div>
                                 <div class="qr-box">
                                     <img class="qr" src="${qrCodeUrl}" alt="QR Code">
                                 </div>
-                                    <div class="instrucao">Aponte a câmera do seu celular aqui</div>
-                                    <div class="subtexto">Registre a sua presença na sessão de hoje de forma rápida e segura.</div>
+                                <div class="instrucao">Aponte a câmera do seu celular aqui</div>
+                                <div class="subtexto">Registre a sua presença na sessão de hoje de forma rápida e segura.</div>
                             </div>
                             <script>
                                 window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); };
