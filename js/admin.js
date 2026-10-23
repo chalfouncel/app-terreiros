@@ -6019,7 +6019,7 @@ window.addEventListener('DOMContentLoaded', () => {
         const dataEvento = document.getElementById('dataMontagemEscala').textContent;
         const tituloEvento = document.getElementById('tituloMontagemEscala').textContent;
 
-        const msgTxt = `Olá, ${primeiroNome}! 🙏\nPassando para lembrar que você foi inscrito(a) para a função de ${funcaoLocal} na *${tituloEvento}* no dia *${dataEvento}*.\nContamos com a sua responsabilidade e pontualidade. Axé!`;
+        const msgTxt = `Olá, ${primeiroNome}! 🙏\nPassando para lembrar que você foi inscrito(a) para a função de ${funcaoLocal} na *${tituloEvento}* no dia *${dataEvento}*.\nLembramos que as flores das imagens são de custeio e responsabilidade do Médium. Contamos com a sua responsabilidade e pontualidade. Axé!`;
         const url = `https://wa.me/55${num}?text=${encodeURIComponent(msgTxt)}`;
         
         window.open(url, '_blank');
