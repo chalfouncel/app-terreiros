@@ -918,7 +918,7 @@
         }
     });
 
-    // ==========================================
+        // ==========================================
     // GERAÇÃO DO CERTIFICADO INDIVIDUAL EM PDF (A4 LASCAPE)
     // ==========================================
     window.gerarCertificadoIndividual = async (event, medium, tipoSacramento) => {
@@ -935,10 +935,9 @@
             if (!document.getElementById('fontesCertificado')) {
                 const style = document.createElement('style');
                 style.id = 'fontesCertificado';
-                style.innerHTML = `@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600&family=Great+Vibes&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap');`;
+                style.innerHTML = `@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Great+Vibes&family=Playfair+Display:ital,wght@0,500;0,700;1,500&display=swap');`;
                 document.head.appendChild(style);
             }
-            // Aguarda as fontes carregarem para não bugar no PDF
             if (document.fonts && document.fonts.ready) {
                 await document.fonts.ready;
             }
@@ -967,7 +966,7 @@
                 return;
             }
 
-            // 1.5. Converter a imagem para Base64 (Burla o bloqueio de CORS do Canvas)
+            // 1.5. Converter a imagem para Base64
             const fundoBase64 = await new Promise((resolve, reject) => {
                 const img = new Image();
                 img.crossOrigin = 'Anonymous';
@@ -1011,7 +1010,6 @@
                 return `${nomeUpper} (ATRAVÉS DA MEDIUNIDADE DE ${obj.medium.toUpperCase()})`;
             };
 
-            // Transforma "MARIO CHALFOUN JUNIOR" em "Mario Chalfoun Junior" (Lindo para fonte cursiva)
             const formatarNomeCursive = (nome) => {
                 if (!nome) return '';
                 return nome.toLowerCase().split(' ').map(word => {
@@ -1020,7 +1018,7 @@
                 }).join(' ');
             };
 
-            // 2. Extrair dados específicos do sacramento selecionado
+            // 2. Extrair dados específicos do sacramento
             let dataSacramento = '';
             let padrinhoObj = null;
             let madrinhaObj = null;
@@ -1059,7 +1057,7 @@
                 rodapePadrinhos = `PADRINHOS DE COROAÇÃO: ${formatarPadrinho(padrinhoObj)} E ${formatarPadrinho(madrinhaObj)}`;
             }
 
-            // 4. Montar elemento HTML com o Design Lindão
+            // 4. Montar elemento HTML (Design Premium com Flexbox e Overlay)
             const elementoPdf = document.createElement('div');
             elementoPdf.style.width = '1123px';
             elementoPdf.style.height = '794px';
@@ -1069,33 +1067,34 @@
             elementoPdf.innerHTML = `
                 <img src="${fundoBase64}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1;" />
                 
-                <div style="position: absolute; top: 12%; width: 100%; text-align: center; padding: 0 100px; box-sizing: border-box; z-index: 2;">
+                <!-- Container principal: Limita a área até 68% da altura da página para não invadir a assinatura -->
+                <div style="position: absolute; top: 8%; height: 68%; width: 100%; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 0 110px; box-sizing: border-box; z-index: 2;">
                     
-                    <!-- BLOCO 1: CABEÇALHO (Certidão, Sacramento e Nome) -->
-                    <div style="margin-bottom: 35px;">
-                        <h1 style="font-family: 'Cinzel', serif; font-size: 60px; font-weight: 600; margin: 0; color: #ffffff; letter-spacing: 8px; text-shadow: 2px 2px 5px rgba(0,0,0,0.5);">
+                    <!-- BLOCO 1: CABEÇALHO (Flutuando no fundo) -->
+                    <div style="text-align: center;">
+                        <h1 style="font-family: 'Cinzel', serif; font-size: 52px; font-weight: 700; margin: 0; color: #ffffff; letter-spacing: 12px; text-shadow: 2px 2px 6px rgba(0,0,0,0.7);">
                             CERTIDÃO
                         </h1>
-                        <h2 style="font-family: 'Great Vibes', cursive; font-size: 48px; margin: -15px 0 15px 0; color: #ffffff; font-weight: normal; text-shadow: 2px 2px 5px rgba(0,0,0,0.5);">
-                            de ${tipoSacramento}
+                        <h2 style="font-family: 'Great Vibes', cursive; font-size: 46px; margin: -10px 0 5px 0; color: #fbbf24; font-weight: normal; text-shadow: 1px 1px 4px rgba(0,0,0,0.8);">
+                            ${tipoSacramento}
                         </h2>
-                        <h3 style="font-family: 'Great Vibes', cursive; font-size: 58px; margin: 0; color: #1e3a8a; font-weight: normal; text-shadow: 1px 1px 3px rgba(255,255,255,0.9);">
+                        <h3 style="font-family: 'Great Vibes', cursive; font-size: 56px; margin: 0; color: #0f172a; font-weight: normal; text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff, 3px 3px 6px rgba(0,0,0,0.5);">
                             ${nomeLindoCursive}
                         </h3>
                     </div>
 
-                    <!-- BLOCO 2: CORPO JURÍDICO/RELIGIOSO -->
-                    <div style="text-shadow: 1px 1px 2px rgba(255,255,255,0.9);">
-                        <p style="font-family: 'Playfair Display', serif; font-size: 16px; line-height: 1.8; text-align: justify; color: #1f2937; margin: 0 20px 30px 20px;">
+                    <!-- BLOCO 2: CORPO JURÍDICO/RELIGIOSO (Placa translúcida para leitura perfeita) -->
+                    <div style="background-color: rgba(255, 255, 255, 0.88); padding: 25px 45px; border-radius: 8px; box-shadow: 0 8px 25px rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,1); width: 100%; box-sizing: border-box;">
+                        <p style="font-family: 'Playfair Display', serif; font-size: 14.5px; line-height: 1.7; text-align: justify; color: #111827; margin: 0 0 20px 0; font-weight: 500;">
                             ${textoCorpo}
                         </p>
                         
-                        <div style="font-family: 'Playfair Display', serif; font-size: 13px; color: #111827; font-weight: 700; text-align: center; margin-bottom: 30px; line-height: 1.5;">
+                        <div style="font-family: 'Playfair Display', serif; font-size: 11px; color: #000000; font-weight: 700; text-align: center; margin-bottom: 20px; line-height: 1.4; text-transform: uppercase;">
                             ${rodapePadrinhos}
                         </div>
 
-                        <div style="font-family: 'Playfair Display', serif; font-size: 17px; color: #374151; font-style: italic;">
-                            Realizado no dia <strong style="font-style: normal;">${formatarData(dataSacramento)}</strong>
+                        <div style="font-family: 'Playfair Display', serif; font-size: 16px; color: #374151; text-align: center; font-style: italic;">
+                            Realizado no dia <strong style="font-style: normal; color: #0f172a;">${formatarData(dataSacramento)}</strong>
                         </div>
                     </div>
 
