@@ -1169,7 +1169,7 @@
             wrapperInvisivel.appendChild(elementoPdf);
             document.body.appendChild(wrapperInvisivel);
 
-            // 5. Converter para PDF
+            // 5. Converter para PDF, Criar arquivo nativo e acionar Compartilhamento
             const opt = {
                 margin: 0,
                 filename: `Certificado_${tipoSacramento}_${medium.nome_completo.replace(/\s+/g, '_')}.pdf`,
@@ -1178,12 +1178,37 @@
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
             };
 
-            await html2pdf().set(opt).from(elementoPdf).save();
+            const pdfBlob = await html2pdf().set(opt).from(elementoPdf).outputPdf('blob');
             
             document.body.removeChild(wrapperInvisivel);
             
+            const nomeArquivo = `Certificado_${tipoSacramento}_${medium.nome_completo.replace(/\s+/g, '_')}.pdf`;
+            const file = new File([pdfBlob], nomeArquivo, { type: 'application/pdf' });
+
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                try {
+                    await navigator.share({
+                        title: `Certificado - ${tipoSacramento}`,
+                        text: `Aqui está o certificado de ${tipoSacramento} de ${medium.nome_completo}.`,
+                        files: [file]
+                    });
+                } catch (error) {
+                    console.log('Compartilhamento cancelado ou erro:', error);
+                }
+            } else {
+                // Fallback para download automático (PC e navegadores incompatíveis)
+                const url = URL.createObjectURL(pdfBlob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = nomeArquivo;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            }
+            
             if (btnAtivador) {
-                btnAtivador.innerHTML = '<i class="fas fa-check mr-1"></i> Baixado!';
+                btnAtivador.innerHTML = '<i class="fas fa-check mr-1"></i> Concluído!';
                 setTimeout(() => {
                     btnAtivador.disabled = false;
                     btnAtivador.innerHTML = originalHtml;
