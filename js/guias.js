@@ -918,7 +918,7 @@
         }
     });
 
-    // ==========================================
+        // ==========================================
     // GERAÇÃO DO CERTIFICADO INDIVIDUAL EM PDF (A4 LASCAPE)
     // ==========================================
     window.gerarCertificadoIndividual = async (event, medium, tipoSacramento) => {
@@ -931,16 +931,18 @@
         }
 
         try {
-            // 1. Obter a URL da imagem de fundo
+            // 1. Obter a URL da imagem de fundo e o Nome do Templo
             let fundoUrl = '';
+            let nomeTemplo = 'NOSSO TEMPLO';
             try {
                 const { data } = await supabaseClient
                     .from('terreiros')
-                    .select('certificado_fundo_url')
+                    .select('nome, certificado_fundo_url')
                     .eq('id', idTerreiroGlobal)
                     .single();
-                if (data && data.certificado_fundo_url) {
-                    fundoUrl = data.certificado_fundo_url;
+                if (data) {
+                    if (data.certificado_fundo_url) fundoUrl = data.certificado_fundo_url;
+                    if (data.nome) nomeTemplo = data.nome.toUpperCase();
                 }
             } catch(e) { console.error('Erro ao buscar fundo:', e); }
 
@@ -970,36 +972,77 @@
                 img.src = fundoUrl + '?t=' + new Date().getTime();
             });
 
-            // 2. Extrair dados específicos do sacramento selecionado
-            let dataSacramento = '';
-            let padrinhoNome = '';
-            let madrinhaNome = '';
+            // 1.8. Buscar Data de Nascimento do Médium (caso não esteja no cache principal)
+            let dataNascimento = '';
+            try {
+                const { data: mData } = await supabaseClient
+                    .from('mediuns')
+                    .select('data_nascimento')
+                    .eq('id', medium.id)
+                    .single();
+                if (mData && mData.data_nascimento) dataNascimento = mData.data_nascimento;
+            } catch(e) { console.error('Erro ao buscar nascimento:', e); }
 
-            if (tipoSacramento === 'Batismo') {
-                dataSacramento = medium.data_batismo;
-                const b = JSON.parse(medium.padrinhos_batismo || '{}');
-                padrinhoNome = b.padrinho?.nome || '-';
-                madrinhaNome = b.madrinha?.nome || '-';
-            } else if (tipoSacramento === 'Consagração') {
-                dataSacramento = medium.data_consagracao;
-                const c = JSON.parse(medium.padrinhos_consagracao || '{}');
-                padrinhoNome = c.padrinho?.nome || '-';
-                madrinhaNome = c.madrinha?.nome || '-';
-            } else if (tipoSacramento === 'Coroação') {
-                dataSacramento = medium.data_coroacao;
-                const c = JSON.parse(medium.padrinhos_coroacao || '{}');
-                padrinhoNome = c.padrinho?.nome || '-';
-                madrinhaNome = c.madrinha?.nome || '-';
-            }
-
+            // Helpers de formatação
             const formatarData = (d) => {
                 if(!d) return '';
                 const pts = d.split('-');
                 if(pts.length !== 3) return d;
                 return `${pts[2]}/${pts[1]}/${pts[0]}`;
             };
+            const dataNascFmt = dataNascimento ? formatarData(dataNascimento) : '___/___/____';
 
-            // 3. Montar elemento HTML simulando a folha A4 (Sem coordenadas negativas)
+            const formatarPadrinho = (obj) => {
+                if (!obj || !obj.nome) return '_______________________';
+                const nomeUpper = obj.nome.toUpperCase();
+                // Se for explicitamente um médium, ou se não tiver um "médium" vinculado
+                if (obj.tipo === 'medium' || !obj.medium) return nomeUpper;
+                // Se for um guia com médium vinculado
+                return `${nomeUpper} (ATRAVÉS DA MEDIUNIDADE DE ${obj.medium.toUpperCase()})`;
+            };
+
+            // 2. Extrair dados específicos do sacramento selecionado
+            let dataSacramento = '';
+            let padrinhoObj = null;
+            let madrinhaObj = null;
+
+            if (tipoSacramento === 'Batismo') {
+                dataSacramento = medium.data_batismo;
+                const b = JSON.parse(medium.padrinhos_batismo || '{}');
+                padrinhoObj = b.padrinho;
+                madrinhaObj = b.madrinha;
+            } else if (tipoSacramento === 'Consagração') {
+                dataSacramento = medium.data_consagracao;
+                const c = JSON.parse(medium.padrinhos_consagracao || '{}');
+                padrinhoObj = c.padrinho;
+                madrinhaObj = c.madrinha;
+            } else if (tipoSacramento === 'Coroação') {
+                dataSacramento = medium.data_coroacao;
+                const c = JSON.parse(medium.padrinhos_coroacao || '{}');
+                padrinhoObj = c.padrinho;
+                madrinhaObj = c.madrinha;
+            }
+
+            // 3. Montar os Textos Combinados
+            let subtitulo = tipoSacramento.toUpperCase();
+            let textoCorpo = '';
+            let rodapePadrinhos = '';
+            const nomeMedium = medium.nome_completo.toUpperCase();
+
+            if (tipoSacramento === 'Batismo') {
+                textoCorpo = `CERTIFICAMOS, PARA OS DEVIDOS FINS DE FÉ E DIREITO RELIGIOSO, QUE FOI REALIZADO NO <strong>${nomeTemplo}</strong>, O SAGRADO SACRAMENTO DO BATISMO DE <strong>${nomeMedium}</strong>, NASCIDO(A) EM <strong>${dataNascFmt}</strong>. RECEBEU AS BÊNÇÃOS DAS ÁGUAS SAGRADAS E A CONSAGRAÇÃO DIVINA, SENDO APRESENTADO(A) À ESPIRITUALIDADE MAIOR E À EGRÉGORA DESTA CASA SANTA, SOB A PROTEÇÃO DOS SEUS GUIAS E ORIXÁS. ESTE ATO DE FÉ FOI TESTEMUNHADO E APADRINHADO POR:`;
+                rodapePadrinhos = `PADRINHOS DE BATISMO: ${formatarPadrinho(padrinhoObj)} E ${formatarPadrinho(madrinhaObj)}`;
+                
+            } else if (tipoSacramento === 'Consagração') {
+                textoCorpo = `CERTIFICAMOS, PARA OS DEVIDOS FINS DE FÉ E DIREITO RELIGIOSO, QUE FOI REALIZADO NO <strong>${nomeTemplo}</strong>, O SAGRADO SACRAMENTO DA CONSAGRAÇÃO MEDIÚNICA DE <strong>${nomeMedium}</strong>, NASCIDO(A) EM <strong>${dataNascFmt}</strong>. REAFIRMOU SEU COMPROMISSO ESPIRITUAL E RECEBEU A CONSAGRAÇÃO DIVINA JUNTO À ESPIRITUALIDADE MAIOR E À EGRÉGORA DESTA CASA SANTA, SOB A PROTEÇÃO DOS SEUS GUIAS E ORIXÁS. ESTE ATO DE FÉ FOI TESTEMUNHADO E APADRINHADO POR:`;
+                rodapePadrinhos = `PADRINHOS DE CONSAGRAÇÃO: ${formatarPadrinho(padrinhoObj)} E ${formatarPadrinho(madrinhaObj)}`;
+                
+            } else if (tipoSacramento === 'Coroação') {
+                textoCorpo = `CERTIFICAMOS, PARA OS DEVIDOS FINS DE FÉ E DIREITO RELIGIOSO, QUE FOI REALIZADO NO <strong>${nomeTemplo}</strong>, O SAGRADO SACRAMENTO DA COROAÇÃO SACERDOTAL DE <strong>${nomeMedium}</strong>, NASCIDO(A) EM <strong>${dataNascFmt}</strong>. RECEBEU A OUTORGA E A COROAÇÃO DIVINA PERANTE A ESPIRITUALIDADE MAIOR E A EGRÉGORA DESTA CASA SANTA, SOB A PROTEÇÃO DOS SEUS GUIAS E ORIXÁS. ESTE ATO DE FÉ FOI TESTEMUNHADO E APADRINHADO POR:`;
+                rodapePadrinhos = `PADRINHOS DE COROAÇÃO: ${formatarPadrinho(padrinhoObj)} E ${formatarPadrinho(madrinhaObj)}`;
+            }
+
+            // 4. Montar elemento HTML simulando a folha A4 (Sem coordenadas negativas)
             const elementoPdf = document.createElement('div');
             elementoPdf.style.width = '1123px';
             elementoPdf.style.height = '794px';
@@ -1007,23 +1050,24 @@
             elementoPdf.style.fontFamily = 'Georgia, "Times New Roman", serif';
             elementoPdf.style.backgroundColor = '#ffffff';
             
-            // Usamos a tag <img> pura em vez de background-image e z-index para empilhar
+            // Layout reformulado para caber os textos longos de forma elegante e centralizada
             elementoPdf.innerHTML = `
                 <img src="${fundoBase64}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1;" />
                 
-                <div style="position: absolute; top: 40%; width: 100%; text-align: center; padding: 0 100px; box-sizing: border-box; z-index: 2; text-shadow: 1px 1px 2px rgba(255,255,255,0.8);">
-                    <h1 style="font-size: 55px; font-weight: 900; margin: 0; color: #111827; text-transform: uppercase; letter-spacing: 2px;">${medium.nome_completo}</h1>
+                <div style="position: absolute; top: 33%; width: 100%; text-align: center; padding: 0 120px; box-sizing: border-box; z-index: 2; text-shadow: 1px 1px 2px rgba(255,255,255,0.9);">
+                    <h2 style="font-size: 32px; font-weight: 900; margin: 0 0 20px 0; color: #111827; letter-spacing: 2px;">
+                        ${subtitulo}
+                    </h2>
                     
-                    <p style="font-size: 28px; margin-top: 35px; font-style: italic; color: #374151;">
-                        Recebeu o sacramento de <strong style="font-size: 32px; color: #000; font-style: normal;">${tipoSacramento}</strong>
+                    <p style="font-size: 15px; line-height: 1.8; text-align: justify; color: #1f2937; margin: 0 0 25px 0;">
+                        ${textoCorpo}
                     </p>
                     
-                    <div style="margin-top: 45px; font-size: 24px; color: #1f2937; display: flex; justify-content: center; gap: 50px;">
-                        <div><strong>Padrinho:</strong> ${padrinhoNome}</div>
-                        <div><strong>Madrinha:</strong> ${madrinhaNome}</div>
+                    <div style="font-size: 13px; color: #111827; font-weight: bold; text-align: center; margin-bottom: 25px;">
+                        ${rodapePadrinhos}
                     </div>
 
-                    <div style="margin-top: 55px; font-size: 22px; color: #4b5563;">
+                    <div style="font-size: 16px; color: #374151;">
                         Realizado no dia <strong>${formatarData(dataSacramento)}</strong>
                     </div>
                 </div>
@@ -1042,7 +1086,7 @@
             wrapperInvisivel.appendChild(elementoPdf);
             document.body.appendChild(wrapperInvisivel);
 
-            // 4. Converter para PDF
+            // 5. Converter para PDF
             const opt = {
                 margin: 0,
                 filename: `Certificado_${tipoSacramento}_${medium.nome_completo.replace(/\s+/g, '_')}.pdf`,
