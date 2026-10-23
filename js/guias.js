@@ -918,7 +918,7 @@
         }
     });
 
-        // ==========================================
+    // ==========================================
     // GERAÇÃO DO CERTIFICADO INDIVIDUAL EM PDF (A4 LASCAPE)
     // ==========================================
     window.gerarCertificadoIndividual = async (event, medium, tipoSacramento) => {
@@ -931,6 +931,18 @@
         }
 
         try {
+            // 0. Injetar Fontes Elegantes do Google Fonts
+            if (!document.getElementById('fontesCertificado')) {
+                const style = document.createElement('style');
+                style.id = 'fontesCertificado';
+                style.innerHTML = `@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600&family=Great+Vibes&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap');`;
+                document.head.appendChild(style);
+            }
+            // Aguarda as fontes carregarem para não bugar no PDF
+            if (document.fonts && document.fonts.ready) {
+                await document.fonts.ready;
+            }
+
             // 1. Obter a URL da imagem de fundo e o Nome do Templo
             let fundoUrl = '';
             let nomeTemplo = 'NOSSO TEMPLO';
@@ -968,11 +980,11 @@
                     ctx.drawImage(img, 0, 0);
                     resolve(canvas.toDataURL('image/jpeg', 1.0));
                 };
-                img.onerror = (err) => reject(new Error('Falha ao carregar a imagem de fundo'));
+                img.onerror = () => reject(new Error('Falha ao carregar a imagem de fundo'));
                 img.src = fundoUrl + '?t=' + new Date().getTime();
             });
 
-            // 1.8. Buscar Data de Nascimento do Médium (caso não esteja no cache principal)
+            // 1.8. Buscar Data de Nascimento do Médium
             let dataNascimento = '';
             try {
                 const { data: mData } = await supabaseClient
@@ -995,10 +1007,17 @@
             const formatarPadrinho = (obj) => {
                 if (!obj || !obj.nome) return '_______________________';
                 const nomeUpper = obj.nome.toUpperCase();
-                // Se for explicitamente um médium, ou se não tiver um "médium" vinculado
                 if (obj.tipo === 'medium' || !obj.medium) return nomeUpper;
-                // Se for um guia com médium vinculado
                 return `${nomeUpper} (ATRAVÉS DA MEDIUNIDADE DE ${obj.medium.toUpperCase()})`;
+            };
+
+            // Transforma "MARIO CHALFOUN JUNIOR" em "Mario Chalfoun Junior" (Lindo para fonte cursiva)
+            const formatarNomeCursive = (nome) => {
+                if (!nome) return '';
+                return nome.toLowerCase().split(' ').map(word => {
+                    if (['da', 'de', 'do', 'dos', 'das'].includes(word)) return word;
+                    return word.charAt(0).toUpperCase() + word.slice(1);
+                }).join(' ');
             };
 
             // 2. Extrair dados específicos do sacramento selecionado
@@ -1024,56 +1043,65 @@
             }
 
             // 3. Montar os Textos Combinados
-            let subtitulo = tipoSacramento.toUpperCase();
             let textoCorpo = '';
             let rodapePadrinhos = '';
-            const nomeMedium = medium.nome_completo.toUpperCase();
+            const nomeMediumUpper = medium.nome_completo.toUpperCase();
+            const nomeLindoCursive = formatarNomeCursive(medium.nome_completo);
 
             if (tipoSacramento === 'Batismo') {
-                textoCorpo = `CERTIFICAMOS, PARA OS DEVIDOS FINS DE FÉ E DIREITO RELIGIOSO, QUE FOI REALIZADO NO <strong>${nomeTemplo}</strong>, O SAGRADO SACRAMENTO DO BATISMO DE <strong>${nomeMedium}</strong>, NASCIDO(A) EM <strong>${dataNascFmt}</strong>. RECEBEU AS BÊNÇÃOS DAS ÁGUAS SAGRADAS E A CONSAGRAÇÃO DIVINA, SENDO APRESENTADO(A) À ESPIRITUALIDADE MAIOR E À EGRÉGORA DESTA CASA SANTA, SOB A PROTEÇÃO DOS SEUS GUIAS E ORIXÁS. ESTE ATO DE FÉ FOI TESTEMUNHADO E APADRINHADO POR:`;
+                textoCorpo = `CERTIFICAMOS, PARA OS DEVIDOS FINS DE FÉ E DIREITO RELIGIOSO, QUE FOI REALIZADO NO <strong>${nomeTemplo}</strong>, O SAGRADO SACRAMENTO DO BATISMO DE <strong>${nomeMediumUpper}</strong>, NASCIDO(A) EM <strong>${dataNascFmt}</strong>. RECEBEU AS BÊNÇÃOS DAS ÁGUAS SAGRADAS E A CONSAGRAÇÃO DIVINA, SENDO APRESENTADO(A) À ESPIRITUALIDADE MAIOR E À EGRÉGORA DESTA CASA SANTA, SOB A PROTEÇÃO DOS SEUS GUIAS E ORIXÁS. ESTE ATO DE FÉ FOI TESTEMUNHADO E APADRINHADO POR:`;
                 rodapePadrinhos = `PADRINHOS DE BATISMO: ${formatarPadrinho(padrinhoObj)} E ${formatarPadrinho(madrinhaObj)}`;
-                
             } else if (tipoSacramento === 'Consagração') {
-                textoCorpo = `CERTIFICAMOS, PARA OS DEVIDOS FINS DE FÉ E DIREITO RELIGIOSO, QUE FOI REALIZADO NO <strong>${nomeTemplo}</strong>, O SAGRADO SACRAMENTO DA CONSAGRAÇÃO MEDIÚNICA DE <strong>${nomeMedium}</strong>, NASCIDO(A) EM <strong>${dataNascFmt}</strong>. REAFIRMOU SEU COMPROMISSO ESPIRITUAL E RECEBEU A CONSAGRAÇÃO DIVINA JUNTO À ESPIRITUALIDADE MAIOR E À EGRÉGORA DESTA CASA SANTA, SOB A PROTEÇÃO DOS SEUS GUIAS E ORIXÁS. ESTE ATO DE FÉ FOI TESTEMUNHADO E APADRINHADO POR:`;
+                textoCorpo = `CERTIFICAMOS, PARA OS DEVIDOS FINS DE FÉ E DIREITO RELIGIOSO, QUE FOI REALIZADO NO <strong>${nomeTemplo}</strong>, O SAGRADO SACRAMENTO DA CONSAGRAÇÃO MEDIÚNICA DE <strong>${nomeMediumUpper}</strong>, NASCIDO(A) EM <strong>${dataNascFmt}</strong>. REAFIRMOU SEU COMPROMISSO ESPIRITUAL E RECEBEU A CONSAGRAÇÃO DIVINA JUNTO À ESPIRITUALIDADE MAIOR E À EGRÉGORA DESTA CASA SANTA, SOB A PROTEÇÃO DOS SEUS GUIAS E ORIXÁS. ESTE ATO DE FÉ FOI TESTEMUNHADO E APADRINHADO POR:`;
                 rodapePadrinhos = `PADRINHOS DE CONSAGRAÇÃO: ${formatarPadrinho(padrinhoObj)} E ${formatarPadrinho(madrinhaObj)}`;
-                
             } else if (tipoSacramento === 'Coroação') {
-                textoCorpo = `CERTIFICAMOS, PARA OS DEVIDOS FINS DE FÉ E DIREITO RELIGIOSO, QUE FOI REALIZADO NO <strong>${nomeTemplo}</strong>, O SAGRADO SACRAMENTO DA COROAÇÃO SACERDOTAL DE <strong>${nomeMedium}</strong>, NASCIDO(A) EM <strong>${dataNascFmt}</strong>. RECEBEU A OUTORGA E A COROAÇÃO DIVINA PERANTE A ESPIRITUALIDADE MAIOR E A EGRÉGORA DESTA CASA SANTA, SOB A PROTEÇÃO DOS SEUS GUIAS E ORIXÁS. ESTE ATO DE FÉ FOI TESTEMUNHADO E APADRINHADO POR:`;
+                textoCorpo = `CERTIFICAMOS, PARA OS DEVIDOS FINS DE FÉ E DIREITO RELIGIOSO, QUE FOI REALIZADO NO <strong>${nomeTemplo}</strong>, O SAGRADO SACRAMENTO DA COROAÇÃO SACERDOTAL DE <strong>${nomeMediumUpper}</strong>, NASCIDO(A) EM <strong>${dataNascFmt}</strong>. RECEBEU A OUTORGA E A COROAÇÃO DIVINA PERANTE A ESPIRITUALIDADE MAIOR E A EGRÉGORA DESTA CASA SANTA, SOB A PROTEÇÃO DOS SEUS GUIAS E ORIXÁS. ESTE ATO DE FÉ FOI TESTEMUNHADO E APADRINHADO POR:`;
                 rodapePadrinhos = `PADRINHOS DE COROAÇÃO: ${formatarPadrinho(padrinhoObj)} E ${formatarPadrinho(madrinhaObj)}`;
             }
 
-            // 4. Montar elemento HTML simulando a folha A4 (Sem coordenadas negativas)
+            // 4. Montar elemento HTML com o Design Lindão
             const elementoPdf = document.createElement('div');
             elementoPdf.style.width = '1123px';
             elementoPdf.style.height = '794px';
             elementoPdf.style.position = 'relative';
-            elementoPdf.style.fontFamily = 'Georgia, "Times New Roman", serif';
             elementoPdf.style.backgroundColor = '#ffffff';
             
-            // Layout reformulado para caber os textos longos de forma elegante e centralizada
             elementoPdf.innerHTML = `
                 <img src="${fundoBase64}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1;" />
                 
-                <div style="position: absolute; top: 33%; width: 100%; text-align: center; padding: 0 120px; box-sizing: border-box; z-index: 2; text-shadow: 1px 1px 2px rgba(255,255,255,0.9);">
-                    <h2 style="font-size: 32px; font-weight: 900; margin: 0 0 20px 0; color: #111827; letter-spacing: 2px;">
-                        ${subtitulo}
-                    </h2>
+                <div style="position: absolute; top: 12%; width: 100%; text-align: center; padding: 0 100px; box-sizing: border-box; z-index: 2;">
                     
-                    <p style="font-size: 15px; line-height: 1.8; text-align: justify; color: #1f2937; margin: 0 0 25px 0;">
-                        ${textoCorpo}
-                    </p>
-                    
-                    <div style="font-size: 13px; color: #111827; font-weight: bold; text-align: center; margin-bottom: 25px;">
-                        ${rodapePadrinhos}
+                    <!-- BLOCO 1: CABEÇALHO (Certidão, Sacramento e Nome) -->
+                    <div style="margin-bottom: 35px;">
+                        <h1 style="font-family: 'Cinzel', serif; font-size: 60px; font-weight: 600; margin: 0; color: #ffffff; letter-spacing: 8px; text-shadow: 2px 2px 5px rgba(0,0,0,0.5);">
+                            CERTIDÃO
+                        </h1>
+                        <h2 style="font-family: 'Great Vibes', cursive; font-size: 48px; margin: -15px 0 15px 0; color: #ffffff; font-weight: normal; text-shadow: 2px 2px 5px rgba(0,0,0,0.5);">
+                            de ${tipoSacramento}
+                        </h2>
+                        <h3 style="font-family: 'Great Vibes', cursive; font-size: 58px; margin: 0; color: #1e3a8a; font-weight: normal; text-shadow: 1px 1px 3px rgba(255,255,255,0.9);">
+                            ${nomeLindoCursive}
+                        </h3>
                     </div>
 
-                    <div style="font-size: 16px; color: #374151;">
-                        Realizado no dia <strong>${formatarData(dataSacramento)}</strong>
+                    <!-- BLOCO 2: CORPO JURÍDICO/RELIGIOSO -->
+                    <div style="text-shadow: 1px 1px 2px rgba(255,255,255,0.9);">
+                        <p style="font-family: 'Playfair Display', serif; font-size: 16px; line-height: 1.8; text-align: justify; color: #1f2937; margin: 0 20px 30px 20px;">
+                            ${textoCorpo}
+                        </p>
+                        
+                        <div style="font-family: 'Playfair Display', serif; font-size: 13px; color: #111827; font-weight: 700; text-align: center; margin-bottom: 30px; line-height: 1.5;">
+                            ${rodapePadrinhos}
+                        </div>
+
+                        <div style="font-family: 'Playfair Display', serif; font-size: 17px; color: #374151; font-style: italic;">
+                            Realizado no dia <strong style="font-style: normal;">${formatarData(dataSacramento)}</strong>
+                        </div>
                     </div>
+
                 </div>
             `;
 
-            // Envolvemos num container invisível mantendo-o dentro do viewport
             const wrapperInvisivel = document.createElement('div');
             wrapperInvisivel.style.position = 'fixed';
             wrapperInvisivel.style.top = '0';
@@ -1097,7 +1125,6 @@
 
             await html2pdf().set(opt).from(elementoPdf).save();
             
-            // Limpa a tela
             document.body.removeChild(wrapperInvisivel);
             
             if (btnAtivador) {
