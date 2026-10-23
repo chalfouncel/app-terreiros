@@ -927,7 +927,7 @@
         
         if (btnAtivador) {
             btnAtivador.disabled = true;
-            btnAtivador.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Gerando...';
+            btnAtivador.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Preparando Imagem...';
         }
 
         try {
@@ -952,6 +952,27 @@
                 }
                 return;
             }
+
+            // 1.5. FORÇAR CARREGAMENTO E CONVERTER PARA BASE64 (Resolve a página em branco e o CORS)
+            const fundoBase64 = await new Promise((resolve, reject) => {
+                const img = new Image();
+                img.crossOrigin = 'Anonymous'; // Libera permissão do Supabase
+                img.onload = () => {
+                    if (btnAtivador) btnAtivador.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Gerando PDF...';
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.naturalWidth || img.width;
+                    canvas.height = img.naturalHeight || img.height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+                    resolve(canvas.toDataURL('image/jpeg', 1.0));
+                };
+                img.onerror = (err) => {
+                    console.error("Erro ao pré-carregar imagem:", err);
+                    reject(new Error('Erro no CORS ou imagem indisponível'));
+                };
+                // O parâmetro 't' força o navegador a não pegar do cache com erro
+                img.src = fundoUrl + '?t=' + new Date().getTime();
+            });
 
             // 2. Extrair dados específicos do sacramento selecionado
             let dataSacramento = '';
@@ -989,7 +1010,8 @@
             div.style.position = 'absolute';
             div.style.top = '-9999px';
             div.style.left = '-9999px';
-            div.style.backgroundImage = `url('${fundoUrl}')`;
+            // Agora usamos o código Base64 que já está baixado e na memória
+            div.style.backgroundImage = `url('${fundoBase64}')`;
             div.style.backgroundSize = '100% 100%';
             div.style.backgroundRepeat = 'no-repeat';
             div.style.fontFamily = 'Georgia, "Times New Roman", serif';
@@ -1037,7 +1059,7 @@
             }
         } catch (err) {
             console.error('Erro ao gerar certificado:', err);
-            alert('Erro ao gerar certificado. Verifique a conexão com a imagem de fundo.');
+            alert('Erro ao gerar certificado. Verifique sua conexão ou tente recarregar a página.');
             if (btnAtivador) {
                 btnAtivador.disabled = false;
                 btnAtivador.innerHTML = originalHtml;
