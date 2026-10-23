@@ -1137,15 +1137,41 @@
                                 <input type="hidden" id="escalaEventoTipo"> <!-- 'exu' ou 'corrente' -->
                                 
                                 <!-- O interior (Tabela de Exu ou Dropdowns de Corrente) será injetado aqui via JS -->
-                                <div id="containerCamposEscala" class="space-y-4 flex-1"></div>
+                            <div id="containerCamposEscala" class="space-y-4 flex-1"></div>
+                            
+                            <!-- Sacramentos do Evento (Acordeão) -->
+                            <div class="mt-6 border-t border-gray-100 pt-5 space-y-3">
+                                <h4 class="font-bold text-gray-800 text-sm mb-3"><i class="fas fa-cross text-yellow-600 mr-1"></i> Sacramentos (Opcional)</h4>
                                 
-                                <div class="mt-8 border-t border-gray-100 pt-5 flex flex-col md:flex-row items-center justify-between gap-3">
-                                    <p id="msgEscala" class="text-xs font-bold hidden w-full md:w-auto text-center md:text-left"></p>
-                                    <button type="submit" id="btnSalvarEscala" class="w-full md:w-auto md:ml-auto bg-gray-800 hover:bg-gray-900 active:scale-95 text-white font-bold py-3.5 px-6 rounded-xl shadow transition text-sm flex items-center justify-center gap-2">
-                                       <i class="fas fa-save"></i> Gravar Escala
-                                    </button>
+                                <div class="flex flex-wrap gap-2">
+                                    <button type="button" onclick="toggleBlocoEscala('blocoBatismo')" class="bg-sky-100 text-sky-700 hover:bg-sky-200 px-3 py-2 rounded-lg text-xs font-bold transition shadow-sm"><i class="fas fa-dove mr-1"></i> Batismo</button>
+                                    <button type="button" onclick="toggleBlocoEscala('blocoConsagracao')" class="bg-amber-100 text-amber-700 hover:bg-amber-200 px-3 py-2 rounded-lg text-xs font-bold transition shadow-sm"><i class="fas fa-fire mr-1"></i> Consagração</button>
+                                    <button type="button" onclick="toggleBlocoEscala('blocoCoroacao')" class="bg-yellow-100 text-yellow-700 hover:bg-yellow-200 px-3 py-2 rounded-lg text-xs font-bold transition shadow-sm"><i class="fas fa-crown mr-1"></i> Coroação</button>
                                 </div>
-                            </form>
+
+                                <div id="blocoBatismo" class="hidden p-4 border border-sky-200 bg-sky-50 rounded-xl mt-3">
+                                    <p class="text-xs font-bold text-sky-800 mb-2">Selecione os médiuns para Batismo (Apenas sem registro de batismo):</p>
+                                    <div id="listaCheckBatismo" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 max-h-40 overflow-y-auto p-2 bg-white rounded-xl border border-gray-200 shadow-inner"></div>
+                                </div>
+
+                                <div id="blocoConsagracao" class="hidden p-4 border border-amber-200 bg-amber-50 rounded-xl mt-3">
+                                    <p class="text-xs font-bold text-amber-800 mb-2">Selecione os médiuns para Consagração (SCT, Escola de CT, CT ou MGA):</p>
+                                    <div id="listaCheckConsagracao" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 max-h-40 overflow-y-auto p-2 bg-white rounded-xl border border-gray-200 shadow-inner"></div>
+                                </div>
+
+                                <div id="blocoCoroacao" class="hidden p-4 border border-yellow-200 bg-yellow-50 rounded-xl mt-3">
+                                    <p class="text-xs font-bold text-yellow-800 mb-2">Selecione os médiuns para Coroação (SCCT, Escola de CCT):</p>
+                                    <div id="listaCheckCoroacao" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 max-h-40 overflow-y-auto p-2 bg-white rounded-xl border border-gray-200 shadow-inner"></div>
+                                </div>
+                            </div>
+
+                            <div class="mt-8 border-t border-gray-100 pt-5 flex flex-col md:flex-row items-center justify-between gap-3">
+                                <p id="msgEscala" class="text-xs font-bold hidden w-full md:w-auto text-center md:text-left"></p>
+                                <button type="submit" id="btnSalvarEscala" class="w-full md:w-auto md:ml-auto bg-gray-800 hover:bg-gray-900 active:scale-95 text-white font-bold py-3.5 px-6 rounded-xl shadow transition text-sm flex items-center justify-center gap-2">
+                                    <i class="fas fa-save"></i> Gravar Escala
+                                </button>
+                            </div>
+                        </form>
                         </div>
                     </div>
                 </div>
