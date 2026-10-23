@@ -5843,43 +5843,78 @@ window.addEventListener('DOMContentLoaded', () => {
         const opcoesMediuns = '<option value="">[ Selecione o Médium ]</option>' + listaMediunsGlobal.map(m => `<option value="${m.id}">${m.nome_completo}</option>`).join('');
 
         // Função auxiliar para injetar o botão do WhatsApp na tabela de Exu
-        const btnWp = (idSelect, funcao) => `<button type="button" onclick="notificarMediumIndividual('${idSelect}', '${funcao}')" class="text-green-500 hover:text-green-700 transition px-2" title="Notificar este médium"><i class="fab fa-whatsapp text-xl"></i></button>`;
+        const btnWp = (idSelect, funcao) => `<button type="button" onclick="notificarMediumIndividual('${idSelect}', '${funcao}')" class="bg-green-100 text-green-600 px-3 py-2.5 rounded-lg hover:bg-green-200 transition shadow-sm shrink-0" title="Notificar este médium"><i class="fab fa-whatsapp text-lg"></i></button>`;
 
         // SE FOR EXU
         if (evento.req_escala_exu) {
             document.getElementById('escalaEventoTipo').value = 'exu';
 
             html += `
-                <table class="w-full text-left border-collapse text-xs md:text-sm bg-gray-50 rounded-xl overflow-hidden border border-gray-200">
-                    <thead class="bg-blue-100 text-blue-900 border-b border-blue-200">
-                        <tr>
-                            <th class="p-3 font-bold uppercase tracking-wider w-1/3">Entidade</th>
-                            <th class="p-3 font-bold uppercase tracking-wider w-1/3"><i class="fas fa-image text-blue-600 mr-1"></i> Imagem (Condução)</th>
-                            <th class="p-3 font-bold uppercase tracking-wider w-1/3"><i class="fas fa-leaf text-green-600 mr-1"></i> Flores</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-200">
-                        <!-- Tranca Ruas -->
-                        <tr class="hover:bg-white transition">
-                            <td class="p-3 font-bold text-gray-800">Tranca Ruas das Almas</td>
-                            <td class="p-3"><div class="flex items-center"><select id="esc_img_tr" class="w-full p-2 border border-gray-300 rounded outline-none focus:ring-2 focus:ring-blue-500 bg-white">${opcoesMediuns}</select>${btnWp('esc_img_tr', '*Imagem* de _Tranca Ruas das Almas_')}</div></td>
-                            <td class="p-3"><div class="flex items-center"><select id="esc_flores_tr" class="w-full p-2 border border-gray-300 rounded outline-none focus:ring-2 focus:ring-green-500 bg-white">${opcoesMediuns}</select>${btnWp('esc_flores_tr', '*Flores* de _Tranca Ruas das Almas_')}</div></td>
-                        </tr>
-                        <!-- Cigana -->
-                        <tr class="hover:bg-white transition">
-                            <td class="p-3 font-bold text-gray-800">Cigana Rainha 7 Encruzas</td>
-                            <td class="p-3"><div class="flex items-center"><select id="esc_img_cigana" class="w-full p-2 border border-gray-300 rounded outline-none focus:ring-2 focus:ring-blue-500 bg-white">${opcoesMediuns}</select>${btnWp('esc_img_cigana', '*Imagem* de _Cigana Rainha das 7 Encruzilhadas_')}</div></td>
-                            <td class="p-3"><div class="flex items-center"><select id="esc_flores_cigana" class="w-full p-2 border border-gray-300 rounded outline-none focus:ring-2 focus:ring-green-500 bg-white">${opcoesMediuns}</select>${btnWp('esc_flores_cigana', '*Flores* de _Cigana Rainha das 7 Encruzilhadas_')}</div></td>
-                        </tr>
-                        <!-- Padilha -->
-                        <tr class="hover:bg-white transition">
-                            <td class="p-3 font-bold text-gray-800">M. Padilha Rainha 7 Encruzas</td>
-                            <td class="p-3"><div class="flex items-center"><select id="esc_img_padilha" class="w-full p-2 border border-gray-300 rounded outline-none focus:ring-2 focus:ring-blue-500 bg-white">${opcoesMediuns}</select>${btnWp('esc_img_padilha', '*Imagem* de _Maria Padilha Rainha das 7 Encruzilhadas_')}</div></td>
-                            <td class="p-3"><div class="flex items-center"><select id="esc_flores_padilha" class="w-full p-2 border border-gray-300 rounded outline-none focus:ring-2 focus:ring-green-500 bg-white">${opcoesMediuns}</select>${btnWp('esc_flores_padilha', '*Flores* de _Maria Padilha Rainha das 7 Encruzilhadas_')}</div></td>
-                        </tr>
-                    </tbody>
-                </table>
-            `;
+    <div class="space-y-4">
+        <!-- Card Tranca Ruas -->
+        <div class="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+            <div class="bg-gray-100 font-black text-gray-800 p-3 md:p-4 border-b border-gray-200 text-sm md:text-base">Tranca Ruas das Almas</div>
+            <div class="p-3 md:p-4 grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50">
+                <div>
+                    <label class="block text-[10px] md:text-xs font-bold text-gray-600 uppercase mb-1.5"><i class="fas fa-image text-blue-600 mr-1"></i> Imagem (Condução)</label>
+                    <div class="flex items-center gap-2">
+                        <select id="esc_img_tr" class="flex-1 w-full p-2.5 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm">${opcoesMediuns}</select>
+                        ${btnWp('esc_img_tr', '*Imagem* de _Tranca Ruas das Almas_')}
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-[10px] md:text-xs font-bold text-gray-600 uppercase mb-1.5"><i class="fas fa-leaf text-green-600 mr-1"></i> Flores</label>
+                    <div class="flex items-center gap-2">
+                        <select id="esc_flores_tr" class="flex-1 w-full p-2.5 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-green-500 bg-white text-sm">${opcoesMediuns}</select>
+                        ${btnWp('esc_flores_tr', '*Flores* de _Tranca Ruas das Almas_')}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card Cigana -->
+        <div class="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+            <div class="bg-gray-100 font-black text-gray-800 p-3 md:p-4 border-b border-gray-200 text-sm md:text-base">Cigana Rainha das 7 Encruzilhadas</div>
+            <div class="p-3 md:p-4 grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50">
+                <div>
+                    <label class="block text-[10px] md:text-xs font-bold text-gray-600 uppercase mb-1.5"><i class="fas fa-image text-blue-600 mr-1"></i> Imagem (Condução)</label>
+                    <div class="flex items-center gap-2">
+                        <select id="esc_img_cigana" class="flex-1 w-full p-2.5 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm">${opcoesMediuns}</select>
+                        ${btnWp('esc_img_cigana', '*Imagem* de _Cigana Rainha das 7 Encruzilhadas_')}
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-[10px] md:text-xs font-bold text-gray-600 uppercase mb-1.5"><i class="fas fa-leaf text-green-600 mr-1"></i> Flores</label>
+                    <div class="flex items-center gap-2">
+                        <select id="esc_flores_cigana" class="flex-1 w-full p-2.5 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-green-500 bg-white text-sm">${opcoesMediuns}</select>
+                        ${btnWp('esc_flores_cigana', '*Flores* de _Cigana Rainha das 7 Encruzilhadas_')}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card Padilha -->
+        <div class="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+            <div class="bg-gray-100 font-black text-gray-800 p-3 md:p-4 border-b border-gray-200 text-sm md:text-base">M. Padilha Rainha das 7 Encruzas</div>
+            <div class="p-3 md:p-4 grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50">
+                <div>
+                    <label class="block text-[10px] md:text-xs font-bold text-gray-600 uppercase mb-1.5"><i class="fas fa-image text-blue-600 mr-1"></i> Imagem (Condução)</label>
+                    <div class="flex items-center gap-2">
+                        <select id="esc_img_padilha" class="flex-1 w-full p-2.5 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm">${opcoesMediuns}</select>
+                        ${btnWp('esc_img_padilha', '*Imagem* de _Maria Padilha Rainha das 7 Encruzilhadas_')}
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-[10px] md:text-xs font-bold text-gray-600 uppercase mb-1.5"><i class="fas fa-leaf text-green-600 mr-1"></i> Flores</label>
+                    <div class="flex items-center gap-2">
+                        <select id="esc_flores_padilha" class="flex-1 w-full p-2.5 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-green-500 bg-white text-sm">${opcoesMediuns}</select>
+                        ${btnWp('esc_flores_padilha', '*Flores* de _Maria Padilha Rainha das 7 Encruzilhadas_')}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+`;
         } 
         // SE FOR CORRENTE
         else if (evento.req_escala_corrente) {
