@@ -6291,8 +6291,8 @@ if (btnSalvarFundoCert) {
         msgFundoCert.classList.add('hidden');
 
         try {
-            const terreiroId = localStorage.getItem('terreiro_id');
-            if (!terreiroId) throw new Error("ID do terreiro não encontrado.");
+            const terreiroId = typeof idTerreiroGlobal !== 'undefined' ? idTerreiroGlobal : null;
+            if (!terreiroId) throw new Error("ID do terreiro não encontrado na variável global.");
 
             // Nome único mantendo a extensão original (para não perder qualidade)
             const fileExt = arquivoFundoCertSelecionado.name.split('.').pop();
@@ -6347,14 +6347,17 @@ if (btnSalvarFundoCert) {
 
 // 4. Função para carregar a imagem quando a página abre
 async function carregarPreviewFundoCertificado() {
-    const terreiroId = localStorage.getItem('terreiro_id');
-    if (!terreiroId || !previewFundoCert) return;
+    if (typeof idTerreiroGlobal === 'undefined' || !idTerreiroGlobal) {
+        setTimeout(carregarPreviewFundoCertificado, 1000);
+        return;
+    }
+    if (!previewFundoCert) return;
 
     try {
         const { data, error } = await supabase
             .from('terreiros')
             .select('certificado_fundo_url')
-            .eq('id', terreiroId)
+            .eq('id', idTerreiroGlobal)
             .single();
 
         if (data && data.certificado_fundo_url) {
