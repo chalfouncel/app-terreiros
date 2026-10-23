@@ -227,7 +227,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (idTerreiroGlobal) {
             const { data: listaBase } = await supabaseClient
                 .from('mediuns')
-                .select('id, auth_id, nome_completo, nome_social, grau, funcao, data_nascimento, telefone, palavra, cadastro_completo, status_ativo')
+                .select('id, auth_id, nome_completo, nome_social, grau, funcao, data_nascimento, telefone, palavra, cadastro_completo, status_ativo, data_batismo')
                 .eq('terreiro_id', idTerreiroGlobal)
                 .neq('nome_completo', 'Administrador Sistema')
                 .order('nome_completo');
@@ -420,6 +420,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
 
                     const convocados = especial ? (w['selecionados_listaCheckConvocados'] || []) : [];
+                    
+                    const batizados = document.getElementById('giraReqBatismo')?.checked ? (w['selecionados_listaCheckBatismo'] || []) : [];
+                    const consagrados = document.getElementById('giraReqConsagracao')?.checked ? (w['selecionados_listaCheckConsagracao'] || []) : [];
+                    const coroados = document.getElementById('giraReqCoroacao')?.checked ? (w['selecionados_listaCheckCoroacao'] || []) : [];
 
                     const novoEvento = {
                         terreiro_id: idTerreiroGlobal,
@@ -431,10 +435,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                         especial: especial,
                         req_escala_exu: reqEscalaExu,
                         req_escala_corrente: reqEscalaCorrente,
-                        escalas: {}, // Inicia o JsonB das escalas vazio
+                        escalas: { batizados, consagrados, coroados }, 
                         convocados: convocados,
                         imagem_url: imagemUrl
-                    };
+                    };;
 
                     const { error: errInsert } = await supabaseClient
                         .from('agenda')
@@ -485,6 +489,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const reqEscalaCorrente = document.getElementById('editGiraReqCorrente')?.checked || false;
                 
                 const convocados = especial ? (w['selecionados_editListaCheckConvocados'] || []) : [];
+                
+                const batizados = document.getElementById('editGiraReqBatismo')?.checked ? (w['selecionados_editListaCheckBatismo'] || []) : [];
+                const consagrados = document.getElementById('editGiraReqConsagracao')?.checked ? (w['selecionados_editListaCheckConsagracao'] || []) : [];
+                const coroados = document.getElementById('editGiraReqCoroacao')?.checked ? (w['selecionados_editListaCheckCoroacao'] || []) : [];
+                
+                const escalasAtuais = window.escalasEditAtual || {};
+                escalasAtuais.batizados = batizados;
+                escalasAtuais.consagrados = consagrados;
+                escalasAtuais.coroados = coroados;
 
                 const btn = document.getElementById('btnSalvarEditGira');
                 btn.disabled = true;
@@ -501,7 +514,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                             especial: especial,
                             req_escala_exu: reqEscalaExu,
                             req_escala_corrente: reqEscalaCorrente,
-                            convocados: convocados
+                            convocados: convocados,
+                            escalas: escalasAtuais
                         })
                         .eq('id', id)
                         .eq('terreiro_id', idTerreiroGlobal);
@@ -4050,7 +4064,86 @@ document.addEventListener('change', (e) => {
             window.renderizarCheckboxesConvocados('editListaCheckConvocados', []);
         } else box?.classList.add('hidden');
     }
+    
+    // Novas checkboxes criação
+    if (e.target.id === 'giraReqBatismo') {
+        const box = document.getElementById('boxBatismo');
+        if(e.target.checked) { box?.classList.remove('hidden'); window.renderizarSacramentos('batismo', 'listaCheckBatismo'); } else box?.classList.add('hidden');
+    }
+    if (e.target.id === 'giraReqConsagracao') {
+        const box = document.getElementById('boxConsagracao');
+        if(e.target.checked) { box?.classList.remove('hidden'); window.renderizarSacramentos('consagracao', 'listaCheckConsagracao'); } else box?.classList.add('hidden');
+    }
+    if (e.target.id === 'giraReqCoroacao') {
+        const box = document.getElementById('boxCoroacao');
+        if(e.target.checked) { box?.classList.remove('hidden'); window.renderizarSacramentos('coroacao', 'listaCheckCoroacao'); } else box?.classList.add('hidden');
+    }
+
+    // Novas checkboxes edição
+    if (e.target.id === 'editGiraReqBatismo') {
+        const box = document.getElementById('editBoxBatismo');
+        if(e.target.checked) { box?.classList.remove('hidden'); window.renderizarSacramentos('batismo', 'editListaCheckBatismo', window.escalasEditAtual?.batizados); } else box?.classList.add('hidden');
+    }
+    if (e.target.id === 'editGiraReqConsagracao') {
+        const box = document.getElementById('editBoxConsagracao');
+        if(e.target.checked) { box?.classList.remove('hidden'); window.renderizarSacramentos('consagracao', 'editListaCheckConsagracao', window.escalasEditAtual?.consagrados); } else box?.classList.add('hidden');
+    }
+    if (e.target.id === 'editGiraReqCoroacao') {
+        const box = document.getElementById('editBoxCoroacao');
+        if(e.target.checked) { box?.classList.remove('hidden'); window.renderizarSacramentos('coroacao', 'editListaCheckCoroacao', window.escalasEditAtual?.coroados); } else box?.classList.add('hidden');
+    }
 });
+
+// Função para buscar e renderizar os aptos
+window.renderizarSacramentos = async (tipo, containerId, listaSelecionadosIniciais = []) => {
+    window['selecionados_' + containerId] = Array.isArray(listaSelecionadosIniciais) ? [...listaSelecionadosIniciais].map(String) : [];
+    
+    if (!listaMediunsGlobal || listaMediunsGlobal.length === 0) {
+        const { data } = await supabaseClient.from('mediuns').select('id, auth_id, nome_completo, nome_social, grau, funcao, data_batismo').eq('terreiro_id', idTerreiroGlobal).neq('nome_completo', 'Administrador Sistema').order('nome_completo');
+        listaMediunsGlobal = data || [];
+    }
+
+    let cands = [];
+    if (tipo === 'batismo') {
+        cands = listaMediunsGlobal.filter(m => !m.data_batismo);
+    } else if (tipo === 'consagracao') {
+        cands = listaMediunsGlobal.filter(m => {
+            const g = (m.grau || '').toUpperCase();
+            const f = (m.funcao || '').toUpperCase();
+            return ['SCT', 'ESCOLA DE CT', 'CT'].includes(g) || f === 'MGA';
+        });
+    } else if (tipo === 'coroacao') {
+        cands = listaMediunsGlobal.filter(m => {
+            const g = (m.grau || '').toUpperCase();
+            return ['SCCT', 'ESCOLA DE CCT'].includes(g);
+        });
+    }
+
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    if (cands.length === 0) {
+        container.innerHTML = '<span class="text-xs text-gray-500 col-span-2 md:col-span-4 p-2">Nenhum médium apto encontrado.</span>';
+        return;
+    }
+
+    const arrSelecionados = window['selecionados_' + containerId];
+    let html = '';
+    cands.forEach(m => {
+        const idStr = String(m.id);
+        const isChecked = arrSelecionados.includes(idStr) ? 'checked' : '';
+        const nomeExibicao = m.nome_social || m.nome_completo;
+        const color = tipo === 'batismo' ? 'text-sky-600 focus:ring-sky-500' : (tipo === 'consagracao' ? 'text-amber-600 focus:ring-amber-500' : 'text-yellow-600 focus:ring-yellow-500');
+        
+        html += `
+            <label class="flex items-center space-x-2 text-xs md:text-sm text-gray-700 cursor-pointer hover:bg-gray-50 p-1 rounded">
+                <input type="checkbox" value="${m.id}" class="rounded ${color}" ${isChecked} onchange="atualizarSelecao('${containerId}', this)">
+                <span class="truncate" title="${m.nome_completo}">${nomeExibicao}</span>
+            </label>
+        `;
+    });
+    container.innerHTML = html;
+};
 
 window.atualizarSelecao = (containerId, checkbox) => {
     let arr = window['selecionados_' + containerId] || [];
@@ -4147,7 +4240,8 @@ window.abrirModalEditarGira = async (id) => {
     document.getElementById('editGiraFim').value = formataParaInput(data.data_hora_fim);
     if (document.getElementById('editGiraGeraAta')) document.getElementById('editGiraGeraAta').checked = data.gera_ata || false;
     
-    // NOVO: Marca as caixas de escala baseadas na resposta do Banco de Dados
+    window.escalasEditAtual = data.escalas || {}; 
+
     if (document.getElementById('editGiraReqExu')) document.getElementById('editGiraReqExu').checked = data.req_escala_exu || false;
     if (document.getElementById('editGiraReqCorrente')) document.getElementById('editGiraReqCorrente').checked = data.req_escala_corrente || false;
 
@@ -4161,6 +4255,30 @@ window.abrirModalEditarGira = async (id) => {
         } else {
             boxEspecial.classList.add('hidden');
         }
+    }
+
+    const chkBat = document.getElementById('editGiraReqBatismo');
+    const boxBat = document.getElementById('editBoxBatismo');
+    if (chkBat && boxBat) {
+        chkBat.checked = (data.escalas && data.escalas.batizados && data.escalas.batizados.length > 0);
+        if (chkBat.checked) { boxBat.classList.remove('hidden'); window.renderizarSacramentos('batismo', 'editListaCheckBatismo', data.escalas.batizados); }
+        else boxBat.classList.add('hidden');
+    }
+    
+    const chkCons = document.getElementById('editGiraReqConsagracao');
+    const boxCons = document.getElementById('editBoxConsagracao');
+    if (chkCons && boxCons) {
+        chkCons.checked = (data.escalas && data.escalas.consagrados && data.escalas.consagrados.length > 0);
+        if (chkCons.checked) { boxCons.classList.remove('hidden'); window.renderizarSacramentos('consagracao', 'editListaCheckConsagracao', data.escalas.consagrados); }
+        else boxCons.classList.add('hidden');
+    }
+
+    const chkCor = document.getElementById('editGiraReqCoroacao');
+    const boxCor = document.getElementById('editBoxCoroacao');
+    if (chkCor && boxCor) {
+        chkCor.checked = (data.escalas && data.escalas.coroados && data.escalas.coroados.length > 0);
+        if (chkCor.checked) { boxCor.classList.remove('hidden'); window.renderizarSacramentos('coroacao', 'editListaCheckCoroacao', data.escalas.coroados); }
+        else boxCor.classList.add('hidden');
     }
 
     document.getElementById('modalEditarGira').classList.remove('hidden');
@@ -4219,7 +4337,7 @@ window.encerrarAta = async (id) => {
             alert("Sessão Encerrada e sacramentos lançados! O documento oficial está disponível para download.");
             document.getElementById('menuLivroAta')?.click();
         }
-    };
+    };;
 
 window.baixarLivroAnual = async () => {
     alert("Atenção: A consolidação do Livro Anual gera arquivo muito pesado. Esta função está sendo adaptada para rodar em segundo plano e será liberada em breve. Por favor, baixe as atas de forma individual na tabela abaixo.");
