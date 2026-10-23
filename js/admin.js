@@ -6019,7 +6019,25 @@ window.addEventListener('DOMContentLoaded', () => {
         const dataEvento = document.getElementById('dataMontagemEscala').textContent;
         const tituloEvento = document.getElementById('tituloMontagemEscala').textContent;
 
-        const msgTxt = `Olá, ${primeiroNome}! 🙏\nPassando para lembrar que você foi inscrito(a) para a função de ${funcaoLocal} na *${tituloEvento}* no dia *${dataEvento}*.\nLembramos que as flores das imagens são de custeio e responsabilidade do Médium. Contamos com a sua responsabilidade e pontualidade. Axé!`;
+        let msgTxt = "";
+
+        // Define a mensagem com base na função do médium
+        switch (funcaoLocal) {
+            case "flores":
+                msgTxt = `Olá, ${primeiroNome}! 🙏\nPassando para lembrar que você foi inscrito(a) para a função de ${funcaoLocal} na *${tituloEvento}* no dia *${dataEvento}*.\nLembrando que a responsabilidade e o custeio das flores é do Médium. Contamos com a sua responsabilidade e pontualidade. Axé!`;
+                break;
+                
+            case "Passe Específico na Corrente":
+                msgTxt = `Olá, ${primeiroNome}! 🙏\nPassando para lembrar que você foi inscrito(a) para a função de ${funcaoLocal} na *${tituloEvento}* no dia *${dataEvento}*.\nLembrando que é responsabilidade do Médium trazer as 7 espadas de Ogum. Contamos com a sua responsabilidade e pontualidade. Axé!`;
+                break;
+                
+            case "Imagem":
+            default:
+                // Mensagem padrão para "Imagem" ou qualquer outra função não listada acima
+                msgTxt = `Olá, ${primeiroNome}! 🙏\nPassando para lembrar que você foi inscrito(a) para a função de ${funcaoLocal} na *${tituloEvento}* no dia *${dataEvento}*.\nContamos com a sua responsabilidade e pontualidade. Axé!`;
+                break;
+        }
+
         const url = `https://wa.me/55${num}?text=${encodeURIComponent(msgTxt)}`;
         
         window.open(url, '_blank');
