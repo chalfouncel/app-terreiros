@@ -6252,13 +6252,13 @@ window.addEventListener('DOMContentLoaded', () => {
 
 });
 
-// ==========================================
-// UPLOAD DE FUNDO DO CERTIFICADO (ALTA RESOLUÇÃO)
-// ==========================================
+// ==========================================================
+// NOVA ROTINA: Fundo de Certificados (A4)
+// ==========================================================
 const inputFundoCert = document.getElementById('inputFundoCertificado');
-const btnSalvarFundoCert = document.getElementById('btnSalvarFundoCertificado');
 const previewFundoCert = document.getElementById('previewFundoCertificado');
 const placeholderFundoCert = document.getElementById('placeholderFundoCertificado');
+const btnSalvarFundoCert = document.getElementById('btnSalvarFundoCertificado');
 const msgFundoCert = document.getElementById('msgFundoCertificado');
 
 let arquivoFundoCertSelecionado = null;
@@ -6266,19 +6266,17 @@ let arquivoFundoCertSelecionado = null;
 if (inputFundoCert) {
     inputFundoCert.addEventListener('change', (e) => {
         const file = e.target.files[0];
-        if (!file) return;
-
-        arquivoFundoCertSelecionado = file;
-        
-        // Mostrar preview
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            previewFundoCert.src = event.target.result;
-            previewFundoCert.classList.remove('hidden');
-            placeholderFundoCert.classList.add('hidden');
-            btnSalvarFundoCert.classList.remove('hidden');
-        };
-        reader.readAsDataURL(file);
+        if (file) {
+            arquivoFundoCertSelecionado = file;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                previewFundoCert.src = ev.target.result;
+                previewFundoCert.classList.remove('hidden');
+                if (placeholderFundoCert) placeholderFundoCert.classList.add('hidden');
+                if (btnSalvarFundoCert) btnSalvarFundoCert.classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
     });
 }
 
@@ -6288,18 +6286,17 @@ if (btnSalvarFundoCert) {
 
         btnSalvarFundoCert.disabled = true;
         btnSalvarFundoCert.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Salvando...';
-        msgFundoCert.classList.add('hidden');
+        if (msgFundoCert) msgFundoCert.classList.add('hidden');
 
         try {
             const terreiroId = typeof idTerreiroGlobal !== 'undefined' ? idTerreiroGlobal : null;
-            if (!terreiroId) throw new Error("ID do terreiro não encontrado na variável global.");
+            if (!terreiroId) throw new Error("ID do terreiro não encontrado.");
 
-            // Nome único mantendo a extensão original (para não perder qualidade)
             const fileExt = arquivoFundoCertSelecionado.name.split('.').pop();
             const fileName = `fundo_certificado_${terreiroId}_${Date.now()}.${fileExt}`;
 
-            // 1. Upload direto no bucket 'logos' em máxima qualidade
-            const { data: uploadData, error: uploadError } = await supabase.storage
+            // CORRIGIDO: supabaseClient.storage
+            const { data: uploadData, error: uploadError } = await supabaseClient.storage
                 .from('logos')
                 .upload(fileName, arquivoFundoCertSelecionado, {
                     cacheControl: '3600',
@@ -6308,53 +6305,59 @@ if (btnSalvarFundoCert) {
 
             if (uploadError) throw uploadError;
 
-            // 2. Pegar a URL pública
-            const { data: publicUrlData } = supabase.storage
+            // CORRIGIDO: supabaseClient.storage
+            const { data: publicUrlData } = supabaseClient.storage
                 .from('logos')
                 .getPublicUrl(fileName);
 
             const fundoUrl = publicUrlData.publicUrl;
 
-            // 3. Salvar URL na tabela terreiros
-            const { error: updateError } = await supabase
+            // CORRIGIDO: supabaseClient.from
+            const { error: updateError } = await supabaseClient
                 .from('terreiros')
                 .update({ certificado_fundo_url: fundoUrl })
                 .eq('id', terreiroId);
 
             if (updateError) throw updateError;
 
-            // Sucesso
-            msgFundoCert.textContent = "Imagem salva com sucesso!";
-            msgFundoCert.className = "text-[10px] mt-2 text-center w-full font-bold text-green-600";
-            msgFundoCert.classList.remove('hidden');
+            if (msgFundoCert) {
+                msgFundoCert.textContent = "Imagem salva com sucesso!";
+                msgFundoCert.className = "text-[10px] mt-2 text-center w-full font-bold text-green-600";
+                msgFundoCert.classList.remove('hidden');
+            }
             btnSalvarFundoCert.innerHTML = '<i class="fas fa-check mr-1"></i> Salvo';
 
             setTimeout(() => {
                 btnSalvarFundoCert.classList.add('hidden');
-                msgFundoCert.classList.add('hidden');
+                if (msgFundoCert) msgFundoCert.classList.add('hidden');
+                btnSalvarFundoCert.disabled = false;
+                btnSalvarFundoCert.innerHTML = '<i class="fas fa-upload mr-1"></i> Salvar Imagem de Fundo';
             }, 3000);
 
         } catch (error) {
             console.error("Erro ao salvar fundo:", error);
-            msgFundoCert.textContent = "Erro ao salvar. Tente novamente.";
-            msgFundoCert.className = "text-[10px] mt-2 text-center w-full font-bold text-red-600";
-            msgFundoCert.classList.remove('hidden');
+            if (msgFundoCert) {
+                msgFundoCert.textContent = "Erro ao salvar. Tente novamente.";
+                msgFundoCert.className = "text-[10px] mt-2 text-center w-full font-bold text-red-600";
+                msgFundoCert.classList.remove('hidden');
+            }
             btnSalvarFundoCert.disabled = false;
             btnSalvarFundoCert.innerHTML = '<i class="fas fa-upload mr-1"></i> Salvar Imagem de Fundo';
         }
     });
 }
 
-// 4. Função para carregar a imagem quando a página abre
 async function carregarPreviewFundoCertificado() {
     if (typeof idTerreiroGlobal === 'undefined' || !idTerreiroGlobal) {
         setTimeout(carregarPreviewFundoCertificado, 1000);
         return;
     }
+
     if (!previewFundoCert) return;
 
     try {
-        const { data, error } = await supabase
+        // CORRIGIDO: supabaseClient.from
+        const { data, error } = await supabaseClient
             .from('terreiros')
             .select('certificado_fundo_url')
             .eq('id', idTerreiroGlobal)
@@ -6370,7 +6373,6 @@ async function carregarPreviewFundoCertificado() {
     }
 }
 
-// Chamar no carregamento
 document.addEventListener('DOMContentLoaded', () => {
     carregarPreviewFundoCertificado();
 });
