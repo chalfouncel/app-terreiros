@@ -2150,12 +2150,17 @@
                         <h4 class="text-xs font-black text-gray-700 uppercase tracking-wider"><i class="fas fa-hands-helping text-tema-primaria mr-1"></i> Padrinhos e Madrinhas</h4>
     
                         <!-- 1. BATISMO (Todos os Graus: Guia ou Médium) -->
-                        <div class="bg-white p-3 rounded-xl border border-gray-200 space-y-2.5">
-                            <div class="flex items-center justify-between border-b border-gray-100 pb-1 mb-1">
+                        <div class="bg-white p-3 rounded-xl border border-gray-200 space-y-2.5 relative">
+                            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-gray-100 pb-2 mb-1 gap-2">
                                 <p class="text-[11px] font-black text-sky-700 uppercase tracking-wider">🕊️ Batismo</p>
-                                <div class="flex items-center gap-1.5">
-                                    <label class="text-[9px] font-bold text-gray-500 uppercase">Data:</label>
-                                    <input type="date" id="editDataBatismo" class="text-[10px] font-bold px-1.5 py-0.5 border border-gray-300 rounded bg-white outline-none text-gray-700">
+                                <div class="flex items-center gap-2">
+                                    <button type="button" id="btnImprimirCertBatismo" class="hidden text-[10px] bg-sky-100 text-sky-700 hover:bg-sky-200 font-bold px-2 py-1 rounded-md transition active:scale-95 items-center gap-1">
+                                        <i class="fas fa-print"></i> Certificado
+                                    </button>
+                                    <div class="flex items-center gap-1.5">
+                                        <label class="text-[9px] font-bold text-gray-500 uppercase">Data:</label>
+                                        <input type="date" id="editDataBatismo" class="text-[10px] font-bold px-1.5 py-0.5 border border-gray-300 rounded bg-white outline-none text-gray-700">
+                                    </div>
                                 </div>
                             </div>
                             
@@ -2199,12 +2204,16 @@
     
                         <!-- 2. CONSAGRAÇÃO E COROAÇÃO (Apenas Guias - A partir de CT) -->
                         <div id="boxConsagracaoCoroacaoEdit" class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <!-- Consagração -->
+                            
+                           <!-- Consagração -->
                             <div class="bg-white p-3 rounded-xl border border-gray-200 space-y-2">
-                                <div class="flex items-center justify-between border-b border-gray-100 pb-1 mb-1">
+                                <div class="flex flex-col xl:flex-row xl:items-center justify-between border-b border-gray-100 pb-2 mb-1 gap-2">
                                     <p class="text-[11px] font-black text-amber-700 uppercase tracking-wider">🔥 Consagração</p>
-                                    <div class="flex items-center gap-2">
-                                        <div class="flex items-center gap-1">
+                                    <div class="flex items-center gap-2 w-full xl:w-auto justify-end">
+                                        <button type="button" id="btnImprimirCertConsagracao" class="hidden text-[10px] bg-amber-100 text-amber-700 hover:bg-amber-200 font-bold px-2 py-1 rounded-md transition active:scale-95 items-center gap-1 whitespace-nowrap">
+                                            <i class="fas fa-print"></i> Certificado
+                                        </button>
+                                        <div class="flex items-center gap-1 shrink-0">
                                             <label class="text-[9px] font-bold text-gray-500 uppercase hidden sm:block">Data:</label>
                                             <input type="date" id="editDataConsagracao" class="text-[10px] font-bold px-1.5 py-0.5 border border-gray-300 rounded bg-white outline-none text-gray-700">
                                         </div>
@@ -2226,12 +2235,15 @@
                                 </div>
                             </div>
     
-                            <!-- Coroação -->
+                           <!-- Coroação -->
                             <div class="bg-white p-3 rounded-xl border border-gray-200 space-y-2">
-                                <div class="flex items-center justify-between border-b border-gray-100 pb-1 mb-1">
+                                <div class="flex flex-col xl:flex-row xl:items-center justify-between border-b border-gray-100 pb-2 mb-1 gap-2">
                                     <p class="text-[11px] font-black text-yellow-600 uppercase tracking-wider">👑 Coroação</p>
-                                    <div class="flex items-center gap-2">
-                                        <div class="flex items-center gap-1">
+                                    <div class="flex items-center gap-2 w-full xl:w-auto justify-end">
+                                        <button type="button" id="btnImprimirCertCoroacao" class="hidden text-[10px] bg-yellow-100 text-yellow-700 hover:bg-yellow-200 font-bold px-2 py-1 rounded-md transition active:scale-95 items-center gap-1 whitespace-nowrap">
+                                            <i class="fas fa-print"></i> Certificado
+                                        </button>
+                                        <div class="flex items-center gap-1 shrink-0">
                                             <label class="text-[9px] font-bold text-gray-500 uppercase hidden sm:block">Data:</label>
                                             <input type="date" id="editDataCoroacao" class="text-[10px] font-bold px-1.5 py-0.5 border border-gray-300 rounded bg-white outline-none text-gray-700">
                                         </div>
