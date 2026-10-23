@@ -5744,6 +5744,7 @@ window.addEventListener('DOMContentLoaded', () => {
             });
         });
     }
+
     // ============================================================================
     // NOVO MÓDULO: GESTÃO DE ESCALAS E MISSÕES (EXU E CORRENTE) E WHATSAPP
     // ============================================================================
@@ -5820,6 +5821,10 @@ window.addEventListener('DOMContentLoaded', () => {
         document.getElementById('escalaEventoId').value = evento.id;
         document.getElementById('msgEscala').classList.add('hidden');
 
+        // Esconde o botão verde global de Notificar, pois agora será individual
+        const btnNotifGlob = document.getElementById('btnNotificarEscala');
+        if(btnNotifGlob) btnNotifGlob.classList.add('hidden');
+
         const container = document.getElementById('containerCamposEscala');
         container.innerHTML = '';
         
@@ -5827,11 +5832,15 @@ window.addEventListener('DOMContentLoaded', () => {
         window.escalaAtualEmEdicao = objSalvo;
 
         let html = '';
+        // Select de Médiuns pronto para injetar
         const opcoesMediuns = '<option value="">[ Selecione o Médium ]</option>' + listaMediunsGlobal.map(m => `<option value="${m.id}">${m.nome_completo}</option>`).join('');
 
+        // Função auxiliar para injetar o botão do WhatsApp na tabela de Exu
+        const btnWp = (idSelect, funcao) => `<button type="button" onclick="notificarMediumIndividual('${idSelect}', '${funcao}')" class="text-green-500 hover:text-green-700 transition px-2" title="Notificar este médium"><i class="fab fa-whatsapp text-xl"></i></button>`;
+
+        // SE FOR EXU
         if (evento.req_escala_exu) {
             document.getElementById('escalaEventoTipo').value = 'exu';
-            document.getElementById('btnNotificarEscala').classList.remove('hidden');
 
             html += `
                 <table class="w-full text-left border-collapse text-xs md:text-sm bg-gray-50 rounded-xl overflow-hidden border border-gray-200">
@@ -5843,44 +5852,59 @@ window.addEventListener('DOMContentLoaded', () => {
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200">
+                        <!-- Tranca Ruas -->
                         <tr class="hover:bg-white transition">
                             <td class="p-3 font-bold text-gray-800">Tranca Ruas das Almas</td>
-                            <td class="p-3"><select id="esc_img_tr" class="w-full p-2 border border-gray-300 rounded outline-none focus:ring-2 focus:ring-blue-500 bg-white">${opcoesMediuns}</select></td>
-                            <td class="p-3"><select id="esc_flores_tr" class="w-full p-2 border border-gray-300 rounded outline-none focus:ring-2 focus:ring-green-500 bg-white">${opcoesMediuns}</select></td>
+                            <td class="p-3"><div class="flex items-center"><select id="esc_img_tr" class="w-full p-2 border border-gray-300 rounded outline-none focus:ring-2 focus:ring-blue-500 bg-white">${opcoesMediuns}</select>${btnWp('esc_img_tr', '*Imagem* de _Tranca Ruas das Almas_')}</div></td>
+                            <td class="p-3"><div class="flex items-center"><select id="esc_flores_tr" class="w-full p-2 border border-gray-300 rounded outline-none focus:ring-2 focus:ring-green-500 bg-white">${opcoesMediuns}</select>${btnWp('esc_flores_tr', '*Flores* de _Tranca Ruas das Almas_')}</div></td>
                         </tr>
+                        <!-- Cigana -->
                         <tr class="hover:bg-white transition">
                             <td class="p-3 font-bold text-gray-800">Cigana Rainha 7 Encruzas</td>
-                            <td class="p-3"><select id="esc_img_cigana" class="w-full p-2 border border-gray-300 rounded outline-none focus:ring-2 focus:ring-blue-500 bg-white">${opcoesMediuns}</select></td>
-                            <td class="p-3"><select id="esc_flores_cigana" class="w-full p-2 border border-gray-300 rounded outline-none focus:ring-2 focus:ring-green-500 bg-white">${opcoesMediuns}</select></td>
+                            <td class="p-3"><div class="flex items-center"><select id="esc_img_cigana" class="w-full p-2 border border-gray-300 rounded outline-none focus:ring-2 focus:ring-blue-500 bg-white">${opcoesMediuns}</select>${btnWp('esc_img_cigana', '*Imagem* de _Cigana Rainha das 7 Encruzilhadas_')}</div></td>
+                            <td class="p-3"><div class="flex items-center"><select id="esc_flores_cigana" class="w-full p-2 border border-gray-300 rounded outline-none focus:ring-2 focus:ring-green-500 bg-white">${opcoesMediuns}</select>${btnWp('esc_flores_cigana', '*Flores* de _Cigana Rainha das 7 Encruzilhadas_')}</div></td>
                         </tr>
+                        <!-- Padilha -->
                         <tr class="hover:bg-white transition">
                             <td class="p-3 font-bold text-gray-800">M. Padilha Rainha 7 Encruzas</td>
-                            <td class="p-3"><select id="esc_img_padilha" class="w-full p-2 border border-gray-300 rounded outline-none focus:ring-2 focus:ring-blue-500 bg-white">${opcoesMediuns}</select></td>
-                            <td class="p-3"><select id="esc_flores_padilha" class="w-full p-2 border border-gray-300 rounded outline-none focus:ring-2 focus:ring-green-500 bg-white">${opcoesMediuns}</select></td>
+                            <td class="p-3"><div class="flex items-center"><select id="esc_img_padilha" class="w-full p-2 border border-gray-300 rounded outline-none focus:ring-2 focus:ring-blue-500 bg-white">${opcoesMediuns}</select>${btnWp('esc_img_padilha', '*Imagem* de _Maria Padilha Rainha das 7 Encruzilhadas_')}</div></td>
+                            <td class="p-3"><div class="flex items-center"><select id="esc_flores_padilha" class="w-full p-2 border border-gray-300 rounded outline-none focus:ring-2 focus:ring-green-500 bg-white">${opcoesMediuns}</select>${btnWp('esc_flores_padilha', '*Flores* de _Maria Padilha Rainha das 7 Encruzilhadas_')}</div></td>
                         </tr>
                     </tbody>
                 </table>
             `;
         } 
+        // SE FOR CORRENTE
         else if (evento.req_escala_corrente) {
             document.getElementById('escalaEventoTipo').value = 'corrente';
-            document.getElementById('btnNotificarEscala').classList.remove('hidden');
             
+            // Função auxiliar para injetar botão do WhatsApp na Corrente
+            const btnWpCorrente = (idSelect) => `<button type="button" onclick="notificarMediumIndividual('${idSelect}', 'Passe Específico na Corrente')" class="bg-green-500 text-white px-3 py-2.5 rounded-lg hover:bg-green-600 transition shadow-sm" title="Notificar este médium"><i class="fab fa-whatsapp text-lg"></i></button>`;
+
             html += `
                 <div class="bg-emerald-50 p-5 rounded-xl border border-emerald-200">
                     <h4 class="font-bold text-emerald-900 mb-4"><i class="fas fa-hands-helping mr-1"></i> Médiuns Escalados para o Passe (Corrente)</h4>
                     <div class="space-y-4">
                         <div>
                             <label class="block text-xs font-bold text-gray-600 mb-1">Médium 1</label>
-                            <select id="esc_corrente_1" class="w-full p-2.5 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 bg-white">${opcoesMediuns}</select>
+                            <div class="flex items-center gap-2">
+                                <select id="esc_corrente_1" class="w-full p-2.5 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 bg-white">${opcoesMediuns}</select>
+                                ${btnWpCorrente('esc_corrente_1')}
+                            </div>
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-gray-600 mb-1">Médium 2</label>
-                            <select id="esc_corrente_2" class="w-full p-2.5 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 bg-white">${opcoesMediuns}</select>
+                            <div class="flex items-center gap-2">
+                                <select id="esc_corrente_2" class="w-full p-2.5 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 bg-white">${opcoesMediuns}</select>
+                                ${btnWpCorrente('esc_corrente_2')}
+                            </div>
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-gray-600 mb-1">Médium 3</label>
-                            <select id="esc_corrente_3" class="w-full p-2.5 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 bg-white">${opcoesMediuns}</select>
+                            <div class="flex items-center gap-2">
+                                <select id="esc_corrente_3" class="w-full p-2.5 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 bg-white">${opcoesMediuns}</select>
+                                ${btnWpCorrente('esc_corrente_3')}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -5889,6 +5913,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
         container.innerHTML = html;
 
+        // Popula as opções se já existirem guardadas no BD
         if (evento.req_escala_exu) {
             if (objSalvo.img_tr) document.getElementById('esc_img_tr').value = objSalvo.img_tr;
             if (objSalvo.flores_tr) document.getElementById('esc_flores_tr').value = objSalvo.flores_tr;
@@ -5903,6 +5928,9 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // ============================================
+    // SALVAR AS ESCALAS NO SUPABASE
+    // ============================================
     const formEscala = document.getElementById('formSalvarEscala');
     if (formEscala) {
         formEscala.addEventListener('submit', async (e) => {
@@ -5938,14 +5966,14 @@ window.addEventListener('DOMContentLoaded', () => {
                 const { error } = await supabaseClient.from('agenda').update({ escalas: jsonFinal }).eq('id', idEvento).eq('terreiro_id', idTerreiroGlobal);
                 if (error) throw error;
 
-                window.escalaAtualEmEdicao = jsonFinal;
+                window.escalaAtualEmEdicao = jsonFinal; // Atualiza o cache da tela
                 
                 msg.textContent = 'Escala gravada com sucesso!';
                 msg.className = 'text-green-600 font-bold text-xs mt-2 block';
                 msg.classList.remove('hidden');
                 setTimeout(() => msg.classList.add('hidden'), 3000);
                 
-                window.carregarEventosEscalas(); 
+                window.carregarEventosEscalas(); // Atualiza a barra lateral
 
             } catch (err) {
                 msg.textContent = 'Erro ao salvar: ' + err.message;
@@ -5957,62 +5985,44 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    const btnNotificar = document.getElementById('btnNotificarEscala');
-    if (btnNotificar) {
-        btnNotificar.addEventListener('click', (e) => {
-            e.preventDefault();
-            const obj = window.escalaAtualEmEdicao;
-            const tipo = document.getElementById('escalaEventoTipo').value;
-            const dataEvento = document.getElementById('dataMontagemEscala').textContent;
-            const tituloEvento = document.getElementById('tituloMontagemEscala').textContent;
+    // ============================================
+    // WHATSAPP - NOTIFICAR INDIVIDUALMENTE
+    // ============================================
+    window.notificarMediumIndividual = (selectId, funcaoLocal) => {
+        const selectEl = document.getElementById(selectId);
+        if (!selectEl) return;
+        
+        const idMedium = selectEl.value;
+        if (!idMedium) {
+            alert('Por favor, selecione um médium na caixa ao lado antes de notificar.');
+            return;
+        }
 
-            if (!obj || Object.keys(obj).length === 0) {
-                alert('A escala está vazia. Selecione os médiuns e grave antes de notificar.');
-                return;
-            }
+        const md = listaMediunsGlobal.find(m => String(m.id) === String(idMedium));
+        if (!md) {
+            alert('Médium não encontrado.');
+            return;
+        }
+        
+        if (!md.telefone) {
+            alert('Este médium não possui um número de WhatsApp cadastrado no sistema.');
+            return;
+        }
 
-            const disparos = [];
+        const num = md.telefone.replace(/\D/g, '');
+        if (num.length < 10) {
+            alert('O número de telefone cadastrado parece estar incorreto ou incompleto.');
+            return;
+        }
 
-            const pushDisparo = (idMedium, funcaoLocal) => {
-                if (!idMedium) return;
-                const md = listaMediunsGlobal.find(m => String(m.id) === String(idMedium));
-                if (md && md.telefone) {
-                    const num = md.telefone.replace(/\D/g, '');
-                    if (num.length >= 10) {
-                        const primeiroNome = md.nome_social || md.nome_completo.split(' ')[0];
-                        disparos.push({ num, primeiroNome, funcao: funcaoLocal });
-                    }
-                }
-            };
+        const primeiroNome = md.nome_social || md.nome_completo.split(' ')[0];
+        const dataEvento = document.getElementById('dataMontagemEscala').textContent;
+        const tituloEvento = document.getElementById('tituloMontagemEscala').textContent;
 
-            if (tipo === 'exu') {
-                pushDisparo(obj.img_tr, '*Imagem* de _Tranca Ruas das Almas_');
-                pushDisparo(obj.flores_tr, '*Flores* de _Tranca Ruas das Almas_');
-                pushDisparo(obj.img_cigana, '*Imagem* de _Cigana Rainha das 7 Encruzilhadas_');
-                pushDisparo(obj.flores_cigana, '*Flores* de _Cigana Rainha das 7 Encruzilhadas_');
-                pushDisparo(obj.img_padilha, '*Imagem* de _Maria Padilha Rainha das 7 Encruzilhadas_');
-                pushDisparo(obj.flores_padilha, '*Flores* de _Maria Padilha Rainha das 7 Encruzilhadas_');
-            } else if (tipo === 'corrente') {
-                pushDisparo(obj.corrente_1, 'Passe Específico na Corrente');
-                pushDisparo(obj.corrente_2, 'Passe Específico na Corrente');
-                pushDisparo(obj.corrente_3, 'Passe Específico na Corrente');
-            }
+        const msgTxt = `Olá, ${primeiroNome}! 🙏\nPassando para lembrar que você foi escalado(a) para a função de ${funcaoLocal} na gira de *${tituloEvento}* no dia *${dataEvento}*.\nContamos com a sua responsabilidade e pontualidade. Axé!`;
+        const url = `https://wa.me/55${num}?text=${encodeURIComponent(msgTxt)}`;
+        
+        window.open(url, '_blank');
+    };
 
-            if (disparos.length === 0) {
-                alert('Não foi possível encontrar nenhum telefone válido nos médiuns escalados.');
-                return;
-            }
-
-            const confirmar = confirm(`Foram encontrados ${disparos.length} médiuns com WhatsApp na escala.\nAs abas do WhatsApp irão se abrir uma por uma. Autorize o seu navegador se perguntar por bloqueio de pop-ups.\n\nProsseguir?`);
-            if (!confirmar) return;
-
-            disparos.forEach((d, i) => {
-                setTimeout(() => {
-                    const msgTxt = `Olá, ${d.primeiroNome}! 🙏\nPassando para lembrar que você foi escalado(a) para a função de ${d.funcao} na gira de *${tituloEvento}* no dia *${dataEvento}*.\nContamos com a sua responsabilidade e pontualidade. Axé!`;
-                    const url = `https://wa.me/55${d.num}?text=${encodeURIComponent(msgTxt)}`;
-                    window.open(url, '_blank');
-                }, i * 800); 
-            });
-        });
-    }
 });
