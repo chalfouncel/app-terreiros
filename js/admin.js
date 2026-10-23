@@ -1519,6 +1519,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     if (m.perm_financeiro) b.push('<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Financeiro</span>');
                     if (m.perm_doacoes) b.push('<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-50 text-rose-700 border border-rose-200">Campanhas</span>');
                     if (m.perm_admin) b.push('<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-200">Config Casa</span>');
+                    if (m.perm_escalas) b.push('<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-green-50 text-green-700 border border-green-200">Escalas</span>');
+
 
                     return b.length > 0 ? `<div class="flex flex-wrap gap-1 mt-1.5 max-w-[280px]">${b.join('')}</div>` : '';
                 })();
