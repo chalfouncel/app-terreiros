@@ -701,15 +701,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                     perm_visao_geral: document.getElementById('chkPermVisao')?.checked || false,
                     perm_quadro_mediuns: document.getElementById('chkPermQuadro')?.checked || false,
                     perm_guias: document.getElementById('chkPermGuias')?.checked || false,
-                    perm_ia: document.getElementById('chkPermIA')?.checked || false, // NOVA LINHA
+                    perm_ia: document.getElementById('chkPermIA')?.checked || false,
                     perm_agenda: document.getElementById('chkPermAgenda')?.checked || false,
                     perm_ata: document.getElementById('chkPermAta')?.checked || false,
                     perm_grau: document.getElementById('chkPermGrau')?.checked || false,
                     perm_financeiro: document.getElementById('chkPermFinanceiro')?.checked || false,
                     perm_doacoes: document.getElementById('chkPermDoacoes')?.checked || false,
-                    perm_admin: document.getElementById('chkPermAdmin')?.checked || false
+                    perm_admin: document.getElementById('chkPermAdmin')?.checked || false,
+                    perm_escalas: document.getElementById('chkPermEscalas')?.checked || false // <-- LINHA ADICIONADA
                 };
-
                 try {
                     const { error } = await supabaseClient
                         .from('mediuns')
@@ -1472,7 +1472,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 let acoesHtml = '<span class="text-gray-400 text-xs">Sem acesso</span>';
                 
                 if (perfilAdminLogado && perfilAdminLogado.is_admin) {
-                    const perms = `${m.perm_agenda || false},${m.perm_grau || false},${m.perm_financeiro || false},${m.perm_doacoes || false},${m.perm_admin || false},${m.perm_visao_geral || false},${m.perm_ata || false},${m.perm_quadro_mediuns || false},${m.perm_guias || false},${m.perm_ia || false}`;
+                    const perms = `${m.perm_agenda || false},${m.perm_grau || false},${m.perm_financeiro || false},${m.perm_doacoes || false},${m.perm_admin || false},${m.perm_visao_geral || false},${m.perm_ata || false},${m.perm_quadro_mediuns || false},${m.perm_guias || false},${m.perm_ia || false},${m.perm_escalas || false}`;
                     
                     const isAtivo = m.status_ativo !== false;
                     const iconInativar = isAtivo ? 'fa-user-times' : 'fa-user-check';
@@ -3996,7 +3996,9 @@ window.alternarStatusAtivoMedium = async (id, statusAtual) => {
 window.abrirModalPermissoes = (id, nome, permsString) => {
     document.getElementById('idMediumPermissao').value = id;
     document.getElementById('nomeMediumPermissao').textContent = nome;
-    const [pAgenda, pGrau, pFin, pDoa, pAdmin, pVisao, pAta, pQuadro, pGuias, pIA] = permsString.split(','); // ADICIONADO pIA AQUI
+    
+    // Agora desestrutura também o pEscalas no final
+    const [pAgenda, pGrau, pFin, pDoa, pAdmin, pVisao, pAta, pQuadro, pGuias, pIA, pEscalas] = permsString.split(','); 
     
     document.getElementById('chkPermAgenda').checked = pAgenda === 'true';
     document.getElementById('chkPermGrau').checked = pGrau === 'true';
@@ -4007,7 +4009,10 @@ window.abrirModalPermissoes = (id, nome, permsString) => {
     if (document.getElementById('chkPermAta')) document.getElementById('chkPermAta').checked = pAta === 'true';
     if (document.getElementById('chkPermQuadro')) document.getElementById('chkPermQuadro').checked = pQuadro === 'true';
     if (document.getElementById('chkPermGuias')) document.getElementById('chkPermGuias').checked = pGuias === 'true';
-    if (document.getElementById('chkPermIA')) document.getElementById('chkPermIA').checked = pIA === 'true'; // NOVA LINHA AQUI
+    if (document.getElementById('chkPermIA')) document.getElementById('chkPermIA').checked = pIA === 'true';
+    
+    // NOVA LINHA QUE LÊ A VARIÁVEL pEscalas E MARCA NA TELA
+    if (document.getElementById('chkPermEscalas')) document.getElementById('chkPermEscalas').checked = pEscalas === 'true'; 
     
     document.getElementById('modalPermissoes').classList.remove('hidden');
 };
