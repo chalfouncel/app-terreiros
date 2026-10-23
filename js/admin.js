@@ -1420,11 +1420,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             try {
                 const { data, error } = await supabaseClient
                 .from('mediuns')
-                .select('id, nome_completo, nome_social, data_nascimento, grau, funcao, telefone, palavra, cadastro_completo, is_admin, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin, perm_visao_geral, perm_ata, perm_quadro_mediuns, perm_guias, perm_ia, status_ativo, isento_mensalidade')
+                .select('id, nome_completo, nome_social, data_nascimento, grau, funcao, telefone, palavra, cadastro_completo, is_admin, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin, perm_visao_geral, perm_ata, perm_quadro_mediuns, perm_guias, perm_ia, status_ativo, isento_mensalidade, perm_escalas')
                 .eq('terreiro_id', idTerreiroGlobal)
-                    .neq('nome_completo', 'Administrador Sistema')
-                    .order('nome_completo');
-
+                .neq('nome_completo', 'Administrador Sistema')
+                .order('nome_completo');
+                
                 if (error) throw error;
 
                 if (data) {
