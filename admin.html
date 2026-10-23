@@ -1521,6 +1521,26 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- NOVO CARD: Fundo de Certificados -->
+<div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center">
+    <h3 class="font-bold text-gray-800 text-sm mb-3"><i class="fas fa-certificate text-purple-600 mr-2"></i>Fundo de Certificados (A4)</h3>
+    <p class="text-[10px] text-gray-500 text-center mb-4">Envie o template (A4 deitada) em máxima qualidade (PNG/JPG). O sistema escreverá os textos por cima.</p>
+    
+    <div class="w-full h-32 bg-gray-50 border-2 border-dashed border-gray-300 rounded-xl flex items-center justify-center mb-4 relative overflow-hidden group">
+        <img id="previewFundoCertificado" class="absolute inset-0 w-full h-full object-contain hidden" alt="Preview do Fundo">
+        <div class="text-center z-10 p-2" id="placeholderFundoCertificado">
+            <i class="fas fa-image text-2xl text-gray-400 mb-1 group-hover:text-purple-500 transition"></i>
+            <p class="text-[10px] text-gray-500 font-medium">Clique para escolher a imagem</p>
+        </div>
+        <input type="file" id="inputFundoCertificado" accept="image/png, image/jpeg" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20">
+    </div>
+    
+    <button id="btnSalvarFundoCertificado" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-xl text-xs transition shadow-sm active:scale-95 hidden">
+        <i class="fas fa-upload mr-1"></i> Salvar Imagem de Fundo
+    </button>
+    <p id="msgFundoCertificado" class="text-[10px] mt-2 hidden text-center w-full font-bold"></p>
+</div>
     
                         <!-- Identidade Visual (Cores) -->
                         <div class="bg-white rounded-2xl shadow-sm border-t-4 border-tema-secundaria p-5 md:p-6 flex flex-col justify-between">
