@@ -918,7 +918,7 @@
         }
     });
 
-        // ==========================================
+    // ==========================================
     // GERAÇÃO DO CERTIFICADO INDIVIDUAL EM PDF (A4 LASCAPE)
     // ==========================================
     window.gerarCertificadoIndividual = async (event, medium, tipoSacramento) => {
@@ -935,7 +935,7 @@
             if (!document.getElementById('fontesCertificado')) {
                 const style = document.createElement('style');
                 style.id = 'fontesCertificado';
-                style.innerHTML = `@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Great+Vibes&family=Playfair+Display:ital,wght@0,500;0,700;1,500&display=swap');`;
+                style.innerHTML = `@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Great+Vibes&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap');`;
                 document.head.appendChild(style);
             }
             if (document.fonts && document.fonts.ready) {
@@ -1003,11 +1003,26 @@
             };
             const dataNascFmt = dataNascimento ? formatarData(dataNascimento) : '___/___/____';
 
+            // BUSCADOR INTELIGENTE DE NOMES DE MÉDIUNS
+            const buscarNomeCompleto = (termo) => {
+                if (!termo || typeof listaGuiasMediunsCache === 'undefined') return termo;
+                const busca = termo.trim().toLowerCase();
+                const encontrado = listaGuiasMediunsCache.find(x => 
+                    (x.nome_completo && x.nome_completo.toLowerCase().includes(busca)) ||
+                    (x.nome_social && x.nome_social.toLowerCase().includes(busca))
+                );
+                return encontrado ? encontrado.nome_completo : termo;
+            };
+
             const formatarPadrinho = (obj) => {
                 if (!obj || !obj.nome) return '_______________________';
                 const nomeUpper = obj.nome.toUpperCase();
                 if (obj.tipo === 'medium' || !obj.medium) return nomeUpper;
-                return `${nomeUpper} (ATRAVÉS DA MEDIUNIDADE DE ${obj.medium.toUpperCase()})`;
+                
+                // Converte apelido/primeiro nome para o NOME COMPLETO do médium
+                const nomeMediumCompleto = buscarNomeCompleto(obj.medium);
+                
+                return `${nomeUpper} (ATRAVÉS DA MEDIUNIDADE DE ${nomeMediumCompleto.toUpperCase()})`;
             };
 
             const formatarNomeCursive = (nome) => {
@@ -1057,7 +1072,10 @@
                 rodapePadrinhos = `PADRINHOS DE COROAÇÃO: ${formatarPadrinho(padrinhoObj)} E ${formatarPadrinho(madrinhaObj)}`;
             }
 
-            // 4. Montar elemento HTML (Design Premium com Flexbox e Overlay)
+            // Estilo CSS inteligente para legibilidade sobre qualquer imagem (Contorno e brilho branco)
+            const legibilidadeCSS = `text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff, 0 0 12px #fff, 0 0 20px #fff, 0 0 30px #fff;`;
+
+            // 4. Montar elemento HTML
             const elementoPdf = document.createElement('div');
             elementoPdf.style.width = '1123px';
             elementoPdf.style.height = '794px';
@@ -1067,15 +1085,15 @@
             elementoPdf.innerHTML = `
                 <img src="${fundoBase64}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1;" />
                 
-                <!-- Container principal: Limita a área até 68% da altura da página para não invadir a assinatura -->
+                <!-- Container principal -->
                 <div style="position: absolute; top: 8%; height: 68%; width: 100%; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 0 110px; box-sizing: border-box; z-index: 2;">
                     
-                    <!-- BLOCO 1: CABEÇALHO (Flutuando no fundo) -->
+                    <!-- BLOCO 1: CABEÇALHO -->
                     <div style="text-align: center;">
                         <h1 style="font-family: 'Cinzel', serif; font-size: 52px; font-weight: 700; margin: 0; color: #ffffff; letter-spacing: 12px; text-shadow: 2px 2px 6px rgba(0,0,0,0.7);">
                             CERTIDÃO
                         </h1>
-                        <h2 style="font-family: 'Great Vibes', cursive; font-size: 46px; margin: -10px 0 5px 0; color: #fbbf24; font-weight: normal; text-shadow: 1px 1px 4px rgba(0,0,0,0.8);">
+                        <h2 style="font-family: 'Great Vibes', cursive; font-size: 50px; margin: -5px 0 5px 0; color: #fbbf24; font-weight: normal; text-shadow: 1px 1px 4px rgba(0,0,0,0.8);">
                             ${tipoSacramento}
                         </h2>
                         <h3 style="font-family: 'Great Vibes', cursive; font-size: 56px; margin: 0; color: #0f172a; font-weight: normal; text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff, 3px 3px 6px rgba(0,0,0,0.5);">
@@ -1083,18 +1101,18 @@
                         </h3>
                     </div>
 
-                    <!-- BLOCO 2: CORPO JURÍDICO/RELIGIOSO (Placa translúcida para leitura perfeita) -->
-                    <div style="background-color: rgba(255, 255, 255, 0.88); padding: 25px 45px; border-radius: 8px; box-shadow: 0 8px 25px rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,1); width: 100%; box-sizing: border-box;">
-                        <p style="font-family: 'Playfair Display', serif; font-size: 14.5px; line-height: 1.7; text-align: justify; color: #111827; margin: 0 0 20px 0; font-weight: 500;">
+                    <!-- BLOCO 2: CORPO JURÍDICO/RELIGIOSO (Sem tarja, com super-legibilidade CSS) -->
+                    <div style="padding: 10px 40px; width: 100%; box-sizing: border-box;">
+                        <p style="font-family: 'Playfair Display', serif; font-size: 15.5px; line-height: 1.8; text-align: justify; color: #111827; margin: 0 0 25px 0; font-weight: 600; ${legibilidadeCSS}">
                             ${textoCorpo}
                         </p>
                         
-                        <div style="font-family: 'Playfair Display', serif; font-size: 11px; color: #000000; font-weight: 700; text-align: center; margin-bottom: 20px; line-height: 1.4; text-transform: uppercase;">
+                        <div style="font-family: 'Playfair Display', serif; font-size: 11.5px; color: #111827; font-weight: 700; text-align: center; margin-bottom: 25px; line-height: 1.6; text-transform: uppercase; ${legibilidadeCSS}">
                             ${rodapePadrinhos}
                         </div>
 
-                        <div style="font-family: 'Playfair Display', serif; font-size: 16px; color: #374151; text-align: center; font-style: italic;">
-                            Realizado no dia <strong style="font-style: normal; color: #0f172a;">${formatarData(dataSacramento)}</strong>
+                        <div style="font-family: 'Playfair Display', serif; font-size: 18px; color: #111827; text-align: center; font-style: italic; font-weight: 700; ${legibilidadeCSS}">
+                            Realizado no dia <strong style="font-style: normal;">${formatarData(dataSacramento)}</strong>
                         </div>
                     </div>
 
