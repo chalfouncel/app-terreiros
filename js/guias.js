@@ -1003,15 +1003,53 @@
             };
             const dataNascFmt = dataNascimento ? formatarData(dataNascimento) : '___/___/____';
 
-            // BUSCADOR INTELIGENTE DE NOMES DE MÉDIUNS
-            const buscarNomeCompleto = (termo) => {
-                if (!termo || typeof listaGuiasMediunsCache === 'undefined') return termo;
-                const busca = termo.trim().toLowerCase();
-                const encontrado = listaGuiasMediunsCache.find(x => 
-                    (x.nome_completo && x.nome_completo.toLowerCase().includes(busca)) ||
-                    (x.nome_social && x.nome_social.toLowerCase().includes(busca))
+            // BUSCADOR INTELIGENTE COM DESEMPATE POR NOME DO GUIA
+            const buscarNomeCompleto = (termoMedium, termoGuia) => {
+                if (!termoMedium || typeof listaGuiasMediunsCache === 'undefined') return termoMedium;
+                const buscaMed = termoMedium.trim().toLowerCase();
+
+                // 1. Encontra todos os médiuns que contém esse nome ou apelido
+                let candidatos = listaGuiasMediunsCache.filter(x => 
+                    (x.nome_completo && x.nome_completo.toLowerCase().includes(buscaMed)) ||
+                    (x.nome_social && x.nome_social.toLowerCase().includes(buscaMed))
                 );
-                return encontrado ? encontrado.nome_completo : termo;
+
+                if (candidatos.length === 0) return termoMedium; // Não achou ninguém
+                if (candidatos.length === 1) return candidatos[0].nome_completo; // Achou só um
+
+                // 2. Achou mais de um médium com esse nome (ex: duas "Fátima").
+                // Vamos desempatar verificando qual delas trabalha com esse guia!
+                if (termoGuia) {
+                    // Extrai palavras do nome do guia com mais de 2 letras
+                    const palavrasGuia = termoGuia.toLowerCase().replace(/[^a-záéíóúâêîôûãõç]/g, ' ').split(/\s+/).filter(p => p.length > 2);
+                    
+                    let melhorCandidato = candidatos[0];
+                    let maiorScore = -1;
+
+                    candidatos.forEach(c => {
+                        // Junta todos os guias cadastrados deste candidato
+                        const guiasDoCandidato = [
+                            c.guia_caboclo, c.guia_preto_velho, c.guia_exu_pombagira, 
+                            c.guia_crianca, c.guia_oriental, c.guia_cigano
+                        ].join(' ').toLowerCase();
+
+                        let score = 0;
+                        palavrasGuia.forEach(palavra => {
+                            if (guiasDoCandidato.includes(palavra)) score++;
+                        });
+
+                        // Se a "Fátima A" tem mais correspondências de palavras do guia que a "Fátima B", ela ganha
+                        if (score > maiorScore) {
+                            maiorScore = score;
+                            melhorCandidato = c;
+                        }
+                    });
+
+                    if (maiorScore > 0) return melhorCandidato.nome_completo;
+                }
+
+                // Falha no desempate, retorna o primeiro
+                return candidatos[0].nome_completo;
             };
 
             const formatarPadrinho = (obj) => {
@@ -1019,8 +1057,8 @@
                 const nomeUpper = obj.nome.toUpperCase();
                 if (obj.tipo === 'medium' || !obj.medium) return nomeUpper;
                 
-                // Converte apelido/primeiro nome para o NOME COMPLETO do médium
-                const nomeMediumCompleto = buscarNomeCompleto(obj.medium);
+                // Passa o Nome do Médium E o Nome do Guia para a inteligência resolver quem é!
+                const nomeMediumCompleto = buscarNomeCompleto(obj.medium, obj.nome);
                 
                 return `${nomeUpper} (ATRAVÉS DA MEDIUNIDADE DE ${nomeMediumCompleto.toUpperCase()})`;
             };
