@@ -927,11 +927,11 @@
         
         if (btnAtivador) {
             btnAtivador.disabled = true;
-            btnAtivador.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Preparando Imagem...';
+            btnAtivador.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Preparando...';
         }
 
         try {
-            // 1. Obter a URL da imagem de fundo cadastrada no Admin
+            // 1. Obter a URL da imagem de fundo
             let fundoUrl = '';
             try {
                 const { data } = await supabaseClient
@@ -945,7 +945,7 @@
             } catch(e) { console.error('Erro ao buscar fundo:', e); }
 
             if (!fundoUrl) {
-                alert('O Fundo do Certificado não foi encontrado! Acesse "Configurações da Casa" e faça o upload do layout base (em branco) antes de imprimir.');
+                alert('O Fundo do Certificado não foi encontrado! Faça o upload em "Configurações da Casa".');
                 if (btnAtivador) {
                     btnAtivador.disabled = false;
                     btnAtivador.innerHTML = originalHtml;
@@ -953,12 +953,12 @@
                 return;
             }
 
-            // 1.5. FORÇAR CARREGAMENTO E CONVERTER PARA BASE64 (Resolve a página em branco e o CORS)
+            // 1.5. Converter a imagem para Base64 (Burla o bloqueio de CORS do Canvas)
             const fundoBase64 = await new Promise((resolve, reject) => {
                 const img = new Image();
-                img.crossOrigin = 'Anonymous'; // Libera permissão do Supabase
+                img.crossOrigin = 'Anonymous';
                 img.onload = () => {
-                    if (btnAtivador) btnAtivador.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Gerando PDF...';
+                    if (btnAtivador) btnAtivador.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Gerando PDF...';
                     const canvas = document.createElement('canvas');
                     canvas.width = img.naturalWidth || img.width;
                     canvas.height = img.naturalHeight || img.height;
@@ -966,11 +966,7 @@
                     ctx.drawImage(img, 0, 0);
                     resolve(canvas.toDataURL('image/jpeg', 1.0));
                 };
-                img.onerror = (err) => {
-                    console.error("Erro ao pré-carregar imagem:", err);
-                    reject(new Error('Erro no CORS ou imagem indisponível'));
-                };
-                // O parâmetro 't' força o navegador a não pegar do cache com erro
+                img.onerror = (err) => reject(new Error('Falha ao carregar a imagem de fundo'));
                 img.src = fundoUrl + '?t=' + new Date().getTime();
             });
 
@@ -1003,22 +999,19 @@
                 return `${pts[2]}/${pts[1]}/${pts[0]}`;
             };
 
-            // 3. Montar elemento HTML invisível simulando a folha A4 deitada
-            const div = document.createElement('div');
-            div.style.width = '1123px';
-            div.style.height = '794px';
-            div.style.position = 'absolute';
-            div.style.top = '-9999px';
-            div.style.left = '-9999px';
-            // Agora usamos o código Base64 que já está baixado e na memória
-            div.style.backgroundImage = `url('${fundoBase64}')`;
-            div.style.backgroundSize = '100% 100%';
-            div.style.backgroundRepeat = 'no-repeat';
-            div.style.fontFamily = 'Georgia, "Times New Roman", serif';
+            // 3. Montar elemento HTML simulando a folha A4 (Sem coordenadas negativas)
+            const elementoPdf = document.createElement('div');
+            elementoPdf.style.width = '1123px';
+            elementoPdf.style.height = '794px';
+            elementoPdf.style.position = 'relative';
+            elementoPdf.style.fontFamily = 'Georgia, "Times New Roman", serif';
+            elementoPdf.style.backgroundColor = '#ffffff';
             
-            // O texto é sobreposto no centro da imagem
-            div.innerHTML = `
-                <div style="position: absolute; top: 40%; width: 100%; text-align: center; padding: 0 100px; box-sizing: border-box; text-shadow: 1px 1px 2px rgba(255,255,255,0.8);">
+            // Usamos a tag <img> pura em vez de background-image e z-index para empilhar
+            elementoPdf.innerHTML = `
+                <img src="${fundoBase64}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1;" />
+                
+                <div style="position: absolute; top: 40%; width: 100%; text-align: center; padding: 0 100px; box-sizing: border-box; z-index: 2; text-shadow: 1px 1px 2px rgba(255,255,255,0.8);">
                     <h1 style="font-size: 55px; font-weight: 900; margin: 0; color: #111827; text-transform: uppercase; letter-spacing: 2px;">${medium.nome_completo}</h1>
                     
                     <p style="font-size: 28px; margin-top: 35px; font-style: italic; color: #374151;">
@@ -1035,23 +1028,36 @@
                     </div>
                 </div>
             `;
-            document.body.appendChild(div);
 
-            // 4. Converter para PDF e disparar o download
+            // Envolvemos num container invisível mantendo-o dentro do viewport
+            const wrapperInvisivel = document.createElement('div');
+            wrapperInvisivel.style.position = 'fixed';
+            wrapperInvisivel.style.top = '0';
+            wrapperInvisivel.style.left = '0';
+            wrapperInvisivel.style.width = '0px';
+            wrapperInvisivel.style.height = '0px';
+            wrapperInvisivel.style.overflow = 'hidden';
+            wrapperInvisivel.style.zIndex = '-9999';
+            
+            wrapperInvisivel.appendChild(elementoPdf);
+            document.body.appendChild(wrapperInvisivel);
+
+            // 4. Converter para PDF
             const opt = {
                 margin: 0,
                 filename: `Certificado_${tipoSacramento}_${medium.nome_completo.replace(/\s+/g, '_')}.pdf`,
                 image: { type: 'jpeg', quality: 1.0 },
-                html2canvas: { scale: 2, useCORS: true },
+                html2canvas: { scale: 2, useCORS: true, allowTaint: true },
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
             };
 
-            await html2pdf().set(opt).from(div).save();
-            document.body.removeChild(div);
+            await html2pdf().set(opt).from(elementoPdf).save();
             
-            // Retornar o botão ao estado normal
+            // Limpa a tela
+            document.body.removeChild(wrapperInvisivel);
+            
             if (btnAtivador) {
-                btnAtivador.innerHTML = '<i class="fas fa-check"></i> Baixado!';
+                btnAtivador.innerHTML = '<i class="fas fa-check mr-1"></i> Baixado!';
                 setTimeout(() => {
                     btnAtivador.disabled = false;
                     btnAtivador.innerHTML = originalHtml;
@@ -1059,7 +1065,7 @@
             }
         } catch (err) {
             console.error('Erro ao gerar certificado:', err);
-            alert('Erro ao gerar certificado. Verifique sua conexão ou tente recarregar a página.');
+            alert('Erro ao gerar certificado. Tente recarregar a página.');
             if (btnAtivador) {
                 btnAtivador.disabled = false;
                 btnAtivador.innerHTML = originalHtml;
@@ -1068,3 +1074,4 @@
     };
 
 })();
+Salve o arquivo, recarregue a página (se for necessário, aperte Ctrl+F5 para limpar o cache do navegador) e pode cli
