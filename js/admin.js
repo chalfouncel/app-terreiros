@@ -6136,59 +6136,7 @@ window.addEventListener('DOMContentLoaded', () => {
             if (objSalvo.corrente_3) document.getElementById('esc_corrente_3').value = objSalvo.corrente_3;
         }
 
-        // --- LÓGICA DE SACRAMENTOS ---
-        const candsBatismo = listaMediunsGlobal.filter(m => !m.data_batismo);
-        const candsConsagracao = listaMediunsGlobal.filter(m => {
-            const g = (m.grau || '').toUpperCase();
-            const f = (m.funcao || '').toUpperCase();
-            return ['SCT', 'ESCOLA DE CT', 'CT'].includes(g) || f === 'MGA';
-        });
-        const candsCoroacao = listaMediunsGlobal.filter(m => {
-            const g = (m.grau || '').toUpperCase();
-            return ['SCCT', 'ESCOLA DE CCT'].includes(g);
-        });
-
-        window.selecionadosBatismo = objSalvo.batizados || [];
-        window.selecionadosConsagracao = objSalvo.consagrados || [];
-        window.selecionadosCoroacao = objSalvo.coroados || [];
-
-        const renderChk = (cands, arrSelecionados, globalVarName) => {
-            if (cands.length === 0) return '<span class="text-xs text-gray-500 p-2 col-span-full">Nenhum médium apto encontrado com estes critérios.</span>';
-            return cands.map(m => `
-                <label class="flex items-center space-x-2 text-xs md:text-sm text-gray-700 cursor-pointer hover:bg-gray-50 p-1 rounded">
-                    <input type="checkbox" value="${m.id}" class="rounded focus:ring-tema-primaria text-tema-secundaria" 
-                        ${arrSelecionados.includes(String(m.id)) ? 'checked' : ''} 
-                        onchange="atualizarSelecaoSimples('${globalVarName}', this)">
-                    <span class="truncate" title="${m.nome_completo}">${m.nome_social || m.nome_completo}</span>
-                </label>
-            `).join('');
         };
-
-        const listBat = document.getElementById('listaCheckBatismo');
-        const listCons = document.getElementById('listaCheckConsagracao');
-        const listCor = document.getElementById('listaCheckCoroacao');
-        
-        if (listBat) listBat.innerHTML = renderChk(candsBatismo, window.selecionadosBatismo, 'selecionadosBatismo');
-        if (listCons) listCons.innerHTML = renderChk(candsConsagracao, window.selecionadosConsagracao, 'selecionadosConsagracao');
-        if (listCor) listCor.innerHTML = renderChk(candsCoroacao, window.selecionadosCoroacao, 'selecionadosCoroacao');
-    };
-
-    window.toggleBlocoEscala = (id) => {
-        const el = document.getElementById(id);
-        if (el.classList.contains('hidden')) el.classList.remove('hidden');
-        else el.classList.add('hidden');
-    };
-
-    window.atualizarSelecaoSimples = (globalVarName, checkbox) => {
-        let arr = window[globalVarName] || [];
-        const val = String(checkbox.value);
-        if(checkbox.checked) {
-            if(!arr.includes(val)) arr.push(val);
-        } else {
-            arr = arr.filter(v => v !== val);
-        }
-        window[globalVarName] = arr;
-    };
 
     // ============================================
     // SALVAR AS ESCALAS NO SUPABASE
@@ -6205,29 +6153,25 @@ window.addEventListener('DOMContentLoaded', () => {
             btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Salvando...';
             msg.classList.add('hidden');
 
-            let jsonFinal = {};
+            // Mantém batizados, consagrados e coroados já salvos na Agenda
+            let jsonFinal = { ...(window.escalaAtualEmEdicao || {}) };
 
             if (tipo === 'exu') {
-                jsonFinal = {
+                Object.assign(jsonFinal, {
                     img_tr: document.getElementById('esc_img_tr').value,
                     flores_tr: document.getElementById('esc_flores_tr').value,
                     img_cigana: document.getElementById('esc_img_cigana').value,
                     flores_cigana: document.getElementById('esc_flores_cigana').value,
                     img_padilha: document.getElementById('esc_img_padilha').value,
                     flores_padilha: document.getElementById('esc_flores_padilha').value,
-                };
-           } else if (tipo === 'corrente') {
-                jsonFinal = {
+                });
+            } else if (tipo === 'corrente') {
+                Object.assign(jsonFinal, {
                     corrente_1: document.getElementById('esc_corrente_1').value,
                     corrente_2: document.getElementById('esc_corrente_2').value,
                     corrente_3: document.getElementById('esc_corrente_3').value,
-                };
+                });
             }
-
-            // Mescla os sacramentos salvos das caixas
-            jsonFinal.batizados = window.selecionadosBatismo || [];
-            jsonFinal.consagrados = window.selecionadosConsagracao || [];
-            jsonFinal.coroados = window.selecionadosCoroacao || [];
 
             try {
                 const { error } = await supabaseClient.from('agenda').update({ escalas: jsonFinal }).eq('id', idEvento).eq('terreiro_id', idTerreiroGlobal);
