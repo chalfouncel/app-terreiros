@@ -4115,7 +4115,8 @@ window.renderizarSacramentos = async (tipo, containerId, listaSelecionadosInicia
     } else if (tipo === 'coroacao') {
         cands = listaMediunsGlobal.filter(m => {
             const g = (m.grau || '').toUpperCase();
-            return ['SCCT', 'ESCOLA DE CCT'].includes(g);
+            const f = (m.funcao || '').toUpperCase();
+            return ['SCCT', 'ESCOLA DE CCT'].includes(g) || f === 'MGA';
         });
     }
 
