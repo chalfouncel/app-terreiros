@@ -1074,4 +1074,3 @@
     };
 
 })();
-Salve o arquivo, recarregue a página (se for necessário, aperte Ctrl+F5 para limpar o cache do navegador) e pode cli
