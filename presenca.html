@@ -680,7 +680,7 @@
             });
         }
 
-        // Funções do Modal Apoio Dev
+        // Funções do Modal Apoio Dev com suporte otimizado a toque mobile
         window.abrirModalApoioDev = () => {
             const modal = document.getElementById('modalApoioDev');
             if (!modal) return;
@@ -699,21 +699,22 @@
             setTimeout(() => modal.classList.add('hidden'), 150);
         };
 
-        document.getElementById('btnCopiarPixDev')?.addEventListener('click', () => {
-            const chave = document.getElementById('chavePixDev')?.textContent.trim();
-            if (!chave) return;
-            navigator.clipboard.writeText(chave).then(() => {
-                const btn = document.getElementById('btnCopiarPixDev');
-                const orig = btn.innerHTML;
-                btn.innerHTML = '<i class="fas fa-check"></i> Chave Copiada!';
-                btn.classList.replace('bg-amber-500', 'bg-green-600');
-                setTimeout(() => {
-                    btn.innerHTML = orig;
-                    btn.classList.replace('bg-green-600', 'bg-amber-500');
-                }, 2000);
-            });
-        });
-        });
+        document.addEventListener('DOMContentLoaded', () => {
+            const btnCopiar = document.getElementById('btnCopiarPixDev');
+            if (btnCopiar) {
+                btnCopiar.addEventListener('click', () => {
+                    const chave = document.getElementById('chavePixDev')?.textContent.trim() || '21982895043';
+                    navigator.clipboard.writeText(chave).then(() => {
+                        const orig = btnCopiar.innerHTML;
+                        btnCopiar.innerHTML = '<i class="fas fa-check"></i> Chave Copiada!';
+                        btnCopiar.classList.replace('bg-amber-500', 'bg-green-600');
+                        setTimeout(() => {
+                            btnCopiar.innerHTML = orig;
+                            btnCopiar.classList.replace('bg-green-600', 'bg-amber-500');
+                        }, 2000);
+                    });
+                });
+            }
         });
     </script>
 
