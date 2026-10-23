@@ -2132,179 +2132,209 @@
             </div>
         </div>
     
-        <!-- MODAL EDITAR GUIAS E PADRINHOS DO MÉDIUM -->
-        <div id="modalEditarGuiasMedium" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[75]">
-            <div class="bg-white rounded-3xl shadow-xl w-full max-w-2xl p-6 transform transition-all max-h-[92vh] overflow-y-auto">
-                <div class="flex justify-between items-center mb-4 border-b pb-2">
-                    <div>
-                        <h3 class="text-lg md:text-xl font-bold text-tema-texto"><i class="fas fa-feather-alt text-tema-secundaria mr-2"></i> Guias e Padrinhos</h3>
-                        <p id="editGuiaMediumNomeTitulo" class="text-xs font-bold text-tema-primaria mt-0.5"></p>
+<!-- MODAL EDITAR GUIAS E PADRINHOS DO MÉDIUM -->
+<div id="modalEditarGuiasMedium" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[75]">
+    <div class="bg-white rounded-3xl shadow-xl w-full max-w-2xl p-6 transform transition-all max-h-[92vh] overflow-y-auto custom-scroll">
+        <div class="flex justify-between items-center mb-4 border-b border-gray-100 pb-3">
+            <div>
+                <h3 class="text-lg md:text-xl font-bold text-tema-texto flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-full bg-tema-secundaria/10 text-tema-secundaria flex items-center justify-center">
+                        <i class="fas fa-feather-alt text-sm"></i>
                     </div>
-                    <button type="button" onclick="fecharModalEditarGuiasMedium()" class="text-gray-400 hover:text-gray-600 p-1"><i class="fas fa-times text-xl"></i></button>
-                </div>
-    
-                <form id="formEditarGuiasMedium" class="space-y-4">
-                    <input type="hidden" id="editGuiaMediumId">
-    
-                    <div class="bg-gray-50 p-4 rounded-2xl border border-gray-200 space-y-3">
-                        <h4 class="text-xs font-black text-gray-700 uppercase tracking-wider"><i class="fas fa-hands-helping text-tema-primaria mr-1"></i> Padrinhos e Madrinhas</h4>
-    
-                        <!-- 1. BATISMO (Todos os Graus: Guia ou Médium) -->
-                        <div class="bg-white p-3 rounded-xl border border-gray-200 space-y-2.5 relative">
-                            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-gray-100 pb-2 mb-1 gap-2">
-                                <p class="text-[11px] font-black text-sky-700 uppercase tracking-wider">🕊️ Batismo</p>
-                                <div class="flex items-center gap-2">
-                                    <button type="button" id="btnImprimirCertBatismo" class="hidden text-[10px] bg-sky-100 text-sky-700 hover:bg-sky-200 font-bold px-2 py-1 rounded-md transition active:scale-95 items-center gap-1">
-                                        <i class="fas fa-print"></i> Certificado
-                                    </button>
-                                    <div class="flex items-center gap-1.5">
-                                        <label class="text-[9px] font-bold text-gray-500 uppercase">Data:</label>
-                                        <input type="date" id="editDataBatismo" class="text-[10px] font-bold px-1.5 py-0.5 border border-gray-300 rounded bg-white outline-none text-gray-700">
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                <!-- Padrinho de Batismo -->
-                                <div class="space-y-1.5">
-                                    <div class="flex items-center justify-between">
-                                        <label class="text-xs font-bold text-gray-700">Padrinho</label>
-                                        <select id="editBatismoPadrinhoTipo" onchange="alternarTipoPadrinhoBatismo('edit', 'Padrinho')" class="text-[10px] font-bold px-2 py-0.5 border border-gray-300 rounded-lg bg-gray-50 outline-none">
-                                            <option value="guia">Guia Espiritual</option>
-                                            <option value="medium">Médium da Casa</option>
-                                        </select>
-                                    </div>
-                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5" id="gridEditBatismoPadrinho">
-                                        <input type="text" id="editBatismoPadrinhoNome" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg bg-white" placeholder="Nome do Guia">
-                                        <input type="text" id="editBatismoPadrinhoMedium" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg bg-white" placeholder="Médium do Guia">
-                                    </div>
-                                </div>
-    
-                                <!-- Madrinha de Batismo -->
-                                <div class="space-y-1.5">
-                                    <div class="flex items-center justify-between">
-                                        <label class="text-xs font-bold text-gray-700">Madrinha</label>
-                                        <select id="editBatismoMadrinhaTipo" onchange="alternarTipoPadrinhoBatismo('edit', 'Madrinha')" class="text-[10px] font-bold px-2 py-0.5 border border-gray-300 rounded-lg bg-gray-50 outline-none">
-                                            <option value="guia">Guia Espiritual</option>
-                                            <option value="medium">Médium da Casa</option>
-                                        </select>
-                                    </div>
-                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5" id="gridEditBatismoMadrinha">
-                                        <input type="text" id="editBatismoMadrinhaNome" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg bg-white" placeholder="Nome da Guia">
-                                        <input type="text" id="editBatismoMadrinhaMedium" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg bg-white" placeholder="Médium da Guia">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-    
-                        <!-- Aviso de bloqueio para graus anteriores a CT -->
-                        <div id="avisoBloqueioGrauEdit" class="hidden bg-amber-50 border border-amber-200 rounded-xl p-2.5 text-center">
-                            <p class="text-xs font-bold text-amber-800"><i class="fas fa-lock mr-1"></i> Consagração e Coroação habilitados a partir do grau CT</p>
-                        </div>
-    
-                        <!-- 2. CONSAGRAÇÃO E COROAÇÃO (Apenas Guias - A partir de CT) -->
-                        <div id="boxConsagracaoCoroacaoEdit" class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            
-                           <!-- Consagração -->
-                            <div class="bg-white p-3 rounded-xl border border-gray-200 space-y-2">
-                                <div class="flex flex-col xl:flex-row xl:items-center justify-between border-b border-gray-100 pb-2 mb-1 gap-2">
-                                    <p class="text-[11px] font-black text-amber-700 uppercase tracking-wider">🔥 Consagração</p>
-                                    <div class="flex items-center gap-2 w-full xl:w-auto justify-end">
-                                        <button type="button" id="btnImprimirCertConsagracao" class="hidden text-[10px] bg-amber-100 text-amber-700 hover:bg-amber-200 font-bold px-2 py-1 rounded-md transition active:scale-95 items-center gap-1 whitespace-nowrap">
-                                            <i class="fas fa-print"></i> Certificado
-                                        </button>
-                                        <div class="flex items-center gap-1 shrink-0">
-                                            <label class="text-[9px] font-bold text-gray-500 uppercase hidden sm:block">Data:</label>
-                                            <input type="date" id="editDataConsagracao" class="text-[10px] font-bold px-1.5 py-0.5 border border-gray-300 rounded bg-white outline-none text-gray-700">
-                                        </div>
-                                    </div>
-                                </div>
-                                <div>
-                                    <label class="block text-[10px] font-bold text-gray-600 mb-1">Padrinho (Guia + Médium)</label>
-                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                                        <input type="text" id="editConsagracaoPadrinhoGuia" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg bg-white" placeholder="Nome do Guia">
-                                        <input type="text" id="editConsagracaoPadrinhoMedium" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg bg-white" placeholder="Médium do Guia">
-                                    </div>
-                                </div>
-                                <div>
-                                    <label class="block text-[10px] font-bold text-gray-600 mb-1">Madrinha (Guia + Médium)</label>
-                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                                        <input type="text" id="editConsagracaoMadrinhaGuia" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg bg-white" placeholder="Nome da Guia">
-                                        <input type="text" id="editConsagracaoMadrinhaMedium" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg bg-white" placeholder="Médium da Guia">
-                                    </div>
-                                </div>
-                            </div>
-    
-                           <!-- Coroação -->
-                            <div class="bg-white p-3 rounded-xl border border-gray-200 space-y-2">
-                                <div class="flex flex-col xl:flex-row xl:items-center justify-between border-b border-gray-100 pb-2 mb-1 gap-2">
-                                    <p class="text-[11px] font-black text-yellow-600 uppercase tracking-wider">👑 Coroação</p>
-                                    <div class="flex items-center gap-2 w-full xl:w-auto justify-end">
-                                        <button type="button" id="btnImprimirCertCoroacao" class="hidden text-[10px] bg-yellow-100 text-yellow-700 hover:bg-yellow-200 font-bold px-2 py-1 rounded-md transition active:scale-95 items-center gap-1 whitespace-nowrap">
-                                            <i class="fas fa-print"></i> Certificado
-                                        </button>
-                                        <div class="flex items-center gap-1 shrink-0">
-                                            <label class="text-[9px] font-bold text-gray-500 uppercase hidden sm:block">Data:</label>
-                                            <input type="date" id="editDataCoroacao" class="text-[10px] font-bold px-1.5 py-0.5 border border-gray-300 rounded bg-white outline-none text-gray-700">
-                                        </div>
-                                    </div>
-                                </div>
-                                <div>
-                                    <label class="block text-[10px] font-bold text-gray-600 mb-1">Padrinho (Guia + Médium)</label>
-                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                                        <input type="text" id="editCoroacaoPadrinhoGuia" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg bg-white" placeholder="Nome do Guia">
-                                        <input type="text" id="editCoroacaoPadrinhoMedium" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg bg-white" placeholder="Médium do Guia">
-                                    </div>
-                                </div>
-                                <div>
-                                    <label class="block text-[10px] font-bold text-gray-600 mb-1">Madrinha (Guia + Médium)</label>
-                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                                        <input type="text" id="editCoroacaoMadrinhaGuia" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg bg-white" placeholder="Nome da Guia">
-                                        <input type="text" id="editCoroacaoMadrinhaMedium" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg bg-white" placeholder="Médium da Guia">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-    
-                    <div class="bg-gray-50 p-4 rounded-2xl border border-gray-200">
-                        <h4 class="text-xs font-black text-gray-700 uppercase tracking-wider mb-3"><i class="fas fa-feather-alt text-tema-secundaria mr-1"></i> Linhas de Trabalho (Guias)</h4>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <div>
-                                <label class="block text-xs font-bold text-gray-600 mb-1">Caboclo(a) de Pena ou Couro / Boiadeiro</label>
-                                <textarea id="editGuiaCaboclo" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs bg-white"></textarea>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-gray-600 mb-1">Preto ou Preta Velha</label>
-                                <textarea id="editGuiaPretoVelho" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs bg-white"></textarea>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-gray-600 mb-1">Exu / Pombagira / Malandro(a)</label>
-                                <textarea id="editGuiaExuPombagira" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs bg-white"></textarea>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-gray-600 mb-1">Criança(s)</label>
-                                <input type="text" id="editGuiaCrianca" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs bg-white">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-gray-600 mb-1">Oriental</label>
-                                <input type="text" id="editGuiaOriental" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs bg-white">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-gray-600 mb-1">Cigano(a)</label>
-                                <input type="text" id="editGuiaCigano" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs bg-white">
-                            </div>
-                        </div>
-                    </div>
-    
-                    <p id="msgEditGuiasModal" class="hidden text-center"></p>
-    
-                    <button type="submit" id="btnSalvarEditGuiasModal" class="w-full bg-tema-secundaria hover:opacity-90 active:scale-95 text-white font-bold py-3 px-4 rounded-xl shadow transition text-sm mt-2">
-                        Salvar Alterações
-                    </button>
-                </form>
+                    Guias e Padrinhos
+                </h3>
+                <p id="editGuiaMediumNomeTitulo" class="text-xs font-bold text-gray-500 mt-1 uppercase tracking-wider"></p>
             </div>
+            <button type="button" onclick="fecharModalEditarGuiasMedium()" class="text-gray-400 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 w-8 h-8 rounded-full flex items-center justify-center transition active:scale-95">
+                <i class="fas fa-times"></i>
+            </button>
         </div>
+
+        <form id="formEditarGuiasMedium" class="space-y-5">
+            <input type="hidden" id="editGuiaMediumId">
+
+            <div class="bg-gray-50 p-4 md:p-5 rounded-2xl border border-gray-200 space-y-4 shadow-sm">
+                <h4 class="text-xs md:text-sm font-black text-gray-800 uppercase tracking-wider flex items-center gap-2">
+                    <i class="fas fa-hands-helping text-tema-primaria"></i> Padrinhos e Madrinhas
+                </h4>
+
+                <!-- 1. BATISMO -->
+                <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-4">
+                    <!-- Cabeçalho Batismo -->
+                    <div class="flex flex-wrap items-center justify-between border-b border-gray-100 pb-3 gap-3">
+                        <p class="text-xs font-black text-sky-700 uppercase tracking-wider m-0 flex items-center gap-1.5">
+                            <i class="fas fa-dove"></i> Batismo
+                        </p>
+                        
+                        <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto mt-1 sm:mt-0">
+                            <button type="button" id="btnImprimirCertBatismo" class="hidden w-full sm:w-auto text-[11px] bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 font-bold px-3 py-1.5 rounded-lg transition active:scale-95 flex items-center justify-center gap-1.5 shadow-sm">
+                                <i class="fas fa-print"></i> Certificado
+                            </button>
+                            <div class="flex flex-1 sm:flex-none items-center justify-between sm:justify-start gap-2 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200 shadow-inner">
+                                <label class="text-[10px] font-bold text-gray-500 uppercase">Data:</label>
+                                <input type="date" id="editDataBatismo" class="text-[11px] font-bold bg-transparent outline-none text-gray-800 cursor-pointer w-full sm:w-auto">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Padrinho de Batismo -->
+                        <div class="space-y-2">
+                            <div class="flex items-center justify-between">
+                                <label class="text-xs font-bold text-gray-700">Padrinho</label>
+                                <select id="editBatismoPadrinhoTipo" onchange="alternarTipoPadrinhoBatismo('edit', 'Padrinho')" class="text-[10px] font-bold px-2.5 py-1 border border-gray-300 rounded-lg bg-white outline-none focus:ring-2 focus:ring-sky-500 shadow-sm cursor-pointer">
+                                    <option value="guia">Guia Espiritual</option>
+                                    <option value="medium">Médium da Casa</option>
+                                </select>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" id="gridEditBatismoPadrinho">
+                                <input type="text" id="editBatismoPadrinhoNome" class="w-full px-3 py-2 text-xs border border-gray-300 rounded-xl bg-white outline-none focus:ring-2 focus:ring-sky-500 transition" placeholder="Nome do Guia">
+                                <input type="text" id="editBatismoPadrinhoMedium" class="w-full px-3 py-2 text-xs border border-gray-300 rounded-xl bg-white outline-none focus:ring-2 focus:ring-sky-500 transition" placeholder="Médium do Guia">
+                            </div>
+                        </div>
+
+                        <!-- Madrinha de Batismo -->
+                        <div class="space-y-2">
+                            <div class="flex items-center justify-between">
+                                <label class="text-xs font-bold text-gray-700">Madrinha</label>
+                                <select id="editBatismoMadrinhaTipo" onchange="alternarTipoPadrinhoBatismo('edit', 'Madrinha')" class="text-[10px] font-bold px-2.5 py-1 border border-gray-300 rounded-lg bg-white outline-none focus:ring-2 focus:ring-sky-500 shadow-sm cursor-pointer">
+                                    <option value="guia">Guia Espiritual</option>
+                                    <option value="medium">Médium da Casa</option>
+                                </select>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" id="gridEditBatismoMadrinha">
+                                <input type="text" id="editBatismoMadrinhaNome" class="w-full px-3 py-2 text-xs border border-gray-300 rounded-xl bg-white outline-none focus:ring-2 focus:ring-sky-500 transition" placeholder="Nome da Guia">
+                                <input type="text" id="editBatismoMadrinhaMedium" class="w-full px-3 py-2 text-xs border border-gray-300 rounded-xl bg-white outline-none focus:ring-2 focus:ring-sky-500 transition" placeholder="Médium da Guia">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Aviso de bloqueio para graus anteriores a CT -->
+                <div id="avisoBloqueioGrauEdit" class="hidden bg-amber-50 border border-amber-200 rounded-xl p-3 shadow-sm text-center">
+                    <p class="text-xs font-bold text-amber-800"><i class="fas fa-lock mr-1"></i> Consagração e Coroação habilitados a partir do grau CT</p>
+                </div>
+
+                <!-- 2. CONSAGRAÇÃO E COROAÇÃO -->
+                <div id="boxConsagracaoCoroacaoEdit" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    
+                   <!-- Consagração -->
+                    <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-4">
+                        <div class="flex flex-wrap items-center justify-between border-b border-gray-100 pb-3 gap-3">
+                            <p class="text-xs font-black text-amber-700 uppercase tracking-wider m-0 flex items-center gap-1.5">
+                                <i class="fas fa-fire-alt"></i> Consagração
+                            </p>
+                            <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+                                <button type="button" id="btnImprimirCertConsagracao" class="hidden flex-1 lg:flex-none justify-center text-[11px] bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 font-bold px-3 py-1.5 rounded-lg transition active:scale-95 items-center gap-1.5 shadow-sm">
+                                    <i class="fas fa-print"></i> Certificado
+                                </button>
+                                <div class="flex flex-1 lg:flex-none items-center justify-between lg:justify-start gap-2 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200 shadow-inner">
+                                    <label class="text-[10px] font-bold text-gray-500 uppercase">Data:</label>
+                                    <input type="date" id="editDataConsagracao" class="text-[11px] font-bold bg-transparent outline-none text-gray-800 cursor-pointer w-full lg:w-auto">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Padrinho (Guia + Médium)</label>
+                                <div class="grid grid-cols-1 lg:grid-cols-2 gap-2">
+                                    <input type="text" id="editConsagracaoPadrinhoGuia" class="w-full px-3 py-2 text-xs border border-gray-300 rounded-xl bg-white outline-none focus:ring-2 focus:ring-amber-500 transition" placeholder="Nome do Guia">
+                                    <input type="text" id="editConsagracaoPadrinhoMedium" class="w-full px-3 py-2 text-xs border border-gray-300 rounded-xl bg-white outline-none focus:ring-2 focus:ring-amber-500 transition" placeholder="Médium do Guia">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Madrinha (Guia + Médium)</label>
+                                <div class="grid grid-cols-1 lg:grid-cols-2 gap-2">
+                                    <input type="text" id="editConsagracaoMadrinhaGuia" class="w-full px-3 py-2 text-xs border border-gray-300 rounded-xl bg-white outline-none focus:ring-2 focus:ring-amber-500 transition" placeholder="Nome da Guia">
+                                    <input type="text" id="editConsagracaoMadrinhaMedium" class="w-full px-3 py-2 text-xs border border-gray-300 rounded-xl bg-white outline-none focus:ring-2 focus:ring-amber-500 transition" placeholder="Médium da Guia">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                   <!-- Coroação -->
+                    <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-4">
+                        <div class="flex flex-wrap items-center justify-between border-b border-gray-100 pb-3 gap-3">
+                            <p class="text-xs font-black text-yellow-600 uppercase tracking-wider m-0 flex items-center gap-1.5">
+                                <i class="fas fa-crown"></i> Coroação
+                            </p>
+                            <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+                                <button type="button" id="btnImprimirCertCoroacao" class="hidden flex-1 lg:flex-none justify-center text-[11px] bg-yellow-50 text-yellow-700 hover:bg-yellow-100 border border-yellow-200 font-bold px-3 py-1.5 rounded-lg transition active:scale-95 items-center gap-1.5 shadow-sm">
+                                    <i class="fas fa-print"></i> Certificado
+                                </button>
+                                <div class="flex flex-1 lg:flex-none items-center justify-between lg:justify-start gap-2 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200 shadow-inner">
+                                    <label class="text-[10px] font-bold text-gray-500 uppercase">Data:</label>
+                                    <input type="date" id="editDataCoroacao" class="text-[11px] font-bold bg-transparent outline-none text-gray-800 cursor-pointer w-full lg:w-auto">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Padrinho (Guia + Médium)</label>
+                                <div class="grid grid-cols-1 lg:grid-cols-2 gap-2">
+                                    <input type="text" id="editCoroacaoPadrinhoGuia" class="w-full px-3 py-2 text-xs border border-gray-300 rounded-xl bg-white outline-none focus:ring-2 focus:ring-yellow-500 transition" placeholder="Nome do Guia">
+                                    <input type="text" id="editCoroacaoPadrinhoMedium" class="w-full px-3 py-2 text-xs border border-gray-300 rounded-xl bg-white outline-none focus:ring-2 focus:ring-yellow-500 transition" placeholder="Médium do Guia">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Madrinha (Guia + Médium)</label>
+                                <div class="grid grid-cols-1 lg:grid-cols-2 gap-2">
+                                    <input type="text" id="editCoroacaoMadrinhaGuia" class="w-full px-3 py-2 text-xs border border-gray-300 rounded-xl bg-white outline-none focus:ring-2 focus:ring-yellow-500 transition" placeholder="Nome da Guia">
+                                    <input type="text" id="editCoroacaoMadrinhaMedium" class="w-full px-3 py-2 text-xs border border-gray-300 rounded-xl bg-white outline-none focus:ring-2 focus:ring-yellow-500 transition" placeholder="Médium da Guia">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Linhas de Trabalho -->
+            <div class="bg-gray-50 p-4 md:p-5 rounded-2xl border border-gray-200 shadow-sm">
+                <h4 class="text-xs md:text-sm font-black text-gray-800 uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <i class="fas fa-feather-alt text-tema-secundaria"></i> Linhas de Trabalho (Guias)
+                </h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 mb-1.5">Caboclo(a) / Boiadeiro</label>
+                        <textarea id="editGuiaCaboclo" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs bg-white outline-none focus:ring-2 focus:ring-tema-secundaria transition custom-scroll"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 mb-1.5">Preto ou Preta Velha</label>
+                        <textarea id="editGuiaPretoVelho" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs bg-white outline-none focus:ring-2 focus:ring-tema-secundaria transition custom-scroll"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 mb-1.5">Exu / Pombagira / Malandro(a)</label>
+                        <textarea id="editGuiaExuPombagira" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs bg-white outline-none focus:ring-2 focus:ring-tema-secundaria transition custom-scroll"></textarea>
+                    </div>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 mb-1.5">Criança(s)</label>
+                            <input type="text" id="editGuiaCrianca" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs bg-white outline-none focus:ring-2 focus:ring-tema-secundaria transition">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 mb-1.5">Oriental</label>
+                            <input type="text" id="editGuiaOriental" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs bg-white outline-none focus:ring-2 focus:ring-tema-secundaria transition">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 mb-1.5">Cigano(a)</label>
+                            <input type="text" id="editGuiaCigano" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs bg-white outline-none focus:ring-2 focus:ring-tema-secundaria transition">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <p id="msgEditGuiasModal" class="hidden text-center text-xs font-bold"></p>
+
+            <div class="pt-2">
+                <button type="submit" id="btnSalvarEditGuiasModal" class="w-full bg-tema-secundaria hover:bg-green-700 active:scale-95 text-white font-black py-3.5 px-4 rounded-xl shadow-md transition text-sm flex items-center justify-center gap-2">
+                    <i class="fas fa-save"></i> Salvar Alterações
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
         
         <!-- ============================================== -->
         <!-- MODAL APOIO AO DESENVOLVEDOR (Mario Chalfoun Jr) -->
