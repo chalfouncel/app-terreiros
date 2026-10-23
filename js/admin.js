@@ -4185,17 +4185,41 @@ window.fecharModalEscreverAta = () => {
 };
 
 window.encerrarAta = async (id) => {
-    if(!confirm("Atenção! Ao encerrar a ATA, os check-ins serão bloqueados para este evento e o documento não poderá mais ser alterado. Confirmar fechamento?")) return;
-    
-    const { error } = await supabaseClient.from('agenda').update({ ata_encerrada: true }).eq('id', id).eq('terreiro_id', idTerreiroGlobal);
-    
-    if (error) {
-        alert("Erro ao encerrar: " + error.message);
-    } else {
-        alert("Sessão Encerrada! O documento oficial está disponível para download.");
-        document.getElementById('menuLivroAta')?.click();
-    }
-};
+        if(!confirm("Atenção! Ao encerrar a ATA, os check-ins serão bloqueados para este evento e o documento não poderá mais ser alterado. Confirmar fechamento?")) return;
+        
+        // 1. Busca os dados do evento para a automação de sacramentos
+        const { data: evento } = await supabaseClient.from('agenda').select('escalas, data_hora_inicio').eq('id', id).eq('terreiro_id', idTerreiroGlobal).single();
+        
+        // 2. Trava a Ata
+        const { error } = await supabaseClient.from('agenda').update({ ata_encerrada: true }).eq('id', id).eq('terreiro_id', idTerreiroGlobal);
+        
+        if (error) {
+            alert("Erro ao encerrar: " + error.message);
+        } else {
+            // 3. Automação Pós-Gira: Grava a data dos sacramentos no perfil dos médiuns
+            if (evento && evento.escalas) {
+                try {
+                    const dataGira = evento.data_hora_inicio.split('T')[0]; // Formato YYYY-MM-DD
+                    const { batizados, consagrados, coroados } = evento.escalas;
+                    
+                    if (batizados && batizados.length > 0) {
+                        await supabaseClient.from('mediuns').update({ data_batismo: dataGira }).in('id', batizados).is('data_batismo', null);
+                    }
+                    if (consagrados && consagrados.length > 0) {
+                        await supabaseClient.from('mediuns').update({ data_consagracao: dataGira }).in('id', consagrados).is('data_consagracao', null);
+                    }
+                    if (coroados && coroados.length > 0) {
+                        await supabaseClient.from('mediuns').update({ data_coroacao: dataGira }).in('id', coroados).is('data_coroacao', null);
+                    }
+                } catch(e) {
+                    console.warn('Erro não-crítico ao atualizar datas de sacramentos:', e);
+                }
+            }
+
+            alert("Sessão Encerrada e sacramentos lançados! O documento oficial está disponível para download.");
+            document.getElementById('menuLivroAta')?.click();
+        }
+    };
 
 window.baixarLivroAnual = async () => {
     alert("Atenção: A consolidação do Livro Anual gera arquivo muito pesado. Esta função está sendo adaptada para rodar em segundo plano e será liberada em breve. Por favor, baixe as atas de forma individual na tabela abaixo.");
@@ -4312,9 +4336,34 @@ window.gerarPDF_ATA = async (eventoId) => {
                     }
                 }
 
+                // --- INJEÇÃO DA LÓGICA DE ESCALAS E SACRAMENTOS ---
+                let frasesAta = [];
+                if (evento.escalas) {
+                    const idMed = String(medium.id);
+                    
+                    // Condições Exu
+                    if (evento.escalas.img_tr === idMed) frasesAta.push(`"${nomeFinal}" Entrou com a imagem de Tranca Rua das Almas`);
+                    if (evento.escalas.flores_tr === idMed) frasesAta.push(`"${nomeFinal}" Entrou com as flores de Tranca Rua das Almas`);
+                    if (evento.escalas.img_cigana === idMed) frasesAta.push(`"${nomeFinal}" Entrou com a imagem da Pombagira Cigana`);
+                    if (evento.escalas.flores_cigana === idMed) frasesAta.push(`"${nomeFinal}" Entrou com as flores da Pombagira Cigana`);
+                    if (evento.escalas.img_padilha === idMed) frasesAta.push(`"${nomeFinal}" Entrou com a imagem da Maria Padilha`);
+                    if (evento.escalas.flores_padilha === idMed) frasesAta.push(`"${nomeFinal}" Entrou com as flores da Maria Padilha`);
+                    
+                    // Condições Sacramentos
+                    if (evento.escalas.batizados && evento.escalas.batizados.includes(idMed)) frasesAta.push(`"${nomeFinal}" foi Batizado (a) nesta gira`);
+                    if (evento.escalas.consagrados && evento.escalas.consagrados.includes(idMed)) frasesAta.push(`"${nomeFinal}" foi Consagrado (a) nesta gira`);
+                    if (evento.escalas.coroados && evento.escalas.coroados.includes(idMed)) frasesAta.push(`"${nomeFinal}" foi Coroado (a) nesta gira`);
+                }
+
+                let discretasHtml = '';
+                if (frasesAta.length > 0) {
+                    discretasHtml = `<br><span style="font-size: 8px; color: #475569; font-style: italic; font-weight: normal;">↳ ${frasesAta.join('<br>↳ ')}</span>`;
+                }
+                // --- FIM DA INJEÇÃO ---
+
                 trsMediuns += `
                     <tr style="${estiloLinha} page-break-inside: avoid;">
-                        <td style="border-bottom: ${borderStyle}; padding: 6px 4px; overflow-wrap: break-word;">${nomeFinal}</td>
+                        <td style="border-bottom: ${borderStyle}; padding: 6px 4px; overflow-wrap: break-word;">${nomeFinal}${discretasHtml}</td>
                         <td style="border-bottom: ${borderStyle}; padding: 6px 4px; text-align: center;">${grauExibicao}</td>
                         <td style="border-bottom: ${borderStyle}; padding: 6px 4px; text-align: right;">${horaCheckin}</td>
                     </tr>
@@ -5968,6 +6017,59 @@ window.addEventListener('DOMContentLoaded', () => {
             if (objSalvo.corrente_2) document.getElementById('esc_corrente_2').value = objSalvo.corrente_2;
             if (objSalvo.corrente_3) document.getElementById('esc_corrente_3').value = objSalvo.corrente_3;
         }
+
+        // --- LÓGICA DE SACRAMENTOS ---
+        const candsBatismo = listaMediunsGlobal.filter(m => !m.data_batismo);
+        const candsConsagracao = listaMediunsGlobal.filter(m => {
+            const g = (m.grau || '').toUpperCase();
+            const f = (m.funcao || '').toUpperCase();
+            return ['SCT', 'ESCOLA DE CT', 'CT'].includes(g) || f === 'MGA';
+        });
+        const candsCoroacao = listaMediunsGlobal.filter(m => {
+            const g = (m.grau || '').toUpperCase();
+            return ['SCCT', 'ESCOLA DE CCT'].includes(g);
+        });
+
+        window.selecionadosBatismo = objSalvo.batizados || [];
+        window.selecionadosConsagracao = objSalvo.consagrados || [];
+        window.selecionadosCoroacao = objSalvo.coroados || [];
+
+        const renderChk = (cands, arrSelecionados, globalVarName) => {
+            if (cands.length === 0) return '<span class="text-xs text-gray-500 p-2 col-span-full">Nenhum médium apto encontrado com estes critérios.</span>';
+            return cands.map(m => `
+                <label class="flex items-center space-x-2 text-xs md:text-sm text-gray-700 cursor-pointer hover:bg-gray-50 p-1 rounded">
+                    <input type="checkbox" value="${m.id}" class="rounded focus:ring-tema-primaria text-tema-secundaria" 
+                        ${arrSelecionados.includes(String(m.id)) ? 'checked' : ''} 
+                        onchange="atualizarSelecaoSimples('${globalVarName}', this)">
+                    <span class="truncate" title="${m.nome_completo}">${m.nome_social || m.nome_completo}</span>
+                </label>
+            `).join('');
+        };
+
+        const listBat = document.getElementById('listaCheckBatismo');
+        const listCons = document.getElementById('listaCheckConsagracao');
+        const listCor = document.getElementById('listaCheckCoroacao');
+        
+        if (listBat) listBat.innerHTML = renderChk(candsBatismo, window.selecionadosBatismo, 'selecionadosBatismo');
+        if (listCons) listCons.innerHTML = renderChk(candsConsagracao, window.selecionadosConsagracao, 'selecionadosConsagracao');
+        if (listCor) listCor.innerHTML = renderChk(candsCoroacao, window.selecionadosCoroacao, 'selecionadosCoroacao');
+    };
+
+    window.toggleBlocoEscala = (id) => {
+        const el = document.getElementById(id);
+        if (el.classList.contains('hidden')) el.classList.remove('hidden');
+        else el.classList.add('hidden');
+    };
+
+    window.atualizarSelecaoSimples = (globalVarName, checkbox) => {
+        let arr = window[globalVarName] || [];
+        const val = String(checkbox.value);
+        if(checkbox.checked) {
+            if(!arr.includes(val)) arr.push(val);
+        } else {
+            arr = arr.filter(v => v !== val);
+        }
+        window[globalVarName] = arr;
     };
 
     // ============================================
@@ -5996,13 +6098,18 @@ window.addEventListener('DOMContentLoaded', () => {
                     img_padilha: document.getElementById('esc_img_padilha').value,
                     flores_padilha: document.getElementById('esc_flores_padilha').value,
                 };
-            } else if (tipo === 'corrente') {
+           } else if (tipo === 'corrente') {
                 jsonFinal = {
                     corrente_1: document.getElementById('esc_corrente_1').value,
                     corrente_2: document.getElementById('esc_corrente_2').value,
                     corrente_3: document.getElementById('esc_corrente_3').value,
                 };
             }
+
+            // Mescla os sacramentos salvos das caixas
+            jsonFinal.batizados = window.selecionadosBatismo || [];
+            jsonFinal.consagrados = window.selecionadosConsagracao || [];
+            jsonFinal.coroados = window.selecionadosCoroacao || [];
 
             try {
                 const { error } = await supabaseClient.from('agenda').update({ escalas: jsonFinal }).eq('id', idEvento).eq('terreiro_id', idTerreiroGlobal);
