@@ -575,6 +575,68 @@
         document.getElementById('editGuiaOriental').value = m.guia_oriental || '';
         document.getElementById('editGuiaCigano').value = m.guia_cigano || '';
 
+        // ==========================================
+        // LÓGICA DE EXIBIÇÃO DOS BOTÕES DE CERTIFICADO
+        // ==========================================
+        const btnCertBatismo = document.getElementById('btnImprimirCertBatismo');
+        const btnCertConsagracao = document.getElementById('btnImprimirCertConsagracao');
+        const btnCertCoroacao = document.getElementById('btnImprimirCertCoroacao');
+
+        // 1. Batismo
+        if (btnCertBatismo) {
+            let ok = false;
+            try {
+                const b = JSON.parse(m.padrinhos_batismo || '{}');
+                if (m.data_batismo && b.padrinho?.nome && b.madrinha?.nome) ok = true;
+            } catch(e){}
+            
+            if (ok) {
+                btnCertBatismo.classList.remove('hidden');
+                btnCertBatismo.classList.add('flex');
+                btnCertBatismo.onclick = (e) => window.gerarCertificadoIndividual(e, m, 'Batismo');
+            } else {
+                btnCertBatismo.classList.add('hidden');
+                btnCertBatismo.classList.remove('flex');
+            }
+        }
+
+        // 2. Consagração
+        if (btnCertConsagracao && permite) {
+            let ok = false;
+            try {
+                const c = JSON.parse(m.padrinhos_consagracao || '{}');
+                if (m.data_consagracao && c.padrinho?.nome && c.madrinha?.nome) ok = true;
+            } catch(e){}
+            
+            if (ok) {
+                btnCertConsagracao.classList.remove('hidden');
+                btnCertConsagracao.classList.add('flex');
+                btnCertConsagracao.onclick = (e) => window.gerarCertificadoIndividual(e, m, 'Consagração');
+            } else {
+                btnCertConsagracao.classList.add('hidden');
+                btnCertConsagracao.classList.remove('flex');
+            }
+        }
+
+        // 3. Coroação
+        if (btnCertCoroacao && permite) {
+            let ok = false;
+            try {
+                const c = JSON.parse(m.padrinhos_coroacao || '{}');
+                if (m.data_coroacao && c.padrinho?.nome && c.madrinha?.nome) ok = true;
+            } catch(e){}
+            
+            if (ok) {
+                btnCertCoroacao.classList.remove('hidden');
+                btnCertCoroacao.classList.add('flex');
+                btnCertCoroacao.onclick = (e) => window.gerarCertificadoIndividual(e, m, 'Coroação');
+            } else {
+                btnCertCoroacao.classList.add('hidden');
+                btnCertCoroacao.classList.remove('flex');
+            }
+        }
+        // ==========================================
+
         document.getElementById('msgEditGuiasModal')?.classList.add('hidden');
         document.getElementById('modalEditarGuiasMedium')?.classList.remove('hidden');
     };
@@ -855,4 +917,132 @@
             });
         }
     });
+
+    // ==========================================
+    // GERAÇÃO DO CERTIFICADO INDIVIDUAL EM PDF (A4 LASCAPE)
+    // ==========================================
+    window.gerarCertificadoIndividual = async (event, medium, tipoSacramento) => {
+        const btnAtivador = event ? event.currentTarget : null;
+        const originalHtml = btnAtivador ? btnAtivador.innerHTML : '';
+        
+        if (btnAtivador) {
+            btnAtivador.disabled = true;
+            btnAtivador.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Gerando...';
+        }
+
+        try {
+            // 1. Obter a URL da imagem de fundo cadastrada no Admin
+            let fundoUrl = '';
+            try {
+                const { data } = await supabaseClient
+                    .from('terreiros')
+                    .select('certificado_fundo_url')
+                    .eq('id', idTerreiroGlobal)
+                    .single();
+                if (data && data.certificado_fundo_url) {
+                    fundoUrl = data.certificado_fundo_url;
+                }
+            } catch(e) { console.error('Erro ao buscar fundo:', e); }
+
+            if (!fundoUrl) {
+                alert('O Fundo do Certificado não foi encontrado! Acesse "Configurações da Casa" e faça o upload do layout base (em branco) antes de imprimir.');
+                if (btnAtivador) {
+                    btnAtivador.disabled = false;
+                    btnAtivador.innerHTML = originalHtml;
+                }
+                return;
+            }
+
+            // 2. Extrair dados específicos do sacramento selecionado
+            let dataSacramento = '';
+            let padrinhoNome = '';
+            let madrinhaNome = '';
+
+            if (tipoSacramento === 'Batismo') {
+                dataSacramento = medium.data_batismo;
+                const b = JSON.parse(medium.padrinhos_batismo || '{}');
+                padrinhoNome = b.padrinho?.nome || '-';
+                madrinhaNome = b.madrinha?.nome || '-';
+            } else if (tipoSacramento === 'Consagração') {
+                dataSacramento = medium.data_consagracao;
+                const c = JSON.parse(medium.padrinhos_consagracao || '{}');
+                padrinhoNome = c.padrinho?.nome || '-';
+                madrinhaNome = c.madrinha?.nome || '-';
+            } else if (tipoSacramento === 'Coroação') {
+                dataSacramento = medium.data_coroacao;
+                const c = JSON.parse(medium.padrinhos_coroacao || '{}');
+                padrinhoNome = c.padrinho?.nome || '-';
+                madrinhaNome = c.madrinha?.nome || '-';
+            }
+
+            const formatarData = (d) => {
+                if(!d) return '';
+                const pts = d.split('-');
+                if(pts.length !== 3) return d;
+                return `${pts[2]}/${pts[1]}/${pts[0]}`;
+            };
+
+            // 3. Montar elemento HTML invisível simulando a folha A4 deitada
+            const div = document.createElement('div');
+            div.style.width = '1123px';
+            div.style.height = '794px';
+            div.style.position = 'absolute';
+            div.style.top = '-9999px';
+            div.style.left = '-9999px';
+            div.style.backgroundImage = `url('${fundoUrl}')`;
+            div.style.backgroundSize = '100% 100%';
+            div.style.backgroundRepeat = 'no-repeat';
+            div.style.fontFamily = 'Georgia, "Times New Roman", serif';
+            
+            // O texto é sobreposto no centro da imagem
+            div.innerHTML = `
+                <div style="position: absolute; top: 40%; width: 100%; text-align: center; padding: 0 100px; box-sizing: border-box; text-shadow: 1px 1px 2px rgba(255,255,255,0.8);">
+                    <h1 style="font-size: 55px; font-weight: 900; margin: 0; color: #111827; text-transform: uppercase; letter-spacing: 2px;">${medium.nome_completo}</h1>
+                    
+                    <p style="font-size: 28px; margin-top: 35px; font-style: italic; color: #374151;">
+                        Recebeu o sacramento de <strong style="font-size: 32px; color: #000; font-style: normal;">${tipoSacramento}</strong>
+                    </p>
+                    
+                    <div style="margin-top: 45px; font-size: 24px; color: #1f2937; display: flex; justify-content: center; gap: 50px;">
+                        <div><strong>Padrinho:</strong> ${padrinhoNome}</div>
+                        <div><strong>Madrinha:</strong> ${madrinhaNome}</div>
+                    </div>
+
+                    <div style="margin-top: 55px; font-size: 22px; color: #4b5563;">
+                        Realizado no dia <strong>${formatarData(dataSacramento)}</strong>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(div);
+
+            // 4. Converter para PDF e disparar o download
+            const opt = {
+                margin: 0,
+                filename: `Certificado_${tipoSacramento}_${medium.nome_completo.replace(/\s+/g, '_')}.pdf`,
+                image: { type: 'jpeg', quality: 1.0 },
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+            };
+
+            await html2pdf().set(opt).from(div).save();
+            document.body.removeChild(div);
+            
+            // Retornar o botão ao estado normal
+            if (btnAtivador) {
+                btnAtivador.innerHTML = '<i class="fas fa-check"></i> Baixado!';
+                setTimeout(() => {
+                    btnAtivador.disabled = false;
+                    btnAtivador.innerHTML = originalHtml;
+                }, 2000);
+            }
+        } catch (err) {
+            console.error('Erro ao gerar certificado:', err);
+            alert('Erro ao gerar certificado. Verifique a conexão com a imagem de fundo.');
+            if (btnAtivador) {
+                btnAtivador.disabled = false;
+                btnAtivador.innerHTML = originalHtml;
+            }
+        }
+    };
+
 })();
