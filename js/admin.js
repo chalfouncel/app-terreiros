@@ -386,12 +386,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const titulo = document.getElementById('giraTitulo').value.trim();
                 const inicio = document.getElementById('giraInicio').value;
                 const fim = document.getElementById('giraFim').value;
-                const geraAta = document.getElementById('giraGeraAta')?.checked || false;
+                const informativo = document.getElementById('giraInformativo')?.checked || false;
+                const geraAta = informativo ? false : (document.getElementById('giraGeraAta')?.checked || false);
                 const especial = document.getElementById('giraEspecial')?.checked || false;
                 
                 // NOVO: Lê as checboxs de escalas do HTML
-                const reqEscalaExu = document.getElementById('giraReqExu')?.checked || false;
-                const reqEscalaCorrente = document.getElementById('giraReqCorrente')?.checked || false;
+                const reqEscalaExu = informativo ? false : (document.getElementById('giraReqExu')?.checked || false);
+                const reqEscalaCorrente = informativo ? false : (document.getElementById('giraReqCorrente')?.checked || false);
                 
                 const fileInput = document.getElementById('giraArquivo');
 
@@ -428,17 +429,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const novoEvento = {
                         terreiro_id: idTerreiroGlobal,
                         titulo: titulo,
-                        tipo: especial ? 'especial' : 'normal',
+                        tipo: informativo ? 'informativo' : (especial ? 'especial' : 'normal'),
                         data_hora_inicio: inicio,
                         data_hora_fim: fim,
                         gera_ata: geraAta,
                         especial: especial,
                         req_escala_exu: reqEscalaExu,
                         req_escala_corrente: reqEscalaCorrente,
-                        escalas: { batizados, consagrados, coroados }, 
+                        escalas: informativo ? {} : { batizados, consagrados, coroados }, 
                         convocados: convocados,
                         imagem_url: imagemUrl
-                    };;
+                    };
 
                     const { error: errInsert } = await supabaseClient
                         .from('agenda')
@@ -1707,7 +1708,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                         ? `<a href="${g.imagem_url}" target="_blank" class="text-blue-500 hover:bg-blue-50 p-1 rounded text-xs transition" title="Ver Cartaz"><i class="fas fa-image"></i> Cartaz</a>` 
                         : `<span class="text-gray-400 text-xs">-</span>`;
                     
-                    const badgeEspecial = g.especial ? '<span class="ml-2 bg-red-100 text-red-700 text-[10px] px-1.5 py-0.5 rounded font-bold uppercase">Restrita</span>' : '';
+                    let badgeEspecial = g.especial ? '<span class="ml-2 bg-red-100 text-red-700 text-[10px] px-1.5 py-0.5 rounded font-bold uppercase">Restrita</span>' : '';
+                    if (g.tipo === 'informativo') badgeEspecial += '<span class="ml-2 bg-indigo-100 text-indigo-700 text-[10px] px-1.5 py-0.5 rounded font-bold uppercase"><i class="fas fa-bullhorn mr-1"></i>Informe</span>';
 
                     const acoesBloco = `
                         <div class="flex items-center justify-center space-x-2">
@@ -4050,6 +4052,12 @@ window.renderizarCheckboxesConvocados = (containerId, listaSelecionadosIniciais 
 };
 
 document.addEventListener('change', (e) => {
+    if (e.target.id === 'giraInformativo' && e.target.checked) {
+        if (document.getElementById('giraGeraAta')) document.getElementById('giraGeraAta').checked = false;
+    }
+    if (e.target.id === 'editGiraInformativo' && e.target.checked) {
+        if (document.getElementById('editGiraGeraAta')) document.getElementById('editGiraGeraAta').checked = false;
+    }
     if(e.target.id === 'giraEspecial') {
         const box = document.getElementById('boxConvocados');
         if(e.target.checked) {
@@ -4240,6 +4248,7 @@ window.abrirModalEditarGira = async (id) => {
     document.getElementById('editGiraInicio').value = formataParaInput(data.data_hora_inicio);
     document.getElementById('editGiraFim').value = formataParaInput(data.data_hora_fim);
     if (document.getElementById('editGiraGeraAta')) document.getElementById('editGiraGeraAta').checked = data.gera_ata || false;
+    if (document.getElementById('editGiraInformativo')) document.getElementById('editGiraInformativo').checked = (data.tipo === 'informativo');
     
     window.escalasEditAtual = data.escalas || {}; 
 
