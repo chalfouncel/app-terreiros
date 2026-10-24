@@ -3,7 +3,7 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <title>Check-in - Templo</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -74,7 +74,10 @@
                 
                 <!-- Container de Imagem com Setas do Carrossel -->
                 <div class="relative group mt-4">
-                    <img id="cartazGira" src="" class="hidden w-full h-auto max-h-64 object-contain bg-gray-50 rounded-xl shadow-sm mx-auto border border-gray-100 transition-opacity duration-300">
+                    <img id="cartazGira" src="" onclick="abrirZoomCartaz(this.src)" class="hidden w-full h-auto max-h-64 object-contain bg-gray-50 rounded-xl shadow-sm mx-auto border border-gray-100 transition-opacity duration-300 cursor-zoom-in active:scale-[0.99]" title="Toque para ampliar">
+                    <span id="dicaZoomCartaz" onclick="abrirZoomCartaz(document.getElementById('cartazGira').src)" class="hidden absolute bottom-2 right-2 bg-black/60 text-white text-[10px] font-bold px-2.5 py-1 rounded-full backdrop-blur-sm pointer-events-none items-center gap-1 shadow">
+                        <i class="fas fa-search-plus"></i> Ampliar
+                    </span>
                     
                     <button type="button" id="btnPrevCarrossel" onclick="mudarSlideEvento(-1, true)" class="hidden absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 text-white items-center justify-center shadow backdrop-blur-sm active:scale-90 transition z-10">
                         <i class="fas fa-chevron-left text-xs"></i>
@@ -755,5 +758,110 @@
         </div>
     </div>
 
+<!-- Modal de Zoom do Cartaz (Pinch-to-Zoom e Pan) -->
+    <div id="modalZoomCartaz" class="hidden fixed inset-0 bg-black/95 z-[99999] flex flex-col justify-between select-none overflow-hidden">
+        <!-- Barra Superior -->
+        <div class="flex justify-between items-center p-4 text-white bg-gradient-to-b from-black/80 to-transparent z-20">
+            <span class="text-xs font-bold text-gray-300 flex items-center gap-1.5">
+                <i class="fas fa-compress-arrows-alt text-indigo-400"></i> Use dois dedos (pinça) ou duplo toque para zoom
+            </span>
+            <button type="button" onclick="fecharZoomCartaz()" class="w-10 h-10 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center active:scale-90 transition">
+                <i class="fas fa-times text-lg"></i>
+            </button>
+        </div>
+
+        <!-- Área da Imagem -->
+        <div id="areaToqueZoom" class="flex-1 w-full h-full flex items-center justify-center overflow-hidden relative" style="touch-action: none;">
+            <img id="imgZoomCartaz" src="" alt="Cartaz Ampliado" class="max-w-full max-h-full object-contain transition-transform duration-75 ease-out origin-center" style="transform: translate3d(0px, 0px, 0) scale(1);">
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            const modal = document.getElementById('modalZoomCartaz');
+            const img = document.getElementById('imgZoomCartaz');
+            const area = document.getElementById('areaToqueZoom');
+
+            let scale = 1, lastScale = 1;
+            let posX = 0, posY = 0, lastPosX = 0, lastPosY = 0;
+            let startX = 0, startY = 0;
+            let initialPinchDistance = null;
+            let lastTap = 0;
+
+            function aplicarTransform() {
+                if (scale <= 1) {
+                    scale = 1; posX = 0; posY = 0; lastPosX = 0; lastPosY = 0;
+                }
+                img.style.transform = `translate3d(${posX}px, ${posY}px, 0) scale(${scale})`;
+            }
+
+            window.abrirZoomCartaz = (src) => {
+                if (!src) return;
+                img.src = src;
+                scale = 1; lastScale = 1; posX = 0; posY = 0; lastPosX = 0; lastPosY = 0;
+                aplicarTransform();
+                modal.classList.remove('hidden');
+            };
+
+            window.fecharZoomCartaz = () => {
+                modal.classList.add('hidden');
+                img.src = '';
+            };
+
+            function getDistance(touches) {
+                return Math.hypot(
+                    touches[0].pageX - touches[1].pageX,
+                    touches[0].pageY - touches[1].pageY
+                );
+            }
+
+            area.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 2) {
+                    initialPinchDistance = getDistance(e.touches);
+                    lastScale = scale;
+                } else if (e.touches.length === 1) {
+                    // Duplo toque para dar zoom rápido (1x <-> 2.5x)
+                    const now = Date.now();
+                    if (now - lastTap < 300) {
+                        scale = scale > 1 ? 1 : 2.5;
+                        lastScale = scale;
+                        posX = 0; posY = 0; lastPosX = 0; lastPosY = 0;
+                        aplicarTransform();
+                        e.preventDefault();
+                    }
+                    lastTap = now;
+
+                    startX = e.touches[0].pageX - lastPosX;
+                    startY = e.touches[0].pageY - lastPosY;
+                }
+            }, { passive: false });
+
+            area.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                if (e.touches.length === 2 && initialPinchDistance) {
+                    const currentDistance = getDistance(e.touches);
+                    scale = Math.min(Math.max(1, lastScale * (currentDistance / initialPinchDistance)), 4);
+                    aplicarTransform();
+                } else if (e.touches.length === 1 && scale > 1) {
+                    posX = e.touches[0].pageX - startX;
+                    posY = e.touches[0].pageY - startY;
+                    lastPosX = posX;
+                    lastPosY = posY;
+                    aplicarTransform();
+                }
+            }, { passive: false });
+
+            area.addEventListener('touchend', (e) => {
+                if (e.touches.length < 2) {
+                    initialPinchDistance = null;
+                    lastScale = scale;
+                }
+                if (e.touches.length === 1 && scale > 1) {
+                    startX = e.touches[0].pageX - lastPosX;
+                    startY = e.touches[0].pageY - lastPosY;
+                }
+            });
+        })();
+    </script>
 </body>
 </html>
