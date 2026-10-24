@@ -482,12 +482,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const titulo = document.getElementById('editGiraTitulo').value.trim();
                 const inicio = document.getElementById('editGiraInicio').value;
                 const fim = document.getElementById('editGiraFim').value;
-                const geraAta = document.getElementById('editGiraGeraAta')?.checked || false;
+                const informativo = document.getElementById('editGiraInformativo')?.checked || false;
+                const geraAta = informativo ? false : (document.getElementById('editGiraGeraAta')?.checked || false);
                 const especial = document.getElementById('editGiraEspecial')?.checked || false;
                 
                 // NOVO: Pega o estado das checboxs de escalas do modal HTML
-                const reqEscalaExu = document.getElementById('editGiraReqExu')?.checked || false;
-                const reqEscalaCorrente = document.getElementById('editGiraReqCorrente')?.checked || false;
+                const reqEscalaExu = informativo ? false : (document.getElementById('editGiraReqExu')?.checked || false);
+                const reqEscalaCorrente = informativo ? false : (document.getElementById('editGiraReqCorrente')?.checked || false);
                 
                 const convocados = especial ? (w['selecionados_editListaCheckConvocados'] || []) : [];
                 
@@ -508,7 +509,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const { error } = await supabaseClient.from('agenda')
                         .update({
                             titulo,
-                            tipo: especial ? 'especial' : 'normal',
+                            tipo: informativo ? 'informativo' : (especial ? 'especial' : 'normal'),
                             data_hora_inicio: inicio,
                             data_hora_fim: fim,
                             gera_ata: geraAta,
@@ -516,7 +517,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             req_escala_exu: reqEscalaExu,
                             req_escala_corrente: reqEscalaCorrente,
                             convocados: convocados,
-                            escalas: escalasAtuais
+                            escalas: informativo ? {} : escalasAtuais
                         })
                         .eq('id', id)
                         .eq('terreiro_id', idTerreiroGlobal);
