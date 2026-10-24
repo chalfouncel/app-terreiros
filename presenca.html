@@ -67,20 +67,33 @@
             <p class="text-gray-500 mt-2">Não há nenhuma gira cadastrada ou em andamento para hoje.</p>
         </div>
 
-        <!-- Estado 2: Gira Ativa -->
+        <!-- Estado 2: Gira Ativa / Carrossel -->
         <div id="estadoComGira" class="p-6 hidden">
-            <div class="text-center mb-6">
-                <span class="bg-green-100 text-green-800 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">Evento Hoje</span>
+            <div class="text-center mb-5 relative">
+                <span id="badgeTipoEvento" class="bg-green-100 text-green-800 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider transition-all">Evento Hoje</span>
                 
-                <img id="cartazGira" src="" class="hidden w-full h-auto max-h-64 object-contain bg-gray-50 mt-4 rounded-xl shadow-sm mx-auto border border-gray-100">
+                <!-- Container de Imagem com Setas do Carrossel -->
+                <div class="relative group mt-4">
+                    <img id="cartazGira" src="" class="hidden w-full h-auto max-h-64 object-contain bg-gray-50 rounded-xl shadow-sm mx-auto border border-gray-100 transition-opacity duration-300">
+                    
+                    <button type="button" id="btnPrevCarrossel" onclick="mudarSlideEvento(-1, true)" class="hidden absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 text-white items-center justify-center shadow backdrop-blur-sm active:scale-90 transition z-10">
+                        <i class="fas fa-chevron-left text-xs"></i>
+                    </button>
+                    <button type="button" id="btnNextCarrossel" onclick="mudarSlideEvento(1, true)" class="hidden absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 text-white items-center justify-center shadow backdrop-blur-sm active:scale-90 transition z-10">
+                        <i class="fas fa-chevron-right text-xs"></i>
+                    </button>
+                </div>
+
+                <!-- Indicadores (Bolinhas) do Carrossel -->
+                <div id="indicadoresCarrossel" class="hidden justify-center items-center gap-1.5 mt-3"></div>
                 
-                <h2 id="tituloGira" class="text-2xl font-bold text-gray-800 mt-3">Nome da Gira</h2>
+                <h2 id="tituloGira" class="text-2xl font-bold text-gray-800 mt-3 leading-tight">Nome da Gira</h2>
                 <p id="horarioGira" class="text-gray-500 text-sm mt-1"><i class="far fa-clock"></i> 00:00 às 00:00</p>
             </div>
 
             <!-- Botões de Ação (Check-in, Mensalidade, Doação) -->
             <div id="areaBaterPonto" class="text-center">
-                <p class="text-sm text-gray-600 mb-4 px-2">Confirme sua presença no terreiro clicando no botão abaixo. O uso do GPS é obrigatório.</p>
+                <p id="textoInstrucaoGps" class="text-sm text-gray-600 mb-4 px-2">Confirme sua presença no terreiro clicando no botão abaixo. O uso do GPS é obrigatório.</p>
                 <button id="btnCheckin" class="w-full bg-tema-primaria text-white text-lg font-bold py-4 rounded-xl shadow-lg hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2 mb-3">
                     <i class="fas fa-map-marker-alt"></i> Confirmar Presença
                 </button>
