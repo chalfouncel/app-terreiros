@@ -199,7 +199,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         // ====================================================================
-        // VERIFICAÇÃO DE EVENTO / GIRA AGENDADA
+        // VERIFICAÇÃO DE EVENTOS / CARROSSEL (GIRAS + INFORMATIVOS)
         // ====================================================================
         const horaNavegador = new Date();
 
@@ -211,140 +211,228 @@ document.addEventListener('DOMContentLoaded', async () => {
         const divSemGira = document.getElementById('estadoSemGira');
         const divComGira = document.getElementById('estadoComGira');
 
-        let gira = null;
+        // Filtra todos os eventos válidos para o médium que ainda não terminaram
+        const todosValidos = (girasFuturas || []).filter(g => {
+            const hrInicio = new Date(g.data_hora_inicio);
+            const hrFim = g.data_hora_fim ? new Date(g.data_hora_fim) : new Date(hrInicio.getTime() + (4 * 60 * 60 * 1000));
+            const aindaRolando = hrFim > horaNavegador;
 
-        if (girasFuturas && girasFuturas.length > 0) {
-            gira = girasFuturas.find(g => {
-                let hrFim;
-                const hrInicio = new Date(g.data_hora_inicio);
-                
-                if (g.data_hora_fim) {
-                    hrFim = new Date(g.data_hora_fim);
-                } else {
-                    hrFim = new Date(hrInicio.getTime() + (4 * 60 * 60 * 1000));
+            let acessoPermitido = true;
+            if (g.especial === true) {
+                const convocados = g.convocados || [];
+                const meuId = String(perfil.id);
+                if (!convocados.includes(meuId) && !perfil.is_admin) {
+                    acessoPermitido = false;
                 }
-                
-                const aindaRolando = hrFim > horaNavegador;
+            }
+            return aindaRolando && acessoPermitido;
+        });
 
-                let acessoPermitido = true;
-                if (g.especial === true) {
-                    const convocados = g.convocados || [];
-                    const meuId = String(perfil.id);
-                    
-                    if (!convocados.includes(meuId) && !perfil.is_admin) {
-                        acessoPermitido = false;
-                    }
-                }
-                
-                return aindaRolando && acessoPermitido;
-            });
+        // Compõe a lista do Carrossel: Próxima Gira Principal + Informativos/Eventos concomitantes
+        let slidesEventos = [];
+        if (todosValidos.length > 0) {
+            const primeiraGiraNormal = todosValidos.find(g => g.tipo !== 'informativo');
+            const informativos = todosValidos.filter(g => g.tipo === 'informativo');
+
+            if (primeiraGiraNormal) {
+                const diaGira = new Date(primeiraGiraNormal.data_hora_inicio).toDateString();
+                // Pega todas as giras que caem no mesmo dia da próxima gira + todos os informativos vigentes
+                const girasMesmoDia = todosValidos.filter(g => g.tipo !== 'informativo' && new Date(g.data_hora_inicio).toDateString() === diaGira);
+                slidesEventos = [...girasMesmoDia, ...informativos];
+            } else {
+                slidesEventos = [...informativos];
+            }
         }
 
-        if (gira) {
-            idGiraGlobal = gira.id;
-            
-            const hrInicioGira = new Date(gira.data_hora_inicio);
-            
-            if (gira.data_hora_fim) {
-                hrFimGiraGlobal = new Date(gira.data_hora_fim);
-            } else {
-                hrFimGiraGlobal = new Date(hrInicioGira.getTime() + (4 * 60 * 60 * 1000));
-            }
-            
-            hrInicioPermitidoGlobal = new Date(hrInicioGira.getTime() - (90 * 60000));
+        // Busca todas as presenças do médium para os slides ativos
+        let mapaPresencasUsuario = {};
+        if (slidesEventos.length > 0) {
+            const idsSlides = slidesEventos.map(s => s.id);
+            const { data: presList } = await supabaseClient.from('presencas')
+                .select('*')
+                .eq('usuario_id', authId)
+                .in('evento_id', idsSlides);
+            (presList || []).forEach(p => { mapaPresencasUsuario[p.evento_id] = p; });
+        }
 
-            if (divSemGira) divSemGira.classList.add('hidden');
-            if (divComGira) divComGira.classList.remove('hidden');
-            
+        let indiceSlideAtual = 0;
+        let timerCarrossel = null;
+        let timerBotaoPonto = null;
+
+        window.renderizarSlideEvento = (index) => {
+            if (!slidesEventos || slidesEventos.length === 0) return;
+            indiceSlideAtual = (index + slidesEventos.length) % slidesEventos.length;
+            const ev = slidesEventos[indiceSlideAtual];
+            const ehInformativo = (ev.tipo === 'informativo');
+
+            if (timerBotaoPonto) clearTimeout(timerBotaoPonto);
+
+            // Se for gira real, atualiza as variáveis globais para o GPS usar
+            if (!ehInformativo) {
+                idGiraGlobal = ev.id;
+            }
+
+            const hrInicioGira = new Date(ev.data_hora_inicio);
+            const hrFimEvento = ev.data_hora_fim ? new Date(ev.data_hora_fim) : new Date(hrInicioGira.getTime() + (4 * 60 * 60 * 1000));
+            const hrInicioPermitido = new Date(hrInicioGira.getTime() - (90 * 60000));
+
+            if (!ehInformativo) {
+                hrFimGiraGlobal = hrFimEvento;
+                hrInicioPermitidoGlobal = hrInicioPermitido;
+            }
+
+            // Atualiza Título e Cartaz
             const titleGira = document.getElementById('tituloGira');
-            if (titleGira) titleGira.textContent = gira.titulo;
+            if (titleGira) titleGira.textContent = ev.titulo;
 
             const imgCartaz = document.getElementById('cartazGira');
             if (imgCartaz) {
-                if (gira.imagem_url) {
-                    imgCartaz.src = gira.imagem_url;
+                if (ev.imagem_url) {
+                    imgCartaz.src = ev.imagem_url;
                     imgCartaz.classList.remove('hidden');
                 } else {
                     imgCartaz.classList.add('hidden');
                 }
             }
-            
-            const txtHrInicio = hrInicioGira.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
-            const txtHrFim = hrFimGiraGlobal.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
-            
-            const ehHoje = hrInicioGira.getDate() === horaNavegador.getDate() &&
-                           hrInicioGira.getMonth() === horaNavegador.getMonth() &&
-                           hrInicioGira.getFullYear() === horaNavegador.getFullYear();
 
+            // Atualiza Badge Superior e Horário
+            const agora = new Date();
+            const ehHoje = hrInicioGira.toDateString() === agora.toDateString();
+            const txtHrInicio = hrInicioGira.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+            const txtHrFim = hrFimEvento.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+            const badgeEl = document.getElementById('badgeTipoEvento');
             const textHorario = document.getElementById('horarioGira');
-            if (textHorario) {
-                if (ehHoje) {
-                    textHorario.innerHTML = `<i class="far fa-clock"></i> ${txtHrInicio} às ${txtHrFim}`;
-                } else {
-                    const dataFormatada = hrInicioGira.toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'});
-                    textHorario.innerHTML = `<i class="far fa-calendar-alt"></i> Dia ${dataFormatada} - ${txtHrInicio} às ${txtHrFim}`;
-                    
-                    const elementos = document.querySelectorAll('#estadoComGira span, #estadoComGira div, #estadoComGira p');
-                    elementos.forEach(el => {
-                        if (el.textContent.trim().toUpperCase() === 'EVENTO HOJE') {
-                            el.textContent = 'PRÓXIMO EVENTO';
-                        }
-                    });
+
+            if (ehInformativo) {
+                if (badgeEl) {
+                    badgeEl.textContent = 'Informativo';
+                    badgeEl.className = 'bg-indigo-100 text-indigo-800 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider';
+                }
+                const dataFmtInicio = hrInicioGira.toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'});
+                const dataFmtFim = hrFimEvento.toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'});
+                if (textHorario) {
+                    textHorario.innerHTML = dataFmtInicio === dataFmtFim 
+                        ? `<i class="fas fa-bullhorn mr-1"></i> Dia ${dataFmtInicio} (${txtHrInicio} às ${txtHrFim})`
+                        : `<i class="fas fa-bullhorn mr-1"></i> De ${dataFmtInicio} até ${dataFmtFim}`;
+                }
+            } else {
+                if (badgeEl) {
+                    badgeEl.textContent = ehHoje ? 'Evento Hoje' : 'Próximo Evento';
+                    badgeEl.className = 'bg-green-100 text-green-800 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider';
+                }
+                if (textHorario) {
+                    if (ehHoje) {
+                        textHorario.innerHTML = `<i class="far fa-clock"></i> ${txtHrInicio} às ${txtHrFim}`;
+                    } else {
+                        const dataFormatada = hrInicioGira.toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'});
+                        textHorario.innerHTML = `<i class="far fa-calendar-alt"></i> Dia ${dataFormatada} - ${txtHrInicio} às ${txtHrFim}`;
+                    }
                 }
             }
 
-            const { data: presencas } = await supabaseClient.from('presencas').select('*')
-                .eq('usuario_id', authId).eq('evento_id', idGiraGlobal).limit(1);
+            // Atualiza Bolinhas (Dots) e Setas do Carrossel
+            const dotsContainer = document.getElementById('indicadoresCarrossel');
+            const btnPrev = document.getElementById('btnPrevCarrossel');
+            const btnNext = document.getElementById('btnNextCarrossel');
 
-            if (presencas && presencas.length > 0) {
-                const areaPonto = document.getElementById('areaBaterPonto');
-                const areaSucesso = document.getElementById('areaSucesso');
-                const horaFeito = document.getElementById('horaCheckinFeito');
-                
-                if (areaPonto) areaPonto.classList.add('hidden');
-                if (areaSucesso) areaSucesso.classList.remove('hidden');
-                if (horaFeito) horaFeito.textContent = new Date(presencas[0].data_hora_checkin).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
-            } else {
-                const btnPonto = document.getElementById('btnCheckin');
-                
-                function atualizarStatusBotaoPonto() {
-                    if (!btnPonto) return;
-                    const btnAgora = new Date();
-                    
-                    if (btnAgora < hrInicioPermitidoGlobal) {
-                        btnPonto.disabled = true;
-                        const diffMs = hrInicioPermitidoGlobal - btnAgora;
-                        const diffMins = Math.ceil(diffMs / 60000);
-                        
-                        let textoTempo = '';
-                        if (diffMins > 60) {
-                            const horas = Math.floor(diffMins / 60);
-                            const minRest = diffMins % 60;
-                            textoTempo = `em ${horas}h ${minRest}m`;
-                        } else {
-                            textoTempo = `em ${diffMins} min`;
-                        }
-
-                        btnPonto.innerHTML = `<i class="fas fa-lock"></i> Libera ${textoTempo}`;
-                        btnPonto.classList.add('opacity-70', 'cursor-not-allowed', 'bg-gray-500');
-                        btnPonto.classList.remove('bg-tema-primaria', 'hover:opacity-90', 'active:scale-95');
-                        
-                        setTimeout(atualizarStatusBotaoPonto, 60000);
-                        
-                    } else if (btnAgora > hrFimGiraGlobal) {
-                        btnPonto.disabled = true;
-                        btnPonto.innerHTML = '<i class="fas fa-times-circle"></i> Gira Encerrada';
-                        btnPonto.classList.add('opacity-70', 'cursor-not-allowed', 'bg-gray-500');
-                        btnPonto.classList.remove('bg-tema-primaria', 'hover:opacity-90', 'active:scale-95');
-                    } else {
-                        btnPonto.disabled = false;
-                        btnPonto.innerHTML = '<i class="fas fa-map-marker-alt"></i> Confirmar Presença';
-                        btnPonto.classList.remove('opacity-70', 'cursor-not-allowed', 'bg-gray-500');
-                        btnPonto.classList.add('bg-tema-primaria', 'hover:opacity-90', 'active:scale-95');
-                    }
+            if (slidesEventos.length > 1) {
+                if (btnPrev) { btnPrev.classList.remove('hidden'); btnPrev.classList.add('flex'); }
+                if (btnNext) { btnNext.classList.remove('hidden'); btnNext.classList.add('flex'); }
+                if (dotsContainer) {
+                    dotsContainer.classList.remove('hidden');
+                    dotsContainer.classList.add('flex');
+                    dotsContainer.innerHTML = slidesEventos.map((_, i) => `
+                        <button type="button" onclick="irParaSlideEvento(${i})" class="h-2 rounded-full transition-all ${i === indiceSlideAtual ? 'w-6 bg-tema-primaria' : 'w-2 bg-gray-300'}"></button>
+                    `).join('');
                 }
-                
-                atualizarStatusBotaoPonto();
+            } else {
+                if (btnPrev) btnPrev.classList.add('hidden');
+                if (btnNext) btnNext.classList.add('hidden');
+                if (dotsContainer) dotsContainer.classList.add('hidden');
+            }
+
+            // Atualiza Estado do Botão (INFORME vs CHECK-IN vs PRESENÇA CONFIRMADA)
+            const areaPonto = document.getElementById('areaBaterPonto');
+            const areaSucesso = document.getElementById('areaSucesso');
+            const horaFeito = document.getElementById('horaCheckinFeito');
+            const btnPonto = document.getElementById('btnCheckin');
+            const txtInstrucao = document.getElementById('textoInstrucaoGps');
+
+            if (ehInformativo) {
+                if (areaSucesso) areaSucesso.classList.add('hidden');
+                if (areaPonto) areaPonto.classList.remove('hidden');
+                if (txtInstrucao) txtInstrucao.classList.add('hidden');
+
+                if (btnPonto) {
+                    btnPonto.disabled = true;
+                    btnPonto.innerHTML = '<i class="fas fa-bullhorn"></i> INFORME';
+                    btnPonto.className = 'w-full bg-indigo-600 text-white text-lg font-black py-4 rounded-xl shadow-md cursor-default flex items-center justify-center gap-2 mb-3 tracking-wider uppercase';
+                }
+            } else {
+                if (txtInstrucao) txtInstrucao.classList.remove('hidden');
+                const presencaFeita = mapaPresencasUsuario[ev.id];
+
+                if (presencaFeita) {
+                    if (areaPonto) areaPonto.classList.add('hidden');
+                    if (areaSucesso) areaSucesso.classList.remove('hidden');
+                    if (horaFeito) horaFeito.textContent = new Date(presencaFeita.data_hora_checkin).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+                } else {
+                    if (areaSucesso) areaSucesso.classList.add('hidden');
+                    if (areaPonto) areaPonto.classList.remove('hidden');
+
+                    const atualizarStatusBotaoPonto = () => {
+                        if (!btnPonto) return;
+                        const btnAgora = new Date();
+                        btnPonto.className = 'w-full text-white text-lg font-bold py-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 mb-3';
+
+                        if (btnAgora < hrInicioPermitido) {
+                            btnPonto.disabled = true;
+                            const diffMs = hrInicioPermitido - btnAgora;
+                            const diffMins = Math.ceil(diffMs / 60000);
+                            const textoTempo = diffMins > 60 ? `em ${Math.floor(diffMins / 60)}h ${diffMins % 60}m` : `em ${diffMins} min`;
+
+                            btnPonto.innerHTML = `<i class="fas fa-lock"></i> Libera ${textoTempo}`;
+                            btnPonto.classList.add('opacity-70', 'cursor-not-allowed', 'bg-gray-500');
+                            timerBotaoPonto = setTimeout(atualizarStatusBotaoPonto, 60000);
+                        } else if (btnAgora > hrFimEvento) {
+                            btnPonto.disabled = true;
+                            btnPonto.innerHTML = '<i class="fas fa-times-circle"></i> Gira Encerrada';
+                            btnPonto.classList.add('opacity-70', 'cursor-not-allowed', 'bg-gray-500');
+                        } else {
+                            btnPonto.disabled = false;
+                            btnPonto.innerHTML = '<i class="fas fa-map-marker-alt"></i> Confirmar Presença';
+                            btnPonto.classList.add('bg-tema-primaria', 'hover:opacity-90', 'active:scale-95');
+                        }
+                    };
+                    atualizarStatusBotaoPonto();
+                }
+            }
+        };
+
+        window.mudarSlideEvento = (delta, manual = false) => {
+            if (manual && timerCarrossel) {
+                clearInterval(timerCarrossel);
+                timerCarrossel = setInterval(() => window.mudarSlideEvento(1, false), 5500);
+            }
+            window.renderizarSlideEvento(indiceSlideAtual + delta);
+        };
+
+        window.irParaSlideEvento = (index) => {
+            if (timerCarrossel) {
+                clearInterval(timerCarrossel);
+                timerCarrossel = setInterval(() => window.mudarSlideEvento(1, false), 5500);
+            }
+            window.renderizarSlideEvento(index);
+        };
+
+        if (slidesEventos.length > 0) {
+            if (divSemGira) divSemGira.classList.add('hidden');
+            if (divComGira) divComGira.classList.remove('hidden');
+
+            window.renderizarSlideEvento(0);
+
+            if (slidesEventos.length > 1) {
+                timerCarrossel = setInterval(() => window.mudarSlideEvento(1, false), 5500);
             }
         } else {
             if (divComGira) divComGira.classList.add('hidden');
