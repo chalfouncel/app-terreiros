@@ -245,14 +245,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         // Busca todas as presenças do médium para os slides ativos
-        let mapaPresencasUsuario = {};
+        window.mapaPresencasUsuario = {};
         if (slidesEventos.length > 0) {
             const idsSlides = slidesEventos.map(s => s.id);
             const { data: presList } = await supabaseClient.from('presencas')
                 .select('*')
                 .eq('usuario_id', authId)
                 .in('evento_id', idsSlides);
-            (presList || []).forEach(p => { mapaPresencasUsuario[p.evento_id] = p; });
+            (presList || []).forEach(p => { window.mapaPresencasUsuario[p.evento_id] = p; });
         }
 
         let indiceSlideAtual = 0;
@@ -370,7 +370,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             } else {
                 if (txtInstrucao) txtInstrucao.classList.remove('hidden');
-                const presencaFeita = mapaPresencasUsuario[ev.id];
+                const presencaFeita = window.mapaPresencasUsuario[ev.id];
 
                 if (presencaFeita) {
                     if (areaPonto) areaPonto.classList.add('hidden');
@@ -1936,6 +1936,9 @@ function executarCheckinGPS() {
             if (msg) { msg.textContent = "Erro ao registrar: " + error.message; msg.className = "mt-3 text-sm font-bold text-red-500 block"; msg.classList.remove('hidden'); }
             restaurarBotao(btnCheckin);
         } else {
+            if (window.mapaPresencasUsuario) {
+                window.mapaPresencasUsuario[idGiraGlobal] = { data_hora_checkin: new Date().toISOString() };
+            }
             // Check-in do responsável feito com sucesso! Agora verifica menores
             const menores = familiaresAprovadosCache.filter(fam => fam.grau && fam.grau.toUpperCase().includes('J'));
 
