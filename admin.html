@@ -569,6 +569,11 @@
                                     <input type="checkbox" id="giraGeraAta" class="w-4 h-4 text-purple-600 rounded mr-2" checked>
                                     Gerar Livro de Presença (ATA)
                                 </label>
+
+                                <label class="flex items-center text-xs md:text-sm font-bold text-indigo-600 cursor-pointer">
+                                    <input type="checkbox" id="giraInformativo" class="w-4 h-4 text-indigo-600 rounded mr-2">
+                                    <i class="fas fa-bullhorn mr-1"></i> Informativo / Aviso
+                                </label>
                                 
                                 <label class="flex items-center text-xs md:text-sm font-bold text-red-600 cursor-pointer">
                                     <input type="checkbox" id="giraEspecial" class="w-4 h-4 text-red-500 rounded mr-2">
@@ -1879,10 +1884,14 @@
                         </div>
                     </div>
                     <div class="flex flex-col gap-3 mt-3">
-                        <div class="flex flex-col md:flex-row gap-3">
+                        <div class="flex flex-col md:flex-row md:flex-wrap gap-3">
                             <label class="flex items-center text-xs md:text-sm text-gray-700 cursor-pointer">
                                 <input type="checkbox" id="editGiraGeraAta" class="w-4 h-4 text-purple-600 rounded mr-2">
                                 Gerar Livro de Presença (ATA)
+                            </label>
+                            <label class="flex items-center text-xs md:text-sm font-bold text-indigo-600 cursor-pointer">
+                                <input type="checkbox" id="editGiraInformativo" class="w-4 h-4 text-indigo-600 rounded mr-2">
+                                <i class="fas fa-bullhorn mr-1"></i> Informativo / Aviso
                             </label>
                             <label class="flex items-center text-xs md:text-sm font-bold text-red-600 cursor-pointer">
                                 <input type="checkbox" id="editGiraEspecial" class="w-4 h-4 text-red-500 rounded mr-2">
