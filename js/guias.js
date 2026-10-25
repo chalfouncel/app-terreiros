@@ -1183,8 +1183,19 @@
             document.body.removeChild(wrapperInvisivel);
             
             const nomeArquivo = `Certificado_${tipoSacramento}_${medium.nome_completo.replace(/\s+/g, '_')}.pdf`;
-            const file = new File([pdfBlob], nomeArquivo, { type: 'application/pdf' });
 
+            // 1. Dispara sempre o download direto do PDF no dispositivo (PC e Telemóvel)
+            const url = URL.createObjectURL(pdfBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = nomeArquivo;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setTimeout(() => URL.revokeObjectURL(url), 10000);
+
+            // 2. Se o aparelho suportar partilha nativa, abre também o menu de partilha
+            const file = new File([pdfBlob], nomeArquivo, { type: 'application/pdf' });
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
                 try {
                     await navigator.share({
@@ -1193,18 +1204,8 @@
                         files: [file]
                     });
                 } catch (error) {
-                    console.log('Compartilhamento cancelado ou erro:', error);
+                    console.log('Compartilhamento fechado ou cancelado:', error);
                 }
-            } else {
-                // Fallback para download automático (PC e navegadores incompatíveis)
-                const url = URL.createObjectURL(pdfBlob);
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = nomeArquivo;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                URL.revokeObjectURL(url);
             }
             
             if (btnAtivador) {
