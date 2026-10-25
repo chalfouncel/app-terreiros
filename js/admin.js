@@ -1633,6 +1633,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const nomeFiltro = (document.getElementById('filtroNomeMedium')?.value || '').trim().toLowerCase();
     const grauFiltro = (document.getElementById('filtroGrauMedium')?.value || '').trim().toUpperCase();
     const statusFiltro = (document.getElementById('filtroStatusMedium')?.value || '').trim().toLowerCase();
+    const permFiltro = (document.getElementById('filtroPermissaoMedium')?.value || '').trim();
     const mesFiltro = (document.getElementById('filtroMesNascimento')?.value || '').trim();
 
     const filtrados = (listaMediunsGlobal || []).filter(m => {
@@ -1686,6 +1687,25 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (parseInt(mesMedium, 10) !== parseInt(mesFiltro, 10)) {
                 return false;
+            }
+        }
+
+        // 5. Filtro por Permissões de Acesso
+        if (permFiltro && permFiltro !== 'todos') {
+            const temAlgumaPerm = m.is_admin === true || m.is_master === true ||
+                m.perm_visao_geral === true || m.perm_quadro_mediuns === true ||
+                m.perm_guias === true || m.perm_ia === true || m.perm_agenda === true ||
+                m.perm_ata === true || m.perm_escalas === true || m.perm_grau === true ||
+                m.perm_financeiro === true || m.perm_doacoes === true || m.perm_admin === true;
+
+            if (permFiltro === 'com_acesso') {
+                if (!temAlgumaPerm) return false;
+            } else if (permFiltro === 'sem_acesso') {
+                if (temAlgumaPerm) return false;
+            } else if (permFiltro === 'is_admin') {
+                if (m.is_admin !== true && m.is_master !== true) return false;
+            } else {
+                if (m[permFiltro] !== true && m.is_admin !== true && m.is_master !== true) return false;
             }
         }
 
@@ -3708,6 +3728,7 @@ setTimeout(() => {
     const elNome = document.getElementById('filtroNomeMedium');
     const elGrau = document.getElementById('filtroGrauMedium');
     const elStatus = document.getElementById('filtroStatusMedium');
+    const elPerm = document.getElementById('filtroPermissaoMedium');
     const elMes = document.getElementById('filtroMesNascimento');
 
     if (elNome) {
@@ -3716,6 +3737,7 @@ setTimeout(() => {
     }
     if (elGrau) elGrau.addEventListener('change', () => window.aplicarFiltrosMediuns());
     if (elStatus) elStatus.addEventListener('change', () => window.aplicarFiltrosMediuns());
+    if (elPerm) elPerm.addEventListener('change', () => window.aplicarFiltrosMediuns());
     if (elMes) elMes.addEventListener('change', () => window.aplicarFiltrosMediuns());
     
     document.getElementById('filtroConvocadosNome')?.addEventListener('input', () => window.filtrarConvocados('listaCheckConvocados', 'filtroConvocadosNome', 'filtroConvocadosGrau'));
