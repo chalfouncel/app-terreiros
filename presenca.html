@@ -161,8 +161,16 @@
         </div>
     </main>
 
+    <!-- ÁREA RÁPIDA CURIMBA / MG / MGA -->
+    <div id="areaCurimbaRapida" class="w-full max-w-md mt-5 hidden">
+        <button type="button" onclick="window.abrirModalCurimba()" class="w-full bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-700 hover:to-yellow-700 text-white text-base font-black py-3.5 px-4 rounded-xl shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2.5 border border-amber-400/30">
+            <i class="fas fa-drum text-xl"></i>
+            <span>Caderno de Pontos (MG / MGA)</span>
+        </button>
+    </div>
+
     <!-- ÁREA DO BOTÃO ADMIN -->
-    <div id="areaAdmin" class="w-full max-w-md mt-6 hidden">
+    <div id="areaAdmin" class="w-full max-w-md mt-4 hidden">
         <button id="btnPainelAdmin" class="w-full bg-gray-800 text-white text-lg font-bold py-4 rounded-xl shadow-lg hover:bg-gray-700 active:scale-95 transition-all flex items-center justify-center gap-2">
             <i class="fas fa-cog"></i> Acessar Painel de Gestão
         </button>
@@ -415,6 +423,32 @@
                         <div>
                             <label class="block text-[11px] font-bold text-gray-600 mb-1">Cigano(a)</label>
                             <input type="text" id="perfilGuiaCigano" class="w-full px-3 py-1.5 text-xs border border-gray-300 rounded-xl outline-none bg-white">
+                        </div>
+                    </div>
+
+                    <!-- BLOCO: PONTOS CANTADOS DO MÉDIUM (CT+) -->
+                    <div id="boxPontosCantadosPerfil" class="bg-amber-50/70 p-3 rounded-xl border border-amber-200 space-y-3">
+                        <div class="flex items-center justify-between border-b border-amber-200/80 pb-1.5">
+                            <p class="text-[11px] font-black text-amber-900 uppercase tracking-wider"><i class="fas fa-music mr-1 text-amber-600"></i> Letras dos Pontos Cantados</p>
+                            <span class="text-[9px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">Grau CT+</span>
+                        </div>
+                        <div class="space-y-2.5">
+                            <div>
+                                <label class="block text-[11px] font-bold text-emerald-800 mb-0.5">🌿 Ponto de Descida de Caboclo(a)</label>
+                                <textarea id="perfilPontoCabocloDescida" rows="3" placeholder="Digite a letra do ponto de descida..." class="w-full px-3 py-1.5 text-xs border border-gray-300 rounded-xl outline-none bg-white"></textarea>
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-emerald-800 mb-0.5">🌿 Ponto de Subida de Caboclo(a)</label>
+                                <textarea id="perfilPontoCabocloSubida" rows="3" placeholder="Digite a letra do ponto de subida..." class="w-full px-3 py-1.5 text-xs border border-gray-300 rounded-xl outline-none bg-white"></textarea>
+                            </div>
+                            <div class="border-t border-amber-200/60 pt-2">
+                                <label class="block text-[11px] font-bold text-amber-900 mb-0.5">☕ Ponto de Descida de Preto(a) Velho(a)</label>
+                                <textarea id="perfilPontoPVDescida" rows="3" placeholder="Digite a letra do ponto de descida..." class="w-full px-3 py-1.5 text-xs border border-gray-300 rounded-xl outline-none bg-white"></textarea>
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-amber-900 mb-0.5">☕ Ponto de Subida de Preto(a) Velho(a)</label>
+                                <textarea id="perfilPontoPVSubida" rows="3" placeholder="Digite a letra do ponto de subida..." class="w-full px-3 py-1.5 text-xs border border-gray-300 rounded-xl outline-none bg-white"></textarea>
+                            </div>
                         </div>
                     </div>
 
@@ -863,5 +897,119 @@
             });
         })();
     </script>
+<!-- ========================================================== -->
+    <!-- MODAL TELA CHEIA: CADERNO DE PONTOS (ACESSO RÁPIDO MG/MGA) -->
+    <!-- ========================================================== -->
+    <div id="modalCurimbaPontos" class="hidden fixed inset-0 bg-slate-950 text-white z-[99990] flex flex-col overflow-hidden">
+        <!-- Cabeçalho Fixo -->
+        <div class="bg-slate-900 border-b border-slate-800 px-4 py-3 flex justify-between items-center shrink-0">
+            <div class="flex items-center gap-2.5">
+                <div class="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-black border border-amber-500/30">
+                    <i class="fas fa-drum text-base"></i>
+                </div>
+                <div>
+                    <h3 class="text-sm font-black tracking-wide text-white uppercase leading-tight">Caderno de Pontos</h3>
+                    <p class="text-[10px] text-slate-400 font-semibold">Leitura Rápida & Ritmo (MG / MGA)</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-1.5">
+                <button type="button" onclick="window.ajustarFonteCurimba(-2)" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-black text-xs border border-slate-700 active:scale-90" title="Diminuir Letra">A-</button>
+                <button type="button" onclick="window.ajustarFonteCurimba(2)" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-black text-xs border border-slate-700 active:scale-90" title="Aumentar Letra">A+</button>
+                <button type="button" onclick="window.fecharModalCurimba()" class="w-9 h-9 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 flex items-center justify-center ml-1 active:scale-90">
+                    <i class="fas fa-times text-base"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Barra de Filtros Rápidos -->
+        <div class="bg-slate-900/90 border-b border-slate-800 p-3 space-y-2.5 shrink-0">
+            <div class="flex gap-2">
+                <div class="relative flex-1">
+                    <i class="fas fa-search absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                    <input type="text" id="buscaCurimbaInput" oninput="window.filtrarListaCurimba()" placeholder="Buscar médium, guia ou letra..." class="w-full pl-8 pr-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white! placeholder-slate-400 outline-none focus:border-amber-500" style="color: #ffffff !important;">
+                </div>
+                <button type="button" id="btnFiltroPresentesCurimba" onclick="window.alternarFiltroPresentesCurimba()" class="px-3 py-2 rounded-xl text-xs font-black border transition active:scale-95 flex items-center gap-1.5 shrink-0 bg-slate-800 text-slate-300 border-slate-700">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400"></span> Presentes Hoje
+                </button>
+            </div>
+
+            <!-- Filtro de Linha -->
+            <div class="grid grid-cols-3 gap-1.5 text-xs font-bold">
+                <button type="button" id="tabCurimbaTodos" onclick="window.setLinhaCurimba('todos')" class="py-1.5 rounded-lg bg-amber-500 text-slate-950 font-black transition">Todas as Linhas</button>
+                <button type="button" id="tabCurimbaCaboclo" onclick="window.setLinhaCurimba('caboclo')" class="py-1.5 rounded-lg bg-slate-800 text-emerald-400 border border-slate-700 transition">🌿 Caboclos</button>
+                <button type="button" id="tabCurimbaPV" onclick="window.setLinhaCurimba('pv')" class="py-1.5 rounded-lg bg-slate-800 text-amber-300 border border-slate-700 transition">☕ Pretos Velhos</button>
+            </div>
+        </div>
+
+        <!-- Lista de Cards de Leitura -->
+        <div id="listaCardsCurimba" class="flex-1 overflow-y-auto p-3 space-y-3">
+            <p class="text-center text-slate-400 text-xs py-8"><i class="fas fa-spinner fa-spin mr-2"></i> Carregando pontos da corrente...</p>
+        </div>
+    </div>
+
+    <!-- MODAL DE EDIÇÃO RÁPIDA DE PONTO E RITMO (MG / MGA) -->
+    <div id="modalEditarPontoCurimba" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-[99995] flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-5 text-gray-800 flex flex-col max-h-[90vh]">
+            <div class="flex justify-between items-center border-b border-gray-100 pb-3 mb-3">
+                <div>
+                    <h4 class="font-black text-sm text-gray-800 uppercase" id="tituloModalEditPonto">Editar Ponto Cantado</h4>
+                    <p class="text-xs font-bold text-amber-700" id="subtituloModalEditPonto"></p>
+                </div>
+                <button type="button" onclick="document.getElementById('modalEditarPontoCurimba').classList.add('hidden')" class="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <input type="hidden" id="editPontoMediumId">
+            <input type="hidden" id="editPontoChave">
+
+            <div class="space-y-3 overflow-y-auto pr-1 flex-1">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div>
+                        <label class="block text-[10px] font-black text-gray-500 uppercase mb-1">🥁 Toque / Ritmo</label>
+                        <select id="editPontoRitmo" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs font-bold bg-white outline-none focus:ring-2 focus:ring-amber-500">
+                            <option value="">Não informado</option>
+                            <option value="Congo de Ouro">Congo de Ouro</option>
+                            <option value="Ijesá">Ijesá</option>
+                            <option value="Barravento">Barravento</option>
+                            <option value="Cabula / Samba">Cabula / Samba</option>
+                            <option value="Nagô">Nagô</option>
+                            <option value="Vassi">Vassi</option>
+                            <option value="Alujá">Alujá</option>
+                            <option value="Adarrum">Adarrum</option>
+                            <option value="Marcha / Ponteado">Marcha / Ponteado</option>
+                            <option value="Jongo">Jongo</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-black text-gray-500 uppercase mb-1">🎵 Dica de Melodia / Tom</label>
+                        <input type="text" id="editPontoMelodia" placeholder="Ex: Lento no início, sobe no refrão" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 bg-white">
+                    </div>
+                </div>
+
+                <div>
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="text-[10px] font-black text-gray-500 uppercase">Letra e Marcações da Curimba</label>
+                        <span class="text-[9px] text-gray-400">Toque para inserir na letra:</span>
+                    </div>
+                    <div class="flex flex-wrap gap-1 mb-2">
+                        <button type="button" onclick="window.inserirTagLetraPonto('[2x] ')" class="text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded border border-amber-300 active:scale-95">[2x]</button>
+                        <button type="button" onclick="window.inserirTagLetraPonto('[Refrão]\n')" class="text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded border border-amber-300 active:scale-95">[Refrão]</button>
+                        <button type="button" onclick="window.inserirTagLetraPonto('[Breque] ')" class="text-[10px] font-bold bg-rose-100 text-rose-800 px-2 py-0.5 rounded border border-rose-300 active:scale-95">[Breque]</button>
+                        <button type="button" onclick="window.inserirTagLetraPonto('[Sobe o tom] ')" class="text-[10px] font-bold bg-sky-100 text-sky-800 px-2 py-0.5 rounded border border-sky-300 active:scale-95">[Sobe o tom]</button>
+                        <button type="button" onclick="window.inserirTagLetraPonto(' / ')" class="text-[10px] font-bold bg-gray-100 text-gray-700 px-2 py-0.5 rounded border border-gray-300 active:scale-95">/ (Pausa)</button>
+                    </div>
+                    <textarea id="editPontoLetra" rows="7" placeholder="Digite a letra do ponto..." class="w-full p-3 border border-gray-300 rounded-xl text-sm font-medium leading-relaxed outline-none focus:ring-2 focus:ring-amber-500 bg-white"></textarea>
+                </div>
+            </div>
+
+            <div class="pt-3 mt-3 border-t border-gray-100 flex gap-2">
+                <button type="button" onclick="document.getElementById('modalEditarPontoCurimba').classList.add('hidden')" class="flex-1 py-2.5 rounded-xl bg-gray-100 text-gray-700 font-bold text-xs">Cancelar</button>
+                <button type="button" id="btnSalvarPontoCurimba" onclick="window.salvarEdicaoPontoCurimba()" class="flex-1 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-black text-xs shadow active:scale-95">
+                    <i class="fas fa-save mr-1"></i> Salvar Ponto
+                </button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
