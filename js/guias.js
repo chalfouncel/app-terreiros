@@ -147,6 +147,14 @@
                 );
 
                 const permiteCT = window.grauPermiteConsagracao ? window.grauPermiteConsagracao(perfilMediumLogado.grau) : true;
+                const ptAtuais = perfilMediumLogado.pontos_cantados || {};
+
+                const pontosAtualizados = permiteCT ? {
+                    caboclo_descida: { ...(ptAtuais.caboclo_descida || {}), letra: document.getElementById('perfilPontoCabocloDescida')?.value.trim() || '' },
+                    caboclo_subida:  { ...(ptAtuais.caboclo_subida || {}),  letra: document.getElementById('perfilPontoCabocloSubida')?.value.trim() || '' },
+                    pv_descida:      { ...(ptAtuais.pv_descida || {}),      letra: document.getElementById('perfilPontoPVDescida')?.value.trim() || '' },
+                    pv_subida:       { ...(ptAtuais.pv_subida || {}),       letra: document.getElementById('perfilPontoPVSubida')?.value.trim() || '' }
+                } : ptAtuais;
 
                 const payload = {
                     data_batismo: document.getElementById('perfilDataBatismo')?.value || null,
@@ -166,7 +174,8 @@
                     guia_exu_pombagira: document.getElementById('perfilGuiaExuPombagira')?.value.trim() || null,
                     guia_crianca: document.getElementById('perfilGuiaCrianca')?.value.trim() || null,
                     guia_oriental: document.getElementById('perfilGuiaOriental')?.value.trim() || null,
-                    guia_cigano: document.getElementById('perfilGuiaCigano')?.value.trim() || null
+                    guia_cigano: document.getElementById('perfilGuiaCigano')?.value.trim() || null,
+                    pontos_cantados: pontosAtualizados
                 };
 
                 try {
@@ -204,7 +213,7 @@
         try {
             const { data, error } = await supabaseClient
                     .from('mediuns')
-                    .select('grau, padrinhos_batismo, padrinhos_consagracao, padrinhos_coroacao, data_batismo, data_consagracao, data_coroacao, guia_caboclo, guia_preto_velho, guia_exu_pombagira, guia_crianca, guia_oriental, guia_cigano')
+                    .select('grau, padrinhos_batismo, padrinhos_consagracao, padrinhos_coroacao, data_batismo, data_consagracao, data_coroacao, guia_caboclo, guia_preto_velho, guia_exu_pombagira, guia_crianca, guia_oriental, guia_cigano, pontos_cantados')
                     .eq('id', perfilMediumLogado.id)
                 .single();
 
@@ -216,24 +225,33 @@
                     if (document.getElementById('perfilDataConsagracao')) document.getElementById('perfilDataConsagracao').value = data.data_consagracao || '';
                     if (document.getElementById('perfilDataCoroacao')) document.getElementById('perfilDataCoroacao').value = data.data_coroacao || '';
     
-                    // Gerenciamento de Trava de Grau para Consagração, Coroação e Guias de Trabalho
+                    // Gerenciamento de Trava de Grau para Consagração, Coroação, Guias e Pontos
                 const permite = window.grauPermiteConsagracao ? window.grauPermiteConsagracao(data.grau) : true;
                 const avisoGrau = document.getElementById('avisoBloqueioGrauPerfil');
                 const boxConsCor = document.getElementById('boxConsagracaoCoroacaoPerfil');
                 const boxGuiasTrabalho = document.getElementById('boxMeusGuiasTrabalhoPerfil');
+                const boxPontosPerfil = document.getElementById('boxPontosCantadosPerfil');
                 
                 if (avisoGrau && boxConsCor) {
                     if (permite) {
                         avisoGrau.classList.add('hidden');
                         boxConsCor.classList.remove('hidden');
                         if (boxGuiasTrabalho) boxGuiasTrabalho.classList.remove('hidden');
+                        if (boxPontosPerfil) boxPontosPerfil.classList.remove('hidden');
                     } else {
-                        avisoGrau.innerHTML = '<p class="text-[11px] font-bold text-amber-800"><i class="fas fa-lock mr-1"></i> O registro de Guias de Trabalho, Consagração e Coroação é habilitado apenas para graus mais avançados (Escola de CT em diante).</p>';
+                        avisoGrau.innerHTML = '<p class="text-[11px] font-bold text-amber-800"><i class="fas fa-lock mr-1"></i> O registro de Guias de Trabalho, Pontos Cantados, Consagração e Coroação é habilitado apenas para graus mais avançados (Escola de CT em diante).</p>';
                         avisoGrau.classList.remove('hidden');
                         boxConsCor.classList.add('hidden');
                         if (boxGuiasTrabalho) boxGuiasTrabalho.classList.add('hidden');
+                        if (boxPontosPerfil) boxPontosPerfil.classList.add('hidden');
                     }
                 }
+
+                const pts = data.pontos_cantados || {};
+                if (document.getElementById('perfilPontoCabocloDescida')) document.getElementById('perfilPontoCabocloDescida').value = pts.caboclo_descida?.letra || '';
+                if (document.getElementById('perfilPontoCabocloSubida'))  document.getElementById('perfilPontoCabocloSubida').value  = pts.caboclo_subida?.letra || '';
+                if (document.getElementById('perfilPontoPVDescida'))      document.getElementById('perfilPontoPVDescida').value      = pts.pv_descida?.letra || '';
+                if (document.getElementById('perfilPontoPVSubida'))       document.getElementById('perfilPontoPVSubida').value       = pts.pv_subida?.letra || '';
 
                 // Padrinhos de Batismo
                 try {
@@ -316,7 +334,7 @@
 
             const { data, error } = await supabaseClient
                     .from('mediuns')
-                    .select('id, nome_completo, nome_social, grau, funcao, status_ativo, padrinhos_batismo, padrinhos_consagracao, padrinhos_coroacao, data_batismo, data_consagracao, data_coroacao, guia_caboclo, guia_preto_velho, guia_exu_pombagira, guia_crianca, guia_oriental, guia_cigano')
+                    .select('id, nome_completo, nome_social, grau, funcao, status_ativo, padrinhos_batismo, padrinhos_consagracao, padrinhos_coroacao, data_batismo, data_consagracao, data_coroacao, guia_caboclo, guia_preto_velho, guia_exu_pombagira, guia_crianca, guia_oriental, guia_cigano, pontos_cantados')
                     .eq('terreiro_id', idTerreiroGlobal)
                 .neq('nome_completo', 'Administrador Sistema')
                 .neq('status_ativo', false)
@@ -574,6 +592,29 @@
         document.getElementById('editGuiaCrianca').value = m.guia_crianca || '';
         document.getElementById('editGuiaOriental').value = m.guia_oriental || '';
         document.getElementById('editGuiaCigano').value = m.guia_cigano || '';
+
+        // Pontos Cantados no Modal Admin
+        const boxPtsEdit = document.getElementById('boxPontosCantadosEdit');
+        if (boxPtsEdit) {
+            if (permite) boxPtsEdit.classList.remove('hidden');
+            else boxPtsEdit.classList.add('hidden');
+        }
+        const pts = m.pontos_cantados || {};
+        if (document.getElementById('editLetraCabocloDescida'))   document.getElementById('editLetraCabocloDescida').value   = pts.caboclo_descida?.letra || '';
+        if (document.getElementById('editRitmoCabocloDescida'))   document.getElementById('editRitmoCabocloDescida').value   = pts.caboclo_descida?.ritmo || '';
+        if (document.getElementById('editMelodiaCabocloDescida')) document.getElementById('editMelodiaCabocloDescida').value = pts.caboclo_descida?.obs_melodia || '';
+
+        if (document.getElementById('editLetraCabocloSubida'))    document.getElementById('editLetraCabocloSubida').value    = pts.caboclo_subida?.letra || '';
+        if (document.getElementById('editRitmoCabocloSubida'))    document.getElementById('editRitmoCabocloSubida').value    = pts.caboclo_subida?.ritmo || '';
+        if (document.getElementById('editMelodiaCabocloSubida'))  document.getElementById('editMelodiaCabocloSubida').value  = pts.caboclo_subida?.obs_melodia || '';
+
+        if (document.getElementById('editLetraPVDescida'))        document.getElementById('editLetraPVDescida').value        = pts.pv_descida?.letra || '';
+        if (document.getElementById('editRitmoPVDescida'))        document.getElementById('editRitmoPVDescida').value        = pts.pv_descida?.ritmo || '';
+        if (document.getElementById('editMelodiaPVDescida'))      document.getElementById('editMelodiaPVDescida').value      = pts.pv_descida?.obs_melodia || '';
+
+        if (document.getElementById('editLetraPVSubida'))         document.getElementById('editLetraPVSubida').value         = pts.pv_subida?.letra || '';
+        if (document.getElementById('editRitmoPVSubida'))         document.getElementById('editRitmoPVSubida').value         = pts.pv_subida?.ritmo || '';
+        if (document.getElementById('editMelodiaPVSubida'))       document.getElementById('editMelodiaPVSubida').value       = pts.pv_subida?.obs_melodia || '';
 
         // ==========================================
         // LÓGICA DE EXIBIÇÃO DOS BOTÕES DE CERTIFICADO
@@ -877,7 +918,29 @@
                     guia_exu_pombagira: document.getElementById('editGuiaExuPombagira').value.trim() || null,
                     guia_crianca: document.getElementById('editGuiaCrianca').value.trim() || null,
                     guia_oriental: document.getElementById('editGuiaOriental').value.trim() || null,
-                    guia_cigano: document.getElementById('editGuiaCigano').value.trim() || null
+                    guia_cigano: document.getElementById('editGuiaCigano').value.trim() || null,
+                    pontos_cantados: permiteCT ? {
+                        caboclo_descida: {
+                            letra: document.getElementById('editLetraCabocloDescida')?.value.trim() || '',
+                            ritmo: document.getElementById('editRitmoCabocloDescida')?.value.trim() || '',
+                            obs_melodia: document.getElementById('editMelodiaCabocloDescida')?.value.trim() || ''
+                        },
+                        caboclo_subida: {
+                            letra: document.getElementById('editLetraCabocloSubida')?.value.trim() || '',
+                            ritmo: document.getElementById('editRitmoCabocloSubida')?.value.trim() || '',
+                            obs_melodia: document.getElementById('editMelodiaCabocloSubida')?.value.trim() || ''
+                        },
+                        pv_descida: {
+                            letra: document.getElementById('editLetraPVDescida')?.value.trim() || '',
+                            ritmo: document.getElementById('editRitmoPVDescida')?.value.trim() || '',
+                            obs_melodia: document.getElementById('editMelodiaPVDescida')?.value.trim() || ''
+                        },
+                        pv_subida: {
+                            letra: document.getElementById('editLetraPVSubida')?.value.trim() || '',
+                            ritmo: document.getElementById('editRitmoPVSubida')?.value.trim() || '',
+                            obs_melodia: document.getElementById('editMelodiaPVSubida')?.value.trim() || ''
+                        }
+                    } : (medRef?.pontos_cantados || {})
                 };
 
                 try {
@@ -1222,6 +1285,291 @@
                 btnAtivador.disabled = false;
                 btnAtivador.innerHTML = originalHtml;
             }
+        }
+    };
+
+    // ========================================================================
+    // 7. CADERNO DE PONTOS RÁPIDO PARA MG / MGA / DIRIGENTE (presenca.html)
+    // ========================================================================
+    let cacheMediunsCurimba = [];
+    let idsPresentesHojeCurimba = new Set();
+    let filtroApenasPresentesCurimba = false;
+    let linhaAtivaCurimba = 'todos';
+    let tamanhoFonteCurimba = 15;
+
+    function verificarAcessoBotaoCurimba() {
+        const boxBtn = document.getElementById('areaCurimbaRapida');
+        if (!boxBtn) return;
+
+        if (typeof perfilMediumLogado === 'undefined' || !perfilMediumLogado) {
+            setTimeout(verificarAcessoBotaoCurimba, 400);
+            return;
+        }
+
+        const fn = String(perfilMediumLogado.funcao || '').trim().toUpperCase();
+        const gr = String(perfilMediumLogado.grau || '').trim().toUpperCase();
+        const ehMGOuMGA = ['MG', 'MGA', 'DIRIGENTE'].includes(fn) || gr === 'DIRIGENTE' || perfilMediumLogado.is_admin === true || perfilMediumLogado.is_master === true;
+
+        if (ehMGOuMGA) {
+            boxBtn.classList.remove('hidden');
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        setTimeout(verificarAcessoBotaoCurimba, 500);
+    });
+
+    window.abrirModalCurimba = async () => {
+        const modal = document.getElementById('modalCurimbaPontos');
+        if (!modal) return;
+        modal.classList.remove('hidden');
+        await carregarDadosCurimba();
+    };
+
+    window.fecharModalCurimba = () => {
+        document.getElementById('modalCurimbaPontos')?.classList.add('hidden');
+    };
+
+    window.ajustarFonteCurimba = (delta) => {
+        tamanhoFonteCurimba = Math.min(Math.max(12, tamanhoFonteCurimba + delta), 26);
+        renderizarCardsCurimba();
+    };
+
+    window.alternarFiltroPresentesCurimba = () => {
+        filtroApenasPresentesCurimba = !filtroApenasPresentesCurimba;
+        const btn = document.getElementById('btnFiltroPresentesCurimba');
+        if (btn) {
+            if (filtroApenasPresentesCurimba) {
+                btn.className = 'px-3 py-2 rounded-xl text-xs font-black border transition active:scale-95 flex items-center gap-1.5 shrink-0 bg-emerald-600 text-white border-emerald-400 shadow';
+            } else {
+                btn.className = 'px-3 py-2 rounded-xl text-xs font-black border transition active:scale-95 flex items-center gap-1.5 shrink-0 bg-slate-800 text-slate-300 border-slate-700';
+            }
+        }
+        renderizarCardsCurimba();
+    };
+
+    window.setLinhaCurimba = (linha) => {
+        linhaAtivaCurimba = linha;
+        const bTodos = document.getElementById('tabCurimbaTodos');
+        const bCab   = document.getElementById('tabCurimbaCaboclo');
+        const bPV    = document.getElementById('tabCurimbaPV');
+
+        if (bTodos) bTodos.className = linha === 'todos'   ? 'py-1.5 rounded-lg bg-amber-500 text-slate-950 font-black transition' : 'py-1.5 rounded-lg bg-slate-800 text-slate-300 border border-slate-700 transition';
+        if (bCab)   bCab.className   = linha === 'caboclo' ? 'py-1.5 rounded-lg bg-emerald-500 text-slate-950 font-black transition' : 'py-1.5 rounded-lg bg-slate-800 text-emerald-400 border border-slate-700 transition';
+        if (bPV)    bPV.className    = linha === 'pv'      ? 'py-1.5 rounded-lg bg-amber-400 text-slate-950 font-black transition' : 'py-1.5 rounded-lg bg-slate-800 text-amber-300 border border-slate-700 transition';
+
+        renderizarCardsCurimba();
+    };
+
+    window.filtrarListaCurimba = () => {
+        renderizarCardsCurimba();
+    };
+
+    async function carregarDadosCurimba() {
+        const container = document.getElementById('listaCardsCurimba');
+        if (!container) return;
+        container.innerHTML = '<p class="text-center text-slate-400 text-xs py-8"><i class="fas fa-spinner fa-spin mr-2"></i> Carregando pontos cantados...</p>';
+
+        try {
+            const { data: mediuns, error } = await supabaseClient
+                .from('mediuns')
+                .select('id, auth_id, nome_completo, nome_social, grau, funcao, status_ativo, guia_caboclo, guia_preto_velho, pontos_cantados')
+                .eq('terreiro_id', idTerreiroGlobal)
+                .neq('status_ativo', false)
+                .neq('nome_completo', 'Administrador Sistema')
+                .order('nome_completo');
+
+            if (error) throw error;
+
+            // Filtra apenas médiuns de grau CT ou superior
+            cacheMediunsCurimba = (mediuns || []).filter(m => window.grauPermiteConsagracao(m.grau));
+
+            // Verifica quem bateu ponto na gira ativa de hoje
+            idsPresentesHojeCurimba = new Set();
+            if (typeof idGiraGlobal !== 'undefined' && idGiraGlobal) {
+                const { data: pres } = await supabaseClient
+                    .from('presencas')
+                    .select('usuario_id')
+                    .eq('evento_id', idGiraGlobal);
+                (pres || []).forEach(p => idsPresentesHojeCurimba.add(String(p.usuario_id)));
+            }
+
+            renderizarCardsCurimba();
+        } catch (err) {
+            container.innerHTML = `<p class="text-center text-rose-400 text-xs py-6">Erro ao carregar: ${err.message}</p>`;
+        }
+    }
+
+    function formatarLetraParaLeitura(letra) {
+        if (!letra || !letra.trim()) return '<span class="text-slate-500 italic text-xs">Letra ainda não cadastrada. Toque em "Editar" para inserir.</span>';
+        return letra
+            .replace(/\[([^\]]+)\]/g, '<span class="bg-amber-500/20 text-amber-300 font-black px-1.5 py-0.5 rounded text-[0.85em]">[$1]</span>')
+            .replace(/\n/g, '<br>');
+    }
+
+    function renderizarBlocoPonto(m, chave, titulo, corBorda, nomeGuia) {
+        const pt = (m.pontos_cantados && m.pontos_cantados[chave]) ? m.pontos_cantados[chave] : {};
+        const ritmoBadge = pt.ritmo
+            ? `<span class="bg-amber-500 text-slate-950 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider"><i class="fas fa-drum mr-1"></i>${pt.ritmo}</span>`
+            : `<span class="bg-slate-800 text-slate-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-slate-700">Sem ritmo</span>`;
+
+        const melodiaHtml = pt.obs_melodia
+            ? `<div class="text-[11px] text-sky-300 bg-sky-950/50 border border-sky-800/50 rounded-lg px-2.5 py-1 mt-1.5"><i class="fas fa-music mr-1"></i> <strong>Melodia:</strong> ${pt.obs_melodia}</div>`
+            : '';
+
+        const tituloEscapado = titulo.replace(/'/g, "\\'");
+
+        return `
+            <div class="bg-slate-950/80 rounded-xl p-3 border-l-4 ${corBorda} border border-slate-800">
+                <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-800/80">
+                    <div>
+                        <span class="text-xs font-black text-white uppercase">${titulo}</span>
+                        ${nomeGuia ? `<span class="block text-[11px] text-slate-400 font-semibold">${nomeGuia.replace(/\n/g, ' / ')}</span>` : ''}
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        ${ritmoBadge}
+                        <button type="button" onclick="window.abrirEdicaoPontoCurimba(${m.id}, '${chave}', '${tituloEscapado}')" class="bg-slate-800 hover:bg-slate-700 text-amber-400 text-[11px] font-bold px-2.5 py-1 rounded-lg border border-slate-700 active:scale-95">
+                            <i class="fas fa-pen"></i> Editar
+                        </button>
+                    </div>
+                </div>
+                ${melodiaHtml}
+                <div class="mt-2.5 font-medium text-slate-100 leading-relaxed select-text" style="font-size: ${tamanhoFonteCurimba}px;">
+                    ${formatarLetraParaLeitura(pt.letra)}
+                </div>
+            </div>
+        `;
+    }
+
+    function renderizarCardsCurimba() {
+        const container = document.getElementById('listaCardsCurimba');
+        if (!container) return;
+
+        const termo = (document.getElementById('buscaCurimbaInput')?.value || '').trim().toLowerCase();
+
+        const filtrados = cacheMediunsCurimba.filter(m => {
+            if (filtroApenasPresentesCurimba) {
+                const estaPresente = idsPresentesHojeCurimba.has(String(m.auth_id)) || idsPresentesHojeCurimba.has(String(m.id));
+                if (!estaPresente) return false;
+            }
+            if (termo) {
+                const pts = m.pontos_cantados || {};
+                const tudo = [
+                    m.nome_completo, m.nome_social, m.guia_caboclo, m.guia_preto_velho,
+                    pts.caboclo_descida?.letra, pts.caboclo_subida?.letra,
+                    pts.pv_descida?.letra, pts.pv_subida?.letra,
+                    pts.caboclo_descida?.ritmo, pts.pv_descida?.ritmo
+                ].filter(Boolean).join(' ').toLowerCase();
+                if (!tudo.includes(termo)) return false;
+            }
+            return true;
+        });
+
+        if (filtrados.length === 0) {
+            container.innerHTML = `<div class="text-center text-slate-400 text-xs py-10 bg-slate-900/50 rounded-2xl border border-slate-800">Nenhum médium encontrado para este filtro.</div>`;
+            return;
+        }
+
+        container.innerHTML = filtrados.map(m => {
+            const estaPresente = idsPresentesHojeCurimba.has(String(m.auth_id)) || idsPresentesHojeCurimba.has(String(m.id));
+            const badgePresenca = estaPresente
+                ? `<span class="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-black px-2 py-0.5 rounded-full">🟢 Presente</span>`
+                : '';
+
+            let blocosHtml = '';
+            if (linhaAtivaCurimba === 'todos' || linhaAtivaCurimba === 'caboclo') {
+                blocosHtml += renderizarBlocoPonto(m, 'caboclo_descida', '🌿 Descida de Caboclo(a)', 'border-l-emerald-500', m.guia_caboclo);
+                blocosHtml += renderizarBlocoPonto(m, 'caboclo_subida',  '🌿 Subida de Caboclo(a)',  'border-l-emerald-700', m.guia_caboclo);
+            }
+            if (linhaAtivaCurimba === 'todos' || linhaAtivaCurimba === 'pv') {
+                blocosHtml += renderizarBlocoPonto(m, 'pv_descida', '☕ Descida de Preto(a) Velho(a)', 'border-l-amber-400', m.guia_preto_velho);
+                blocosHtml += renderizarBlocoPonto(m, 'pv_subida',  '☕ Subida de Preto(a) Velho(a)',  'border-l-amber-600', m.guia_preto_velho);
+            }
+
+            return `
+                <div class="bg-slate-900 rounded-2xl border border-slate-800 p-3.5 space-y-3 shadow-md">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                        <div>
+                            <h4 class="font-black text-base text-amber-400 leading-snug">${m.nome_completo}</h4>
+                            <span class="text-[10px] font-bold text-slate-400 uppercase">${m.grau || '-'} ${m.funcao && m.funcao !== '-' ? `/ ${m.funcao}` : ''}</span>
+                        </div>
+                        ${badgePresenca}
+                    </div>
+                    <div class="space-y-2.5">
+                        ${blocosHtml}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    window.abrirEdicaoPontoCurimba = (mediumId, chave, tituloPonto) => {
+        const m = cacheMediunsCurimba.find(x => x.id === mediumId);
+        if (!m) return;
+
+        const pt = (m.pontos_cantados && m.pontos_cantados[chave]) ? m.pontos_cantados[chave] : {};
+        document.getElementById('editPontoMediumId').value = mediumId;
+        document.getElementById('editPontoChave').value = chave;
+        document.getElementById('tituloModalEditPonto').textContent = tituloPonto;
+        document.getElementById('subtituloModalEditPonto').textContent = m.nome_completo;
+
+        document.getElementById('editPontoRitmo').value = pt.ritmo || '';
+        document.getElementById('editPontoMelodia').value = pt.obs_melodia || '';
+        document.getElementById('editPontoLetra').value = pt.letra || '';
+
+        document.getElementById('modalEditarPontoCurimba').classList.remove('hidden');
+    };
+
+    window.inserirTagLetraPonto = (tag) => {
+        const area = document.getElementById('editPontoLetra');
+        if (!area) return;
+        const start = area.selectionStart || 0;
+        const end = area.selectionEnd || 0;
+        const txt = area.value;
+        area.value = txt.substring(0, start) + tag + txt.substring(end);
+        area.focus();
+        area.selectionStart = area.selectionEnd = start + tag.length;
+    };
+
+    window.salvarEdicaoPontoCurimba = async () => {
+        const mediumId = parseInt(document.getElementById('editPontoMediumId').value);
+        const chave = document.getElementById('editPontoChave').value;
+        const btn = document.getElementById('btnSalvarPontoCurimba');
+
+        const m = cacheMediunsCurimba.find(x => x.id === mediumId);
+        if (!m) return;
+
+        const pontosAtuais = { ...(m.pontos_cantados || {}) };
+        pontosAtuais[chave] = {
+            letra: document.getElementById('editPontoLetra').value.trim(),
+            ritmo: document.getElementById('editPontoRitmo').value.trim(),
+            obs_melodia: document.getElementById('editPontoMelodia').value.trim()
+        };
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Salvando...';
+
+        try {
+            const { error } = await supabaseClient
+                .from('mediuns')
+                .update({ pontos_cantados: pontosAtuais })
+                .eq('id', mediumId)
+                .eq('terreiro_id', idTerreiroGlobal);
+
+            if (error) throw error;
+
+            m.pontos_cantados = pontosAtuais;
+            if (typeof perfilMediumLogado !== 'undefined' && perfilMediumLogado?.id === mediumId) {
+                perfilMediumLogado.pontos_cantados = pontosAtuais;
+            }
+
+            document.getElementById('modalEditarPontoCurimba').classList.add('hidden');
+            renderizarCardsCurimba();
+        } catch (err) {
+            alert('Erro ao salvar ponto: ' + err.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-save mr-1"></i> Salvar Ponto';
         }
     };
 
