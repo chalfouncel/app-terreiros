@@ -1290,15 +1290,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const btnGerarHistorico = document.getElementById('btnBaixarPdfEvento');
 
                 if (selectRelatorio) {
-                    const { data: historicoEventos } = await supabaseClient
+                    const { data: historicoEventosRaw } = await supabaseClient
                         .from('agenda')
-                        .select('id, titulo, data_hora_inicio, especial')
+                        .select('id, titulo, tipo, data_hora_inicio, especial')
                         .eq('terreiro_id', idTerreiroGlobal)
                         .order('data_hora_inicio', { ascending: false });
 
+                    const historicoEventos = (historicoEventosRaw || []).filter(ev => ev.tipo !== 'informativo');
+
                     selectRelatorio.innerHTML = '<option value="">Selecione um evento...</option>';
                     
-                    if (historicoEventos && historicoEventos.length > 0) {
+                    if (historicoEventos.length > 0) {
                         historicoEventos.forEach(ev => {
                             const dataFormatada = new Date(ev.data_hora_inicio).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
                             const tipoEvento = ev.especial ? ' [Restrita]' : ' [Aberta]';
