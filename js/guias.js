@@ -1371,8 +1371,18 @@
     };
 
     window.fecharModalCurimba = () => {
-        document.getElementById('modalCurimbaPontos')?.classList.add('hidden');
-    };
+    document.querySelectorAll('#modalCurimbaPontos audio').forEach(a => a.pause());
+    document.getElementById('modalCurimbaPontos')?.classList.add('hidden');
+};
+
+// Impede que dois áudios toquem ao mesmo tempo
+document.addEventListener('play', (e) => {
+    if (e.target && e.target.tagName === 'AUDIO') {
+        document.querySelectorAll('audio').forEach(a => {
+            if (a !== e.target) a.pause();
+        });
+    }
+}, true);
 
     window.ajustarFonteCurimba = (delta) => {
         tamanhoFonteCurimba = Math.min(Math.max(12, tamanhoFonteCurimba + delta), 26);
