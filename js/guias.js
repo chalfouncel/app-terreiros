@@ -505,28 +505,6 @@
                 `;
             }
 
-            let resumoPontosHtml = '';
-            if (window.grauPermiteConsagracao(m.grau)) {
-                const pts = m.pontos_cantados || {};
-                const chaves = ['caboclo_descida', 'caboclo_subida', 'pv_descida', 'pv_subida'];
-                const qtdLetras = chaves.filter(k => pts[k]?.letra && pts[k].letra.trim() !== '').length;
-                const qtdAudios = chaves.filter(k => pts[k]?.audio_url).length;
-
-                const corLetras = qtdLetras === 4 ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : (qtdLetras > 0 ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-gray-100 text-gray-500 border-gray-200');
-                const corAudios = qtdAudios === 4 ? 'bg-sky-100 text-sky-800 border-sky-300' : (qtdAudios > 0 ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-gray-100 text-gray-500 border-gray-200');
-
-                resumoPontosHtml = `
-                    <div class="pt-1.5 mt-1.5 border-t border-dashed border-gray-200 flex flex-wrap gap-1.5">
-                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold border ${corLetras}" title="Letras de pontos cadastradas">
-                            <i class="fas fa-music mr-1"></i>Letras: ${qtdLetras}/4
-                        </span>
-                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold border ${corAudios}" title="Áudios de melodia gravados">
-                            <i class="fas fa-headphones mr-1"></i>Áudios: ${qtdAudios}/4
-                        </span>
-                    </div>
-                `;
-            }
-
             const guiasCol1 = `
                 <div class="space-y-1.5 text-xs">
                     <div><span class="font-bold text-emerald-700 text-[10px] uppercase block">🌿 Caboclo(a) / Boiadeiro:</span>${formatarBlocoTexto(m.guia_caboclo, '➔')}</div>
@@ -1531,19 +1509,6 @@
         renderizarCardsCurimba();
     };
 
-    window.alternarFiltroPresentesCurimba = () => {
-        filtroApenasPresentesCurimba = !filtroApenasPresentesCurimba;
-        const btn = document.getElementById('btnFiltroPresentesCurimba');
-        if (btn) {
-            if (filtroApenasPresentesCurimba) {
-                btn.className = 'px-3 py-2 rounded-xl text-xs font-black border transition active:scale-95 flex items-center gap-1.5 shrink-0 bg-emerald-600 text-white border-emerald-400 shadow';
-            } else {
-                btn.className = 'px-3 py-2 rounded-xl text-xs font-black border transition active:scale-95 flex items-center gap-1.5 shrink-0 bg-slate-800 text-slate-300 border-slate-700';
-            }
-        }
-        renderizarCardsCurimba();
-    };
-
     window.setLinhaCurimba = (linha) => {
         linhaAtivaCurimba = linha;
         const bTodos = document.getElementById('tabCurimbaTodos');
@@ -1649,6 +1614,17 @@
         const termo = (document.getElementById('buscaCurimbaInput')?.value || '').trim().toLowerCase();
 
         const filtrados = cacheMediunsCurimba.filter(m => {
+            if (filtroApenasPresentesCurimba) {
+                const estaPresente = idsPresentesHojeCurimba.has(String(m.auth_id)) || idsPresentesHojeCurimba.has(String(m.id));
+                if (!estaPresente) return false;
+            }
+            if (filtroApenasIncompletosCurimba) {
+                const pts = m.pontos_cantados || {};
+                const chaves = ['caboclo_descida', 'caboclo_subida', 'pv_descida', 'pv_subida'];
+                const completo = chaves.every(k => pts[k]?.letra && pts[k].letra.trim() !== '' && pts[k]?.audio_url);
+                if (completo) return false;
+            }
+            if (termo) {
                 const pts = m.pontos_cantados || {};
                 const tudo = [
                     m.nome_completo, m.nome_social, m.guia_caboclo, m.guia_preto_velho,
