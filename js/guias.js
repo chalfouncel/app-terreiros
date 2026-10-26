@@ -1735,8 +1735,15 @@
 
             timerGravacaoGlobal = setInterval(() => {
                 segundosGravacaoGlobal++;
-                if (timerEl) timerEl.textContent = `00:${String(segundosGravacaoGlobal).padStart(2, '0')} / 00:30`;
-                if (segundosGravacaoGlobal >= 30) {
+                const min = Math.floor(segundosGravacaoGlobal / 60);
+                const seg = segundosGravacaoGlobal % 60;
+                const tempoFmt = `${String(min).padStart(2, '0')}:${String(seg).padStart(2, '0')}`;
+                
+                if (timerEl) {
+                    timerEl.textContent = `${tempoFmt} / 01:30`;
+                }
+
+                if (segundosGravacaoGlobal >= 90) {
                     pararGravacaoModalCurimba();
                 }
             }, 1000);
