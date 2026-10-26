@@ -1729,10 +1729,9 @@
                 btn.innerHTML = '<i class="fas fa-stop text-rose-500"></i> <span>Parar Gravação</span>';
             }
             if (timerEl) {
-                timerEl.textContent = '00:00 / 00:30';
+                timerEl.textContent = '00:00 / 01:30';
                 timerEl.classList.remove('hidden');
             }
-
             timerGravacaoGlobal = setInterval(() => {
                 segundosGravacaoGlobal++;
                 const min = Math.floor(segundosGravacaoGlobal / 60);
