@@ -223,26 +223,116 @@
             <!-- Conteúdo das Abas (Scrollável) -->
             <div class="flex-1 min-h-0 overflow-y-auto pr-1 space-y-4">
 
-                <!-- ABA 1: DADOS PESSOAIS -->
-                <div id="conteudoAbaDados" class="space-y-3">
-                    <div>
-                        <label class="block text-xs font-bold text-gray-700 mb-1">Nome Completo</label>
-                        <input type="text" id="perfilNomeCompleto" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-tema-primaria bg-white">
+                <!-- ABA 1: DADOS PESSOAIS, HABILITAÇÃO CCT E SAÚDE -->
+                <div id="conteudoAbaDados" class="space-y-4">
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 mb-1">Nome Completo</label>
+                            <input type="text" id="perfilNomeCompleto" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-tema-primaria bg-white">
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 mb-1">Nome Social</label>
+                                <input type="text" id="perfilNomeSocial" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-tema-primaria bg-white" placeholder="Opcional">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 mb-1">WhatsApp</label>
+                                <input type="tel" id="perfilTelefone" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-tema-primaria bg-white" placeholder="DDD + Número">
+                            </div>
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-700 mb-1">Nome Social</label>
-                        <input type="text" id="perfilNomeSocial" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-tema-primaria bg-white" placeholder="Opcional">
+
+                    <!-- BLOCO EXCLUSIVO: ESCOLA DE CCT / CCT (DADOS PARA CERTIFICADO DE COROAÇÃO) -->
+                    <div id="boxDadosHabilitacaoCCT" class="hidden bg-yellow-50/80 border border-yellow-300 rounded-xl p-3 space-y-2.5">
+                        <div class="flex items-center justify-between border-b border-yellow-200 pb-1.5">
+                            <p class="text-[11px] font-black text-yellow-800 uppercase tracking-wider">
+                                <i class="fas fa-crown mr-1 text-yellow-600"></i> Dados para Declaração de CCT
+                            </p>
+                            <span class="text-[9px] font-bold bg-yellow-200 text-yellow-900 px-2 py-0.5 rounded-full">Obrigatório p/ Coroação</span>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                            <div>
+                                <label class="block text-[11px] font-bold text-gray-700 mb-1">CPF (Somente números)</label>
+                                <input type="tel" id="perfilCpf" maxlength="14" inputmode="numeric" class="w-full px-3 py-1.5 text-xs font-mono border border-gray-300 rounded-lg outline-none bg-white" placeholder="00000000000">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-gray-700 mb-1">Estado Civil</label>
+                                <select id="perfilEstadoCivil" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg outline-none bg-white">
+                                    <option value="">Selecione...</option>
+                                    <option value="solteiro(a)">Solteiro(a)</option>
+                                    <option value="casado(a)">Casado(a)</option>
+                                    <option value="divorciado(a)">Divorciado(a)</option>
+                                    <option value="viúvo(a)">Viúvo(a)</option>
+                                    <option value="união estável">União Estável</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-gray-700 mb-1">Profissão</label>
+                            <input type="text" id="perfilProfissao" class="w-full px-3 py-1.5 text-xs border border-gray-300 rounded-lg outline-none bg-white" placeholder="Ex: Psicólogo(a), Professor(a), Autônomo(a)...">
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-700 mb-1">WhatsApp</label>
-                        <input type="tel" id="perfilTelefone" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-tema-primaria bg-white" placeholder="DDD + Número">
+
+                    <!-- BLOCO: SAÚDE E EMERGÊNCIA -->
+                    <div class="bg-rose-50/60 border border-rose-200 rounded-xl p-3 space-y-2.5">
+                        <p class="text-[11px] font-black text-rose-800 uppercase tracking-wider border-b border-rose-200/80 pb-1.5">
+                            <i class="fas fa-heartbeat mr-1 text-rose-600"></i> Emergência e Saúde
+                        </p>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                            <div>
+                                <label class="block text-[11px] font-bold text-gray-700 mb-1">Contato de Emergência (Nome)</label>
+                                <input type="text" id="perfilEmergenciaNome" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg outline-none bg-white" placeholder="Ex: Maria (Mãe / Esposa)">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-gray-700 mb-1">Telefone de Emergência</label>
+                                <input type="tel" id="perfilEmergenciaTel" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg outline-none bg-white" placeholder="DDD + Número">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2.5">
+                            <div>
+                                <label class="block text-[11px] font-bold text-gray-700 mb-1">Possui Plano de Saúde?</label>
+                                <select id="perfilPossuiPlano" onchange="document.getElementById('boxQualPlanoPerfil').classList.toggle('hidden', this.value !== 'sim')" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg outline-none bg-white">
+                                    <option value="nao">Não</option>
+                                    <option value="sim">Sim</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-gray-700 mb-1">Tipo Sanguíneo</label>
+                                <select id="perfilTipoSanguineo" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg outline-none bg-white">
+                                    <option value="">Não sei / Opcional</option>
+                                    <option value="A+">A+</option><option value="A-">A-</option>
+                                    <option value="B+">B+</option><option value="B-">B-</option>
+                                    <option value="AB+">AB+</option><option value="AB-">AB-</option>
+                                    <option value="O+">O+</option><option value="O-">O-</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div id="boxQualPlanoPerfil" class="hidden">
+                            <label class="block text-[11px] font-bold text-gray-700 mb-1">Qual Plano de Saúde?</label>
+                            <input type="text" id="perfilQualPlano" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg outline-none bg-white" placeholder="Ex: Unimed, Amil, Bradesco...">
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-bold text-gray-700 mb-1">Comorbidades, Alergias ou Observações Médicas</label>
+                            <textarea id="perfilComorbidades" rows="2" class="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg outline-none bg-white" placeholder="Ex: Pressão alta, diabetes, alergia a dipirona... (Opcional)"></textarea>
+                        </div>
                     </div>
+
+                    <!-- CONSENTIMENTO LGPD -->
+                    <label class="flex items-start gap-2.5 bg-gray-50 p-2.5 rounded-xl border border-gray-200 cursor-pointer">
+                        <input type="checkbox" id="perfilAceiteLGPD" class="mt-0.5 w-4 h-4 text-tema-primaria rounded shrink-0">
+                        <span class="text-[10px] text-gray-600 leading-relaxed">
+                            <strong>Termo LGPD (Lei nº 13.709/2018):</strong> Autorizo o uso restrito dos meus dados pessoais e de saúde pela direção do Templo exclusivamente para fins de registros religiosos internos, emissão de certificados sacerdotais e socorro médico de emergência.
+                        </span>
+                    </label>
+
                     <button type="button" id="btnSalvarDadosPerfil" class="w-full bg-tema-primaria text-white font-bold py-2.5 rounded-xl shadow text-xs hover:opacity-90 active:scale-95 transition">
                         Salvar Dados
                     </button>
                     <p id="msgPerfilDados" class="text-xs font-bold text-center hidden"></p>
                 </div>
-
                 <!-- ABA 2: ALTERAR SENHA -->
                 <div id="conteudoAbaSenha" class="space-y-3 hidden">
                     <p class="text-xs text-gray-500">A sua senha de acesso ao sistema deve conter <strong>exatamente 6 números</strong>.</p>
