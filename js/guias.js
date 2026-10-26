@@ -724,12 +724,7 @@
 
         // 3. Coroação
         if (btnCertCoroacao && permite) {
-            let ok = false;
-            try {
-                const c = JSON.parse(m.padrinhos_coroacao || '{}');
-                if (m.data_coroacao && c.padrinho?.nome && c.madrinha?.nome) ok = true;
-            } catch(e){}
-            
+            const ok = Boolean(m.data_coroacao);
             if (ok) {
                 btnCertCoroacao.classList.remove('hidden');
                 btnCertCoroacao.classList.add('flex');
@@ -1169,23 +1164,49 @@
                 img.src = fundoUrl + '?t=' + new Date().getTime();
             });
 
-            // 1.8. Buscar Data de Nascimento do Médium
+            // 1.8. Buscar Dados Civis e Nascimento do Médium
             let dataNascimento = '';
+            let cpfMedium = '';
+            let estadoCivilMedium = '';
+            let profissaoMedium = '';
             try {
                 const { data: mData } = await supabaseClient
                     .from('mediuns')
-                    .select('data_nascimento')
+                    .select('data_nascimento, cpf, estado_civil, profissao')
                     .eq('id', medium.id)
                     .single();
-                if (mData && mData.data_nascimento) dataNascimento = mData.data_nascimento;
-            } catch(e) { console.error('Erro ao buscar nascimento:', e); }
+                if (mData) {
+                    dataNascimento = mData.data_nascimento || '';
+                    cpfMedium = mData.cpf || '';
+                    estadoCivilMedium = mData.estado_civil || '';
+                    profissaoMedium = mData.profissao || '';
+                }
+            } catch(e) { console.error('Erro ao buscar dados civis:', e); }
+
+            if (tipoSacramento === 'Coroação' && (!cpfMedium || !estadoCivilMedium || !profissaoMedium)) {
+                const prosseguir = confirm(
+                    `Atenção: O médium ${medium.nome_completo} ainda não preencheu todos os dados civis exigidos na Declaração (CPF, Estado Civil ou Profissão).\n\nDeseja gerar o documento mesmo assim com espaços para preenchimento?`
+                );
+                if (!prosseguir) {
+                    if (btnAtivador) {
+                        btnAtivador.disabled = false;
+                        btnAtivador.innerHTML = originalHtml;
+                    }
+                    return;
+                }
+            }
 
             // Helpers de formatação
             const formatarData = (d) => {
-                if(!d) return '';
+                if(!d) return '___/___/____';
                 const pts = d.split('-');
                 if(pts.length !== 3) return d;
                 return `${pts[2]}/${pts[1]}/${pts[0]}`;
+            };
+            const formatarCPF = (c) => {
+                const limpo = String(c || '').replace(/\D/g, '');
+                if (limpo.length !== 11) return c || '___.___.___-__';
+                return limpo.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
             };
             const dataNascFmt = dataNascimento ? formatarData(dataNascimento) : '___/___/____';
 
@@ -1194,26 +1215,20 @@
                 if (!termoMedium || typeof listaGuiasMediunsCache === 'undefined') return termoMedium;
                 const buscaMed = termoMedium.trim().toLowerCase();
 
-                // 1. Encontra todos os médiuns que contém esse nome ou apelido
                 let candidatos = listaGuiasMediunsCache.filter(x => 
                     (x.nome_completo && x.nome_completo.toLowerCase().includes(buscaMed)) ||
                     (x.nome_social && x.nome_social.toLowerCase().includes(buscaMed))
                 );
 
-                if (candidatos.length === 0) return termoMedium; // Não achou ninguém
-                if (candidatos.length === 1) return candidatos[0].nome_completo; // Achou só um
+                if (candidatos.length === 0) return termoMedium;
+                if (candidatos.length === 1) return candidatos[0].nome_completo;
 
-                // 2. Achou mais de um médium com esse nome (ex: duas "Fátima").
-                // Vamos desempatar verificando qual delas trabalha com esse guia!
                 if (termoGuia) {
-                    // Extrai palavras do nome do guia com mais de 2 letras
                     const palavrasGuia = termoGuia.toLowerCase().replace(/[^a-záéíóúâêîôûãõç]/g, ' ').split(/\s+/).filter(p => p.length > 2);
-                    
                     let melhorCandidato = candidatos[0];
                     let maiorScore = -1;
 
                     candidatos.forEach(c => {
-                        // Junta todos os guias cadastrados deste candidato
                         const guiasDoCandidato = [
                             c.guia_caboclo, c.guia_preto_velho, c.guia_exu_pombagira, 
                             c.guia_crianca, c.guia_oriental, c.guia_cigano
@@ -1224,7 +1239,6 @@
                             if (guiasDoCandidato.includes(palavra)) score++;
                         });
 
-                        // Se a "Fátima A" tem mais correspondências de palavras do guia que a "Fátima B", ela ganha
                         if (score > maiorScore) {
                             maiorScore = score;
                             melhorCandidato = c;
@@ -1234,7 +1248,6 @@
                     if (maiorScore > 0) return melhorCandidato.nome_completo;
                 }
 
-                // Falha no desempate, retorna o primeiro
                 return candidatos[0].nome_completo;
             };
 
@@ -1242,10 +1255,7 @@
                 if (!obj || !obj.nome) return '_______________________';
                 const nomeUpper = obj.nome.toUpperCase();
                 if (obj.tipo === 'medium' || !obj.medium) return nomeUpper;
-                
-                // Passa o Nome do Médium E o Nome do Guia para a inteligência resolver quem é!
                 const nomeMediumCompleto = buscarNomeCompleto(obj.medium, obj.nome);
-                
                 return `${nomeUpper} (ATRAVÉS DA MEDIUNIDADE DE ${nomeMediumCompleto.toUpperCase()})`;
             };
 
@@ -1279,69 +1289,100 @@
                 madrinhaObj = c.madrinha;
             }
 
-            // 3. Montar os Textos Combinados
-            let textoCorpo = '';
-            let rodapePadrinhos = '';
+            // 3. Montar os Textos Combinados e Layout
             const nomeMediumUpper = medium.nome_completo.toUpperCase();
             const nomeLindoCursive = formatarNomeCursive(medium.nome_completo);
-
-            if (tipoSacramento === 'Batismo') {
-                textoCorpo = `CERTIFICAMOS, PARA OS DEVIDOS FINS DE FÉ E DIREITO RELIGIOSO, QUE FOI REALIZADO NO <strong>${nomeTemplo}</strong>, O SAGRADO SACRAMENTO DO BATISMO DE <strong>${nomeMediumUpper}</strong>, NASCIDO(A) EM <strong>${dataNascFmt}</strong>. RECEBEU AS BÊNÇÃOS DAS ÁGUAS SAGRADAS E A CONSAGRAÇÃO DIVINA, SENDO APRESENTADO(A) À ESPIRITUALIDADE MAIOR E À EGRÉGORA DESTA CASA SANTA, SOB A PROTEÇÃO DOS SEUS GUIAS E ORIXÁS. ESTE ATO DE FÉ FOI TESTEMUNHADO E APADRINHADO POR:`;
-                rodapePadrinhos = `PADRINHOS DE BATISMO: ${formatarPadrinho(padrinhoObj)} E ${formatarPadrinho(madrinhaObj)}`;
-            } else if (tipoSacramento === 'Consagração') {
-                textoCorpo = `CERTIFICAMOS, PARA OS DEVIDOS FINS DE FÉ E DIREITO RELIGIOSO, QUE FOI REALIZADO NO <strong>${nomeTemplo}</strong>, O SAGRADO SACRAMENTO DA CONSAGRAÇÃO MEDIÚNICA DE <strong>${nomeMediumUpper}</strong>, NASCIDO(A) EM <strong>${dataNascFmt}</strong>. REAFIRMOU SEU COMPROMISSO ESPIRITUAL E RECEBEU A CONSAGRAÇÃO DIVINA JUNTO À ESPIRITUALIDADE MAIOR E À EGRÉGORA DESTA CASA SANTA, SOB A PROTEÇÃO DOS SEUS GUIAS E ORIXÁS. ESTE ATO DE FÉ FOI TESTEMUNHADO E APADRINHADO POR:`;
-                rodapePadrinhos = `PADRINHOS DE CONSAGRAÇÃO: ${formatarPadrinho(padrinhoObj)} E ${formatarPadrinho(madrinhaObj)}`;
-            } else if (tipoSacramento === 'Coroação') {
-                textoCorpo = `CERTIFICAMOS, PARA OS DEVIDOS FINS DE FÉ E DIREITO RELIGIOSO, QUE FOI REALIZADO NO <strong>${nomeTemplo}</strong>, O SAGRADO SACRAMENTO DA COROAÇÃO SACERDOTAL DE <strong>${nomeMediumUpper}</strong>, NASCIDO(A) EM <strong>${dataNascFmt}</strong>. RECEBEU A OUTORGA E A COROAÇÃO DIVINA PERANTE A ESPIRITUALIDADE MAIOR E A EGRÉGORA DESTA CASA SANTA, SOB A PROTEÇÃO DOS SEUS GUIAS E ORIXÁS. ESTE ATO DE FÉ FOI TESTEMUNHADO E APADRINHADO POR:`;
-                rodapePadrinhos = `PADRINHOS DE COROAÇÃO: ${formatarPadrinho(padrinhoObj)} E ${formatarPadrinho(madrinhaObj)}`;
-            }
-
-            // Estilo CSS inteligente para legibilidade sobre qualquer imagem (Contorno e brilho branco)
             const legibilidadeCSS = `text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff, 0 0 12px #fff, 0 0 20px #fff, 0 0 30px #fff;`;
 
-            // 4. Montar elemento HTML
             const elementoPdf = document.createElement('div');
             elementoPdf.style.width = '1123px';
             elementoPdf.style.height = '794px';
             elementoPdf.style.position = 'relative';
             elementoPdf.style.backgroundColor = '#ffffff';
-            
-            elementoPdf.innerHTML = `
-                <img src="${fundoBase64}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1;" />
-                
-                <!-- Container principal -->
-                <div style="position: absolute; top: 8%; height: 68%; width: 100%; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 0 110px; box-sizing: border-box; z-index: 2;">
+
+            if (tipoSacramento === 'Coroação') {
+                const dataCoroacaoFmt = formatarData(dataSacramento);
+                const estCivilTxt = estadoCivilMedium || '____________________';
+                const profissaoTxt = profissaoMedium || '____________________';
+                const cpfTxt = formatarCPF(cpfMedium);
+
+                elementoPdf.innerHTML = `
+                    <img src="${fundoBase64}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1;" />
                     
-                    <!-- BLOCO 1: CABEÇALHO -->
-                    <div style="text-align: center;">
-                        <h1 style="font-family: 'Cinzel', serif; font-size: 52px; font-weight: 700; margin: 0; color: #ffffff; letter-spacing: 12px; text-shadow: 2px 2px 6px rgba(0,0,0,0.7);">
-                            CERTIDÃO
-                        </h1>
-                        <h2 style="font-family: 'Great Vibes', cursive; font-size: 50px; margin: -5px 0 5px 0; color: #fbbf24; font-weight: normal; text-shadow: 1px 1px 4px rgba(0,0,0,0.8);">
-                            ${tipoSacramento}
-                        </h2>
-                        <h3 style="font-family: 'Great Vibes', cursive; font-size: 56px; margin: 0; color: #0f172a; font-weight: normal; text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff, 3px 3px 6px rgba(0,0,0,0.5);">
-                            ${nomeLindoCursive}
-                        </h3>
-                    </div>
-
-                    <!-- BLOCO 2: CORPO JURÍDICO/RELIGIOSO (Sem tarja, com super-legibilidade CSS) -->
-                    <div style="padding: 10px 40px; width: 100%; box-sizing: border-box;">
-                        <p style="font-family: 'Playfair Display', serif; font-size: 15.5px; line-height: 1.8; text-align: justify; color: #111827; margin: 0 0 25px 0; font-weight: 600; ${legibilidadeCSS}">
-                            ${textoCorpo}
-                        </p>
+                    <div style="position: absolute; top: 7%; height: 72%; width: 100%; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 0 95px; box-sizing: border-box; z-index: 2;">
                         
-                        <div style="font-family: 'Playfair Display', serif; font-size: 11.5px; color: #111827; font-weight: 700; text-align: center; margin-bottom: 25px; line-height: 1.6; text-transform: uppercase; ${legibilidadeCSS}">
-                            ${rodapePadrinhos}
+                        <div style="text-align: center;">
+                            <h1 style="font-family: 'Cinzel', serif; font-size: 38px; font-weight: 700; margin: 0; color: #ffffff; letter-spacing: 8px; text-shadow: 2px 2px 6px rgba(0,0,0,0.75);">
+                                DECLARAÇÃO
+                            </h1>
+                            <div style="font-family: 'Cinzel', serif; font-size: 13px; font-weight: 700; color: #fbbf24; letter-spacing: 1.5px; margin-top: 4px; text-shadow: 1px 1px 4px rgba(0,0,0,0.85);">
+                                DE HABILITAÇÃO RELIGIOSA, NOMEAÇÃO E DESIGNAÇÃO DE
+                            </div>
+                            <div style="font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; color: #0f172a; margin-top: 4px; ${legibilidadeCSS}">
+                                Comandante Chefe de Terreiro (CCT) – Linha de Morubixaba
+                            </div>
+                            <h3 style="font-family: 'Great Vibes', cursive; font-size: 46px; margin: 2px 0 0 0; color: #0f172a; font-weight: normal; text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff, 3px 3px 6px rgba(0,0,0,0.4);">
+                                ${nomeLindoCursive}
+                            </h3>
                         </div>
 
-                        <div style="font-family: 'Playfair Display', serif; font-size: 18px; color: #111827; text-align: center; font-style: italic; font-weight: 700; ${legibilidadeCSS}">
-                            Realizado no dia <strong style="font-style: normal;">${formatarData(dataSacramento)}</strong>
+                        <div style="padding: 6px 30px; width: 100%; box-sizing: border-box;">
+                            <p style="font-family: 'Playfair Display', serif; font-size: 13.5px; line-height: 1.65; text-align: justify; color: #111827; margin: 0 0 14px 0; font-weight: 600; ${legibilidadeCSS}">
+                                <strong>Paulo Roberto Pereira de Oliveira</strong>, solteiro, psicólogo, portador(a) inscrito(a) no Cadastro de Pessoas Físicas sob nº <strong>80693873787</strong>, Sacerdote do <strong>Templo de Umbanda Cantinho dos Irmãos Caboclos</strong>, com sede na Rua Teixeira de Azevedo, 403 – Abolição, Rio de Janeiro - RJ, com fundamento no art. 5º, inciso VI, da Constituição Federal e art. VI, alínea “g”, da Declaração sobre a Eliminação de Todas as Formas de Intolerância e Discriminação Fundadas na Religião ou nas Convicções, <strong>DECLARA PARA OS DEVIDOS FINS</strong> que em <strong>${dataCoroacaoFmt}</strong> certificou a habilitação religiosa, nomeou e designou como <strong>Comandante Chefe de Terreiro (CCT) – Linha de Morubixaba</strong> o(a) Sr.(a) <strong>${nomeMediumUpper}</strong>, brasileiro(a), <strong>${estCivilTxt}</strong>, <strong>${profissaoTxt}</strong>, inscrito(a) no CPF sob o nº <strong>${cpfTxt}</strong> razão pela qual o(a) nomeado(a) adquire o direito de exercer todos os direitos e prerrogativas religiosas que a presente habilitação lhe assegura.
+                            </p>
+                            <p style="font-family: 'Playfair Display', serif; font-size: 12.5px; line-height: 1.6; text-align: justify; color: #111827; margin: 0; font-weight: 600; ${legibilidadeCSS}">
+                                Consigna ainda que o presente ato se assenta na Declaração sobre a Eliminação de Todas as Formas de Intolerância e Discriminação Fundadas na Religião ou nas Convicções, Resolução nº 36/55, proclamada pela Assembleia Geral das Nações Unidas em 25 de novembro de 1981, a qual assegura às organizações religiosas o direito de “Capacitar, nomear, e eleger por sucessão os dirigentes que correspondam segundo as necessidades e normas de qualquer religião ou convicção” (Art. VI, alínea “g”).
+                            </p>
                         </div>
+
                     </div>
+                `;
+            } else {
+                let textoCorpo = '';
+                let rodapePadrinhos = '';
 
-                </div>
-            `;
+                if (tipoSacramento === 'Batismo') {
+                    textoCorpo = `CERTIFICAMOS, PARA OS DEVIDOS FINS DE FÉ E DIREITO RELIGIOSO, QUE FOI REALIZADO NO <strong>${nomeTemplo}</strong>, O SAGRADO SACRAMENTO DO BATISMO DE <strong>${nomeMediumUpper}</strong>, NASCIDO(A) EM <strong>${dataNascFmt}</strong>. RECEBEU AS BÊNÇÃOS DAS ÁGUAS SAGRADAS E A CONSAGRAÇÃO DIVINA, SENDO APRESENTADO(A) À ESPIRITUALIDADE MAIOR E À EGRÉGORA DESTA CASA SANTA, SOB A PROTEÇÃO DOS SEUS GUIAS E ORIXÁS. ESTE ATO DE FÉ FOI TESTEMUNHADO E APADRINHADO POR:`;
+                    rodapePadrinhos = `PADRINHOS DE BATISMO: ${formatarPadrinho(padrinhoObj)} E ${formatarPadrinho(madrinhaObj)}`;
+                } else if (tipoSacramento === 'Consagração') {
+                    textoCorpo = `CERTIFICAMOS, PARA OS DEVIDOS FINS DE FÉ E DIREITO RELIGIOSO, QUE FOI REALIZADO NO <strong>${nomeTemplo}</strong>, O SAGRADO SACRAMENTO DA CONSAGRAÇÃO MEDIÚNICA DE <strong>${nomeMediumUpper}</strong>, NASCIDO(A) EM <strong>${dataNascFmt}</strong>. REAFIRMOU SEU COMPROMISSO ESPIRITUAL E RECEBEU A CONSAGRAÇÃO DIVINA JUNTO À ESPIRITUALIDADE MAIOR E À EGRÉGORA DESTA CASA SANTA, SOB A PROTEÇÃO DOS SEUS GUIAS E ORIXÁS. ESTE ATO DE FÉ FOI TESTEMUNHADO E APADRINHADO POR:`;
+                    rodapePadrinhos = `PADRINHOS DE CONSAGRAÇÃO: ${formatarPadrinho(padrinhoObj)} E ${formatarPadrinho(madrinhaObj)}`;
+                }
+
+                elementoPdf.innerHTML = `
+                    <img src="${fundoBase64}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1;" />
+                    
+                    <div style="position: absolute; top: 8%; height: 68%; width: 100%; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 0 110px; box-sizing: border-box; z-index: 2;">
+                        
+                        <div style="text-align: center;">
+                            <h1 style="font-family: 'Cinzel', serif; font-size: 52px; font-weight: 700; margin: 0; color: #ffffff; letter-spacing: 12px; text-shadow: 2px 2px 6px rgba(0,0,0,0.7);">
+                                CERTIDÃO
+                            </h1>
+                            <h2 style="font-family: 'Great Vibes', cursive; font-size: 50px; margin: -5px 0 5px 0; color: #fbbf24; font-weight: normal; text-shadow: 1px 1px 4px rgba(0,0,0,0.8);">
+                                ${tipoSacramento}
+                            </h2>
+                            <h3 style="font-family: 'Great Vibes', cursive; font-size: 56px; margin: 0; color: #0f172a; font-weight: normal; text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff, 3px 3px 6px rgba(0,0,0,0.5);">
+                                ${nomeLindoCursive}
+                            </h3>
+                        </div>
+
+                        <div style="padding: 10px 40px; width: 100%; box-sizing: border-box;">
+                            <p style="font-family: 'Playfair Display', serif; font-size: 15.5px; line-height: 1.8; text-align: justify; color: #111827; margin: 0 0 25px 0; font-weight: 600; ${legibilidadeCSS}">
+                                ${textoCorpo}
+                            </p>
+                            
+                            <div style="font-family: 'Playfair Display', serif; font-size: 11.5px; color: #111827; font-weight: 700; text-align: center; margin-bottom: 25px; line-height: 1.6; text-transform: uppercase; ${legibilidadeCSS}">
+                                ${rodapePadrinhos}
+                            </div>
+
+                            <div style="font-family: 'Playfair Display', serif; font-size: 18px; color: #111827; text-align: center; font-style: italic; font-weight: 700; ${legibilidadeCSS}">
+                                Realizado no dia <strong style="font-style: normal;">${formatarData(dataSacramento)}</strong>
+                            </div>
+                        </div>
+
+                    </div>
+                `;
+            }
 
             const wrapperInvisivel = document.createElement('div');
             wrapperInvisivel.style.position = 'fixed';
