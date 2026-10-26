@@ -505,6 +505,28 @@
                 `;
             }
 
+            let resumoPontosHtml = '';
+            if (window.grauPermiteConsagracao(m.grau)) {
+                const pts = m.pontos_cantados || {};
+                const chaves = ['caboclo_descida', 'caboclo_subida', 'pv_descida', 'pv_subida'];
+                const qtdLetras = chaves.filter(k => pts[k]?.letra && pts[k].letra.trim() !== '').length;
+                const qtdAudios = chaves.filter(k => pts[k]?.audio_url).length;
+
+                const corLetras = qtdLetras === 4 ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : (qtdLetras > 0 ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-gray-100 text-gray-500 border-gray-200');
+                const corAudios = qtdAudios === 4 ? 'bg-sky-100 text-sky-800 border-sky-300' : (qtdAudios > 0 ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-gray-100 text-gray-500 border-gray-200');
+
+                resumoPontosHtml = `
+                    <div class="pt-1.5 mt-1.5 border-t border-dashed border-gray-200 flex flex-wrap gap-1.5">
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold border ${corLetras}" title="Letras de pontos cadastradas">
+                            <i class="fas fa-music mr-1"></i>Letras: ${qtdLetras}/4
+                        </span>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold border ${corAudios}" title="Áudios de melodia gravados">
+                            <i class="fas fa-headphones mr-1"></i>Áudios: ${qtdAudios}/4
+                        </span>
+                    </div>
+                `;
+            }
+
             const guiasCol1 = `
                 <div class="space-y-1.5 text-xs">
                     <div><span class="font-bold text-emerald-700 text-[10px] uppercase block">🌿 Caboclo(a) / Boiadeiro:</span>${formatarBlocoTexto(m.guia_caboclo, '➔')}</div>
@@ -839,6 +861,62 @@
 
         if (typeof window.gerarPDFRelatorio === 'function') {
             window.gerarPDFRelatorio('Relação Oficial de Guias e Padrinhos dos Médiuns', colunas, dados, 'landscape');
+        } else {
+            alert('Função geradora de PDF não encontrada.');
+        }
+    };
+
+    window.imprimirCadernoPontosPDF = () => {
+        const filtrados = (window.guiasMediunsFiltrados || []).filter(m => window.grauPermiteConsagracao(m.grau));
+        let selecionados = listaGuiasMediunsCache.filter(m => idsSelecionadosGuias.has(m.id) && window.grauPermiteConsagracao(m.grau));
+
+        if (selecionados.length === 0) {
+            if (filtrados.length === 0) {
+                return alert('Nenhum médium de grau CT+ disponível no filtro atual.');
+            }
+            if (!confirm('Nenhum médium CT+ foi marcado individualmente. Deseja gerar o Caderno de Pontos em PDF para todos os médiuns CT+ listados?')) {
+                return;
+            }
+            selecionados = filtrados;
+        }
+
+        selecionados.sort((a, b) => (a.nome_completo || '').localeCompare(b.nome_completo || '', 'pt-BR'));
+
+        const fmtPontoPdf = (ptObj, nomeGuia) => {
+            if (!ptObj || (!ptObj.letra && !ptObj.ritmo)) return '<span style="color:#cbd5e1;">-</span>';
+            const ritmo = ptObj.ritmo ? `<div style="font-size:6.5pt; font-weight:bold; color:#b45309; text-transform:uppercase; margin-bottom:2px;">🥁 Toque: ${ptObj.ritmo}</div>` : '';
+            const melodia = ptObj.obs_melodia ? `<div style="font-size:6.5pt; color:#0369a1; font-style:italic; margin-bottom:2px;">🎵 ${ptObj.obs_melodia}</div>` : '';
+            const guiaTxt = nomeGuia ? `<div style="font-size:6.5pt; font-weight:bold; color:#334155; margin-bottom:3px;">Guia: ${nomeGuia.replace(/\n/g, ' / ')}</div>` : '';
+            const letra = (ptObj.letra || '-').replace(/\n/g, '<br>');
+            return `<div style="text-align:left; line-height:1.35;">${guiaTxt}${ritmo}${melodia}<div style="font-size:7.5pt; color:#0f172a;">${letra}</div></div>`;
+        };
+
+        const colunas = [
+            'MÉDIUM / GRAU',
+            '🌿 CABOCLO(A) — DESCIDA',
+            '🌿 CABOCLO(A) — SUBIDA',
+            '☕ PRETO(A) VELHO(A) — DESCIDA',
+            '☕ PRETO(A) VELHO(A) — SUBIDA'
+        ];
+
+        const dados = selecionados.map(m => {
+            const cargo = [m.grau, m.funcao].filter(v => v && v !== '-').join(' / ');
+            const pts = m.pontos_cantados || {};
+            const colNome = `<div style="text-align:left; line-height:1.3;">
+                                <div style="font-size: 8.5pt; color: #0f172a; font-weight: 900;">${m.nome_completo}</div>
+                                ${cargo ? `<div style="font-size:6.5pt; color:#475569; margin-top:3px; font-weight:bold; text-transform:uppercase;">${cargo}</div>` : ''}
+                             </div>`;
+            return [
+                colNome,
+                fmtPontoPdf(pts.caboclo_descida, m.guia_caboclo),
+                fmtPontoPdf(pts.caboclo_subida, m.guia_caboclo),
+                fmtPontoPdf(pts.pv_descida, m.guia_preto_velho),
+                fmtPontoPdf(pts.pv_subida, m.guia_preto_velho)
+            ];
+        });
+
+        if (typeof window.gerarPDFRelatorio === 'function') {
+            window.gerarPDFRelatorio('Caderno Oficial de Pontos Cantados (Curimba)', colunas, dados, 'landscape');
         } else {
             alert('Função geradora de PDF não encontrada.');
         }
@@ -1361,8 +1439,25 @@
     let cacheMediunsCurimba = [];
     let idsPresentesHojeCurimba = new Set();
     let filtroApenasPresentesCurimba = false;
+    let filtroApenasIncompletosCurimba = false;
     let linhaAtivaCurimba = 'todos';
     let tamanhoFonteCurimba = 15;
+    let wakeLockCurimba = null;
+
+    async function ativarWakeLockCurimba() {
+        if ('wakeLock' in navigator) {
+            try {
+                wakeLockCurimba = await navigator.wakeLock.request('screen');
+            } catch (e) {}
+        }
+    }
+
+    function liberarWakeLockCurimba() {
+        if (wakeLockCurimba !== null) {
+            wakeLockCurimba.release().catch(() => {});
+            wakeLockCurimba = null;
+        }
+    }
 
     function verificarAcessoBotaoCurimba() {
         const boxBtn = document.getElementById('areaCurimbaRapida');
@@ -1390,25 +1485,49 @@
         const modal = document.getElementById('modalCurimbaPontos');
         if (!modal) return;
         modal.classList.remove('hidden');
+        await ativarWakeLockCurimba();
         await carregarDadosCurimba();
     };
 
     window.fecharModalCurimba = () => {
-    document.querySelectorAll('#modalCurimbaPontos audio').forEach(a => a.pause());
-    document.getElementById('modalCurimbaPontos')?.classList.add('hidden');
-};
+        document.querySelectorAll('#modalCurimbaPontos audio').forEach(a => a.pause());
+        liberarWakeLockCurimba();
+        document.getElementById('modalCurimbaPontos')?.classList.add('hidden');
+    };
 
-// Impede que dois áudios toquem ao mesmo tempo
-document.addEventListener('play', (e) => {
-    if (e.target && e.target.tagName === 'AUDIO') {
-        document.querySelectorAll('audio').forEach(a => {
-            if (a !== e.target) a.pause();
-        });
-    }
-}, true);
+    // Impede que dois áudios toquem ao mesmo tempo
+    document.addEventListener('play', (e) => {
+        if (e.target && e.target.tagName === 'AUDIO') {
+            document.querySelectorAll('audio').forEach(a => {
+                if (a !== e.target) a.pause();
+            });
+        }
+    }, true);
 
     window.ajustarFonteCurimba = (delta) => {
         tamanhoFonteCurimba = Math.min(Math.max(12, tamanhoFonteCurimba + delta), 26);
+        renderizarCardsCurimba();
+    };
+
+    window.alternarFiltroPresentesCurimba = () => {
+        filtroApenasPresentesCurimba = !filtroApenasPresentesCurimba;
+        const btn = document.getElementById('btnFiltroPresentesCurimba');
+        if (btn) {
+            btn.className = filtroApenasPresentesCurimba
+                ? 'px-2.5 py-2 rounded-xl text-[11px] font-black border transition active:scale-95 flex items-center gap-1.5 shrink-0 bg-emerald-600 text-white border-emerald-400 shadow'
+                : 'px-2.5 py-2 rounded-xl text-[11px] font-black border transition active:scale-95 flex items-center gap-1.5 shrink-0 bg-slate-800 text-slate-300 border-slate-700';
+        }
+        renderizarCardsCurimba();
+    };
+
+    window.alternarFiltroIncompletosCurimba = () => {
+        filtroApenasIncompletosCurimba = !filtroApenasIncompletosCurimba;
+        const btn = document.getElementById('btnFiltroIncompletosCurimba');
+        if (btn) {
+            btn.className = filtroApenasIncompletosCurimba
+                ? 'px-2.5 py-2 rounded-xl text-[11px] font-black border transition active:scale-95 flex items-center gap-1 shrink-0 bg-amber-500 text-slate-950 border-amber-300 shadow'
+                : 'px-2.5 py-2 rounded-xl text-[11px] font-black border transition active:scale-95 flex items-center gap-1 shrink-0 bg-slate-800 text-amber-300 border-slate-700';
+        }
         renderizarCardsCurimba();
     };
 
@@ -1530,11 +1649,6 @@ document.addEventListener('play', (e) => {
         const termo = (document.getElementById('buscaCurimbaInput')?.value || '').trim().toLowerCase();
 
         const filtrados = cacheMediunsCurimba.filter(m => {
-            if (filtroApenasPresentesCurimba) {
-                const estaPresente = idsPresentesHojeCurimba.has(String(m.auth_id)) || idsPresentesHojeCurimba.has(String(m.id));
-                if (!estaPresente) return false;
-            }
-            if (termo) {
                 const pts = m.pontos_cantados || {};
                 const tudo = [
                     m.nome_completo, m.nome_social, m.guia_caboclo, m.guia_preto_velho,
