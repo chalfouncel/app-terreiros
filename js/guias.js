@@ -1309,7 +1309,7 @@
                 elementoPdf.innerHTML = `
                     <img src="${fundoBase64}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1;" />
                     
-                    <div style="position: absolute; top: 7%; height: 72%; width: 100%; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 0 95px; box-sizing: border-box; z-index: 2;">
+                    <div style="position: absolute; top: 7%; height: 72%; width: 100%; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; padding: 0 95px; box-sizing: border-box; z-index: 2;">
                         
                         <div style="text-align: center;">
                             <h1 style="font-family: 'Cinzel', serif; font-size: 38px; font-weight: 700; margin: 0; color: #ffffff; letter-spacing: 8px; text-shadow: 2px 2px 6px rgba(0,0,0,0.75);">
@@ -1326,7 +1326,7 @@
                             </h3>
                         </div>
 
-                        <div style="padding: 6px 30px; width: 100%; box-sizing: border-box;">
+                        <div style="padding: 6px 30px; width: 100%; box-sizing: border-box; margin-top: 60px;">
                             <p style="font-family: 'Playfair Display', serif; font-size: 13.5px; line-height: 1.65; text-align: justify; color: #111827; margin: 0 0 14px 0; font-weight: 600; ${legibilidadeCSS}">
                                 <strong>Paulo Roberto Pereira de Oliveira</strong>, solteiro, psicólogo, portador(a) inscrito(a) no Cadastro de Pessoas Físicas sob nº <strong>80693873787</strong>, Sacerdote do <strong>Templo de Umbanda Cantinho dos Irmãos Caboclos</strong>, com sede na Rua Teixeira de Azevedo, 403 – Abolição, Rio de Janeiro - RJ, com fundamento no art. 5º, inciso VI, da Constituição Federal e art. VI, alínea “g”, da Declaração sobre a Eliminação de Todas as Formas de Intolerância e Discriminação Fundadas na Religião ou nas Convicções, <strong>DECLARA PARA OS DEVIDOS FINS</strong> que em <strong>${dataCoroacaoFmt}</strong> certificou a habilitação religiosa, nomeou e designou como <strong>Comandante Chefe de Terreiro (CCT) – Linha de Morubixaba</strong> o(a) Sr.(a) <strong>${nomeMediumUpper}</strong>, brasileiro(a), <strong>${estCivilTxt}</strong>, <strong>${profissaoTxt}</strong>, inscrito(a) no CPF sob o nº <strong>${cpfTxt}</strong> razão pela qual o(a) nomeado(a) adquire o direito de exercer todos os direitos e prerrogativas religiosas que a presente habilitação lhe assegura.
                             </p>
