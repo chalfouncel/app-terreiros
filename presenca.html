@@ -426,27 +426,82 @@
                         </div>
                     </div>
 
-                    <!-- BLOCO: PONTOS CANTADOS DO MÉDIUM (CT+) -->
+                    <!-- BLOCO: PONTOS CANTADOS DO MÉDIUM (CT+) COM GRAVADOR DE ÁUDIO -->
                     <div id="boxPontosCantadosPerfil" class="bg-amber-50/70 p-3 rounded-xl border border-amber-200 space-y-3">
                         <div class="flex items-center justify-between border-b border-amber-200/80 pb-1.5">
-                            <p class="text-[11px] font-black text-amber-900 uppercase tracking-wider"><i class="fas fa-music mr-1 text-amber-600"></i> Letras dos Pontos Cantados</p>
-                            <span class="text-[9px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">Grau CT+</span>
+                            <p class="text-[11px] font-black text-amber-900 uppercase tracking-wider"><i class="fas fa-music mr-1 text-amber-600"></i> Pontos Cantados (Letra e Áudio)</p>
+                            <span class="text-[9px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">Máx. 30s por áudio</span>
                         </div>
-                        <div class="space-y-2.5">
-                            <div>
-                                <label class="block text-[11px] font-bold text-emerald-800 mb-0.5">🌿 Ponto de Descida de Caboclo(a)</label>
+                        <div class="space-y-3">
+                            <!-- 1. Descida Caboclo -->
+                            <div class="bg-white p-2.5 rounded-xl border border-emerald-200 space-y-1.5">
+                                <div class="flex items-center justify-between gap-1">
+                                    <label class="text-[11px] font-black text-emerald-800">🌿 Descida de Caboclo(a)</label>
+                                    <div class="flex items-center gap-1">
+                                        <span id="timerPerfil_caboclo_descida" class="hidden text-[10px] font-mono font-black text-rose-600 animate-pulse">00:00</span>
+                                        <button type="button" id="btnRecPerfil_caboclo_descida" onclick="window.alternarGravacaoPerfil('caboclo_descida')" class="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] flex items-center gap-1 shadow-sm active:scale-95 transition">
+                                            <i class="fas fa-microphone"></i> <span>Gravar Áudio</span>
+                                        </button>
+                                        <button type="button" id="btnDelAudioPerfil_caboclo_descida" onclick="window.removerAudioPerfil('caboclo_descida')" class="hidden px-2 py-1 rounded-lg bg-gray-100 text-red-500 hover:bg-red-50 text-[10px] font-bold" title="Apagar áudio">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <audio id="playerPerfil_caboclo_descida" controls class="hidden w-full h-8"></audio>
                                 <textarea id="perfilPontoCabocloDescida" rows="3" placeholder="Digite a letra do ponto de descida..." class="w-full px-3 py-1.5 text-xs border border-gray-300 rounded-xl outline-none bg-white"></textarea>
                             </div>
-                            <div>
-                                <label class="block text-[11px] font-bold text-emerald-800 mb-0.5">🌿 Ponto de Subida de Caboclo(a)</label>
+
+                            <!-- 2. Subida Caboclo -->
+                            <div class="bg-white p-2.5 rounded-xl border border-emerald-200 space-y-1.5">
+                                <div class="flex items-center justify-between gap-1">
+                                    <label class="text-[11px] font-black text-emerald-800">🌿 Subida de Caboclo(a)</label>
+                                    <div class="flex items-center gap-1">
+                                        <span id="timerPerfil_caboclo_subida" class="hidden text-[10px] font-mono font-black text-rose-600 animate-pulse">00:00</span>
+                                        <button type="button" id="btnRecPerfil_caboclo_subida" onclick="window.alternarGravacaoPerfil('caboclo_subida')" class="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] flex items-center gap-1 shadow-sm active:scale-95 transition">
+                                            <i class="fas fa-microphone"></i> <span>Gravar Áudio</span>
+                                        </button>
+                                        <button type="button" id="btnDelAudioPerfil_caboclo_subida" onclick="window.removerAudioPerfil('caboclo_subida')" class="hidden px-2 py-1 rounded-lg bg-gray-100 text-red-500 hover:bg-red-50 text-[10px] font-bold" title="Apagar áudio">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <audio id="playerPerfil_caboclo_subida" controls class="hidden w-full h-8"></audio>
                                 <textarea id="perfilPontoCabocloSubida" rows="3" placeholder="Digite a letra do ponto de subida..." class="w-full px-3 py-1.5 text-xs border border-gray-300 rounded-xl outline-none bg-white"></textarea>
                             </div>
-                            <div class="border-t border-amber-200/60 pt-2">
-                                <label class="block text-[11px] font-bold text-amber-900 mb-0.5">☕ Ponto de Descida de Preto(a) Velho(a)</label>
+
+                            <!-- 3. Descida Preto Velho -->
+                            <div class="bg-white p-2.5 rounded-xl border border-amber-200 space-y-1.5">
+                                <div class="flex items-center justify-between gap-1">
+                                    <label class="text-[11px] font-black text-amber-900">☕ Descida de Preto(a) Velho(a)</label>
+                                    <div class="flex items-center gap-1">
+                                        <span id="timerPerfil_pv_descida" class="hidden text-[10px] font-mono font-black text-rose-600 animate-pulse">00:00</span>
+                                        <button type="button" id="btnRecPerfil_pv_descida" onclick="window.alternarGravacaoPerfil('pv_descida')" class="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] flex items-center gap-1 shadow-sm active:scale-95 transition">
+                                            <i class="fas fa-microphone"></i> <span>Gravar Áudio</span>
+                                        </button>
+                                        <button type="button" id="btnDelAudioPerfil_pv_descida" onclick="window.removerAudioPerfil('pv_descida')" class="hidden px-2 py-1 rounded-lg bg-gray-100 text-red-500 hover:bg-red-50 text-[10px] font-bold" title="Apagar áudio">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <audio id="playerPerfil_pv_descida" controls class="hidden w-full h-8"></audio>
                                 <textarea id="perfilPontoPVDescida" rows="3" placeholder="Digite a letra do ponto de descida..." class="w-full px-3 py-1.5 text-xs border border-gray-300 rounded-xl outline-none bg-white"></textarea>
                             </div>
-                            <div>
-                                <label class="block text-[11px] font-bold text-amber-900 mb-0.5">☕ Ponto de Subida de Preto(a) Velho(a)</label>
+
+                            <!-- 4. Subida Preto Velho -->
+                            <div class="bg-white p-2.5 rounded-xl border border-amber-200 space-y-1.5">
+                                <div class="flex items-center justify-between gap-1">
+                                    <label class="text-[11px] font-black text-amber-900">☕ Subida de Preto(a) Velho(a)</label>
+                                    <div class="flex items-center gap-1">
+                                        <span id="timerPerfil_pv_subida" class="hidden text-[10px] font-mono font-black text-rose-600 animate-pulse">00:00</span>
+                                        <button type="button" id="btnRecPerfil_pv_subida" onclick="window.alternarGravacaoPerfil('pv_subida')" class="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] flex items-center gap-1 shadow-sm active:scale-95 transition">
+                                            <i class="fas fa-microphone"></i> <span>Gravar Áudio</span>
+                                        </button>
+                                        <button type="button" id="btnDelAudioPerfil_pv_subida" onclick="window.removerAudioPerfil('pv_subida')" class="hidden px-2 py-1 rounded-lg bg-gray-100 text-red-500 hover:bg-red-50 text-[10px] font-bold" title="Apagar áudio">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <audio id="playerPerfil_pv_subida" controls class="hidden w-full h-8"></audio>
                                 <textarea id="perfilPontoPVSubida" rows="3" placeholder="Digite a letra do ponto de subida..." class="w-full px-3 py-1.5 text-xs border border-gray-300 rounded-xl outline-none bg-white"></textarea>
                             </div>
                         </div>
@@ -985,6 +1040,25 @@
                         <label class="block text-[10px] font-black text-gray-500 uppercase mb-1">🎵 Dica de Melodia / Tom</label>
                         <input type="text" id="editPontoMelodia" placeholder="Ex: Lento no início, sobe no refrão" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 bg-white">
                     </div>
+                </div>
+
+                <!-- GRAVADOR DE MELODIA ULTRA-LEVE NO MODAL MG/MGA (MÁX 30s) -->
+                <div class="bg-amber-50/80 border border-amber-200 rounded-xl p-3 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[10px] font-black text-amber-900 uppercase"><i class="fas fa-microphone-alt mr-1 text-amber-600"></i> Áudio Guia da Melodia (Máx. 30s)</span>
+                        <span id="timerGravacaoPonto" class="hidden text-[11px] font-mono font-black text-rose-600 animate-pulse">00:00 / 00:30</span>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <button type="button" id="btnGravarAudioPonto" onclick="window.alternarGravacaoPonto()" class="flex-1 py-2 px-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition">
+                            <i class="fas fa-microphone"></i> <span>Gravar / Regravar Melodia</span>
+                        </button>
+                        <button type="button" id="btnRemoverAudioPonto" onclick="window.removerAudioPontoAtual()" class="hidden py-2 px-3 rounded-xl bg-gray-200 hover:bg-red-100 text-gray-600 hover:text-red-600 font-bold text-xs transition" title="Apagar áudio">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+
+                    <audio id="playerPreviewPonto" controls class="hidden w-full h-9 mt-1"></audio>
                 </div>
 
                 <div>
