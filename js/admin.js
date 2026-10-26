@@ -665,6 +665,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const grau = document.getElementById('editMediumGrau').value;
                 const funcao = document.getElementById('editMediumFuncao').value;
 
+                const cpf = (document.getElementById('editMediumCpf')?.value || '').replace(/\D/g, '') || null;
+                const estadoCivil = document.getElementById('editMediumEstadoCivil')?.value || null;
+                const profissao = document.getElementById('editMediumProfissao')?.value.trim() || null;
+                const emergNome = document.getElementById('editMediumEmergNome')?.value.trim() || null;
+                const emergTel = (document.getElementById('editMediumEmergTel')?.value || '').replace(/\D/g, '') || null;
+                const planoTxt = document.getElementById('editMediumPlano')?.value.trim() || null;
+                const tipoSang = document.getElementById('editMediumTipoSang')?.value.trim() || null;
+                const comorbidades = document.getElementById('editMediumComorbidades')?.value.trim() || null;
+
                 const btn = document.getElementById('btnSalvarEditMedium');
                 const msg = document.getElementById('msgEditMedium');
 
@@ -681,7 +690,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                             telefone: telefone,
                             data_nascimento: nascimento || null,
                             grau: grau,
-                            funcao: funcao
+                            funcao: funcao,
+                            cpf: cpf,
+                            estado_civil: estadoCivil,
+                            profissao: profissao,
+                            emergencia_nome: emergNome,
+                            emergencia_telefone: emergTel,
+                            possui_plano_saude: Boolean(planoTxt),
+                            qual_plano_saude: planoTxt,
+                            tipo_sanguineo: tipoSang,
+                            comorbidades_alergias: comorbidades
                         })
                         .eq('id', id)
                         .eq('terreiro_id', idTerreiroGlobal);
@@ -1440,7 +1458,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             try {
                 const { data, error } = await supabaseClient
                 .from('mediuns')
-                .select('id, nome_completo, nome_social, data_nascimento, grau, funcao, telefone, palavra, cadastro_completo, is_admin, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin, perm_visao_geral, perm_ata, perm_quadro_mediuns, perm_guias, perm_ia, status_ativo, isento_mensalidade, perm_escalas')
+                .select('id, nome_completo, nome_social, data_nascimento, grau, funcao, telefone, palavra, cadastro_completo, is_admin, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin, perm_visao_geral, perm_ata, perm_quadro_mediuns, perm_guias, perm_ia, status_ativo, isento_mensalidade, perm_escalas, cpf, estado_civil, profissao, emergencia_nome, emergencia_telefone, tipo_sanguineo, possui_plano_saude, qual_plano_saude, comorbidades_alergias')
                 .eq('terreiro_id', idTerreiroGlobal)
                 .neq('nome_completo', 'Administrador Sistema')
                 .order('nome_completo');
@@ -1513,7 +1531,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (m.telefone) {
                     const numeroLimpo = m.telefone.replace(/\D/g, '');
                     const ddi = numeroLimpo.startsWith('55') ? '' : '55';
-                    linkWhats = `<a href="https://wa.me/${ddi}${numeroLimpo}" target="_blank" class="text-green-600 hover:text-green-700 hover:underline flex items-center gap-1 font-medium" title="Chamar no WhatsApp"><i class="fab fa-whatsapp text-lg"></i> ${m.telefone}</a>`;
+                    linkWhats = `<a href="https://wa.me/${ddi}${numeroLimpo}" target="_blank" class="text-green-600 hover:text-green-700 hover:underline inline-flex items-center gap-1 font-medium" title="Chamar no WhatsApp"><i class="fab fa-whatsapp text-lg"></i> ${m.telefone}</a>`;
+                }
+
+                const temDadosMedicos = Boolean(m.emergencia_telefone || m.emergencia_nome || m.comorbidades_alergias || m.qual_plano_saude || m.tipo_sanguineo);
+                if (temDadosMedicos) {
+                    linkWhats += `
+                        <button type="button" onclick="verFichaEmergencia(${m.id})" class="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-700 hover:bg-rose-600 hover:text-white border border-rose-300 transition shadow-sm active:scale-95" title="Ficha Médica e Contato de Emergência">
+                            <i class="fas fa-notes-medical"></i> SOS
+                        </button>
+                    `;
                 }
 
                 // Identificação visual de permissões ativas
@@ -3958,6 +3985,38 @@ window.fecharModalNovoMedium = () => {
     document.getElementById('menuQuadroMediuns')?.click();
 };
 
+window.verFichaEmergencia = (id) => {
+    const m = listaMediunsGlobal.find(x => x.id === id);
+    if (!m) return;
+
+    const plano = m.possui_plano_saude ? (m.qual_plano_saude || 'Sim (Não especificado)') : 'Não possui';
+    const sangue = m.tipo_sanguineo || 'Não informado';
+    const comorb = m.comorbidades_alergias || 'Nenhuma relatada';
+    const contNome = m.emergencia_nome || 'Não informado';
+    const contTel = m.emergencia_telefone || '';
+
+    const resumo = `🏥 FICHA DE EMERGÊNCIA E SAÚDE\n` +
+                   `Médium: ${m.nome_completo}\n` +
+                   `──────────────────────────────\n` +
+                   `• Contato de Emergência: ${contNome}\n` +
+                   `• Tel. Emergência: ${contTel || 'Não informado'}\n` +
+                   `• Tipo Sanguíneo: ${sangue}\n` +
+                   `• Plano de Saúde: ${plano}\n` +
+                   `• Comorbidades / Alergias:\n  ${comorb}\n` +
+                   `──────────────────────────────` +
+                   (contTel ? `\n\nDeseja abrir o WhatsApp do contato de emergência agora?` : '');
+
+    if (contTel) {
+        if (confirm(resumo)) {
+            const num = contTel.replace(/\D/g, '');
+            const ddi = num.startsWith('55') ? '' : '55';
+            window.open(`https://wa.me/${ddi}${num}`, '_blank');
+        }
+    } else {
+        alert(resumo);
+    }
+};
+
 window.abrirModalEditarMedium = async (id) => {
     const medium = listaMediunsGlobal.find(m => m.id === id);
     if (!medium) return alert("Médium não encontrado.");
@@ -3967,6 +4026,15 @@ window.abrirModalEditarMedium = async (id) => {
     document.getElementById('editMediumNomeSocial').value = medium.nome_social || '';
     document.getElementById('editMediumTelefone').value = medium.telefone || '';
     document.getElementById('editMediumNascimento').value = medium.data_nascimento || '';
+    if (document.getElementById('editMediumCpf')) document.getElementById('editMediumCpf').value = medium.cpf || '';
+    if (document.getElementById('editMediumEstadoCivil')) document.getElementById('editMediumEstadoCivil').value = medium.estado_civil || '';
+    if (document.getElementById('editMediumProfissao')) document.getElementById('editMediumProfissao').value = medium.profissao || '';
+    if (document.getElementById('editMediumEmergNome')) document.getElementById('editMediumEmergNome').value = medium.emergencia_nome || '';
+    if (document.getElementById('editMediumEmergTel')) document.getElementById('editMediumEmergTel').value = medium.emergencia_telefone || '';
+    if (document.getElementById('editMediumPlano')) document.getElementById('editMediumPlano').value = medium.qual_plano_saude || '';
+    if (document.getElementById('editMediumTipoSang')) document.getElementById('editMediumTipoSang').value = medium.tipo_sanguineo || '';
+    if (document.getElementById('editMediumComorbidades')) document.getElementById('editMediumComorbidades').value = medium.comorbidades_alergias || '';
+
     const selGrau = document.getElementById('editMediumGrau');
     const selFuncao = document.getElementById('editMediumFuncao');
     if (selGrau) selGrau.innerHTML = renderizarOpcoes(opcoesGrau, medium.grau || '-');
