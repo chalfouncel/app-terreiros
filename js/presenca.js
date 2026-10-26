@@ -471,33 +471,52 @@ document.addEventListener('DOMContentLoaded', async () => {
         const abrirPerfil = async () => {
             if (!modalPerfil) return;
 
-            // Busca os dados atualizados diretamente no Supabase ao abrir
             try {
                 if (perfilMediumLogado && perfilMediumLogado.id) {
                     const { data: medAtual, error: errMed } = await supabaseClient
                         .from('mediuns')
-                        .select('nome_completo, nome_social, telefone')
+                        .select('nome_completo, nome_social, telefone, grau, cpf, estado_civil, profissao, emergencia_nome, emergencia_telefone, tipo_sanguineo, possui_plano_saude, qual_plano_saude, comorbidades_alergias, lgpd_aceite')
                         .eq('id', perfilMediumLogado.id)
                         .single();
 
                     if (!errMed && medAtual) {
-                        perfilMediumLogado.nome_completo = medAtual.nome_completo;
-                        perfilMediumLogado.nome_social = medAtual.nome_social;
-                        perfilMediumLogado.telefone = medAtual.telefone;
+                        Object.assign(perfilMediumLogado, medAtual);
                     }
                 }
             } catch (e) {
                 console.error("Erro ao carregar dados do perfil:", e);
             }
 
-            // Preenche os inputs garantindo que os dados chegam à interface
-            const elNome = document.getElementById('perfilNomeCompleto');
-            const elSocial = document.getElementById('perfilNomeSocial');
-            const elTel = document.getElementById('perfilTelefone');
+            const p = perfilMediumLogado || {};
+            if (document.getElementById('perfilNomeCompleto')) document.getElementById('perfilNomeCompleto').value = p.nome_completo || '';
+            if (document.getElementById('perfilNomeSocial')) document.getElementById('perfilNomeSocial').value = p.nome_social || '';
+            if (document.getElementById('perfilTelefone')) document.getElementById('perfilTelefone').value = p.telefone || '';
 
-            if (elNome) elNome.value = (perfilMediumLogado && perfilMediumLogado.nome_completo) ? perfilMediumLogado.nome_completo : '';
-            if (elSocial) elSocial.value = (perfilMediumLogado && perfilMediumLogado.nome_social) ? perfilMediumLogado.nome_social : '';
-            if (elTel) elTel.value = (perfilMediumLogado && perfilMediumLogado.telefone) ? perfilMediumLogado.telefone : '';
+            // Mostra bloco CCT para SCCT, Escola de CCT, CCT e Dirigente
+            const grauUpper = String(p.grau || '').trim().toUpperCase();
+            const boxCCT = document.getElementById('boxDadosHabilitacaoCCT');
+            if (boxCCT) {
+                const exigeDadosCCT = ['SCCT', 'ESCOLA DE CCT', 'CCT', 'DIRIGENTE'].includes(grauUpper);
+                boxCCT.classList.toggle('hidden', !exigeDadosCCT);
+            }
+
+            if (document.getElementById('perfilCpf')) document.getElementById('perfilCpf').value = p.cpf || '';
+            if (document.getElementById('perfilEstadoCivil')) document.getElementById('perfilEstadoCivil').value = p.estado_civil || '';
+            if (document.getElementById('perfilProfissao')) document.getElementById('perfilProfissao').value = p.profissao || '';
+
+            if (document.getElementById('perfilEmergenciaNome')) document.getElementById('perfilEmergenciaNome').value = p.emergencia_nome || '';
+            if (document.getElementById('perfilEmergenciaTel')) document.getElementById('perfilEmergenciaTel').value = p.emergencia_telefone || '';
+            if (document.getElementById('perfilTipoSanguineo')) document.getElementById('perfilTipoSanguineo').value = p.tipo_sanguineo || '';
+            
+            const selPlano = document.getElementById('perfilPossuiPlano');
+            const boxQualPlano = document.getElementById('boxQualPlanoPerfil');
+            if (selPlano) {
+                selPlano.value = p.possui_plano_saude ? 'sim' : 'nao';
+                if (boxQualPlano) boxQualPlano.classList.toggle('hidden', !p.possui_plano_saude);
+            }
+            if (document.getElementById('perfilQualPlano')) document.getElementById('perfilQualPlano').value = p.qual_plano_saude || '';
+            if (document.getElementById('perfilComorbidades')) document.getElementById('perfilComorbidades').value = p.comorbidades_alergias || '';
+            if (document.getElementById('perfilAceiteLGPD')) document.getElementById('perfilAceiteLGPD').checked = !!p.lgpd_aceite;
 
             modalPerfil.classList.remove('hidden');
             setTimeout(() => {
@@ -563,26 +582,51 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const nCompleto = document.getElementById('perfilNomeCompleto').value.trim();
                 const nSocial = document.getElementById('perfilNomeSocial').value.trim();
                 const nTel = document.getElementById('perfilTelefone').value.replace(/\D/g, '');
+                const aceiteLgpd = document.getElementById('perfilAceiteLGPD')?.checked || false;
 
                 if (!nCompleto) return alert("O Nome Completo é obrigatório.");
                 if (nTel.length < 10) return alert("Digite um WhatsApp válido com DDD.");
+                if (!aceiteLgpd) return alert("Para salvar seus dados pessoais e de saúde, é necessário marcar a concordância com o Termo LGPD.");
+
+                const cpfLimpo = (document.getElementById('perfilCpf')?.value || '').replace(/\D/g, '');
+                const estadoCivil = document.getElementById('perfilEstadoCivil')?.value || null;
+                const profissao = document.getElementById('perfilProfissao')?.value.trim() || null;
+
+                const grauUpper = String(perfilMediumLogado.grau || '').trim().toUpperCase();
+                if (['ESCOLA DE CCT', 'CCT'].includes(grauUpper)) {
+                    if (cpfLimpo.length !== 11 || !estadoCivil || !profissao) {
+                        return alert("Para médiuns da Escola de CCT e CCT, o preenchimento do CPF (11 dígitos), Estado Civil e Profissão é obrigatório para a Declaração de Habilitação Religiosa.");
+                    }
+                }
+
+                const possuiPlano = document.getElementById('perfilPossuiPlano')?.value === 'sim';
+
+                const payload = {
+                    nome_completo: nCompleto,
+                    nome_social: nSocial,
+                    telefone: nTel,
+                    cpf: cpfLimpo || null,
+                    estado_civil: estadoCivil,
+                    profissao: profissao,
+                    emergencia_nome: document.getElementById('perfilEmergenciaNome')?.value.trim() || null,
+                    emergencia_telefone: (document.getElementById('perfilEmergenciaTel')?.value || '').replace(/\D/g, '') || null,
+                    tipo_sanguineo: document.getElementById('perfilTipoSanguineo')?.value || null,
+                    possui_plano_saude: possuiPlano,
+                    qual_plano_saude: possuiPlano ? (document.getElementById('perfilQualPlano')?.value.trim() || null) : null,
+                    comorbidades_alergias: document.getElementById('perfilComorbidades')?.value.trim() || null,
+                    lgpd_aceite: true,
+                    lgpd_data_aceite: perfilMediumLogado.lgpd_data_aceite || new Date().toISOString()
+                };
 
                 btnSalvarDados.disabled = true;
                 btnSalvarDados.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Salvando...';
                 if (msgDados) msgDados.classList.add('hidden');
 
                 try {
-                    const { error } = await supabaseClient.from('mediuns').update({
-                        nome_completo: nCompleto,
-                        nome_social: nSocial,
-                        telefone: nTel
-                    }).eq('id', perfilMediumLogado.id);
-
+                    const { error } = await supabaseClient.from('mediuns').update(payload).eq('id', perfilMediumLogado.id);
                     if (error) throw error;
 
-                    perfilMediumLogado.nome_completo = nCompleto;
-                    perfilMediumLogado.nome_social = nSocial;
-                    perfilMediumLogado.telefone = nTel;
+                    Object.assign(perfilMediumLogado, payload);
 
                     const nomeCurto = nSocial || nCompleto.split(' ')[0];
                     const txtNome = document.getElementById('nomeMedium');
