@@ -1643,9 +1643,24 @@
 
             timerGravacaoGlobal = setInterval(() => {
                 segundosGravacaoGlobal++;
-                if (timerEl) timerEl.textContent = `00:${String(segundosGravacaoGlobal).padStart(2, '0')}`;
-                if (segundosGravacaoGlobal >= 30) {
-                    window.pararGravacaoPerfilSeAtiva();
+                const min = Math.floor(segundosGravacaoGlobal / 60);
+                const seg = segundosGravacaoGlobal % 60;
+                const tempoFmt = `${String(min).padStart(2, '0')}:${String(seg).padStart(2, '0')}`;
+                
+                if (timerEl) {
+                    // Se for o modal da curimba, mostra o limite de 01:30
+                    if (timerEl.id === 'timerGravacaoPonto') {
+                        timerEl.textContent = `${tempoFmt} / 01:30`;
+                    } else {
+                        timerEl.textContent = tempoFmt;
+                    }
+                }
+
+                // Limite aumentado para 90 segundos (1:30)
+                if (segundosGravacaoGlobal >= 90) {
+                    if (typeof window.pararGravacaoPerfilSeAtiva === 'function') window.pararGravacaoPerfilSeAtiva();
+                    // Se for a função interna do modal:
+                    if (typeof pararGravacaoModalCurimba === 'function') pararGravacaoModalCurimba();
                 }
             }, 1000);
         } catch (err) {
