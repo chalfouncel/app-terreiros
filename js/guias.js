@@ -146,14 +146,37 @@
                     document.getElementById('perfilBatismoMadrinhaMedium').value
                 );
 
+                if (typeof window.pararGravacaoPerfilSeAtiva === 'function') window.pararGravacaoPerfilSeAtiva();
+
                 const permiteCT = window.grauPermiteConsagracao ? window.grauPermiteConsagracao(perfilMediumLogado.grau) : true;
                 const ptAtuais = perfilMediumLogado.pontos_cantados || {};
 
+                let urlsAudioPerfil = {};
+                if (permiteCT) {
+                    const chavesPts = ['caboclo_descida', 'caboclo_subida', 'pv_descida', 'pv_subida'];
+                    for (const ch of chavesPts) {
+                        urlsAudioPerfil[ch] = window.urlsAudioExistentesPerfil?.[ch] ?? (ptAtuais[ch]?.audio_url || null);
+                        const blobNovo = window.blobsAudioPerfil?.[ch];
+                        if (blobNovo) {
+                            const ext = (blobNovo.type && blobNovo.type.includes('mp4')) ? 'mp4' : 'webm';
+                            const filePath = `pontos_audio/ponto_${idTerreiroGlobal}_${perfilMediumLogado.id}_${ch}.${ext}`;
+                            const { error: upErr } = await supabaseClient.storage
+                                .from('logos')
+                                .upload(filePath, blobNovo, { upsert: true, contentType: blobNovo.type || 'audio/webm' });
+                            if (!upErr) {
+                                const { data: pubData } = supabaseClient.storage.from('logos').getPublicUrl(filePath);
+                                urlsAudioPerfil[ch] = pubData.publicUrl + '?t=' + Date.now();
+                                delete window.blobsAudioPerfil[ch];
+                            }
+                        }
+                    }
+                }
+
                 const pontosAtualizados = permiteCT ? {
-                    caboclo_descida: { ...(ptAtuais.caboclo_descida || {}), letra: document.getElementById('perfilPontoCabocloDescida')?.value.trim() || '' },
-                    caboclo_subida:  { ...(ptAtuais.caboclo_subida || {}),  letra: document.getElementById('perfilPontoCabocloSubida')?.value.trim() || '' },
-                    pv_descida:      { ...(ptAtuais.pv_descida || {}),      letra: document.getElementById('perfilPontoPVDescida')?.value.trim() || '' },
-                    pv_subida:       { ...(ptAtuais.pv_subida || {}),       letra: document.getElementById('perfilPontoPVSubida')?.value.trim() || '' }
+                    caboclo_descida: { ...(ptAtuais.caboclo_descida || {}), letra: document.getElementById('perfilPontoCabocloDescida')?.value.trim() || '', audio_url: urlsAudioPerfil.caboclo_descida || null },
+                    caboclo_subida:  { ...(ptAtuais.caboclo_subida || {}),  letra: document.getElementById('perfilPontoCabocloSubida')?.value.trim() || '',  audio_url: urlsAudioPerfil.caboclo_subida || null },
+                    pv_descida:      { ...(ptAtuais.pv_descida || {}),      letra: document.getElementById('perfilPontoPVDescida')?.value.trim() || '',      audio_url: urlsAudioPerfil.pv_descida || null },
+                    pv_subida:       { ...(ptAtuais.pv_subida || {}),       letra: document.getElementById('perfilPontoPVSubida')?.value.trim() || '',       audio_url: urlsAudioPerfil.pv_subida || null }
                 } : ptAtuais;
 
                 const payload = {
@@ -252,6 +275,23 @@
                 if (document.getElementById('perfilPontoCabocloSubida'))  document.getElementById('perfilPontoCabocloSubida').value  = pts.caboclo_subida?.letra || '';
                 if (document.getElementById('perfilPontoPVDescida'))      document.getElementById('perfilPontoPVDescida').value      = pts.pv_descida?.letra || '';
                 if (document.getElementById('perfilPontoPVSubida'))       document.getElementById('perfilPontoPVSubida').value       = pts.pv_subida?.letra || '';
+
+                window.blobsAudioPerfil = {};
+                window.urlsAudioExistentesPerfil = {};
+                ['caboclo_descida', 'caboclo_subida', 'pv_descida', 'pv_subida'].forEach(ch => {
+                    const aUrl = pts[ch]?.audio_url || null;
+                    window.urlsAudioExistentesPerfil[ch] = aUrl;
+                    const pl = document.getElementById(`playerPerfil_${ch}`);
+                    const btnD = document.getElementById(`btnDelAudioPerfil_${ch}`);
+                    if (aUrl && pl) {
+                        pl.src = aUrl;
+                        pl.classList.remove('hidden');
+                        if (btnD) btnD.classList.remove('hidden');
+                    } else {
+                        if (pl) { pl.src = ''; pl.classList.add('hidden'); }
+                        if (btnD) btnD.classList.add('hidden');
+                    }
+                });
 
                 // Padrinhos de Batismo
                 try {
@@ -921,21 +961,25 @@
                     guia_cigano: document.getElementById('editGuiaCigano').value.trim() || null,
                     pontos_cantados: permiteCT ? {
                         caboclo_descida: {
+                            ...(medRef?.pontos_cantados?.caboclo_descida || {}),
                             letra: document.getElementById('editLetraCabocloDescida')?.value.trim() || '',
                             ritmo: document.getElementById('editRitmoCabocloDescida')?.value.trim() || '',
                             obs_melodia: document.getElementById('editMelodiaCabocloDescida')?.value.trim() || ''
                         },
                         caboclo_subida: {
+                            ...(medRef?.pontos_cantados?.caboclo_subida || {}),
                             letra: document.getElementById('editLetraCabocloSubida')?.value.trim() || '',
                             ritmo: document.getElementById('editRitmoCabocloSubida')?.value.trim() || '',
                             obs_melodia: document.getElementById('editMelodiaCabocloSubida')?.value.trim() || ''
                         },
                         pv_descida: {
+                            ...(medRef?.pontos_cantados?.pv_descida || {}),
                             letra: document.getElementById('editLetraPVDescida')?.value.trim() || '',
                             ritmo: document.getElementById('editRitmoPVDescida')?.value.trim() || '',
                             obs_melodia: document.getElementById('editMelodiaPVDescida')?.value.trim() || ''
                         },
                         pv_subida: {
+                            ...(medRef?.pontos_cantados?.pv_subida || {}),
                             letra: document.getElementById('editLetraPVSubida')?.value.trim() || '',
                             ritmo: document.getElementById('editRitmoPVSubida')?.value.trim() || '',
                             obs_melodia: document.getElementById('editMelodiaPVSubida')?.value.trim() || ''
@@ -1413,9 +1457,14 @@
             ? `<span class="bg-amber-500 text-slate-950 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider"><i class="fas fa-drum mr-1"></i>${pt.ritmo}</span>`
             : `<span class="bg-slate-800 text-slate-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-slate-700">Sem ritmo</span>`;
 
-        const melodiaHtml = pt.obs_melodia
-            ? `<div class="text-[11px] text-sky-300 bg-sky-950/50 border border-sky-800/50 rounded-lg px-2.5 py-1 mt-1.5"><i class="fas fa-music mr-1"></i> <strong>Melodia:</strong> ${pt.obs_melodia}</div>`
+        const audioPlayerHtml = pt.audio_url
+            ? `<div class="mt-2 bg-slate-900/90 p-1.5 rounded-xl border border-amber-500/30 flex items-center gap-2">
+                   <span class="text-[10px] font-black text-amber-400 uppercase px-2 shrink-0"><i class="fas fa-headphones mr-1"></i>Áudio:</span>
+                   <audio controls preload="none" src="${pt.audio_url}" class="w-full h-8"></audio>
+               </div>`
             : '';
+
+        const melodiaHtml = (pt.obs_melodia ? `<div class="text-[11px] text-sky-300 bg-sky-950/50 border border-sky-800/50 rounded-lg px-2.5 py-1 mt-1.5"><i class="fas fa-music mr-1"></i> <strong>Melodia:</strong> ${pt.obs_melodia}</div>` : '') + audioPlayerHtml;
 
         const tituloEscapado = titulo.replace(/'/g, "\\'");
 
@@ -1503,7 +1552,198 @@
         }).join('');
     }
 
+    // ========================================================================
+    // 8. GRAVADOR ULTRA-LEVE (16kbps / MÁX 30s) PARA MEU PERFIL E MODAL MG/MGA
+    // ========================================================================
+    window.blobsAudioPerfil = {};
+    window.urlsAudioExistentesPerfil = {};
+    let mediaRecorderAtivo = null;
+    let chavePerfilGravando = null;
+    let timerGravacaoGlobal = null;
+    let segundosGravacaoGlobal = 0;
+
+    let blobAudioModalCurimba = null;
+    let urlAudioExistenteModalCurimba = null;
+
+    function obterOpcoesGravadorLeve() {
+        let options = { audioBitsPerSecond: 16000 };
+        if (typeof MediaRecorder !== 'undefined') {
+            if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+                options.mimeType = 'audio/webm;codecs=opus';
+            } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+                options.mimeType = 'audio/mp4';
+            }
+        }
+        return options;
+    }
+
+    // --- A. GRAVADOR DO MÉDIUM (ABA GUIAS DO MEU PERFIL) ---
+    window.pararGravacaoPerfilSeAtiva = () => {
+        if (mediaRecorderAtivo && mediaRecorderAtivo.state === 'recording') {
+            mediaRecorderAtivo.stop();
+        }
+        if (timerGravacaoGlobal) clearInterval(timerGravacaoGlobal);
+        if (chavePerfilGravando) {
+            const btn = document.getElementById(`btnRecPerfil_${chavePerfilGravando}`);
+            if (btn) {
+                btn.className = 'px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] flex items-center gap-1 shadow-sm active:scale-95 transition';
+                btn.innerHTML = '<i class="fas fa-microphone"></i> <span>Gravar Áudio</span>';
+            }
+            document.getElementById(`timerPerfil_${chavePerfilGravando}`)?.classList.add('hidden');
+            chavePerfilGravando = null;
+        }
+    };
+
+    window.alternarGravacaoPerfil = async (chave) => {
+        if (mediaRecorderAtivo && mediaRecorderAtivo.state === 'recording') {
+            const mesmaChave = (chavePerfilGravando === chave);
+            window.pararGravacaoPerfilSeAtiva();
+            if (mesmaChave) return;
+        }
+
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const chunks = [];
+            mediaRecorderAtivo = new MediaRecorder(stream, obterOpcoesGravadorLeve());
+            chavePerfilGravando = chave;
+
+            mediaRecorderAtivo.ondataavailable = (e) => {
+                if (e.data && e.data.size > 0) chunks.push(e.data);
+            };
+
+            mediaRecorderAtivo.onstop = () => {
+                stream.getTracks().forEach(t => t.stop());
+                const mime = mediaRecorderAtivo.mimeType || 'audio/webm';
+                const blob = new Blob(chunks, { type: mime });
+                window.blobsAudioPerfil[chave] = blob;
+
+                const localUrl = URL.createObjectURL(blob);
+                const pl = document.getElementById(`playerPerfil_${chave}`);
+                const btnD = document.getElementById(`btnDelAudioPerfil_${chave}`);
+                if (pl) {
+                    pl.src = localUrl;
+                    pl.classList.remove('hidden');
+                }
+                if (btnD) btnD.classList.remove('hidden');
+            };
+
+            mediaRecorderAtivo.start();
+            segundosGravacaoGlobal = 0;
+
+            const btn = document.getElementById(`btnRecPerfil_${chave}`);
+            const timerEl = document.getElementById(`timerPerfil_${chave}`);
+            if (btn) {
+                btn.className = 'px-2.5 py-1 rounded-lg bg-gray-900 text-white font-black text-[10px] flex items-center gap-1 shadow-md animate-pulse';
+                btn.innerHTML = '<i class="fas fa-stop text-rose-500"></i> <span>Parar</span>';
+            }
+            if (timerEl) {
+                timerEl.textContent = '00:00';
+                timerEl.classList.remove('hidden');
+            }
+
+            timerGravacaoGlobal = setInterval(() => {
+                segundosGravacaoGlobal++;
+                if (timerEl) timerEl.textContent = `00:${String(segundosGravacaoGlobal).padStart(2, '0')}`;
+                if (segundosGravacaoGlobal >= 30) {
+                    window.pararGravacaoPerfilSeAtiva();
+                }
+            }, 1000);
+        } catch (err) {
+            alert('Não foi possível acessar o microfone. Autorize a permissão no navegador.');
+        }
+    };
+
+    window.removerAudioPerfil = (chave) => {
+        if (chavePerfilGravando === chave) window.pararGravacaoPerfilSeAtiva();
+        delete window.blobsAudioPerfil[chave];
+        window.urlsAudioExistentesPerfil[chave] = null;
+        const pl = document.getElementById(`playerPerfil_${chave}`);
+        const btnD = document.getElementById(`btnDelAudioPerfil_${chave}`);
+        if (pl) { pl.pause(); pl.src = ''; pl.classList.add('hidden'); }
+        if (btnD) btnD.classList.add('hidden');
+    };
+
+    // --- B. GRAVADOR DO MODAL MG / MGA ---
+    function pararGravacaoModalCurimba() {
+        if (mediaRecorderAtivo && mediaRecorderAtivo.state === 'recording') {
+            mediaRecorderAtivo.stop();
+        }
+        if (timerGravacaoGlobal) clearInterval(timerGravacaoGlobal);
+        const btn = document.getElementById('btnGravarAudioPonto');
+        if (btn) {
+            btn.className = 'flex-1 py-2 px-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition';
+            btn.innerHTML = '<i class="fas fa-microphone"></i> <span>Gravar / Regravar Melodia</span>';
+        }
+        document.getElementById('timerGravacaoPonto')?.classList.add('hidden');
+    }
+
+    window.alternarGravacaoPonto = async () => {
+        if (mediaRecorderAtivo && mediaRecorderAtivo.state === 'recording') {
+            pararGravacaoModalCurimba();
+            return;
+        }
+
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const chunks = [];
+            mediaRecorderAtivo = new MediaRecorder(stream, obterOpcoesGravadorLeve());
+
+            mediaRecorderAtivo.ondataavailable = (e) => {
+                if (e.data && e.data.size > 0) chunks.push(e.data);
+            };
+
+            mediaRecorderAtivo.onstop = () => {
+                stream.getTracks().forEach(t => t.stop());
+                const mime = mediaRecorderAtivo.mimeType || 'audio/webm';
+                blobAudioModalCurimba = new Blob(chunks, { type: mime });
+                const localUrl = URL.createObjectURL(blobAudioModalCurimba);
+
+                const player = document.getElementById('playerPreviewPonto');
+                const btnDel = document.getElementById('btnRemoverAudioPonto');
+                if (player) { player.src = localUrl; player.classList.remove('hidden'); }
+                if (btnDel) btnDel.classList.remove('hidden');
+            };
+
+            mediaRecorderAtivo.start();
+            segundosGravacaoGlobal = 0;
+
+            const btn = document.getElementById('btnGravarAudioPonto');
+            const timerEl = document.getElementById('timerGravacaoPonto');
+            if (btn) {
+                btn.className = 'flex-1 py-2 px-3 rounded-xl bg-gray-900 text-white font-black text-xs flex items-center justify-center gap-1.5 shadow-md animate-pulse';
+                btn.innerHTML = '<i class="fas fa-stop text-rose-500"></i> <span>Parar Gravação</span>';
+            }
+            if (timerEl) {
+                timerEl.textContent = '00:00 / 00:30';
+                timerEl.classList.remove('hidden');
+            }
+
+            timerGravacaoGlobal = setInterval(() => {
+                segundosGravacaoGlobal++;
+                if (timerEl) timerEl.textContent = `00:${String(segundosGravacaoGlobal).padStart(2, '0')} / 00:30`;
+                if (segundosGravacaoGlobal >= 30) {
+                    pararGravacaoModalCurimba();
+                }
+            }, 1000);
+        } catch (err) {
+            alert('Não foi possível acessar o microfone. Verifique a permissão do navegador.');
+        }
+    };
+
+    window.removerAudioPontoAtual = () => {
+        pararGravacaoModalCurimba();
+        blobAudioModalCurimba = null;
+        urlAudioExistenteModalCurimba = null;
+        const player = document.getElementById('playerPreviewPonto');
+        const btnDel = document.getElementById('btnRemoverAudioPonto');
+        if (player) { player.pause(); player.src = ''; player.classList.add('hidden'); }
+        if (btnDel) btnDel.classList.add('hidden');
+    };
+
     window.abrirEdicaoPontoCurimba = (mediumId, chave, tituloPonto) => {
+        pararGravacaoModalCurimba();
+        blobAudioModalCurimba = null;
+
         const m = cacheMediunsCurimba.find(x => x.id === mediumId);
         if (!m) return;
 
@@ -1516,6 +1756,19 @@
         document.getElementById('editPontoRitmo').value = pt.ritmo || '';
         document.getElementById('editPontoMelodia').value = pt.obs_melodia || '';
         document.getElementById('editPontoLetra').value = pt.letra || '';
+
+        urlAudioExistenteModalCurimba = pt.audio_url || null;
+        const player = document.getElementById('playerPreviewPonto');
+        const btnDel = document.getElementById('btnRemoverAudioPonto');
+
+        if (urlAudioExistenteModalCurimba && player) {
+            player.src = urlAudioExistenteModalCurimba;
+            player.classList.remove('hidden');
+            if (btnDel) btnDel.classList.remove('hidden');
+        } else {
+            if (player) { player.src = ''; player.classList.add('hidden'); }
+            if (btnDel) btnDel.classList.add('hidden');
+        }
 
         document.getElementById('modalEditarPontoCurimba').classList.remove('hidden');
     };
@@ -1532,6 +1785,8 @@
     };
 
     window.salvarEdicaoPontoCurimba = async () => {
+        pararGravacaoModalCurimba();
+
         const mediumId = parseInt(document.getElementById('editPontoMediumId').value);
         const chave = document.getElementById('editPontoChave').value;
         const btn = document.getElementById('btnSalvarPontoCurimba');
@@ -1539,17 +1794,37 @@
         const m = cacheMediunsCurimba.find(x => x.id === mediumId);
         if (!m) return;
 
-        const pontosAtuais = { ...(m.pontos_cantados || {}) };
-        pontosAtuais[chave] = {
-            letra: document.getElementById('editPontoLetra').value.trim(),
-            ritmo: document.getElementById('editPontoRitmo').value.trim(),
-            obs_melodia: document.getElementById('editPontoMelodia').value.trim()
-        };
-
         btn.disabled = true;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Salvando...';
 
         try {
+            let finalAudioUrl = urlAudioExistenteModalCurimba;
+
+            if (blobAudioModalCurimba) {
+                const ext = (blobAudioModalCurimba.type && blobAudioModalCurimba.type.includes('mp4')) ? 'mp4' : 'webm';
+                const filePath = `pontos_audio/ponto_${idTerreiroGlobal}_${mediumId}_${chave}.${ext}`;
+
+                const { error: upErr } = await supabaseClient.storage
+                    .from('logos')
+                    .upload(filePath, blobAudioModalCurimba, {
+                        upsert: true,
+                        contentType: blobAudioModalCurimba.type || 'audio/webm'
+                    });
+
+                if (upErr) throw upErr;
+
+                const { data: pubData } = supabaseClient.storage.from('logos').getPublicUrl(filePath);
+                finalAudioUrl = pubData.publicUrl + '?t=' + Date.now();
+            }
+
+            const pontosAtuais = { ...(m.pontos_cantados || {}) };
+            pontosAtuais[chave] = {
+                letra: document.getElementById('editPontoLetra').value.trim(),
+                ritmo: document.getElementById('editPontoRitmo').value.trim(),
+                obs_melodia: document.getElementById('editPontoMelodia').value.trim(),
+                audio_url: finalAudioUrl || null
+            };
+
             const { error } = await supabaseClient
                 .from('mediuns')
                 .update({ pontos_cantados: pontosAtuais })
