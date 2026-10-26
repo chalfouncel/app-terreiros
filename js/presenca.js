@@ -627,6 +627,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     if (error) throw error;
 
                     Object.assign(perfilMediumLogado, payload);
+                    if (typeof carregarVinculosFamiliares === 'function') await carregarVinculosFamiliares();
 
                     const nomeCurto = nSocial || nCompleto.split(' ')[0];
                     const txtNome = document.getElementById('nomeMedium');
@@ -809,17 +810,28 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             familiaresAprovadosCache = aprovados;
 
-            // 1. Atualiza Badges de Notificação
+            // 1. Atualiza Badges de Notificação (Convites Família + Pendência CCT)
             const badgePerfil = document.getElementById('badgeNotificacaoPerfil');
             const badgeAba = document.getElementById('badgeAbaFamilia');
-            if (pedidosRecebidos.length > 0) {
+            
+            const grauUpper = String(perfilMediumLogado.grau || '').trim().toUpperCase();
+            const faltaDadosCCT = ['ESCOLA DE CCT', 'CCT'].includes(grauUpper) && 
+                (!perfilMediumLogado.cpf || String(perfilMediumLogado.cpf).replace(/\D/g, '').length !== 11 || !perfilMediumLogado.estado_civil || !perfilMediumLogado.profissao);
+
+            const totalAlertasPerfil = pedidosRecebidos.length + (faltaDadosCCT ? 1 : 0);
+
+            if (totalAlertasPerfil > 0) {
                 if (badgePerfil) {
-                    badgePerfil.textContent = pedidosRecebidos.length;
+                    badgePerfil.textContent = totalAlertasPerfil;
                     badgePerfil.classList.remove('hidden');
                 }
-                if (badgeAba) badgeAba.classList.remove('hidden');
             } else {
                 if (badgePerfil) badgePerfil.classList.add('hidden');
+            }
+
+            if (pedidosRecebidos.length > 0) {
+                if (badgeAba) badgeAba.classList.remove('hidden');
+            } else {
                 if (badgeAba) badgeAba.classList.add('hidden');
             }
 
