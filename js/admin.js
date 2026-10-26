@@ -1072,164 +1072,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             if(!idTerreiroGlobal) return; 
             
             try {
-                const { count: totalMediuns } = await supabaseClient.from('mediuns')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('terreiro_id', idTerreiroGlobal)
-                    .neq('nome_completo', 'Administrador Sistema');
-                    
-                const elTotalMed = document.getElementById('totalMediuns');
-                if (elTotalMed) elTotalMed.textContent = totalMediuns || '0';
-
-                const agora = new Date().toISOString();
-                const { data: agendaData } = await supabaseClient.from('agenda').select('*').eq('terreiro_id', idTerreiroGlobal).gte('data_hora_fim', agora).order('data_hora_inicio').limit(1);
-
-                let giraAtualId = null;
-                const elProxGira = document.getElementById('proximaGira');
-
-                if (agendaData && agendaData.length > 0) {
-                    giraAtualId = agendaData[0].id;
-                    const dataGira = new Date(agendaData[0].data_hora_inicio).toLocaleString('pt-BR');
-                    const badgeRestrita = agendaData[0].especial ? '<span class="ml-2 bg-red-100 text-red-700 text-xs px-2 py-0.5 rounded font-bold uppercase">Restrita</span>' : '';
-                    if (elProxGira) elProxGira.innerHTML = `${agendaData[0].titulo} ${badgeRestrita} <br><span class="text-sm font-normal text-gray-500">${dataGira}</span>`;
-                } else {
-                    if (elProxGira) elProxGira.textContent = 'Nenhum evento agendado';
-                }
-
-                const tabelaPresencas = document.getElementById('tabelaPresencas');
-                const { data: todosMediuns } = await supabaseClient.from('mediuns').select('id, auth_id, nome_completo, nome_social, grau, funcao, status_ativo').eq('terreiro_id', idTerreiroGlobal);
-
-                if (giraAtualId) {
-                    const { data: presencas } = await supabaseClient.from('presencas').select('usuario_id, data_hora_checkin').eq('evento_id', giraAtualId).order('data_hora_checkin', { ascending: false });
-                    
-                    const elTotPres = document.getElementById('totalPresentes');
-                    if (elTotPres) elTotPres.textContent = presencas ? presencas.length : '0';
-
-                    if (tabelaPresencas) {
-                        if (presencas && presencas.length > 0) {
-                            let arrayPresencasVisuais = [];
-                            
-                            presencas.forEach(p => {
-                                const md = todosMediuns?.find(m => m.auth_id === p.usuario_id || String(m.id) === String(p.usuario_id));
-                                if (md && md.status_ativo === false) return;
-                                const nome = md ? md.nome_completo : 'Médium Excluído';
-                                const hora = new Date(p.data_hora_checkin).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                                arrayPresencasVisuais.push({ nome, hora });
-                            });
-
-                            arrayPresencasVisuais.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
-
-                            tabelaPresencas.innerHTML = ''; 
-                            arrayPresencasVisuais.forEach(p => {
-                                tabelaPresencas.innerHTML += `
-                                    <tr class="border-b border-gray-100 hover:bg-gray-50">
-                                        <td class="p-3 text-gray-800 font-medium">${p.nome}</td>
-                                        <td class="p-3 text-gray-600 text-center">${p.hora}</td>
-                                    </tr>
-                                `;
-                            });
-                        } else {
-                            tabelaPresencas.innerHTML = `<tr><td colspan="2" class="p-6 text-center text-gray-500">Nenhum check-in ainda.</td></tr>`;
-                        }
-                    }
-                } else {
-                    const elTotPres = document.getElementById('totalPresentes');
-                    if (elTotPres) elTotPres.textContent = '0';
-                    if(tabelaPresencas) tabelaPresencas.innerHTML = `<tr><td colspan="2" class="p-6 text-center text-gray-500">Nenhum evento agendado para o momento.</td></tr>`;
-                }
-
-                const selectRelatorio = document.getElementById('selectEventoRelatorio');
-                const btnGerarHistorico = document.getElementById('btnBaixarPdfEvento');
-
-                if (selectRelatorio) {
-                    const { data: historicoEventosRaw } = await supabaseClient
-                        .from('agenda')
-                        .select('id, titulo, tipo, data_hora_inicio, especial')
-                        .eq('terreiro_id', idTerreiroGlobal)
-                        .order('data_hora_inicio', { ascending: false });
-
-                    const historicoEventos = (historicoEventosRaw || []).filter(ev => ev.tipo !== 'informativo');
-
-                    selectRelatorio.innerHTML = '<option value="">Selecione um evento...</option>';
-                    
-                    if (historicoEventos.length > 0) {
-                        historicoEventos.forEach(ev => {
-                            const dataFormatada = new Date(ev.data_hora_inicio).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-                            const tipoEvento = ev.especial ? ' [Restrita]' : ' [Aberta]';
-                            selectRelatorio.innerHTML += `<option value="${ev.id}">${dataFormatada} - ${ev.titulo}${tipoEvento}</option>`;
-                        });
-                    } else {
-                        selectRelatorio.innerHTML = '<option value="">Nenhum evento encontrado no histórico.</option>';
-                    }
-                }
-
-                if (btnGerarHistorico && selectRelatorio && btnGerarHistorico.parentNode) {
-                    const novoBtn = btnGerarHistorico.cloneNode(true);
-                    btnGerarHistorico.parentNode.replaceChild(novoBtn, btnGerarHistorico);
-
-                    novoBtn.addEventListener('click', async () => {
-                        const eventoIdSelecionado = selectRelatorio.value;
-                        if (!eventoIdSelecionado) {
-                            alert('Por favor, selecione um evento na lista antes de clicar em Baixar.');
-                            return;
-                        }
-
-                        const originalHtml = novoBtn.innerHTML;
-                        novoBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Gerando Documento...';
-                        novoBtn.disabled = true;
-
-                        try {
-                            const textoOption = selectRelatorio.options[selectRelatorio.selectedIndex].text;
-                            const tituloEvStr = textoOption.split(' - ')[1] || 'Evento';
-
-                            const { data: presencasHist } = await supabaseClient
-                                .from('presencas')
-                                .select('usuario_id, data_hora_checkin')
-                                .eq('evento_id', eventoIdSelecionado);
-
-                            if (!presencasHist || presencasHist.length === 0) {
-                                alert('Nenhum check-in foi registrado para este evento.');
-                                return;
-                            }
-
-                            const dadosParaPDF = [];
-                            presencasHist.forEach(p => {
-                                const md = todosMediuns?.find(m => m.auth_id === p.usuario_id || String(m.id) === String(p.usuario_id));
-                                const nome = md ? md.nome_completo : 'Médium Excluído';
-                                const hora = new Date(p.data_hora_checkin).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                                
-                                let cargoExibicao = '-';
-                                if (md) {
-                                    const g = md.grau && md.grau !== '-' ? md.grau : '';
-                                    const f = md.funcao && md.funcao !== '-' ? md.funcao : '';
-                                    if (g && f) cargoExibicao = `${g}/${f}`;
-                                    else cargoExibicao = g || f || '-';
-                                }
-                                
-                                dadosParaPDF.push([nome, cargoExibicao, hora]);
-                            });
-
-                            dadosParaPDF.sort((a, b) => a[0].localeCompare(b[0], 'pt-BR'));
-
-                            window.gerarPDFRelatorio(
-                                `Relação de Presentes - ${tituloEvStr}`, 
-                                ['Nome Completo', 'Grau / Função', 'Hora Check-in'], 
-                                dadosParaPDF
-                            );
-
-                        } catch (error) {
-                            console.error('Erro na geração da relação de presença:', error);
-                            alert('Erro inesperado ao gerar o relatório.');
-                        } finally {
-                            novoBtn.innerHTML = originalHtml;
-                            novoBtn.disabled = false;
-                        }
-                    });
-                }
-            } catch (err) {
-                console.error('Erro ao carregar painel inicial:', err);async function carregarPainelInicial() {
-            if(!idTerreiroGlobal) return; 
-            
-            try {
                 // 1. Total Cadastrados
                 const { count: totalMediuns } = await supabaseClient.from('mediuns')
                     .select('*', { count: 'exact', head: true })
@@ -1249,7 +1091,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (agendaData && agendaData.length > 0) {
                     giraAtualId = agendaData[0].id;
                     const dataObj = new Date(agendaData[0].data_hora_inicio);
-                    // Remove segundos usando options no toLocaleString
                     const dataGira = dataObj.toLocaleString('pt-BR', { 
                         day: '2-digit', month: '2-digit', year: 'numeric', 
                         hour: '2-digit', minute: '2-digit' 
@@ -1262,7 +1103,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 // 3. Tabela de Presenças Hoje
                 const tabelaPresencas = document.getElementById('tabelaPresencas');
-                const { data: todosMediuns } = await supabaseClient.from('mediuns').select('id, auth_id, nome_completo, status_ativo').eq('terreiro_id', idTerreiroGlobal);
+                const { data: todosMediuns } = await supabaseClient.from('mediuns').select('id, auth_id, nome_completo, nome_social, grau, funcao, status_ativo').eq('terreiro_id', idTerreiroGlobal);
 
                 if (giraAtualId) {
                     const { data: presencas } = await supabaseClient.from('presencas').select('usuario_id, data_hora_checkin').eq('evento_id', giraAtualId).order('data_hora_checkin', { ascending: false });
@@ -1303,7 +1144,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     if(tabelaPresencas) tabelaPresencas.innerHTML = `<tr><td colspan="2" class="p-6 text-center text-gray-400 text-xs">Nenhum evento agendado para o momento.</td></tr>`;
                 }
 
-                // 4. Carregar Select de Relatório Avulso (no footer da página agora, aba Ata)
+                // 4. Carregar Select de Relatório Avulso
                 const selectRelatorio = document.getElementById('selectEventoRelatorio');
                 const btnGerarHistorico = document.getElementById('btnBaixarPdfEvento');
 
@@ -1410,7 +1251,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         .select('*', { count: 'exact', head: true })
                         .eq('terreiro_id', idTerreiroGlobal)
                         .eq('status_pagamento', 'pendente')
-                        .not('comprovante_url', 'is', null) // Apenas os que têm arquivo enviado
+                        .not('comprovante_url', 'is', null)
                         .neq('comprovante_url', '');
 
                     const totalPendencias = (countMensalidades || 0) + (countCaixa || 0) + (countRifas || 0);
@@ -1430,8 +1271,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             } catch (err) {
                 console.error('Erro ao carregar painel inicial:', err);
-            }
-        }
             }
         }
 
