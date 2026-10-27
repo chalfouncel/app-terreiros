@@ -86,7 +86,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (errGiras) throw errGiras;
 
         const giraAtiva = (giras || []).find(g => {
-            if (g.especial === true) return false;
+            if (g.especial === true || g.tipo === 'informativo') return false;
 
             const hrInicio = new Date(g.data_hora_inicio);
             const hrFim = g.data_hora_fim ? new Date(g.data_hora_fim) : new Date(hrInicio.getTime() + (4 * 60 * 60 * 1000));
