@@ -122,7 +122,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const { data: perfil, error: erroPerfil } = await supabaseClient
             .from('mediuns')
-            .select('nome_completo, is_admin, terreiro_id, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin, is_master, perm_visao_geral, perm_ata, perm_quadro_mediuns, perm_guias, perm_ia')
+            .select('nome_completo, is_admin, terreiro_id, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin, is_master, perm_visao_geral, perm_ata, perm_quadro_mediuns, perm_guias, perm_ia, perm_escalas')
             .eq('auth_id', session.user.id)
             .single();
 
@@ -143,10 +143,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             terreiroSaaSForcado = localStorage.getItem('terreiroAtivoSaaS');
             
             if (terreiroSaaSForcado) {
-                // ... (código existente) ...
+                idTerreiroGlobal = terreiroSaaSForcado;
                 perfil.is_admin = true; perfil.perm_visao_geral = true; perfil.perm_agenda = true;
                 perfil.perm_ata = true; perfil.perm_grau = true; perfil.perm_financeiro = true;
-                perfil.perm_doacoes = true; perfil.perm_admin = true; perfil.perm_quadro_mediuns = true; perfil.perm_guias = true;
+                perfil.perm_doacoes = true; perfil.perm_admin = true; perfil.perm_quadro_mediuns = true; 
+                perfil.perm_guias = true; perfil.perm_ia = true; perfil.perm_escalas = true;
             } else {
                 emModoMasterPuro = true;
                 idTerreiroGlobal = null;
@@ -190,11 +191,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (idTerreiroGlobal) {
             const { data: terreiro } = await supabaseClient
                 .from('terreiros')
-                .select('nome, logo_url, cor_primaria, cor_secundaria, cor_fundo, cor_texto, lista_graus, lista_funcoes')
+                .select('nome, logo_url, cor_primaria, cor_secundaria, cor_fundo, cor_texto, lista_graus, lista_funcoes, status_bloqueado')
                 .eq('id', idTerreiroGlobal)
                 .single();
             
             if (terreiro) {
+                if (terreiro.status_bloqueado === true && !perfil.is_master) {
+                    alert('Acesso Suspenso: O sistema deste Terreiro encontra-se temporariamente bloqueado. Entre em contato com o suporte da plataforma.');
+                    await supabaseClient.auth.signOut();
+                    localStorage.clear();
+                    return w.location.replace('index.html');
+                }
                 nomeTerreiroGlobal = terreiro.nome;
                 if (terreiro.lista_graus && terreiro.lista_graus.length > 0) {
                     grausAtuaisTerreiro = [...terreiro.lista_graus];
@@ -865,58 +872,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 } catch (err) {
                     console.error(err);
                     alert("Erro ao aprovar comprovante: " + err.message);
-                } finally {
-                    btnAprovarModal.innerHTML = btnHtml;
-                    btnAprovarModal.disabled = false;
-                    if (btnRejeitarModal) btnRejeitarModal.disabled = false;
-                }
-            });
-        }
-
-        if (btnRejeitarModal) {
-            btnRejeitarModal.addEventListener('click', async () => {
-                if (!window.comprovanteAtualId && !window.comprovanteRifaItemAtual) return;
-                if (!confirm("Tem certeza que deseja REJEITAR este comprovante?")) return;
-
-                const btnHtml = btnRejeitarModal.innerHTML;
-                btnRejeitarModal.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Rejeitando...';
-                btnRejeitarModal.disabled = true;
-                if (btnAprovarModal) btnAprovarModal.disabled = true;
-
-                try {
-                    if (window.comprovanteRifaItemAtual) {
-                        const item = window.comprovanteRifaItemAtual;
-                        const { error: errDel } = await supabaseClient
-                            .from('rifa_numeros')
-                            .delete()
-                            .eq('id', item.id);
-                        if (errDel) throw errDel;
-
-                        alert("❌ Pagamento rejeitado. O número da rifa voltou a ficar livre.");
-                        window.fecharModalVerComprovante();
-                        carregarValidadorPagamentos();
-
-                        if (window.rifaAtivaId && typeof abrirCartelaAdmin === 'function') {
-                            const tituloAtual = document.getElementById('cartelaTituloRifa').textContent;
-                            const qtdNum = document.querySelectorAll('#gridNumerosRifa button').length;
-                            abrirCartelaAdmin(window.rifaAtivaId, tituloAtual, qtdNum, item.valor);
-                        }
-                    } else if (window.comprovanteAtualId) {
-                        const { error } = await supabaseClient
-                            .from('comprovantes_mensalidade')
-                            .update({ status: 'rejeitado' })
-                            .eq('id', window.comprovanteAtualId)
-                            .eq('terreiro_id', idTerreiroGlobal);
-
-                        if (error) throw error;
-                        
-                        alert("❌ Comprovante rejeitado.");
-                        window.fecharModalVerComprovante();
-                        carregarValidadorPagamentos();
-                    }
-                } catch (err) {
-                    console.error(err);
-                    alert("Erro ao rejeitar comprovante: " + err.message);
                 } finally {
                     btnRejeitarModal.innerHTML = btnHtml;
                     btnRejeitarModal.disabled = false;
@@ -3755,8 +3710,6 @@ setTimeout(() => {
                 }
             }
 
-            if (errPgtos) throw errPgtos;
-
             const mesAtual = new Date().getMonth() + 1;
             const anoAtual = new Date().getFullYear();
 
@@ -5562,13 +5515,14 @@ window.addEventListener('DOMContentLoaded', () => {
     };
 
     async function sortearRifa(idRifa, maxNumeros) {
-        // Busca TODOS os números registrados (aprovados ou pendentes)
+        // Busca apenas os números efetivamente pagos ou aprovados
         const { data: vendidos } = await supabaseClient.from('rifa_numeros')
-            .select('numero, nome_comprador')
-            .eq('rifa_id', idRifa);
+            .select('numero, nome_comprador, status_pagamento')
+            .eq('rifa_id', idRifa)
+            .in('status_pagamento', ['pago', 'aprovado']);
 
         if (!vendidos || vendidos.length === 0) {
-            alert("Nenhum número foi reservado ou vendido. Não é possível realizar o sorteio.");
+            alert("Nenhum número com pagamento confirmado/aprovado foi encontrado. Aprove os pagamentos pendentes antes de realizar o sorteio.");
             return;
         }
 
