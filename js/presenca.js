@@ -108,8 +108,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                                   perfil.perm_visao_geral === true ||
                                   perfil.perm_quadro_mediuns === true ||
                                   perfil.perm_guias === true ||
+                                  perfil.perm_ia === true ||
                                   perfil.perm_agenda === true || 
                                   perfil.perm_ata === true ||
+                                  perfil.perm_escalas === true ||
                                   perfil.perm_grau === true || 
                                   perfil.perm_financeiro === true || 
                                   perfil.perm_doacoes === true || 
@@ -125,8 +127,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                     { chave: 'perm_visao_geral', menu: 'menuVisaoGeral', label: 'Visão Geral', icone: 'fa-home' },
                     { chave: 'perm_quadro_mediuns', menu: 'menuQuadroMediuns', label: 'Quadro de Médiuns', icone: 'fa-users' },
                     { chave: 'perm_guias', menu: 'menuGuiasMediuns', label: 'Guias dos Médiuns', icone: 'fa-feather-alt' },
+                    { chave: 'perm_ia', menu: 'menuIA', label: 'Assistente IA', icone: 'fa-brain' },
                     { chave: 'perm_agenda', menu: 'menuAgendaGiras', label: 'Agenda de Eventos', icone: 'fa-calendar-alt' },
                     { chave: 'perm_ata', menu: 'menuLivroAta', label: 'Livro de Presença (ATA)', icone: 'fa-book-open' },
+                    { chave: 'perm_escalas', menu: 'menuEscalas', label: 'Escalas e Missões', icone: 'fa-clipboard-list' },
                     { chave: 'perm_grau', menu: 'menuGrau', label: 'Alteração de Grau', icone: 'fa-graduation-cap' },
                     { chave: 'perm_financeiro', menu: 'menuFinanceiro', label: 'Controle Financeiro', icone: 'fa-file-invoice-dollar' },
                     { chave: 'perm_doacoes', menu: 'menuDoacoes', label: 'Doações / Campanhas', icone: 'fa-hand-holding-heart' },
@@ -165,6 +169,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             if (terreiros && terreiros.length > 0) {
                 const terreiro = terreiros[0];
+                if (terreiro.status_bloqueado === true && !perfil.is_master) {
+                    alert("Acesso Suspenso: O sistema deste Terreiro encontra-se temporariamente bloqueado. Entre em contato com a Administração.");
+                    await supabaseClient.auth.signOut();
+                    localStorage.clear();
+                    window.location.href = 'index.html';
+                    return;
+                }
                 terreiroConfigMensalidade = terreiro;
 
                 if (tituloTerreiro) tituloTerreiro.textContent = terreiro.nome || 'Terreiro sem Nome';
@@ -772,7 +783,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (idsEnvolvidos.size > 0) {
                 const { data: dadosMed } = await supabaseClient
                     .from('mediuns')
-                    .select('id, nome_completo, grau, status_ativo')
+                    .select('id, auth_id, nome_completo, grau, status_ativo')
                     .in('id', Array.from(idsEnvolvidos));
                 
                 if (dadosMed) {
@@ -2040,13 +2051,16 @@ function executarCheckinGPS() {
 
                         if (idsMenores.length > 0) {
                             const dataCheckin = new Date().toISOString();
-                            const insercoes = idsMenores.map(idMenor => ({
-                                evento_id: idGiraGlobal,
-                                usuario_id: familiaresAprovadosCache.find(f => String(f.id) === idMenor).auth_id, 
-                                data_hora_checkin: dataCheckin,
-                                localizacao_valida: true,
-                                distancia_metros: Math.round(distanciaMetros)
-                            })).filter(ins => ins.usuario_id); // Garante que o menor tem auth_id válido
+                            const insercoes = idsMenores.map(idMenor => {
+                                const famObj = familiaresAprovadosCache.find(f => String(f.id) === String(idMenor));
+                                return {
+                                    evento_id: idGiraGlobal,
+                                    usuario_id: famObj ? (famObj.auth_id || String(famObj.id)) : null, 
+                                    data_hora_checkin: dataCheckin,
+                                    localizacao_valida: true,
+                                    distancia_metros: Math.round(distanciaMetros)
+                                };
+                            }).filter(ins => ins.usuario_id);
 
                             if(insercoes.length > 0) {
                                 await supabaseClient.from('presencas').insert(insercoes);
