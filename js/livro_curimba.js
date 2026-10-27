@@ -100,6 +100,9 @@
                     <button type="button" onclick="document.getElementById('inputImportarDocxCurimba').click()" class="px-2.5 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-indigo-300 font-bold text-[10px] border border-slate-700 active:scale-95 flex items-center gap-1" title="Importar arquivo .DOCX do Livro da Curimba">
                         <i class="fas fa-file-word"></i> <span class="hidden sm:inline">Importar .DOCX</span>
                     </button>
+                    <button type="button" onclick="window.exportarPDFLivroCurimba()" class="px-2.5 h-8 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-[11px] active:scale-95 flex items-center gap-1" title="Baixar Apostila em PDF A4">
+                        <i class="fas fa-file-pdf"></i> <span class="hidden sm:inline">PDF</span>
+                    </button>
                     <button type="button" onclick="window.abrirModalNovaCantigaLivro()" class="px-2.5 h-8 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[11px] active:scale-95 flex items-center gap-1">
                         <i class="fas fa-plus"></i> <span class="hidden sm:inline">Nova Cantiga</span>
                     </button>
@@ -913,5 +916,99 @@
         } finally {
             input.value = '';
         }
+    };
+
+    // --- EXPORTADOR DE PDF A4 DO LIVRO GERAL DA CURIMBA ---
+    window.exportarPDFLivroCurimba = async () => {
+        if (!cacheCantigasLivro || cacheCantigasLivro.length === 0) {
+            return alert('Não há cantigas carregadas para gerar o PDF.');
+        }
+
+        if (typeof html2pdf === 'undefined') {
+            await new Promise((resolve, reject) => {
+                const s = document.createElement('script');
+                s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+                s.onload = resolve;
+                s.onerror = reject;
+                document.head.appendChild(s);
+            });
+        }
+
+        const listaParaImprimir = categoriaAtiva === 'todas'
+            ? cacheCantigasLivro
+            : cacheCantigasLivro.filter(c => c.categoria === categoriaAtiva);
+
+        const nomeTemplo = (typeof nomeTerreiroGlobal !== 'undefined' && nomeTerreiroGlobal)
+            ? nomeTerreiroGlobal
+            : (document.getElementById('nomeTerreiro')?.textContent || 'Templo');
+
+        let htmlSecoes = '';
+        let catAnterior = '';
+
+        listaParaImprimir.forEach(c => {
+            if (c.categoria !== catAnterior) {
+                catAnterior = c.categoria;
+                htmlSecoes += `
+                    <div style="background: #1e293b; color: #fff; padding: 7px 12px; font-size: 13px; font-weight: bold; text-transform: uppercase; border-radius: 6px; margin: 18px 0 10px 0; page-break-after: avoid;">
+                        ${c.categoria}
+                    </div>
+                `;
+            }
+
+            const infoExtra = [
+                c.ritmo ? `Toque: ${c.ritmo}` : '',
+                c.obs_melodia ? `Melodia: ${c.obs_melodia}` : ''
+            ].filter(Boolean).join(' | ');
+
+            htmlSecoes += `
+                <div style="border: 1px solid #cbd5e1; border-left: 4px solid #4f46e5; border-radius: 6px; padding: 8px 12px; margin-bottom: 10px; page-break-inside: avoid; background: #fff;">
+                    <div style="display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px; margin-bottom: 6px;">
+                        <strong style="font-size: 11.5px; color: #1e1b4b; text-transform: uppercase;">
+                            ${c.subcategoria || 'Geral'} ${c.titulo ? `• ${c.titulo}` : ''}
+                        </strong>
+                        ${infoExtra ? `<span style="font-size: 9.5px; color: #b45309; font-weight: bold;">${infoExtra}</span>` : ''}
+                    </div>
+                    <div style="font-size: 11px; line-height: 1.55; color: #0f172a; white-space: pre-wrap;">${c.letra || ''}</div>
+                </div>
+            `;
+        });
+
+        const div = document.createElement('div');
+        div.style.padding = '25px';
+        div.style.fontFamily = 'Arial, sans-serif';
+        div.style.color = '#0f172a';
+        div.innerHTML = `
+            <div style="text-align: center; border-bottom: 2px solid #1e293b; padding-bottom: 12px; margin-bottom: 15px;">
+                <h1 style="font-size: 18px; font-weight: bold; text-transform: uppercase; margin: 0 0 4px 0;">${nomeTemplo}</h1>
+                <h2 style="font-size: 13px; font-weight: bold; color: #475569; margin: 0; text-transform: uppercase; letter-spacing: 1px;">
+                    Livro Geral da Curimba ${categoriaAtiva !== 'todas' ? `— ${categoriaAtiva}` : '(Completo)'}
+                </h2>
+                <p style="font-size: 10px; color: #64748b; margin: 4px 0 0 0;">Total de Cantigas: ${listaParaImprimir.length}</p>
+            </div>
+            ${htmlSecoes}
+        `;
+
+        alert('Gerando PDF do Livro da Curimba... Aguarde um instante.');
+        const opt = {
+            margin:       [10, 10, 15, 10],
+            filename:     `Livro_Curimba_${nomeTemplo.replace(/\s+/g, '_')}.pdf`,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+
+        html2pdf().set(opt).from(div).toPdf().get('pdf').then((pdf) => {
+            const totalPages = pdf.internal.getNumberOfPages();
+            for (let i = 1; i <= totalPages; i++) {
+                pdf.setPage(i);
+                pdf.setFont('helvetica', 'normal');
+                pdf.setFontSize(8);
+                pdf.setTextColor(100, 100, 100);
+                const pageWidth = pdf.internal.pageSize.getWidth();
+                const pageHeight = pdf.internal.pageSize.getHeight();
+                pdf.text(`Página ${i} de ${totalPages}`, pageWidth - 15, pageHeight - 8, { align: 'right' });
+                pdf.text(`${nomeTemplo} — Livro Geral da Curimba`, 15, pageHeight - 8, { align: 'left' });
+            }
+        }).save();
     };
 })();
