@@ -2206,7 +2206,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             
             const { data: todosMediuns, error: errMediuns } = await supabaseClient.from('mediuns')
-                .select('id, nome_completo, isento_mensalidade, grau, funcao, status_ativo, created_at')
+                .select('id, nome_completo, nome_social, isento_mensalidade, grau, funcao, status_ativo, created_at')
                 .eq('terreiro_id', idTerreiroGlobal)
                 .neq('nome_completo', 'Administrador Sistema')
                 .order('nome_completo');
@@ -3698,7 +3698,7 @@ setTimeout(() => {
             const anoBusca = parseInt(document.getElementById('selectAnoFinanceiro').value) || new Date().getFullYear();
 
             const { data: todosMediuns, error: errMediuns } = await supabaseClient.from('mediuns')
-                .select('id, nome_completo, isento_mensalidade, grau, funcao')
+                .select('id, nome_completo, nome_social, isento_mensalidade, grau, funcao, status_ativo, created_at')
                 .eq('terreiro_id', idTerreiroGlobal)
                 .neq('nome_completo', 'Administrador Sistema')
                 .order('nome_completo');
