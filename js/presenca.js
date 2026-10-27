@@ -341,6 +341,38 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             }
 
+            // Verifica se o médium logado possui missão/escala ou sacramento nesta Gira
+            const boxEscala = document.getElementById('boxMinhaEscalaGira');
+            if (boxEscala) {
+                const missoes = [];
+                const esc = ev.escalas || {};
+                const meuIdStr = String(perfilMediumLogado?.id || '');
+
+                if (meuIdStr && !ehInformativo) {
+                    if (String(esc.img_tr) === meuIdStr) missoes.push('🔱 Condução da Imagem de Tranca Ruas das Almas');
+                    if (String(esc.flores_tr) === meuIdStr) missoes.push('🌹 Flores de Tranca Ruas das Almas');
+                    if (String(esc.img_cigana) === meuIdStr) missoes.push('🔱 Condução da Imagem da Pombagira Cigana');
+                    if (String(esc.flores_cigana) === meuIdStr) missoes.push('🌹 Flores da Pombagira Cigana');
+                    if (String(esc.img_padilha) === meuIdStr) missoes.push('🔱 Condução da Imagem de Maria Padilha');
+                    if (String(esc.flores_padilha) === meuIdStr) missoes.push('🌹 Flores de Maria Padilha');
+                    if ([String(esc.corrente_1), String(esc.corrente_2), String(esc.corrente_3)].includes(meuIdStr)) {
+                        missoes.push('⚔️ Passe Específico na Corrente (Trazer 7 espadas de Ogum)');
+                    }
+                    if (Array.isArray(esc.batizados) && esc.batizados.map(String).includes(meuIdStr)) missoes.push('🕊️ Sacramento de Batismo agendado para esta Gira');
+                    if (Array.isArray(esc.consagrados) && esc.consagrados.map(String).includes(meuIdStr)) missoes.push('🔥 Sacramento de Consagração agendado para esta Gira');
+                    if (Array.isArray(esc.coroados) && esc.coroados.map(String).includes(meuIdStr)) missoes.push('👑 Sacramento de Coroação agendado para esta Gira');
+                }
+
+                if (missoes.length > 0) {
+                    boxEscala.innerHTML = `<div class="text-[10px] uppercase tracking-wider text-amber-700 font-black mb-1"><i class="fas fa-star mr-1"></i> Sua Escala neste Evento:</div>` +
+                        missoes.map(m => `<div class="leading-snug py-0.5">${m}</div>`).join('');
+                    boxEscala.classList.remove('hidden');
+                } else {
+                    boxEscala.classList.add('hidden');
+                    boxEscala.innerHTML = '';
+                }
+            }
+
             // Atualiza Bolinhas (Dots) e Setas do Carrossel
             const dotsContainer = document.getElementById('indicadoresCarrossel');
             const btnPrev = document.getElementById('btnPrevCarrossel');
