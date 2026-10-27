@@ -168,7 +168,7 @@ function renderizarGradeNumeros() {
         if (ocupado) {
             // Número ocupado
             disabledAttr = 'disabled';
-            if (ocupado.status === 'pago') {
+            if (ocupado.status === 'pago' || ocupado.status === 'aprovado') {
                 classes += 'bg-emerald-500 text-white cursor-not-allowed shadow-inner';
             } else {
                 // Reservado / Aguardando pagamento
