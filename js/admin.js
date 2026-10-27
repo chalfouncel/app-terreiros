@@ -2206,7 +2206,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             
             const { data: todosMediuns, error: errMediuns } = await supabaseClient.from('mediuns')
-                .select('id, nome_completo, nome_social, isento_mensalidade, grau, funcao, status_ativo, created_at')
+                .select('id, nome_completo, isento_mensalidade, grau, funcao, status_ativo, created_at')
                 .eq('terreiro_id', idTerreiroGlobal)
                 .neq('nome_completo', 'Administrador Sistema')
                 .order('nome_completo');
@@ -3745,12 +3745,13 @@ setTimeout(() => {
             const dados = mediuns.map(m => {
                 const meusPgtos = pgtos ? pgtos.filter(p => p.medium_id === m.id) : [];
                 let emDia = true;
+                const ehInativo = (m.status_ativo === false);
 
                 const dataIngresso = m.created_at ? new Date(m.created_at) : new Date('2000-01-01');
                 const mesIngresso = dataIngresso.getMonth() + 1;
                 const anoIngresso = dataIngresso.getFullYear();
 
-                const linha = [m.nome_completo];
+                const linha = [ehInativo ? `${m.nome_completo} (Inativo)` : m.nome_completo];
 
                 for (let i = 1; i <= 12; i++) {
                     const pgto = meusPgtos.find(p => p.mes === i);
@@ -3759,7 +3760,7 @@ setTimeout(() => {
                     const pago = pgto ? pgto.pago : false;
                     const passou = (anoBusca < anoAtual) || (anoBusca === anoAtual && i < mesAtual);
 
-                    if (passou && !pago && !isIsento && !isAntesDoIngresso) emDia = false;
+                    if (!ehInativo && passou && !pago && !isIsento && !isAntesDoIngresso) emDia = false;
 
                     if (isAntesDoIngresso) {
                         linha.push('<span style="color: #cbd5e1;">-</span>');
@@ -3767,12 +3768,14 @@ setTimeout(() => {
                         linha.push('<span style="color: #9333ea; font-weight: bold;">Isento</span>');
                     } else if (pago) {
                         linha.push('<span style="color: #16a34a; font-weight: bold;">Pago</span>');
+                    } else if (ehInativo) {
+                        linha.push('<span style="color: #94a3b8;">-</span>');
                     } else {
                         linha.push(passou ? '<span style="color: #dc2626; font-weight: bold;">Pend.</span>' : '<span style="color: #94a3b8;">Aber.</span>');
                     }
                 }
 
-                linha.push(emDia ? '<span style="color: #16a34a; font-weight: bold;">Em Dia</span>' : '<span style="color: #dc2626; font-weight: bold;">Pendente</span>');
+                linha.push(ehInativo ? '<span style="color: #64748b; font-weight: bold;">Inativo</span>' : (emDia ? '<span style="color: #16a34a; font-weight: bold;">Em Dia</span>' : '<span style="color: #dc2626; font-weight: bold;">Pendente</span>'));
                 return linha;
             });
 
