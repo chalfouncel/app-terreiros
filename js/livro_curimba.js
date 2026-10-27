@@ -918,7 +918,7 @@
         }
     };
 
-    // --- EXPORTADOR DE PDF A4 DO LIVRO GERAL DA CURIMBA ---
+    // --- EXPORTADOR DE PDF A4 DO LIVRO GERAL DA CURIMBA (PAISAGEM / LAYOUT OFICIAL) ---
     window.exportarPDFLivroCurimba = async () => {
         if (!cacheCantigasLivro || cacheCantigasLivro.length === 0) {
             return alert('Não há cantigas carregadas para gerar o PDF.');
@@ -942,6 +942,17 @@
             ? nomeTerreiroGlobal
             : (document.getElementById('nomeTerreiro')?.textContent || 'Templo');
 
+        const logoTemplo = (typeof logoTerreiroGlobal !== 'undefined' && logoTerreiroGlobal)
+            ? logoTerreiroGlobal
+            : '';
+
+        const larguraPdfPx = 1045; // Formato Paisagem A4
+        const watermarkHtml = logoTemplo
+            ? `<div style="position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); opacity: 0.05; z-index: 0; pointer-events: none;">
+                 <img src="${logoTemplo}" style="width: 320px; max-width: 80%;">
+               </div>`
+            : '';
+
         let htmlSecoes = '';
         let catAnterior = '';
 
@@ -949,7 +960,7 @@
             if (c.categoria !== catAnterior) {
                 catAnterior = c.categoria;
                 htmlSecoes += `
-                    <div style="background: #1e293b; color: #fff; padding: 7px 12px; font-size: 13px; font-weight: bold; text-transform: uppercase; border-radius: 6px; margin: 18px 0 10px 0; page-break-after: avoid;">
+                    <div style="background-color: #1e293b; color: #fff; padding: 8px 14px; font-size: 11pt; font-weight: bold; text-transform: uppercase; border-radius: 6px; margin: 20px 0 12px 0; page-break-after: avoid;">
                         ${c.categoria}
                     </div>
                 `;
@@ -961,40 +972,52 @@
             ].filter(Boolean).join(' | ');
 
             htmlSecoes += `
-                <div style="border: 1px solid #cbd5e1; border-left: 4px solid #4f46e5; border-radius: 6px; padding: 8px 12px; margin-bottom: 10px; page-break-inside: avoid; background: #fff;">
-                    <div style="display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px; margin-bottom: 6px;">
-                        <strong style="font-size: 11.5px; color: #1e1b4b; text-transform: uppercase;">
+                <div style="border: 1px solid #cbd5e1; border-left: 4px solid #4f46e5; border-radius: 6px; padding: 10px 14px; margin-bottom: 12px; background: #ffffff; page-break-inside: avoid;">
+                    <div style="display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid #f1f5f9; padding-bottom: 5px; margin-bottom: 8px;">
+                        <strong style="font-size: 10pt; color: #1e1b4b; text-transform: uppercase;">
                             ${c.subcategoria || 'Geral'} ${c.titulo ? `• ${c.titulo}` : ''}
                         </strong>
-                        ${infoExtra ? `<span style="font-size: 9.5px; color: #b45309; font-weight: bold;">${infoExtra}</span>` : ''}
+                        ${infoExtra ? `<span style="font-size: 8.5pt; color: #b45309; font-weight: bold;">${infoExtra}</span>` : ''}
                     </div>
-                    <div style="font-size: 11px; line-height: 1.55; color: #0f172a; white-space: pre-wrap;">${c.letra || ''}</div>
+                    <div style="font-size: 9.5pt; line-height: 1.6; color: #0f172a; white-space: pre-wrap;">${c.letra || ''}</div>
                 </div>
             `;
         });
 
+        const dataAtual = `${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+        const tituloRelatorio = `Livro Geral da Curimba ${categoriaAtiva !== 'todas' ? `— ${categoriaAtiva}` : '(Completo)'}`;
+
         const div = document.createElement('div');
-        div.style.padding = '25px';
-        div.style.fontFamily = 'Arial, sans-serif';
-        div.style.color = '#0f172a';
+        div.style.cssText = `width: ${larguraPdfPx}px; font-family: Arial, sans-serif; color: #333; background: #ffffff; padding: 15px; box-sizing: border-box;`;
+        
         div.innerHTML = `
-            <div style="text-align: center; border-bottom: 2px solid #1e293b; padding-bottom: 12px; margin-bottom: 15px;">
-                <h1 style="font-size: 18px; font-weight: bold; text-transform: uppercase; margin: 0 0 4px 0;">${nomeTemplo}</h1>
-                <h2 style="font-size: 13px; font-weight: bold; color: #475569; margin: 0; text-transform: uppercase; letter-spacing: 1px;">
-                    Livro Geral da Curimba ${categoriaAtiva !== 'todas' ? `— ${categoriaAtiva}` : '(Completo)'}
-                </h2>
-                <p style="font-size: 10px; color: #64748b; margin: 4px 0 0 0;">Total de Cantigas: ${listaParaImprimir.length}</p>
+            <div style="position: relative; background: #ffffff;">
+                ${watermarkHtml}
+                <div style="position: relative; z-index: 1;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #2563eb; padding-bottom: 10px; margin-bottom: 15px;">
+                        <div style="width: 80px;">
+                            ${logoTemplo ? `<img src="${logoTemplo}" style="max-height: 55px; max-width: 80px; object-fit: contain;">` : ''}
+                        </div>
+                        <div style="text-align: center; flex: 1;">
+                            <h2 style="margin: 0; color: #1e3a8a; font-size: 14pt; text-transform: uppercase; font-weight: bold;">${nomeTemplo}</h2>
+                            <h3 style="margin: 4px 0 0 0; color: #475569; font-size: 11pt; text-transform: uppercase;">${tituloRelatorio}</h3>
+                            <p style="margin: 4px 0 0 0; color: #64748b; font-size: 8pt;">Emitido em: ${dataAtual} | Total de Cantigas: ${listaParaImprimir.length}</p>
+                        </div>
+                        <div style="width: 80px;"></div>
+                    </div>
+                    ${htmlSecoes}
+                </div>
             </div>
-            ${htmlSecoes}
         `;
 
-        alert('Gerando PDF do Livro da Curimba... Aguarde um instante.');
+        alert('Gerando PDF do Livro da Curimba em Paisagem... Aguarde um instante.');
         const opt = {
             margin:       [10, 10, 15, 10],
             filename:     `Livro_Curimba_${nomeTemplo.replace(/\s+/g, '_')}.pdf`,
             image:        { type: 'jpeg', quality: 0.98 },
             html2canvas:  { scale: 2, useCORS: true },
-            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' },
+            pagebreak:    { mode: ['css', 'legacy'] }
         };
 
         html2pdf().set(opt).from(div).toPdf().get('pdf').then((pdf) => {
