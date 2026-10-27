@@ -2206,7 +2206,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             
             const { data: todosMediuns, error: errMediuns } = await supabaseClient.from('mediuns')
-                .select('id, nome_completo, nome_social, isento_mensalidade, grau, funcao, status_ativo, created_at')
+                .select('id, nome_completo, nome_social, isento_mensalidade, grau, funcao, status_ativo')
                 .eq('terreiro_id', idTerreiroGlobal)
                 .neq('nome_completo', 'Administrador Sistema')
                 .order('nome_completo');
@@ -2273,8 +2273,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const ehInativo = (m.status_ativo === false);
                 
                 const dataIngresso = m.created_at ? new Date(m.created_at) : new Date('2000-01-01');
-                const mesIngresso = dataIngresso.getMonth() + 1;
-                const anoIngresso = dataIngresso.getFullYear();
+                const mesIngresso = !isNaN(dataIngresso.getTime()) ? dataIngresso.getMonth() + 1 : 1;
+                const anoIngresso = !isNaN(dataIngresso.getTime()) ? dataIngresso.getFullYear() : 2000;
 
                 for (let i = 1; i <= 12; i++) {
                     const pgto = meusPgtos.find(p => p.mes === i);
