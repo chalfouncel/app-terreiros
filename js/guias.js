@@ -1123,18 +1123,44 @@
                 await document.fonts.ready;
             }
 
-            // 1. Obter a URL da imagem de fundo e o Nome do Templo
+            // 1. Obter a URL da imagem de fundo e os Dados Cadastrais do Templo/Dirigente
             let fundoUrl = '';
             let nomeTemplo = 'NOSSO TEMPLO';
+            let nomeTemploFormatado = 'Templo de Umbanda Cantinho dos Irmãos Caboclos';
+            let enderecoTemplo = 'Rua Teixeira de Azevedo, 403 – Abolição, Rio de Janeiro - RJ';
+            let nomeDirigente = 'Paulo Roberto Pereira de Oliveira';
+            let cpfDirigente = '80693873787';
+            let estCivilDirigente = 'solteiro';
+            let profissaoDirigente = 'psicólogo';
+
             try {
                 const { data } = await supabaseClient
                     .from('terreiros')
-                    .select('nome, certificado_fundo_url')
+                    .select('nome, certificado_fundo_url, address, address_number, cpf_cnpj, dirigente_id')
                     .eq('id', idTerreiroGlobal)
                     .single();
                 if (data) {
                     if (data.certificado_fundo_url) fundoUrl = data.certificado_fundo_url;
-                    if (data.nome) nomeTemplo = data.nome.toUpperCase();
+                    if (data.nome) {
+                        nomeTemplo = data.nome.toUpperCase();
+                        nomeTemploFormatado = data.nome;
+                    }
+                    if (data.address) {
+                        enderecoTemplo = `${data.address}${data.address_number ? `, ${data.address_number}` : ''}`;
+                    }
+                    if (data.dirigente_id) {
+                        const { data: dirData } = await supabaseClient
+                            .from('mediuns')
+                            .select('nome_completo, cpf, estado_civil, profissao')
+                            .eq('id', data.dirigente_id)
+                            .single();
+                        if (dirData) {
+                            if (dirData.nome_completo) nomeDirigente = dirData.nome_completo;
+                            if (dirData.cpf) cpfDirigente = dirData.cpf;
+                            if (dirData.estado_civil) estCivilDirigente = dirData.estado_civil;
+                            if (dirData.profissao) profissaoDirigente = dirData.profissao;
+                        }
+                    }
                 }
             } catch(e) { console.error('Erro ao buscar fundo:', e); }
 
@@ -1328,7 +1354,7 @@
 
                         <div style="padding: 6px 30px; width: 100%; box-sizing: border-box; margin-top: 60px;">
                             <p style="font-family: 'Playfair Display', serif; font-size: 13.5px; line-height: 1.65; text-align: justify; color: #111827; margin: 0 0 14px 0; font-weight: 600; ${legibilidadeCSS}">
-                                <strong>Paulo Roberto Pereira de Oliveira</strong>, solteiro, psicólogo, portador(a) inscrito(a) no Cadastro de Pessoas Físicas sob nº <strong>80693873787</strong>, Sacerdote do <strong>Templo de Umbanda Cantinho dos Irmãos Caboclos</strong>, com sede na Rua Teixeira de Azevedo, 403 – Abolição, Rio de Janeiro - RJ, com fundamento no art. 5º, inciso VI, da Constituição Federal e art. VI, alínea “g”, da Declaração sobre a Eliminação de Todas as Formas de Intolerância e Discriminação Fundadas na Religião ou nas Convicções, <strong>DECLARA PARA OS DEVIDOS FINS</strong> que em <strong>${dataCoroacaoFmt}</strong> certificou a habilitação religiosa, nomeou e designou como <strong>Comandante Chefe de Terreiro (CCT) – Linha de Morubixaba</strong> o(a) Sr.(a) <strong>${nomeMediumUpper}</strong>, brasileiro(a), <strong>${estCivilTxt}</strong>, <strong>${profissaoTxt}</strong>, inscrito(a) no CPF sob o nº <strong>${cpfTxt}</strong> razão pela qual o(a) nomeado(a) adquire o direito de exercer todos os direitos e prerrogativas religiosas que a presente habilitação lhe assegura.
+                                <strong>${nomeDirigente}</strong>, ${estCivilDirigente}, ${profissaoDirigente}, portador(a) inscrito(a) no Cadastro de Pessoas Físicas sob nº <strong>${cpfDirigente}</strong>, Sacerdote do <strong>${nomeTemploFormatado}</strong>, com sede na ${enderecoTemplo}, com fundamento no art. 5º, inciso VI, da Constituição Federal e art. VI, alínea “g”, da Declaração sobre a Eliminação de Todas as Formas de Intolerância e Discriminação Fundadas na Religião ou nas Convicções, <strong>DECLARA PARA OS DEVIDOS FINS</strong> que em <strong>${dataCoroacaoFmt}</strong> certificou a habilitação religiosa, nomeou e designou como <strong>Comandante Chefe de Terreiro (CCT) – Linha de Morubixaba</strong> o(a) Sr.(a) <strong>${nomeMediumUpper}</strong>, brasileiro(a), <strong>${estCivilTxt}</strong>, <strong>${profissaoTxt}</strong>, inscrito(a) no CPF sob o nº <strong>${cpfTxt}</strong> razão pela qual o(a) nomeado(a) adquire o direito de exercer todos os direitos e prerrogativas religiosas que a presente habilitação lhe assegura.
                             </p>
                             <p style="font-family: 'Playfair Display', serif; font-size: 12.5px; line-height: 1.6; text-align: justify; color: #111827; margin: 0; font-weight: 600; ${legibilidadeCSS}">
                                 Consigna ainda que o presente ato se assenta na Declaração sobre a Eliminação de Todas as Formas de Intolerância e Discriminação Fundadas na Religião ou nas Convicções, Resolução nº 36/55, proclamada pela Assembleia Geral das Nações Unidas em 25 de novembro de 1981, a qual assegura às organizações religiosas o direito de “Capacitar, nomear, e eleger por sucessão os dirigentes que correspondam segundo as necessidades e normas de qualquer religião ou convicção” (Art. VI, alínea “g”).
