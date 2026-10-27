@@ -4269,7 +4269,167 @@ window.encerrarAta = async (id) => {
     };;
 
 window.baixarLivroAnual = async () => {
-    alert("Atenção: A consolidação do Livro Anual gera arquivo muito pesado. Esta função está sendo adaptada para rodar em segundo plano e será liberada em breve. Por favor, baixe as atas de forma individual na tabela abaixo.");
+    const anoPadrao = new Date().getFullYear();
+    const anoEscolhido = prompt("Digite o ano para consolidar o Livro Anual de Atas e Presenças:", anoPadrao);
+    if (!anoEscolhido || isNaN(anoEscolhido)) return;
+
+    const ano = parseInt(anoEscolhido, 10);
+
+    try {
+        const { data: eventos, error: errEv } = await supabaseClient.from('agenda')
+            .select('*')
+            .eq('terreiro_id', idTerreiroGlobal)
+            .eq('gera_ata', true)
+            .gte('data_hora_inicio', `${ano}-01-01T00:00:00`)
+            .lte('data_hora_inicio', `${ano}-12-31T23:59:59`)
+            .order('data_hora_inicio', { ascending: true });
+
+        if (errEv) throw errEv;
+        if (!eventos || eventos.length === 0) {
+            return alert(`Nenhuma ATA encontrada para o exercício de ${ano}.`);
+        }
+
+        alert(`Consolidando ${eventos.length} sessão(ões) do Livro Anual ${ano}... Aguarde alguns segundos para o download iniciar.`);
+
+        const idsEventos = eventos.map(e => e.id);
+        const { data: todasPresencas } = await supabaseClient.from('presencas')
+            .select('evento_id, usuario_id, data_hora_checkin')
+            .in('evento_id', idsEventos);
+
+        const { data: todasAssistencias } = await supabaseClient.from('presencas_assistencia')
+            .select('evento_id, nome_completo, primeira_vez, data_hora_checkin')
+            .in('evento_id', idsEventos);
+
+        const { data: mediuns } = await supabaseClient.from('mediuns')
+            .select('id, auth_id, nome_completo, grau, funcao')
+            .eq('terreiro_id', idTerreiroGlobal);
+
+        const mapaMediuns = {};
+        (mediuns || []).forEach(m => {
+            mapaMediuns[m.id] = m;
+            if (m.auth_id) mapaMediuns[m.auth_id] = m;
+        });
+
+        const nomeCasa = nomeTerreiroGlobal || 'Templo';
+        const mesesExtenso = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+
+        let htmlIndice = eventos.map((ev, i) => {
+            const dt = new Date(ev.data_hora_inicio).toLocaleDateString('pt-BR');
+            const qtdMed = (todasPresencas || []).filter(p => p.evento_id === ev.id).length;
+            const qtdAss = (todasAssistencias || []).filter(a => a.evento_id === ev.id).length;
+            return `
+                <tr>
+                    <td style="border-bottom: 1px solid #cbd5e1; padding: 6px;">ATA Nº ${String(i + 1).padStart(3, '0')}/${ano}</td>
+                    <td style="border-bottom: 1px solid #cbd5e1; padding: 6px; font-weight: bold;">${ev.titulo}</td>
+                    <td style="border-bottom: 1px solid #cbd5e1; padding: 6px; text-align: center;">${dt}</td>
+                    <td style="border-bottom: 1px solid #cbd5e1; padding: 6px; text-align: center;">${qtdMed}</td>
+                    <td style="border-bottom: 1px solid #cbd5e1; padding: 6px; text-align: center;">${qtdAss}</td>
+                </tr>
+            `;
+        }).join('');
+
+        let htmlAtas = '';
+        eventos.forEach((ev, idx) => {
+            const numeroAta = idx + 1;
+            const dataEv = new Date(ev.data_hora_inicio);
+            const dia = String(dataEv.getDate()).padStart(2, '0');
+            const mesExt = mesesExtenso[dataEv.getMonth()];
+            const hora = dataEv.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+            const presEv = (todasPresencas || []).filter(p => p.evento_id === ev.id);
+            const assEv = (todasAssistencias || []).filter(a => a.evento_id === ev.id);
+
+            const corpoTexto = ev.texto_ata
+                ? `<p style="text-align: justify; line-height: 1.6; font-size: 12px; margin-bottom: 15px; white-space: pre-wrap;">${ev.texto_ata}</p>`
+                : `<p style="text-align: justify; line-height: 1.6; font-size: 12px; margin-bottom: 15px; text-indent: 30px;">Aos <strong>${dia}</strong> dias do mês de <strong>${mesExt}</strong> de <strong>${ano}</strong>, às <strong>${hora}</strong>, realizou-se a sessão de <strong>${ev.titulo}</strong> no templo <strong>${nomeCasa}</strong>.</p>`;
+
+            const nomesMed = presEv.map(p => {
+                const m = mapaMediuns[p.usuario_id];
+                return m ? m.nome_completo : 'Médium';
+            }).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+
+            const nomesAss = assEv.map(a => a.nome_completo).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+
+            htmlAtas += `
+                <div style="page-break-before: always; padding-top: 10px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 15px;">
+                        <span style="font-size: 12px; font-weight: bold; text-transform: uppercase;">${nomeCasa}</span>
+                        <span style="font-size: 11px; font-weight: bold;">ATA Nº ${String(numeroAta).padStart(3, '0')}/${ano}</span>
+                    </div>
+                    <h3 style="text-align: center; font-size: 14px; text-transform: uppercase; background: #f1f5f9; padding: 7px; border-radius: 4px; margin-bottom: 15px;">
+                        ${ev.titulo} — ${dataEv.toLocaleDateString('pt-BR')}
+                    </h3>
+                    ${corpoTexto}
+                    <div style="margin-bottom: 15px;">
+                        <h4 style="font-size: 11px; text-transform: uppercase; border-bottom: 1px solid #000; padding-bottom: 3px; margin-bottom: 6px;">
+                            1. Corrente Mediúnica Presente (${nomesMed.length})
+                        </h4>
+                        <p style="font-size: 10.5px; line-height: 1.5; color: #1e293b; text-align: justify;">
+                            ${nomesMed.length > 0 ? nomesMed.join(' • ') : 'Nenhum check-in registrado.'}
+                        </p>
+                    </div>
+                    <div style="margin-bottom: 20px;">
+                        <h4 style="font-size: 11px; text-transform: uppercase; border-bottom: 1px solid #000; padding-bottom: 3px; margin-bottom: 6px;">
+                            2. Assistência / Visitantes (${nomesAss.length})
+                        </h4>
+                        <p style="font-size: 10.5px; line-height: 1.5; color: #334155; text-align: justify;">
+                            ${nomesAss.length > 0 ? nomesAss.join(' • ') : 'Nenhum visitante registrado.'}
+                        </p>
+                    </div>
+                </div>
+            `;
+        });
+
+        const div = document.createElement('div');
+        div.style.padding = '30px';
+        div.style.fontFamily = 'Arial, sans-serif';
+        div.style.color = '#000';
+        div.innerHTML = `
+            <div style="text-align: center; padding: 40px 10px 30px 10px; border-bottom: 2px solid #000; margin-bottom: 25px;">
+                ${logoTerreiroGlobal ? `<img src="${logoTerreiroGlobal}" style="max-height: 90px; margin-bottom: 15px;">` : ''}
+                <h1 style="font-size: 20px; font-weight: bold; text-transform: uppercase; margin: 0 0 6px 0;">${nomeCasa}</h1>
+                <h2 style="font-size: 15px; font-weight: bold; margin: 0; letter-spacing: 2px;">LIVRO ANUAL DE ATAS E PRESENÇAS — EXERCÍCIO ${ano}</h2>
+                <p style="font-size: 11px; color: #475569; margin-top: 10px;">Termo de Abertura e Índice Geral de Sessões Espirituais (${eventos.length} sessões)</p>
+            </div>
+            <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+                <thead>
+                    <tr style="background: #f1f5f9;">
+                        <th style="border-bottom: 2px solid #000; padding: 6px; text-align: left;">Nº ATA</th>
+                        <th style="border-bottom: 2px solid #000; padding: 6px; text-align: left;">SESSÃO / GIRA</th>
+                        <th style="border-bottom: 2px solid #000; padding: 6px; text-align: center;">DATA</th>
+                        <th style="border-bottom: 2px solid #000; padding: 6px; text-align: center;">MÉDIUNS</th>
+                        <th style="border-bottom: 2px solid #000; padding: 6px; text-align: center;">ASSISTÊNCIA</th>
+                    </tr>
+                </thead>
+                <tbody>${htmlIndice}</tbody>
+            </table>
+            ${htmlAtas}
+        `;
+
+        const opt = {
+            margin:       [10, 10, 15, 10],
+            filename:     `Livro_Anual_ATAs_${ano}_${nomeCasa.replace(/\s+/g, '_')}.pdf`,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+
+        html2pdf().set(opt).from(div).toPdf().get('pdf').then((pdf) => {
+            const totalPages = pdf.internal.getNumberOfPages();
+            for (let i = 1; i <= totalPages; i++) {
+                pdf.setPage(i);
+                pdf.setFont('helvetica', 'normal');
+                pdf.setFontSize(8);
+                pdf.setTextColor(100, 100, 100);
+                const pageWidth = pdf.internal.pageSize.getWidth();
+                const pageHeight = pdf.internal.pageSize.getHeight();
+                pdf.text(`Página ${i} de ${totalPages}`, pageWidth - 15, pageHeight - 8, { align: 'right' });
+                pdf.text(`${nomeCasa} — Livro Anual de Atas (${ano})`, 15, pageHeight - 8, { align: 'left' });
+            }
+        }).save();
+    } catch (err) {
+        alert("Erro ao gerar Livro Anual: " + err.message);
+    }
 };
 
 window.arquivarAnoAnterior = async () => {
@@ -5042,6 +5202,80 @@ window.fecharModalImportacao = () => {
     document.getElementById('modalImportarCSV')?.classList.add('hidden');
 };
 
+document.addEventListener('DOMContentLoaded', () => {
+    const formCSV = document.getElementById('formImportarCSV');
+    if (formCSV && !formCSV.dataset.bound) {
+        formCSV.dataset.bound = 'true';
+        formCSV.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const idTerreiroAlvo = document.getElementById('idTerreiroImport')?.value;
+            const fileInput = document.getElementById('arquivoCSV');
+            const btn = document.getElementById('btnProcessarCSV');
+            const msg = document.getElementById('msgImportacao');
+
+            if (!idTerreiroAlvo || !fileInput?.files?.[0]) return;
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Importando...';
+            if (msg) msg.classList.add('hidden');
+
+            try {
+                const texto = await fileInput.files[0].text();
+                const linhas = texto.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+
+                const { data: ultimo } = await supabaseClient.from('mediuns').select('id').order('id', { ascending: false }).limit(1);
+                let proximoId = (ultimo && ultimo.length > 0) ? (ultimo[0].id + 1) : 1;
+
+                const lote = [];
+                for (let i = 0; i < linhas.length; i++) {
+                    const sep = linhas[i].includes(';') ? ';' : ',';
+                    const cols = linhas[i].split(sep).map(c => c.replace(/^["']|["']$/g, '').trim());
+                    const nome = cols[0] || '';
+                    if (!nome || (i === 0 && /nome/i.test(nome))) continue;
+
+                    const tel = (cols[1] || '').replace(/\D/g, '') || null;
+                    const grau = cols[2] || '-';
+                    const funcao = cols[3] || '-';
+
+                    lote.push({
+                        id: proximoId++,
+                        terreiro_id: idTerreiroAlvo,
+                        nome_completo: nome,
+                        telefone: tel,
+                        grau: grau,
+                        funcao: funcao,
+                        cadastro_completo: false,
+                        status_ativo: true,
+                        is_admin: false,
+                        isento_mensalidade: false
+                    });
+                }
+
+                if (lote.length === 0) throw new Error('Nenhum registro válido encontrado no CSV.');
+
+                const { error } = await supabaseClient.from('mediuns').insert(lote);
+                if (error) throw error;
+
+                if (msg) {
+                    msg.textContent = `✅ ${lote.length} médiuns importados com sucesso!`;
+                    msg.className = 'text-center mt-2 text-xs font-bold text-green-600 block';
+                    msg.classList.remove('hidden');
+                }
+                setTimeout(() => window.fecharModalImportacao(), 1800);
+            } catch (err) {
+                if (msg) {
+                    msg.textContent = 'Erro: ' + err.message;
+                    msg.className = 'text-center mt-2 text-xs font-bold text-red-600 block';
+                    msg.classList.remove('hidden');
+                }
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'Processar e Importar';
+            }
+        });
+    }
+});
+
 window.abrirModalFinanceiroMaster = async (idTerreiro, nomeTerreiro) => {
     document.getElementById('idTerreiroFinanceiroMaster').value = idTerreiro;
     document.getElementById('nomeTerreiroFinanceiroMaster').textContent = nomeTerreiro;
@@ -5744,7 +5978,64 @@ window.addEventListener('DOMContentLoaded', () => {
             abaFinArrecadacao.classList.remove('hidden');
             abaFinMensalidades.classList.add('hidden');
             carregarSelectRifasFinanceiro();
+            carregarRelatorioCantinaFinanceiro();
         });
+    }
+
+    async function carregarRelatorioCantinaFinanceiro() {
+        const tbody = document.getElementById('tabelaRelatorioCantinaFin');
+        const elTotalPago = document.getElementById('totalArrecadadoCantinaPago');
+        const elTotalPend = document.getElementById('totalArrecadadoCantinaPend');
+        if (!tbody || !idTerreiroGlobal) return;
+
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center p-6 text-gray-500"><i class="fas fa-spinner fa-spin mr-1"></i> Buscando lançamentos da cantina...</td></tr>';
+
+        try {
+            const { data: lancamentos, error } = await supabaseClient.from('caixa_terreiro')
+                .select('*')
+                .eq('terreiro_id', idTerreiroGlobal)
+                .eq('tipo_transacao', 'CANTINA')
+                .order('data_transacao', { ascending: false });
+
+            if (error) throw error;
+
+            let somaPago = 0;
+            let somaPend = 0;
+
+            (lancamentos || []).forEach(l => {
+                const v = parseFloat(l.valor) || 0;
+                if (l.status === 'pago' || l.status === 'aprovado') somaPago += v;
+                else if (l.status === 'pendente') somaPend += v;
+            });
+
+            if (elTotalPago) elTotalPago.textContent = `Confirmado: ${somaPago.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`;
+            if (elTotalPend) elTotalPend.textContent = `Pendente: ${somaPend.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`;
+
+            if (!lancamentos || lancamentos.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="text-center p-6 text-gray-400">Nenhuma movimentação financeira na Cantina ainda.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = lancamentos.map(l => {
+                const dt = l.data_transacao ? new Date(l.data_transacao).toLocaleDateString('pt-BR') : '-';
+                const val = (parseFloat(l.valor) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                const pago = (l.status === 'pago' || l.status === 'aprovado');
+                const badge = pago
+                    ? '<span class="bg-green-100 text-green-700 text-[10px] font-bold px-2 py-0.5 rounded">Pago</span>'
+                    : '<span class="bg-yellow-100 text-yellow-800 text-[10px] font-bold px-2 py-0.5 rounded">Pendente</span>';
+
+                return `
+                    <tr class="border-b border-gray-100 hover:bg-gray-50">
+                        <td class="p-2.5 font-bold text-gray-800">${l.pagador_nome || 'Médium'}</td>
+                        <td class="p-2.5 text-gray-500">${dt}</td>
+                        <td class="p-2.5 font-black text-orange-600">${val}</td>
+                        <td class="p-2.5 text-center">${badge}</td>
+                    </tr>
+                `;
+            }).join('');
+        } catch (err) {
+            tbody.innerHTML = `<tr><td colspan="4" class="text-center p-4 text-red-500">${err.message}</td></tr>`;
+        }
     }
 
     async function carregarSelectRifasFinanceiro() {
