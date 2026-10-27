@@ -60,7 +60,8 @@
         const btnApp = document.getElementById('btnAbrirLivroCurimbaApp');
         if (!btnApp) return;
 
-        if (typeof perfilMediumLogado === 'undefined' || !perfilMediumLogado || typeof terreiroConfigMensalidade === 'undefined') {
+        // Aguarda até que o perfil E os dados reais do terreiro (com ID carregado) estejam prontos
+        if (typeof perfilMediumLogado === 'undefined' || !perfilMediumLogado || typeof terreiroConfigMensalidade === 'undefined' || !terreiroConfigMensalidade || !terreiroConfigMensalidade.id) {
             setTimeout(verificarAcessoLivroCurimba, 400);
             return;
         }
@@ -338,6 +339,52 @@
                     de += passo;
                 } else break;
             }
+
+            // 1. Guarda a posição original de cada Categoria e Sub-classificação no Livro
+            const ordemGrupoSub = {};
+            todos.forEach((item, idx) => {
+                const chave = `${String(item.categoria || '').trim().toUpperCase()}||${String(item.subcategoria || 'GERAL').trim().toUpperCase()}`;
+                if (ordemGrupoSub[chave] === undefined) {
+                    ordemGrupoSub[chave] = item.ordem || (idx + 1);
+                }
+            });
+
+            // Extrai o número do Título/Identificador (ex: "1", "2", "Ponto 3" -> 1, 2, 3)
+            const extrairNumeroTitulo = (t) => {
+                const m = String(t || '').match(/\d+/);
+                return m ? parseInt(m[0], 10) : null;
+            };
+
+            // 2. Ordena mantendo a sequência das Sub-classificações e aplicando ordem numérica crescente nos Títulos
+            todos.sort((a, b) => {
+                const catA = CATEGORIAS_CURIMBA.indexOf(a.categoria);
+                const catB = CATEGORIAS_CURIMBA.indexOf(b.categoria);
+                if (catA !== catB) return (catA === -1 ? 999 : catA) - (catB === -1 ? 999 : catB);
+
+                const chaveA = `${String(a.categoria || '').trim().toUpperCase()}||${String(a.subcategoria || 'GERAL').trim().toUpperCase()}`;
+                const chaveB = `${String(b.categoria || '').trim().toUpperCase()}||${String(b.subcategoria || 'GERAL').trim().toUpperCase()}`;
+
+                // Se forem de Sub-classificações diferentes, respeita a ordem em que aparecem no livro
+                if (chaveA !== chaveB) {
+                    return (ordemGrupoSub[chaveA] || 0) - (ordemGrupoSub[chaveB] || 0);
+                }
+
+                // Dentro da MESMA Sub-classificação (ex: "ABERTURA"), se houver número no Título, ordena 1, 2, 3...
+                const numA = extrairNumeroTitulo(a.titulo);
+                const numB = extrairNumeroTitulo(b.titulo);
+
+                if (numA !== null && numB !== null && numA !== numB) {
+                    return numA - numB;
+                }
+                if (numA !== null && numB === null) return -1; // Numerados vêm primeiro naquela sub-classificação
+                if (numA === null && numB !== null) return 1;
+
+                // Desempate por ordem original ou ID
+                const ordA = a.ordem ?? 999999;
+                const ordB = b.ordem ?? 999999;
+                if (ordA !== ordB) return ordA - ordB;
+                return (a.id || 0) - (b.id || 0);
+            });
 
             cacheCantigasLivro = todos;
             atualizarDropdownSubcategorias();
