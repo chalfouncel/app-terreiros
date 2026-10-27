@@ -4439,10 +4439,12 @@ window.gerarPDF_ATA = async (eventoId) => {
         div.innerHTML = `
             ${watermarkAta}
             <div style="position: relative; z-index: 1;">
-                <div style="text-align: center; margin-bottom: 25px;">
-                    ${logoTerreiroGlobal ? `<img src="${logoTerreiroGlobal}" style="max-height: 80px; margin-bottom: 12px;">` : ''}
-                    <h1 style="font-size: 20px; font-weight: bold; text-transform: uppercase; margin: 0 0 5px 0;">${nomeCasa}</h1>
-                    <h2 style="font-size: 15px; font-weight: normal; margin: 0; letter-spacing: 2px;">LIVRO DE ATAS E PRESENÇAS</h2>
+                <div style="display: flex; align-items: center; justify-content: center; gap: 20px; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 25px;">
+                    ${logoTerreiroGlobal ? `<div style="flex-shrink: 0;"><img src="${logoTerreiroGlobal}" style="max-height: 75px; max-width: 75px; object-fit: contain;"></div>` : ''}
+                    <div style="text-align: left;">
+                        <h1 style="font-size: 18px; font-weight: bold; text-transform: uppercase; margin: 0 0 3px 0; color: #0f172a;">${nomeCasa}</h1>
+                        <h2 style="font-size: 12px; font-weight: normal; margin: 0; letter-spacing: 2px; color: #475569; text-transform: uppercase;">LIVRO DE ATAS E PRESENÇAS</h2>
+                    </div>
                 </div>
                 
                 <h3 style="text-align: center; font-size: 15px; margin-bottom: 20px; text-transform: uppercase; background-color: rgba(243, 244, 246, 0.9); padding: 9px; border-radius: 4px;">
