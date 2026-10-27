@@ -3542,7 +3542,7 @@ window.gerarPDFRelatorio = (titulo, colunas, dados, orientacao = 'portrait') => 
     containerPDF.innerHTML = htmlFinal;
 
     const opt = {
-        margin:       [10, 10, 10, 10],
+        margin:       [10, 10, 15, 10], // Deixa uma margem maior embaixo para o rodapé
         filename:     `${titulo.replace(/\s+/g, '_')}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
         html2canvas:  { scale: 2, useCORS: true },
@@ -3550,7 +3550,26 @@ window.gerarPDFRelatorio = (titulo, colunas, dados, orientacao = 'portrait') => 
         pagebreak:    { mode: ['css', 'legacy'] }
     };
 
-    html2pdf().set(opt).from(containerPDF).save();
+    // Adiciona o rodapé automático com o total de páginas (Pág. X de Y) em cada página gerada
+    html2pdf().set(opt).from(containerPDF).toPdf().get('pdf').then((pdf) => {
+        const totalPages = pdf.internal.getNumberOfPages();
+        for (let i = 1; i <= totalPages; i++) {
+            pdf.setPage(i);
+            pdf.setFont('helvetica', 'normal');
+            pdf.setFontSize(8);
+            pdf.setTextColor(100, 100, 100);
+            
+            // Texto centralizado ou à direita no rodapé
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const pageHeight = pdf.internal.pageSize.getHeight();
+            
+            const textoRodapé = `Página ${i} de ${totalPages}`;
+            pdf.text(textoRodapé, pageWidth - 15, pageHeight - 8, { align: 'right' });
+            
+            // Opcional: Nome da instituição ou data à esquerda no rodapé
+            pdf.text(`${nomeTerreiroGlobal || 'Templo'} — Documento Oficial`, 15, pageHeight - 8, { align: 'left' });
+        }
+    }).save();
 };
 setTimeout(() => {
     const elNome = document.getElementById('filtroNomeMedium');
@@ -4503,7 +4522,7 @@ window.gerarPDF_ATA = async (eventoId) => {
         `;
 
         const opt = {
-            margin:       10,
+            margin:       [10, 10, 15, 10],
             filename:     `ATA_${numeroAta.toString().padStart(3, '0')}_${ano}_${evento.titulo.replace(/\s+/g, '_')}.pdf`,
             image:        { type: 'jpeg', quality: 0.98 },
             html2canvas:  { scale: 2, useCORS: true },
@@ -4511,7 +4530,21 @@ window.gerarPDF_ATA = async (eventoId) => {
         };
 
         alert("Gerando Livro de Presença (PDF)... Aguarde um instante.");
-        html2pdf().set(opt).from(div).save();
+        html2pdf().set(opt).from(div).toPdf().get('pdf').then((pdf) => {
+            const totalPages = pdf.internal.getNumberOfPages();
+            for (let i = 1; i <= totalPages; i++) {
+                pdf.setPage(i);
+                pdf.setFont('helvetica', 'normal');
+                pdf.setFontSize(8);
+                pdf.setTextColor(100, 100, 100);
+                
+                const pageWidth = pdf.internal.pageSize.getWidth();
+                const pageHeight = pdf.internal.pageSize.getHeight();
+                
+                pdf.text(`Página ${i} de ${totalPages}`, pageWidth - 15, pageHeight - 8, { align: 'right' });
+                pdf.text(`${nomeTerreiroGlobal || 'Templo'} — Livro de Atas e Presenças`, 15, pageHeight - 8, { align: 'left' });
+            }
+        }).save();
 
     } catch (error) {
         console.error(error);
