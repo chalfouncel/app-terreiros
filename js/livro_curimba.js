@@ -111,15 +111,30 @@
             </div>
 
             <!-- Filtros -->
+            <!-- Filtros -->
             <div class="bg-slate-900/90 border-b border-slate-800 p-3 space-y-2 shrink-0">
                 <div class="flex flex-wrap sm:flex-nowrap gap-1.5">
-                    <div class="relative flex-1 min-w-[160px]">
-                        <i class="fas fa-search absolute left-3 top-2.5 text-slate-400 text-xs"></i>
-                        <input type="text" id="buscaLivroCurimbaInput" oninput="window.renderizarCardsLivroCurimba()" placeholder="Buscar por letra, guia, linha ou saudação..." class="w-full pl-8 pr-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-400 outline-none focus:border-indigo-500" style="color: #ffffff !important;">
+                    <div class="relative flex-1 min-w-[160px] flex gap-1.5">
+                        <div class="relative flex-1">
+                            <i class="fas fa-search absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                            <input type="text" id="buscaLivroCurimbaInput" oninput="window.limparFiltroIALivro(); window.renderizarCardsLivroCurimba()" onkeydown="if(event.key==='Enter'){event.preventDefault(); window.buscarComIALivroCurimba();}" placeholder="Ex: Cabocla de Iemanjá, Caboclo de Ogum..." class="w-full pl-8 pr-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-400 outline-none focus:border-indigo-500" style="color: #ffffff !important;">
+                        </div>
+                        <button type="button" id="btnBuscarIALivro" onclick="window.buscarComIALivroCurimba()" class="px-3 py-2 rounded-xl text-[11px] font-black bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow flex items-center gap-1.5 shrink-0 active:scale-95 transition" title="Busca Inteligente por Contexto e Cruzamento de Linhas">
+                            <i class="fas fa-wand-magic-sparkles"></i> <span>IA</span>
+                        </button>
                     </div>
                     <button type="button" id="btnFiltroSemAudioLivro" onclick="window.alternarFiltroSemAudioLivro()" class="px-3 py-2 rounded-xl text-[11px] font-black border transition active:scale-95 flex items-center gap-1.5 shrink-0 bg-slate-800 text-amber-300 border-slate-700">
                         <i class="fas fa-microphone-slash text-[10px]"></i> Sem Áudio
                     </button>
+                </div>
+
+                <!-- Banner de Resposta da IA -->
+                <div id="bannerRespostaIALivro" class="hidden bg-indigo-950/80 border border-indigo-500/40 rounded-xl p-2.5 text-xs text-indigo-200 flex items-start justify-between gap-2">
+                    <div class="flex items-start gap-2">
+                        <i class="fas fa-robot text-indigo-400 mt-0.5"></i>
+                        <div id="textoRespostaIALivro" class="leading-relaxed"></div>
+                    </div>
+                    <button type="button" onclick="window.limparFiltroIALivro(); window.renderizarCardsLivroCurimba();" class="text-indigo-400 hover:text-white text-[10px] font-bold uppercase shrink-0 px-1.5 py-0.5 bg-indigo-900/60 rounded">Limpar</button>
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
@@ -340,22 +355,168 @@
             .replace(/\n/g, '<br>');
     }
 
+    // Dicionário Semântico de Cruzamentos e Fundamentos da Umbanda
+    const MAPA_SEMANTICO_UMBANDA = {
+        "iemanja": ["iemanja", "sereia", "mar", "odossiaba", "odoia", "janaina", "ondas", "praia", "areia", "rainha do mar", "mae d'agua", "mae dagua"],
+        "oxum": ["oxum", "cachoeira", "cascata", "rio", "oraieieu", "aieieu", "lirio", "ouro", "conceicao", "agua doce", "sinda"],
+        "iansa": ["iansa", "oya", "eparrei", "vento", "ventania", "tempestade", "raio", "santa barbara", "bale", "matamba"],
+        "nana": ["nana", "buruque", "saluba", "santana", "poco", "lama", "cacurucaia"],
+        "ogum": ["ogum", "ogunhie", "sao jorge", "espada", "lanca", "humaita", "cavaleiro", "guerreiro", "beira-mar", "beira mar", "rompe-mato", "megê", "mege", "iara", "matinada"],
+        "oxossi": ["oxossi", "ode", "cacador", "mata", "jurema", "flecha", "bodoque", "sao sebastiao", "oke", "macaia"],
+        "xango": ["xango", "cao", "kabecile", "cabecile", "pedreira", "pedra", "machado", "trovao", "justica", "agodo", "sao jeronimo"],
+        "omulu": ["omulu", "obaluae", "atoto", "calunga", "sao lazaro", "sao roque", "palha", "pipoca", "peste", "cura"],
+        "oxala": ["oxala", "jesus", "zambi", "estrela", "paz", "epa baba", "cruzeiro"],
+        "cabocla": ["cabocla", "jurema", "iara", "jandira", "jupira", "jussara", "bartira", "iracema", "jacimara", "jandiara", "jaciara", "caboclas"],
+        "caboclo": ["caboclo", "tupinamba", "arranca-toco", "sete flechas", "pena branca", "cobra coral", "ubirajara", " Rompe mato", "ventania", "mirim", "tupi", "aimore", "arariboia"],
+        "preto velho": ["preto velho", "preta velha", "vovo", "pai ", "mae ", "tia ", "tio ", "angola", "congo", "minas", "aruanda", "cativeiro", "senzala", "rosario", "cachimbo", "toco", "almas"],
+        "crianca": ["ibeijada", "crianca", "ere", "cosme", "damiao", "doum", "mariazinha", "pedrinho", "rosinha", "doce"],
+        "exu": ["exu", "tranca ruas", "marabo", "caveira", "tiriri", "veludo", "sete encruzilhadas", "meia noite", "lodo", "capa preta", "mojuba", "laroie"],
+        "pombagira": ["pombagira", "padilha", "mulambo", "cigana", "figueira", "sete saias", "dama da noite", "audara", "rosa caveira"]
+    };
+
+    const STOP_WORDS_PT = new Set(["de", "da", "do", "das", "dos", "para", "pra", "com", "que", "um", "uma", "no", "na", "nos", "nas", "em", "por", "ao", "aos", "ponto", "pontos", "cantiga", "musica"]);
+
+    const normalizarTextoBusca = (str) => String(str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+    let idsFiltradosPorIA = null;
+    let motivosFiltradosPorIA = {};
+
+    window.limparFiltroIALivro = () => {
+        idsFiltradosPorIA = null;
+        motivosFiltradosPorIA = {};
+        document.getElementById('bannerRespostaIALivro')?.classList.add('hidden');
+    };
+
+    function pontuarCantigaSemantica(cantiga, consultaBruta) {
+        const consultaNorm = normalizarTextoBusca(consultaBruta).trim();
+        if (!consultaNorm) return { ok: true, score: 0, tags: [] };
+
+        const textoCantiga = normalizarTextoBusca([
+            cantiga.categoria, cantiga.subcategoria, cantiga.titulo, cantiga.letra, cantiga.ritmo, cantiga.obs_melodia
+        ].filter(Boolean).join(' '));
+
+        const subNorm = normalizarTextoBusca((cantiga.subcategoria || '') + ' ' + (cantiga.categoria || ''));
+
+        // 1. Se tiver a frase exata, pontuação máxima
+        if (textoCantiga.includes(consultaNorm)) {
+            return { ok: true, score: 100, tags: ['Correspondência exata'] };
+        }
+
+        // 2. Quebra a pesquisa em conceitos (ex: "Cabocla de Iemanjá" -> ["cabocla", "iemanja"])
+        const palavras = consultaNorm.split(/\s+/).filter(p => p.length > 1 && !STOP_WORDS_PT.has(p));
+        if (palavras.length === 0) return { ok: true, score: 1, tags: [] };
+
+        let scoreTotal = 0;
+        let tagsEncontradas = [];
+
+        for (const p of palavras) {
+            // Verifica se a palavra faz parte do dicionário espiritual de sinônimos
+            const chaveSemantica = Object.keys(MAPA_SEMANTICO_UMBANDA).find(k => k === p || p.startsWith(k) || k.startsWith(p));
+            const termosEquivalentes = chaveSemantica ? MAPA_SEMANTICO_UMBANDA[chaveSemantica] : [p];
+
+            let bateuConceito = false;
+            for (const eq of termosEquivalentes) {
+                const eqNorm = normalizarTextoBusca(eq);
+                if (subNorm.includes(eqNorm)) {
+                    scoreTotal += 25; // Peso maior se estiver no título/guia
+                    bateuConceito = true;
+                    if (!tagsEncontradas.includes(eq)) tagsEncontradas.push(eq);
+                } else if (textoCantiga.includes(eqNorm)) {
+                    scoreTotal += 10; // Peso se estiver na letra
+                    bateuConceito = true;
+                    if (!tagsEncontradas.includes(eq)) tagsEncontradas.push(eq);
+                }
+            }
+
+            // Exige que TODOS os conceitos pesquisados (ex: Cabocla + Iemanjá) estejam presentes no ponto
+            if (!bateuConceito) return { ok: false, score: 0, tags: [] };
+        }
+
+        return { ok: true, score: scoreTotal, tags: tagsEncontradas.slice(0, 4) };
+    }
+
+    window.buscarComIALivroCurimba = async () => {
+        const input = document.getElementById('buscaLivroCurimbaInput');
+        const consulta = (input?.value || '').trim();
+        if (!consulta) return alert('Digite o que procura na barra de pesquisa (ex: "Cabocla de Iemanjá", "Ponto de descarrego de Preto Velho").');
+
+        const btn = document.getElementById('btnBuscarIALivro');
+        const banner = document.getElementById('bannerRespostaIALivro');
+        const txtBanner = document.getElementById('textoRespostaIALivro');
+
+        // Volta os seletores para "todas" para a IA varrer o livro inteiro
+        categoriaAtiva = "todas";
+        subcategoriaAtiva = "todas";
+        if (document.getElementById('selectCategoriaLivro')) document.getElementById('selectCategoriaLivro').value = 'todas';
+        atualizarDropdownSubcategorias();
+
+        const origHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+        try {
+            // Pré-seleciona as melhores possibilidades pelo motor semântico de Umbanda
+            const avaliadas = cacheCantigasLivro
+                .map(c => ({ c, res: pontuarCantigaSemantica(c, consulta) }))
+                .filter(x => x.res.ok && x.res.score > 0)
+                .sort((a, b) => b.res.score - a.res.score)
+                .slice(0, 25);
+
+            idsFiltradosPorIA = avaliadas.map(x => x.c.id);
+            motivosFiltradosPorIA = {};
+            avaliadas.forEach(x => {
+                if (x.res.tags.length > 0) {
+                    motivosFiltradosPorIA[x.c.id] = `Identificado por: ${x.res.tags.join(', ')}`;
+                }
+            });
+
+            if (banner && txtBanner) {
+                const guiasUnicos = [...new Set(avaliadas.map(x => x.c.subcategoria))].slice(0, 6);
+                txtBanner.innerHTML = avaliadas.length > 0
+                    ? `<strong>IA Curimba encontrou ${avaliadas.length} possibilidade(s) para "${consulta}":</strong><br><span class="text-[11px] text-amber-300">${guiasUnicos.join(' • ')}</span>`
+                    : `Nenhuma cantiga combinou diretamente com "${consulta}". Tente outros termos.`;
+                banner.classList.remove('hidden');
+            }
+
+            window.renderizarCardsLivroCurimba();
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = origHtml;
+        }
+    };
+
     window.renderizarCardsLivroCurimba = () => {
         const container = document.getElementById('listaCardsLivroCurimba');
         if (!container) return;
 
-        const termo = (document.getElementById('buscaLivroCurimbaInput')?.value || '').trim().toLowerCase();
+        const termo = (document.getElementById('buscaLivroCurimbaInput')?.value || '').trim();
 
-        const filtradas = cacheCantigasLivro.filter(c => {
-            if (categoriaAtiva !== "todas" && c.categoria !== categoriaAtiva) return false;
-            if (subcategoriaAtiva !== "todas" && c.subcategoria !== subcategoriaAtiva) return false;
-            if (filtroSemAudio && c.audio_url) return false;
-            if (termo) {
-                const tudo = [c.categoria, c.subcategoria, c.titulo, c.letra, c.ritmo, c.obs_melodia].filter(Boolean).join(' ').toLowerCase();
-                if (!tudo.includes(termo)) return false;
+        let filtradas = [];
+
+        if (idsFiltradosPorIA !== null) {
+            filtradas = idsFiltradosPorIA
+                .map(id => cacheCantigasLivro.find(c => c.id === id))
+                .filter(Boolean);
+        } else {
+            const listaComScore = [];
+            for (const c of cacheCantigasLivro) {
+                if (categoriaAtiva !== "todas" && c.categoria !== categoriaAtiva) continue;
+                if (subcategoriaAtiva !== "todas" && c.subcategoria !== subcategoriaAtiva) continue;
+                if (filtroSemAudio && c.audio_url) continue;
+
+                if (termo) {
+                    const aval = pontuarCantigaSemantica(c, termo);
+                    if (!aval.ok) continue;
+                    motivosFiltradosPorIA[c.id] = aval.tags.length > 0 ? `Cruzamento: ${aval.tags.join(', ')}` : '';
+                    listaComScore.push({ c, score: aval.score });
+                } else {
+                    listaComScore.push({ c, score: 0 });
+                }
             }
-            return true;
-        });
+
+            if (termo) listaComScore.sort((a, b) => b.score - a.score);
+            filtradas = listaComScore.map(x => x.c);
+        }
 
         if (filtradas.length === 0) {
             container.innerHTML = `
