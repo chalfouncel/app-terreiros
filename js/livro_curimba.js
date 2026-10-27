@@ -339,6 +339,22 @@
                 } else break;
             }
 
+            // ORDENAÇÃO CIRÚRGICA: Mantém a ordem original das seções, mas ordena
+            // de forma crescente inteligente os "Títulos" que contêm números 
+            // (ex: "2" vem antes de "10") dentro da mesma Sub-classificação.
+            todos.sort((a, b) => {
+                if (a.categoria === b.categoria && a.subcategoria === b.subcategoria) {
+                    const tituloA = String(a.titulo || '').trim();
+                    const tituloB = String(b.titulo || '').trim();
+                    
+                    const cmp = tituloA.localeCompare(tituloB, undefined, { numeric: true, sensitivity: 'base' });
+                    if (cmp !== 0) return cmp;
+                }
+                
+                if (a.ordem !== b.ordem) return (a.ordem || 0) - (b.ordem || 0);
+                return (a.id || 0) - (b.id || 0);
+            });
+
             cacheCantigasLivro = todos;
             atualizarDropdownSubcategorias();
             window.renderizarCardsLivroCurimba();
