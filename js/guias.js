@@ -374,7 +374,7 @@
 
             const { data, error } = await supabaseClient
                     .from('mediuns')
-                    .select('id, nome_completo, nome_social, grau, funcao, status_ativo, padrinhos_batismo, padrinhos_consagracao, padrinhos_coroacao, data_batismo, data_consagracao, data_coroacao, guia_caboclo, guia_preto_velho, guia_exu_pombagira, guia_crianca, guia_oriental, guia_cigano, pontos_cantados')
+                    .select('id, nome_completo, nome_social, grau, funcao, status_ativo, cpf, estado_civil, profissao, lgpd_aceite, padrinhos_batismo, padrinhos_consagracao, padrinhos_coroacao, data_batismo, data_consagracao, data_coroacao, guia_caboclo, guia_preto_velho, guia_exu_pombagira, guia_crianca, guia_oriental, guia_cigano, pontos_cantados')
                     .eq('terreiro_id', idTerreiroGlobal)
                 .neq('nome_completo', 'Administrador Sistema')
                 .neq('status_ativo', false)
@@ -722,13 +722,25 @@
             }
         }
 
-        // 3. Coroação
+        // 3. Coroação (Exige Data + CPF + Estado Civil + Profissão + Termo LGPD acionado)
         if (btnCertCoroacao && permite) {
-            const ok = Boolean(m.data_coroacao);
-            if (ok) {
+            const cpfLimpo = String(m.cpf || '').replace(/\D/g, '');
+            const dadosCivisCompletos = cpfLimpo.length === 11 && Boolean(m.estado_civil) && Boolean(m.profissao) && m.lgpd_aceite === true;
+
+            if (m.data_coroacao) {
                 btnCertCoroacao.classList.remove('hidden');
                 btnCertCoroacao.classList.add('flex');
-                btnCertCoroacao.onclick = (e) => window.gerarCertificadoIndividual(e, m, 'Coroação');
+                if (dadosCivisCompletos) {
+                    btnCertCoroacao.disabled = false;
+                    btnCertCoroacao.className = "w-full sm:w-auto text-[11px] bg-yellow-50 text-yellow-700 hover:bg-yellow-100 border border-yellow-200 font-bold px-3 py-1.5 rounded-lg transition active:scale-95 flex items-center justify-center gap-1.5 shadow-sm";
+                    btnCertCoroacao.title = "Emitir Certificado e Declaração de Coroação";
+                    btnCertCoroacao.onclick = (e) => window.gerarCertificadoIndividual(e, m, 'Coroação');
+                } else {
+                    btnCertCoroacao.disabled = false;
+                    btnCertCoroacao.className = "w-full sm:w-auto text-[11px] bg-gray-100 text-gray-400 border border-gray-200 font-bold px-3 py-1.5 rounded-lg cursor-not-allowed flex items-center justify-center gap-1.5 opacity-75";
+                    btnCertCoroacao.title = "Bloqueado: O médium precisa preencher CPF, Estado Civil, Profissão e aceitar o Termo LGPD no Meu Perfil.";
+                    btnCertCoroacao.onclick = () => alert("⚠️ Certificado de Coroação Bloqueado!\n\nPara habilitar a impressão, o médium precisa acessar 'Meu Perfil' no aplicativo, preencher seus Dados Pessoais (CPF, Estado Civil e Profissão) e marcar a concordância com o Termo LGPD.");
+                }
             } else {
                 btnCertCoroacao.classList.add('hidden');
                 btnCertCoroacao.classList.remove('flex');
