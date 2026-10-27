@@ -888,12 +888,35 @@
                                 </div>
                             </div>
     
-                            <!-- Relatório de Cantina (Placeholder) -->
+                            <!-- Relatório de Cantina Ativo -->
                             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 md:p-6">
-                                <h3 class="text-base font-bold text-gray-800 mb-4"><i class="fas fa-store text-orange-500 mr-2"></i> Arrecadação da Cantina</h3>
-                                <div class="flex flex-col items-center justify-center h-48 bg-gray-50 rounded-xl border border-dashed border-gray-200 text-center p-4">
-                                    <i class="fas fa-tools text-3xl text-gray-300 mb-2"></i>
-                                    <p class="text-gray-400 text-sm font-medium">Módulo de relatórios da cantina em desenvolvimento...</p>
+                                <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
+                                    <h3 class="text-base font-bold text-gray-800">
+                                        <i class="fas fa-store text-orange-500 mr-2"></i> Arrecadação da Cantina
+                                    </h3>
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <span id="totalArrecadadoCantinaPago" class="bg-green-50 text-green-700 border border-green-200 text-xs font-black px-3 py-1 rounded-xl shadow-sm">
+                                            Confirmado: R$ 0,00
+                                        </span>
+                                        <span id="totalArrecadadoCantinaPend" class="bg-amber-50 text-amber-700 border border-amber-200 text-xs font-black px-3 py-1 rounded-xl shadow-sm">
+                                            Pendente: R$ 0,00
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="overflow-x-auto max-h-[350px] overflow-y-auto">
+                                    <table class="w-full text-left border-collapse text-xs">
+                                        <thead class="bg-gray-50 sticky top-0 shadow-sm z-10">
+                                            <tr>
+                                                <th class="p-2 font-semibold text-gray-600 border-b border-gray-200">Médium / Comprador</th>
+                                                <th class="p-2 font-semibold text-gray-600 border-b border-gray-200">Data</th>
+                                                <th class="p-2 font-semibold text-gray-600 border-b border-gray-200">Valor</th>
+                                                <th class="p-2 font-semibold text-gray-600 border-b border-gray-200 text-center">Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="tabelaRelatorioCantinaFin">
+                                            <tr><td colspan="4" class="text-center p-6 text-gray-500">Carregando...</td></tr>
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
                         </div>
