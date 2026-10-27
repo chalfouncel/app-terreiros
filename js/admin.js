@@ -2206,7 +2206,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             
             const { data: todosMediuns, error: errMediuns } = await supabaseClient.from('mediuns')
-                .select('id, nome_completo, nome_social, isento_mensalidade, grau, funcao')
+                .select('id, nome_completo, nome_social, isento_mensalidade, grau, funcao, status_ativo, created_at')
                 .eq('terreiro_id', idTerreiroGlobal)
                 .neq('nome_completo', 'Administrador Sistema')
                 .order('nome_completo');
@@ -2270,6 +2270,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             mediuns.forEach(m => {
                 const meusPgtos = pgtos ? pgtos.filter(p => p.medium_id === m.id) : [];
                 let htmlMeses = ''; let emDia = true;
+                const ehInativo = (m.status_ativo === false);
                 
                 const dataIngresso = m.created_at ? new Date(m.created_at) : new Date('2000-01-01');
                 const mesIngresso = dataIngresso.getMonth() + 1;
@@ -2284,15 +2285,20 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const origem = pgto ? pgto.origem : null;
                     const passou = (anoBusca < anoAtual) || (anoBusca === anoAtual && i < mesAtual);
                     
-                    if (passou && !pago && !isIsento && !isAntesDoIngresso) emDia = false; 
+                    // Se o médium está inativo, preserva todos os pagamentos/isenções já feitos, mas não gera cobrança nova
+                    if (!ehInativo && passou && !pago && !isIsento && !isAntesDoIngresso) emDia = false; 
 
                     if (!isAntesDoIngresso) {
-                        statsMeses[i-1].totalMediuns++;
-                        if (isIsento || pago) {
-                            statsMeses[i-1].adimplentes++;
-                            if (pago) statsMeses[i-1].arrecadado += valorPorGrau[m.grau] || 0;
-                        } else if (passou) {
-                            statsMeses[i-1].inadimplentes++;
+                        if (pago) {
+                            statsMeses[i-1].arrecadado += valorPorGrau[m.grau] || 0;
+                        }
+                        if (!ehInativo || pago || isIsento) {
+                            statsMeses[i-1].totalMediuns++;
+                            if (isIsento || pago) {
+                                statsMeses[i-1].adimplentes++;
+                            } else if (passou) {
+                                statsMeses[i-1].inadimplentes++;
+                            }
                         }
                     }
 
@@ -2304,18 +2310,19 @@ document.addEventListener('DOMContentLoaded', async () => {
                         titleStr = 'Anterior ao ingresso';
                     } else if (isIsento) {
                         checkedStr = 'checked'; corCheck = 'accent-color: #a855f7;'; 
-                        titleStr = 'Isento (Botão direito p/ desfazer)';
-                    } else if (pago && origem === 'asaas') {
+                        titleStr = ehInativo ? 'Isento (Histórico preservado - Médium Inativo)' : 'Isento (Botão direito p/ desfazer)';
+                        if (ehInativo) disabledStr = 'onclick="return false;"';
+                    } else if (pago && (origem === 'asaas' || origem === 'pix_sistema' || ehInativo)) {
                         checkedStr = 'checked'; disabledStr = 'onclick="return false;"'; 
                         corCheck = 'accent-color: #16a34a; cursor: not-allowed;'; 
-                        titleStr = 'Pago via Asaas Automático (Irreversível)';
-                    } else if (pago && origem === 'pix_sistema') {
-                        checkedStr = 'checked'; disabledStr = 'onclick="return false;"'; 
-                        corCheck = 'accent-color: #16a34a; cursor: not-allowed;'; 
-                        titleStr = 'Pago via PIX Asaas (Irreversível)';
+                        titleStr = ehInativo ? 'Pago (Histórico preservado - Médium Inativo)' : 'Pago via Sistema (Irreversível)';
                     } else if (pago) {
                         checkedStr = 'checked'; corCheck = 'accent-color: #16a34a;'; 
                         titleStr = 'Pago (Manual)';
+                    } else if (ehInativo) {
+                        disabledStr = 'disabled';
+                        corCheck = 'opacity: 0.35; cursor: not-allowed;';
+                        titleStr = 'Médium Inativo (Sem cobrança)';
                     } else {
                         titleStr = 'Pendente (Esq. Pagar | Dir. Isentar)';
                     }
@@ -2323,12 +2330,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                     htmlMeses += `<td class="py-1 px-1 border-b border-gray-100">
                         <input type="checkbox" data-origem="${origem}" ${checkedStr} ${disabledStr} style="${corCheck}" title="${titleStr}" class="w-4 h-4 cursor-pointer" 
                         onchange="salvarPagamento(${m.id}, ${i}, ${anoBusca}, this.checked, this)"
-                        oncontextmenu="toggleIsentoMes(event, ${m.id}, ${i}, ${anoBusca}, ${isAntesDoIngresso})">
+                        oncontextmenu="toggleIsentoMes(event, ${m.id}, ${i}, ${anoBusca}, ${isAntesDoIngresso || ehInativo})">
                     </td>`;
                 }
-                const btnIsentarAno = `<button onclick="isentarAnoTodo(${m.id}, ${anoBusca})" title="Isentar ano todo (Automático)" class="ml-2 text-purple-400 hover:text-purple-600 active:scale-90 transition p-1"><i class="fas fa-magic"></i></button>`;
-                const statusHtml = emDia ? '<span class="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded">Em Dia</span>' : '<span class="bg-red-100 text-red-700 text-xs font-bold px-2 py-1 rounded">Pendente</span>';
-                const trHtml = `<tr class="hover:bg-gray-50"><td class="py-2 px-3 border-b border-gray-100 text-left font-medium text-gray-800 text-xs max-w-[220px]"><div class="flex items-center justify-between"><span class="truncate" title="${m.nome_completo}">${m.nome_completo}</span>${btnIsentarAno}</div></td>${htmlMeses}<td class="py-2 px-2 border-b border-gray-100 bg-gray-50">${statusHtml}</td></tr>`;
+                const btnIsentarAno = ehInativo ? '' : `<button onclick="isentarAnoTodo(${m.id}, ${anoBusca})" title="Isentar ano todo (Automático)" class="ml-2 text-purple-400 hover:text-purple-600 active:scale-90 transition p-1"><i class="fas fa-magic"></i></button>`;
+                const badgeInativo = ehInativo ? `<span class="ml-1.5 bg-gray-200 text-gray-600 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase">Inativo</span>` : '';
+                const statusHtml = ehInativo
+                    ? '<span class="bg-gray-200 text-gray-600 text-xs font-bold px-2 py-1 rounded">Inativo</span>'
+                    : (emDia ? '<span class="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded">Em Dia</span>' : '<span class="bg-red-100 text-red-700 text-xs font-bold px-2 py-1 rounded">Pendente</span>');
+                const trHtml = `<tr class="hover:bg-gray-50 ${ehInativo ? 'bg-gray-50/60 opacity-85' : ''}"><td class="py-2 px-3 border-b border-gray-100 text-left font-medium text-gray-800 text-xs max-w-[220px]"><div class="flex items-center justify-between"><span class="truncate" title="${m.nome_completo}">${m.nome_completo}${badgeInativo}</span>${btnIsentarAno}</div></td>${htmlMeses}<td class="py-2 px-2 border-b border-gray-100 bg-gray-50">${statusHtml}</td></tr>`;
 
                 window.cacheLinhasFinanceiro.push({
                     id: m.id,
@@ -4827,11 +4837,22 @@ window.toggleTodosGraus = (source) => {
 };
 
 window.isentarAnoTodo = async (mediumId, ano) => {
-    const upserts = Array.from({length: 12}, (_, i) => ({
-        medium_id: mediumId, mes: i + 1, ano: ano, pago: false, isento: true, origem: 'manual'
-    }));
-    const { error } = await supabaseClient.from('financeiro').upsert(upserts, { onConflict: 'medium_id,mes,ano' });
-    if(error) alert('Erro: ' + error.message);
+    const { data: existentes } = await supabaseClient.from('financeiro')
+        .select('mes, pago')
+        .eq('medium_id', mediumId)
+        .eq('ano', ano);
+    const mesesJaPagos = new Set((existentes || []).filter(r => r.pago === true).map(r => r.mes));
+
+    const upserts = Array.from({length: 12}, (_, i) => i + 1)
+        .filter(mes => !mesesJaPagos.has(mes))
+        .map(mes => ({
+            medium_id: mediumId, mes: mes, ano: ano, pago: false, isento: true, origem: 'manual'
+        }));
+
+    if (upserts.length > 0) {
+        const { error } = await supabaseClient.from('financeiro').upsert(upserts, { onConflict: 'medium_id,mes,ano' });
+        if(error) alert('Erro: ' + error.message);
+    }
     document.getElementById('menuFinanceiro')?.click();
 };
 
