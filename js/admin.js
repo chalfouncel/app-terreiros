@@ -156,7 +156,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         if (emModoMasterPuro) {
-            ['menuVisaoGeral', 'menuQuadroMediuns', 'menuGuiasMediuns', 'menuAgendaGiras', 'menuLivroAta', 'menuGrau', 'menuFinanceiro', 'menuComprovantes', 'menuDoacoes', 'menuAdmin'].forEach(id => {
+            ['menuVisaoGeral', 'menuQuadroMediuns', 'menuGuiasMediuns', 'menuIA', 'menuAgendaGiras', 'menuLivroAta', 'menuEscalas', 'menuGrau', 'menuFinanceiro', 'menuComprovantes', 'menuDoacoes', 'menuAdmin'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.classList.add('hidden');
             });
