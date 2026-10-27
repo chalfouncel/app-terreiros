@@ -161,11 +161,15 @@
         </div>
     </main>
 
-    <!-- ÁREA RÁPIDA CURIMBA / MG / MGA -->
-    <div id="areaCurimbaRapida" class="w-full max-w-md mt-5 hidden">
-        <button type="button" onclick="window.abrirModalCurimba()" class="w-full bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-700 hover:to-yellow-700 text-white text-base font-black py-3.5 px-4 rounded-xl shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2.5 border border-amber-400/30">
-            <i class="fas fa-drum text-xl"></i>
-            <span>Caderno de Pontos (MG / MGA)</span>
+    <!-- ÁREA RÁPIDA CURIMBA / MG / MGA (GUIAS DA CASA + LIVRO GERAL) -->
+    <div id="areaCurimbaRapida" class="w-full max-w-md mt-5 hidden space-y-2.5">
+        <button type="button" onclick="window.abrirModalCurimba()" class="w-full bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-700 hover:to-yellow-700 text-white text-sm md:text-base font-black py-3.5 px-4 rounded-xl shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2.5 border border-amber-400/30">
+            <i class="fas fa-drum text-lg"></i>
+            <span>Pontos dos Guias da Casa (CT+)</span>
+        </button>
+        <button type="button" id="btnAbrirLivroCurimbaApp" onclick="window.abrirModalLivroCurimba()" class="hidden w-full bg-gradient-to-r from-indigo-700 to-slate-900 hover:from-indigo-800 hover:to-slate-950 text-white text-sm md:text-base font-black py-3.5 px-4 rounded-xl shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2.5 border border-indigo-400/30">
+            <i class="fas fa-book-open text-lg text-indigo-300"></i>
+            <span>Livro Geral da Curimba</span>
         </button>
     </div>
 
@@ -864,6 +868,7 @@
     <script src="js/supabase.js"></script>
     <script src="js/presenca.js?v=20261016"></script>
     <script src="js/guias.js"></script>
+    <script src="js/livro_curimba.js"></script>
     
     <!-- Script Ativador do Service Worker (PWA) e Modal Apoio -->
     <script>
