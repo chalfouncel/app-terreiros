@@ -3146,8 +3146,11 @@ function renderizarTagsConfiguracao() {
                     ? `<button onclick="alternarBloqueioTerreiro('${t.id}', false)" class="flex-1 py-2 px-2.5 bg-gray-900 hover:bg-black text-white text-xs font-bold rounded-lg shadow-sm transition flex items-center justify-center gap-1.5" title="Desbloquear acesso"><i class="fas fa-lock-open text-emerald-400"></i> Desbloquear</button>`
                     : `<button onclick="alternarBloqueioTerreiro('${t.id}', true)" class="flex-1 py-2 px-2.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs font-bold rounded-lg transition flex items-center justify-center gap-1.5" title="Bloquear acesso à plataforma"><i class="fas fa-lock"></i> Bloquear</button>`;
 
-                const btnMensalidade = `<button onclick="alternarModuloMensalidade('${t.id}', ${!tesourariaAtiva})" class="p-2 border border-gray-200 hover:border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition" title="${tesourariaAtiva ? 'Desativar Módulo Financeiro' : 'Ativar Módulo Financeiro'}"><i class="fas fa-hand-holding-usd ${tesourariaAtiva ? 'text-amber-500' : 'text-gray-400'}"></i></button>`;
-
+const livroCurimbaAtivo = !!t.modulo_livro_curimba_ativo;
+                const btnMensalidade = `
+                    <button onclick="alternarModuloMensalidade('${t.id}', ${!tesourariaAtiva})" class="p-2 border border-gray-200 hover:border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition" title="${tesourariaAtiva ? 'Desativar Módulo Financeiro' : 'Ativar Módulo Financeiro'}"><i class="fas fa-hand-holding-usd ${tesourariaAtiva ? 'text-amber-500' : 'text-gray-400'}"></i></button>
+                    <button onclick="alternarModuloLivroCurimba('${t.id}', ${!livroCurimbaAtivo})" class="p-2 border border-gray-200 hover:border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition" title="${livroCurimbaAtivo ? 'Desativar Livro da Curimba' : 'Ativar Livro da Curimba'}"><i class="fas fa-drum ${livroCurimbaAtivo ? 'text-indigo-600' : 'text-gray-400'}"></i></button>
+                `;
                 const logoOuIniciais = t.logo_url
                     ? `<img src="${t.logo_url}" class="w-11 h-11 rounded-xl object-cover border border-gray-200 bg-white shadow-sm flex-shrink-0" alt="Logo">`
                     : `<div class="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white font-black text-base flex items-center justify-center shadow-sm flex-shrink-0">${(t.nome || 'T').substring(0, 2).toUpperCase()}</div>`;
@@ -4992,6 +4995,12 @@ window.alternarModuloMensalidade = async (idTerreiro, vaiAtivar) => {
     const msg = vaiAtivar ? "Deseja ATIVAR o módulo de Tesouraria/Mensalidades para este Terreiro?" : "Desativar o módulo de Mensalidades deste Terreiro?";
     if(!confirm(msg)) return;
     const { error } = await supabaseClient.from('terreiros').update({ modulo_mensalidade_ativo: vaiAtivar }).eq('id', idTerreiro);
+    if(error) alert("Erro: " + error.message); else document.getElementById('menuMaster')?.click();
+};
+window.alternarModuloLivroCurimba = async (idTerreiro, vaiAtivar) => {
+    const msg = vaiAtivar ? "Deseja ATIVAR o módulo Livro Geral da Curimba para este Terreiro?" : "Desativar o módulo Livro Geral da Curimba deste Terreiro?";
+    if(!confirm(msg)) return;
+    const { error } = await supabaseClient.from('terreiros').update({ modulo_livro_curimba_ativo: vaiAtivar }).eq('id', idTerreiro);
     if(error) alert("Erro: " + error.message); else document.getElementById('menuMaster')?.click();
 };
 
