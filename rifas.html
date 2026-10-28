@@ -746,7 +746,7 @@
 
             } catch (err) {
                 msg.textContent = err.message || "Erro no envio."; 
-                msg.classList.add('hidden');
+                msg.classList.remove('hidden');
                 btn.disabled = false; 
                 btn.innerHTML = '<i class="fas fa-upload"></i> Enviar Comprovante para Validação';
                 iniciarTimer(300, 120); 
