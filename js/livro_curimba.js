@@ -1014,18 +1014,18 @@
 
         const logoBase64 = await carregarLogoBase64(logoTemplo);
 
-        // Cria um PDF vetorial nativo via jsPDF em Paisagem (A4: 297mm x 210mm)
-        const worker = html2pdf().set({ jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' } }).from(document.createElement('div')).toPdf();
+        // Cria um PDF vetorial nativo via jsPDF em Retrato / Em Pé (A4: 210mm x 297mm)
+        const worker = html2pdf().set({ jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } }).from(document.createElement('div')).toPdf();
         const pdf = await worker.get('pdf');
 
-        const pageW = pdf.internal.pageSize.getWidth();  // 297 mm
-        const pageH = pdf.internal.pageSize.getHeight(); // 210 mm
-        const marginX = 12;
-        const usableW = pageW - (marginX * 2); // 273 mm
+        const pageW = pdf.internal.pageSize.getWidth();  // 210 mm
+        const pageH = pdf.internal.pageSize.getHeight(); // 297 mm
+        const marginX = 10;
+        const usableW = pageW - (marginX * 2); // 190 mm
 
-        // Colunas idênticas ao modelo de relatório da casa
-        const colW = [52, 68, 42, usableW - 52 - 68 - 42]; // Classificação | Sub-classificação/Título | Toque/Melodia | Letra da Cantiga
-        const headers = ['CLASSIFICAÇÃO', 'GUIA / IDENTIFICADOR', 'TOQUE / MELODIA', 'LETRA DA CANTIGA'];
+        // Colunas ajustadas para formato Livro (Em Pé) dando amplo destaque à Letra da Cantiga
+        const colW = [36, 44, 30, usableW - 36 - 44 - 30]; // 36mm | 44mm | 30mm | 80mm (Letra)
+        const headers = ['CLASSIFICAÇÃO', 'GUIA / TÍTULO', 'TOQUE / TOM', 'LETRA DA CANTIGA'];
 
         const dataAtual = `${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
         const tituloRelatorio = `Livro Geral da Curimba ${categoriaAtiva !== 'todas' ? `— ${categoriaAtiva}` : '(Completo)'}`;
