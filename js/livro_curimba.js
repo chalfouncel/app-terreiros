@@ -569,6 +569,71 @@
         }
     };
 
+            window.abrirModoFocoCantiga = async (id) => {
+            document.querySelectorAll('audio').forEach(a => a.pause());
+        
+            const cantiga = cacheCantigasLivro.find(c => c.id === id);
+            if (!cantiga) return;
+        
+            let modalFoco = document.getElementById('modalFocoCantigaImersivo');
+            
+            if (!modalFoco) {
+                const htmlFoco = `
+                <div id="modalFocoCantigaImersivo" class="hidden fixed inset-0 z-[99999] bg-slate-950 flex flex-col p-4 sm:p-8 overflow-y-auto select-none transition-opacity" ondblclick="window.fecharModoFocoCantiga(event)">
+                    <div class="max-w-4xl w-full mx-auto mt-4 sm:mt-10 flex-1 flex flex-col space-y-6">
+                        <div class="flex justify-between items-start border-b border-slate-800 pb-4 relative">
+                            <div class="pr-12">
+                                <span class="text-xs font-bold text-indigo-400 uppercase tracking-widest block mb-1" id="focoCategoria"></span>
+                                <h2 class="font-black text-2xl md:text-3xl text-amber-400 uppercase leading-tight" id="focoTitulo"></h2>
+                            </div>
+                            <button type="button" onclick="window.fecharModoFocoCantiga(event)" class="absolute top-0 right-0 w-12 h-12 bg-slate-800/80 hover:bg-slate-700 rounded-full flex items-center justify-center text-slate-300 text-xl border border-slate-700 active:scale-90 transition shadow-lg z-10" title="Fechar Tela Cheia">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div id="focoExtra" class="space-y-3"></div>
+                        <div id="focoLetra" class="text-slate-100 font-medium leading-relaxed tracking-wide pb-12 cursor-text select-text"></div>
+                        <div class="text-center pt-8 mt-auto border-t border-slate-800/50">
+                            <span class="text-[11px] text-slate-500 font-black uppercase tracking-widest bg-slate-900 px-4 py-2.5 rounded-full border border-slate-800 shadow-inner">
+                                <i class="fas fa-hand-pointer mr-1.5 text-indigo-500"></i> 2 cliques em qualquer lugar para fechar
+                            </span>
+                        </div>
+                    </div>
+                </div>`;
+                document.body.insertAdjacentHTML('beforeend', htmlFoco);
+                modalFoco = document.getElementById('modalFocoCantigaImersivo');
+            }
+        
+            document.getElementById('focoCategoria').textContent = cantiga.categoria;
+            document.getElementById('focoTitulo').innerHTML = `${cantiga.subcategoria || 'Geral'} ${cantiga.titulo ? `• <span class="text-white">${cantiga.titulo}</span>` : ''}`;
+        
+            let extraHtml = '';
+            if (cantiga.ritmo) extraHtml += `<span class="inline-block bg-amber-500 text-slate-950 text-[11px] font-black px-3 py-1 rounded-full uppercase mr-2 shadow"><i class="fas fa-drum mr-1.5"></i>${cantiga.ritmo}</span>`;
+            if (cantiga.obs_melodia) extraHtml += `<div class="text-sm text-sky-300 bg-sky-950/40 border border-sky-800/50 rounded-xl px-4 py-2.5 mt-2"><i class="fas fa-music mr-2"></i> <strong>Melodia:</strong> ${cantiga.obs_melodia}</div>`;
+            if (cantiga.audio_url) extraHtml += `<div class="mt-4 bg-slate-900/90 p-2.5 rounded-2xl border border-indigo-500/40 flex items-center gap-3 shadow-lg">
+                                <span class="text-[11px] font-black text-indigo-400 uppercase px-3 shrink-0"><i class="fas fa-headphones mr-1.5"></i>Ouvir:</span>
+                                <audio controls preload="none" src="${cantiga.audio_url}" class="w-full h-10 outline-none"></audio>
+                              </div>`;
+            
+            document.getElementById('focoExtra').innerHTML = extraHtml;
+        
+            const tamanhoFoco = Math.min(Math.max(18, tamanhoFonteLivro + 6), 36);
+            const letraEl = document.getElementById('focoLetra');
+            letraEl.style.fontSize = tamanhoFoco + 'px';
+            letraEl.innerHTML = formatarLetraCantiga(cantiga.letra);
+        
+            modalFoco.classList.remove('hidden');
+            await ativarWakeLockLivro();
+        };
+        
+        window.fecharModoFocoCantiga = (event) => {
+            if (event) event.stopPropagation();
+            const modalFoco = document.getElementById('modalFocoCantigaImersivo');
+            if (modalFoco) {
+                modalFoco.querySelectorAll('audio').forEach(a => a.pause());
+                modalFoco.classList.add('hidden');
+            }
+        };
+
     window.renderizarCardsLivroCurimba = () => {
         const container = document.getElementById('listaCardsLivroCurimba');
         if (!container) return;
@@ -628,29 +693,32 @@
                 : '';
 
             return `
-                <div ondblclick="window.alternarTelaCheiaCantiga(this)" class="card-cantiga-curimba bg-slate-900 rounded-2xl border border-slate-800 border-l-4 border-l-indigo-500 p-3.5 space-y-2 shadow-md transition-all duration-300" title="Dê 2 cliques para tela cheia">
-                    <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-800">
-                        <div>
-                            <span class="text-[10px] font-bold text-indigo-400 uppercase block">${c.categoria}</span>
-                            <h4 class="font-black text-sm text-amber-400 uppercase">${c.subcategoria || 'Geral'} ${c.titulo ? `• <span class="text-white">${c.titulo}</span>` : ''}</h4>
+                    <div ondblclick="window.abrirModoFocoCantiga(${c.id})" class="card-cantiga-curimba bg-slate-900 rounded-2xl border border-slate-800 border-l-4 border-l-indigo-500 p-3.5 space-y-2 shadow-md transition-all duration-300 select-none cursor-pointer" title="Dê 2 cliques para tela cheia">
+                        <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-800">
+                            <div>
+                                <span class="text-[10px] font-bold text-indigo-400 uppercase block">${c.categoria}</span>
+                                <h4 class="font-black text-sm text-amber-400 uppercase">${c.subcategoria || 'Geral'} ${c.titulo ? `• <span class="text-white">${c.titulo}</span>` : ''}</h4>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                ${ritmoBadge}
+                                <button type="button" onclick="window.abrirModoFocoCantiga(${c.id}); event.stopPropagation();" class="bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 text-[11px] font-bold px-2.5 py-1 rounded-lg border border-indigo-500/30 active:scale-95" title="Modo Foco (Tela Cheia)">
+                                    <i class="fas fa-expand"></i> Foco
+                                </button>
+                                <button type="button" onclick="window.abrirModalEditarCantigaLivro(${c.id}); event.stopPropagation();" class="bg-slate-800 hover:bg-slate-700 text-indigo-300 text-[11px] font-bold px-2.5 py-1 rounded-lg border border-slate-700 active:scale-95">
+                                    <i class="fas fa-pen"></i> Editar
+                                </button>
+                            </div>
                         </div>
-                        <div class="flex items-center gap-1.5">
-                            ${ritmoBadge}
-                            <button type="button" onclick="window.abrirModalEditarCantigaLivro(${c.id})" class="bg-slate-800 hover:bg-slate-700 text-indigo-300 text-[11px] font-bold px-2.5 py-1 rounded-lg border border-slate-700 active:scale-95">
-                                <i class="fas fa-pen"></i> Editar
-                            </button>
+                        ${melodiaHtml}
+                        ${audioHtml}
+                        <div class="pt-1 font-medium text-slate-100 leading-relaxed" style="font-size: ${tamanhoFonteLivro}px;">
+                            ${formatarLetraCantiga(c.letra)}
+                        </div>
+                        <div class="text-center pt-2 no-print">
+                            <span class="text-[10px] font-bold text-slate-500 bg-slate-800/50 px-3 py-1 rounded-full"><i class="fas fa-expand-alt mr-1 text-indigo-500/50"></i> 2 toques na cantiga para tela cheia</span>
                         </div>
                     </div>
-                    ${melodiaHtml}
-                    ${audioHtml}
-                    <div class="pt-1 font-medium text-slate-100 leading-relaxed select-text" style="font-size: ${tamanhoFonteLivro}px;">
-                        ${formatarLetraCantiga(c.letra)}
-                    </div>
-                    <div class="text-center pt-1 no-print">
-                        <span class="text-[9px] text-slate-500 italic">💡 2 cliques na cantiga para tela cheia</span>
-                    </div>
-                </div>
-            `;
+                `;
         }).join('');
     };
 
