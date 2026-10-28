@@ -130,6 +130,9 @@
                     <button type="button" id="btnFiltroSemAudioLivro" onclick="window.alternarFiltroSemAudioLivro()" class="px-3 py-2 rounded-xl text-[11px] font-black border transition active:scale-95 flex items-center gap-1.5 shrink-0 bg-slate-800 text-amber-300 border-slate-700">
                         <i class="fas fa-microphone-slash text-[10px]"></i> Sem Áudio
                     </button>
+                    <button type="button" onclick="window.limparTodosFiltrosLivroCurimba()" class="px-3 py-2 rounded-xl text-[11px] font-black border border-slate-700 bg-slate-800 hover:bg-slate-700 text-rose-300 transition active:scale-95 flex items-center gap-1.5 shrink-0" title="Limpar busca e todos os filtros">
+                        <i class="fas fa-eraser text-[10px]"></i> Limpar
+                    </button>
                 </div>
 
                 <!-- Banner de Resposta da IA -->
@@ -426,7 +429,15 @@
 
     const STOP_WORDS_PT = new Set(["de", "da", "do", "das", "dos", "para", "pra", "com", "que", "um", "uma", "no", "na", "nos", "nas", "em", "por", "ao", "aos", "ponto", "pontos", "cantiga", "musica"]);
 
-    const normalizarTextoBusca = (str) => String(str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    // Ignora acentos, cedilha, hífens (ex: beira-mar = beira mar), apóstrofos (d'água = dagua) e pontuação
+    const normalizarTextoBusca = (str) => String(str || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/['’´`]/g, '')
+        .replace(/[-–—/.,;:!?()[\]{}"]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .toLowerCase()
+        .trim();
 
     let idsFiltradosPorIA = null;
     let motivosFiltradosPorIA = {};
@@ -435,6 +446,27 @@
         idsFiltradosPorIA = null;
         motivosFiltradosPorIA = {};
         document.getElementById('bannerRespostaIALivro')?.classList.add('hidden');
+    };
+
+    window.limparTodosFiltrosLivroCurimba = () => {
+        window.limparFiltroIALivro();
+        categoriaAtiva = "todas";
+        subcategoriaAtiva = "todas";
+        filtroSemAudio = false;
+
+        const inputBusca = document.getElementById('buscaLivroCurimbaInput');
+        if (inputBusca) inputBusca.value = '';
+
+        const selCat = document.getElementById('selectCategoriaLivro');
+        if (selCat) selCat.value = 'todas';
+
+        const btnAudio = document.getElementById('btnFiltroSemAudioLivro');
+        if (btnAudio) {
+            btnAudio.className = 'px-3 py-2 rounded-xl text-[11px] font-black border transition active:scale-95 flex items-center gap-1.5 shrink-0 bg-slate-800 text-amber-300 border-slate-700';
+        }
+
+        atualizarDropdownSubcategorias();
+        window.renderizarCardsLivroCurimba();
     };
 
     function pontuarCantigaSemantica(cantiga, consultaBruta) {
