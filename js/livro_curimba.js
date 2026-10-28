@@ -939,21 +939,129 @@
                 return;
             }
 
+            // Função que limpa pontuação, espaços, acentos e tags [BIS]/[2X] para comparar letras
+            const limparParaComparar = (txt) => String(txt || '')
+                .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                .replace(/\[(bis|2x|3x|4x|refrao)\]/gi, '')
+                .replace(/\b(bis|2x|3x|4x)\b/gi, '')
+                .replace(/[^a-z0-9]/gi, '')
+                .toLowerCase();
+
+            // 1. Filtra duplicadas dentro do próprio arquivo que está sendo importado
+            const vistosNoArquivo = new Set();
+            let registrosUnicos = [];
+            let ignoradasExatas = 0;
+
+            for (const reg of registros) {
+                const assinatura = `${reg.categoria}||${limparParaComparar(reg.letra)}`;
+                if (vistosNoArquivo.has(assinatura)) {
+                    ignoradasExatas++;
+                    continue;
+                }
+                vistosNoArquivo.add(assinatura);
+                registrosUnicos.push(reg);
+            }
+
             if (substituirExistentes) {
                 const { error: errDel } = await supabaseClient
                     .from('curimba_cantigas')
                     .delete()
                     .eq('terreiro_id', idTerreiroGlobal);
                 if (errDel) throw errDel;
+            } else if (cacheCantigasLivro.length > 0) {
+                // 2. Compara com as cantigas que já existem no banco de dados
+                const existentesProcessadas = cacheCantigasLivro.map(c => ({
+                    cat: c.categoria,
+                    sub: c.subcategoria,
+                    titulo: c.titulo,
+                    letraOriginal: c.letra,
+                    limpa: limparParaComparar(c.letra)
+                }));
+
+                const aprovadasParaInserir = [];
+                let pularTodasDuvidosas = false;
+                let importarTodasDuvidosas = false;
+
+                for (const reg of registrosUnicos) {
+                    const novaLimpa = limparParaComparar(reg.letra);
+                    if (!novaLimpa) continue;
+
+                    // Verifica se já existe letra 100% idêntica no banco
+                    const duplicadaExata = existentesProcessadas.find(ex => ex.limpa === novaLimpa);
+                    if (duplicadaExata) {
+                        ignoradasExatas++;
+                        continue;
+                    }
+
+                    // Verifica caso de dúvida (mesmo início de letra ou contida uma na outra)
+                    const prefixo = novaLimpa.substring(0, Math.min(45, novaLimpa.length));
+                    const parecida = prefixo.length >= 25 ? existentesProcessadas.find(ex =>
+                        ex.limpa.includes(prefixo) || novaLimpa.includes(ex.limpa.substring(0, Math.min(45, ex.limpa.length)))
+                    ) : null;
+
+                    if (parecida) {
+                        if (pularTodasDuvidosas) {
+                            ignoradasExatas++;
+                            continue;
+                        }
+                        if (!importarTodasDuvidosas) {
+                            const trechoExistente = String(parecida.letraOriginal || '').substring(0, 120).replace(/\n/g, ' / ');
+                            const trechoNova = String(reg.letra || '').substring(0, 120).replace(/\n/g, ' / ');
+
+                            const resp = prompt(
+                                `⚠️ DÚVIDA DE POSSÍVEL DUPLICIDADE:\n\n` +
+                                `JÁ EXISTE NO LIVRO (${parecida.sub}):\n"${trechoExistente}..."\n\n` +
+                                `NOVA NO ARQUIVO (${reg.subcategoria}):\n"${trechoNova}..."\n\n` +
+                                `Digite:\n` +
+                                `1 = Pular esta cantiga (Não importar)\n` +
+                                `2 = Importar mesmo assim\n` +
+                                `3 = Pular TODAS as parecidas automaticamente\n` +
+                                `4 = Importar TODAS as parecidas sem perguntar novamente`,
+                                '1'
+                            );
+
+                            if (resp === '3') {
+                                pularTodasDuvidosas = true;
+                                ignoradasExatas++;
+                                continue;
+                            } else if (resp === '4') {
+                                importarTodasDuvidosas = true;
+                            } else if (resp !== '2') {
+                                ignoradasExatas++;
+                                continue;
+                            }
+                        }
+                    }
+
+                    aprovadasParaInserir.push(reg);
+                    existentesProcessadas.push({
+                        cat: reg.categoria,
+                        sub: reg.subcategoria,
+                        titulo: reg.titulo,
+                        letraOriginal: reg.letra,
+                        limpa: novaLimpa
+                    });
+                }
+
+                registrosUnicos = aprovadasParaInserir;
             }
 
-            for (let i = 0; i < registros.length; i += 100) {
-                const lote = registros.slice(i, i + 100);
+            if (registrosUnicos.length === 0) {
+                alert(`ℹ️ Nenhuma cantiga nova para adicionar (${ignoradasExatas} cantiga(s) idêntica(s) ou repetida(s) foram ignoradas automaticamente).`);
+                return;
+            }
+
+            for (let i = 0; i < registrosUnicos.length; i += 100) {
+                const lote = registrosUnicos.slice(i, i + 100);
                 const { error } = await supabaseClient.from('curimba_cantigas').insert(lote);
                 if (error) throw error;
             }
 
-            alert(`✅ Importação concluída com sucesso! ${registros.length} cantigas foram organizadas no Livro da Curimba.`);
+            alert(
+                `✅ Importação concluída com sucesso!\n\n` +
+                `• Cantigas importadas: ${registrosUnicos.length}\n` +
+                (ignoradasExatas > 0 ? `• Duplicadas ignoradas: ${ignoradasExatas}` : '')
+            );
             await carregarCantigasDoBanco();
         } catch (err) {
             alert('Erro ao importar arquivo .DOCX: ' + err.message);
