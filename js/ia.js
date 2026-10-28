@@ -46,16 +46,31 @@
             return;
         }
 
-        // 2. Carrega nome do Terreiro para exibir no cabeçalho
+        // 2. Carrega nome do Terreiro para exibir no cabeçalho (Suporte Multiterreiro SaaS)
+        let terreiroIdAtivoIA = localStorage.getItem('terreiroAtivoSaaS') || (typeof idTerreiroGlobal !== 'undefined' ? idTerreiroGlobal : null);
         try {
-            const { data: medData } = await supabaseClient
-                .from('mediuns')
-                .select('terreiro_id, terreiros(nome)')
-                .eq('auth_id', session.user.id)
-                .single();
+            if (terreiroIdAtivoIA) {
+                const { data: tData } = await supabaseClient
+                    .from('terreiros')
+                    .select('id, nome')
+                    .eq('id', terreiroIdAtivoIA)
+                    .single();
+                if (tData && tData.nome && elSubtitulo) {
+                    elSubtitulo.textContent = `Consultas da Casa: ${tData.nome}`;
+                }
+            } else {
+                const { data: medData } = await supabaseClient
+                    .from('mediuns')
+                    .select('terreiro_id, terreiros(nome)')
+                    .eq('auth_id', session.user.id)
+                    .single();
 
-            if (medData && medData.terreiros && medData.terreiros.nome) {
-                if (elSubtitulo) elSubtitulo.textContent = `Consultas da Casa: ${medData.terreiros.nome}`;
+                if (medData) {
+                    terreiroIdAtivoIA = medData.terreiro_id;
+                    if (medData.terreiros && medData.terreiros.nome && elSubtitulo) {
+                        elSubtitulo.textContent = `Consultas da Casa: ${medData.terreiros.nome}`;
+                    }
+                }
             }
         } catch (e) {
             console.warn('Não foi possível carregar o nome do terreiro:', e);
@@ -153,7 +168,11 @@
                 const { data: { session } } = await supabaseClient.auth.getSession();
                 if (!session) throw new Error("Sessão expirada. Faça login novamente.");
 
-                // Chamada direta via Fetch para garantir passagem correta do token Bearer
+                const idTerreiroConsulta = (typeof idTerreiroGlobal !== 'undefined' && idTerreiroGlobal)
+                    ? idTerreiroGlobal
+                    : terreiroIdAtivoIA;
+
+                // Chamada direta via Fetch para garantir passagem correta do token Bearer e terreiro_id (SaaS)
                 const response = await fetch(`${supabaseClient.supabaseUrl}/functions/v1/consulta-ia`, {
                     method: 'POST',
                     headers: {
@@ -161,7 +180,10 @@
                         'Authorization': `Bearer ${session.access_token}`,
                         'apikey': supabaseClient.supabaseKey
                     },
-                    body: JSON.stringify({ pergunta: pergunta })
+                    body: JSON.stringify({
+                        pergunta: pergunta,
+                        terreiro_id: idTerreiroConsulta
+                    })
                 });
 
                 const data = await response.json();
