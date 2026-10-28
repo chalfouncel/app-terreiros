@@ -606,18 +606,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (msg) msg.classList.add('hidden');
 
                 try {
-                    const { data: listaExistente, error: errBusca } = await supabaseClient
-                        .from('mediuns')
-                        .select('id')
-                        .order('id', { ascending: false })
-                        .limit(1);
-
-                    if (errBusca) throw errBusca;
-
-                    const proximoId = (listaExistente && listaExistente.length > 0) ? (listaExistente[0].id + 1) : 1;
-
+                    try {
                     const novoRegistro = {
-                        id: proximoId,
                         terreiro_id: idTerreiroGlobal,
                         nome_completo: nomeCompleto,
                         cadastro_completo: false,
@@ -626,11 +616,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                         isento_mensalidade: false
                     };
 
-                    const { error: errInsert } = await supabaseClient
+                    const { data: inserido, error: errInsert } = await supabaseClient
                         .from('mediuns')
-                        .insert([novoRegistro]);
+                        .insert([novoRegistro])
+                        .select('id')
+                        .single();
 
                     if (errInsert) throw errInsert;
+                    const proximoId = inserido.id;
 
                     formNovoMedium.classList.add('hidden');
                     if (resultado) {
@@ -1946,6 +1939,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     .from('caixa_terreiro')
                     .update({ status: 'pago' })
                     .eq('id', caixaId)
+                    .eq('terreiro_id', idTerreiroGlobal)
                     .select('*')
                     .single();
                 if (err1) throw err1;
@@ -1954,7 +1948,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (tipoTransacao === 'RIFA' && referenciaId && referenciaId !== 'null') {
                     const arrayIds = String(referenciaId).split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n));
                     if (arrayIds.length > 0) {
-                        await supabaseClient.from('rifa_numeros').update({ status_pagamento: 'aprovado' }).in('id', arrayIds);
+                        await supabaseClient.from('rifa_numeros').update({ status_pagamento: 'aprovado' }).in('id', arrayIds).eq('terreiro_id', idTerreiroGlobal);
                     }
                 } else if ((tipoTransacao === 'DOACAO' || tipoTransacao === 'CANTINA') && cxRow && cxRow.medium_responsavel_id) {
                     // Atualiza status_pagamento em doacoes_registradas do médium
@@ -1979,13 +1973,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             if(!confirm("Tem certeza que deseja CANCELAR/REJEITAR esta reserva de pagamento? O registro de pendência será excluído.")) return;
 
             try {
-                const { error: err1 } = await supabaseClient.from('caixa_terreiro').delete().eq('id', caixaId);
+                const { error: err1 } = await supabaseClient.from('caixa_terreiro').delete().eq('id', caixaId).eq('terreiro_id', idTerreiroGlobal);
                 if (err1) throw err1;
 
                 if (tipoTransacao === 'RIFA' && referenciaId && referenciaId !== 'null') {
                     const arrayIds = String(referenciaId).split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n));
                     if (arrayIds.length > 0) {
-                        await supabaseClient.from('rifa_numeros').delete().in('id', arrayIds);
+                        await supabaseClient.from('rifa_numeros').delete().in('id', arrayIds).eq('terreiro_id', idTerreiroGlobal);
                     }
                 }
 
@@ -5226,9 +5220,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const texto = await fileInput.files[0].text();
                 const linhas = texto.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
 
-                const { data: ultimo } = await supabaseClient.from('mediuns').select('id').order('id', { ascending: false }).limit(1);
-                let proximoId = (ultimo && ultimo.length > 0) ? (ultimo[0].id + 1) : 1;
-
                 const lote = [];
                 for (let i = 0; i < linhas.length; i++) {
                     const sep = linhas[i].includes(';') ? ';' : ',';
@@ -5241,7 +5232,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     const funcao = cols[3] || '-';
 
                     lote.push({
-                        id: proximoId++,
                         terreiro_id: idTerreiroAlvo,
                         nome_completo: nome,
                         telefone: tel,
@@ -5552,7 +5542,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     window.excluirItemCatalogo = async (id) => {
         if(!confirm("Excluir definitivamente este item do catálogo?")) return;
-        await supabaseClient.from('itens_doacao').delete().eq('id', id);
+        await supabaseClient.from('itens_doacao').delete().eq('id', id).eq('terreiro_id', idTerreiroGlobal);
         window.carregarDoacoesCatalogo();
     };
 
