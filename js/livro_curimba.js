@@ -569,7 +569,25 @@
         }
     };
 
-            window.abrirModoFocoCantiga = async (id) => {
+            window.abrirModoFocoCantiga = async (id) => { wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww
+            document.querySelectorAll('audio').forEach(a => a.pause());
+        
+            const cantiga = cacheCantigasLivro.find(c => c.id === id);
+            if (!cantiga) return;
+        
+            let ultimoToqueFoco = 0;
+        window.detectarDuploToqueCurimba = ( e, acaoCallback ) => {
+            const agora = Date.now();
+            if (agora - ultimoToqueFoco < 320) {
+                e.preventDefault();
+                ultimoToqueFoco = 0;
+                acaoCallback();
+            } else {
+                ultimoToqueFoco = agora;
+            }
+        };
+
+        window.abrirModoFocoCantiga = async (id) => {
             document.querySelectorAll('audio').forEach(a => a.pause());
         
             const cantiga = cacheCantigasLivro.find(c => c.id === id);
@@ -579,22 +597,26 @@
             
             if (!modalFoco) {
                 const htmlFoco = `
-                <div id="modalFocoCantigaImersivo" class="hidden fixed inset-0 z-[99999] bg-slate-950 flex flex-col p-4 sm:p-8 overflow-y-auto select-none transition-opacity" ondblclick="window.fecharModoFocoCantiga(event)">
-                    <div class="max-w-4xl w-full mx-auto mt-4 sm:mt-10 flex-1 flex flex-col space-y-6">
-                        <div class="flex justify-between items-start border-b border-slate-800 pb-4 relative">
-                            <div class="pr-12">
-                                <span class="text-xs font-bold text-indigo-400 uppercase tracking-widest block mb-1" id="focoCategoria"></span>
-                                <h2 class="font-black text-2xl md:text-3xl text-amber-400 uppercase leading-tight" id="focoTitulo"></h2>
+                <div id="modalFocoCantigaImersivo" class="hidden fixed inset-0 z-[99999] bg-slate-950 flex flex-col p-4 sm:p-8 overflow-y-auto select-none transition-opacity" ondblclick="window.fecharModoFocoCantiga(event)" ontouchend="if(!event.target.closest('button, audio')) window.detectarDuploToqueCurimba(event, () => window.fecharModoFocoCantiga(event))">
+                    <div class="max-w-4xl w-full mx-auto mt-2 sm:mt-8 flex-1 flex flex-col space-y-5">
+                        <div class="flex justify-between items-start border-b border-slate-800 pb-3 gap-2">
+                            <div class="flex-1 min-w-0">
+                                <span class="text-[11px] font-bold text-indigo-400 uppercase tracking-widest block mb-0.5" id="focoCategoria"></span>
+                                <h2 class="font-black text-xl md:text-3xl text-amber-400 uppercase leading-tight" id="focoTitulo"></h2>
                             </div>
-                            <button type="button" onclick="window.fecharModoFocoCantiga(event)" class="absolute top-0 right-0 w-12 h-12 bg-slate-800/80 hover:bg-slate-700 rounded-full flex items-center justify-center text-slate-300 text-xl border border-slate-700 active:scale-90 transition shadow-lg z-10" title="Fechar Tela Cheia">
-                                <i class="fas fa-times"></i>
-                            </button>
+                            <div class="flex items-center gap-1.5 shrink-0">
+                                <button type="button" onclick="window.ajustarFonteModoFoco(-2)" class="w-10 h-10 bg-slate-800 hover:bg-slate-700 rounded-xl text-slate-200 font-black text-xs border border-slate-700 active:scale-90">A-</button>
+                                <button type="button" onclick="window.ajustarFonteModoFoco(2)" class="w-10 h-10 bg-slate-800 hover:bg-slate-700 rounded-xl text-slate-200 font-black text-xs border border-slate-700 active:scale-90">A+</button>
+                                <button type="button" onclick="window.fecharModoFocoCantiga(event)" class="w-10 h-10 bg-rose-500/20 hover:bg-rose-500/30 rounded-xl flex items-center justify-center text-rose-400 text-lg border border-rose-500/30 active:scale-90 transition" title="Fechar Tela Cheia">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
                         </div>
                         <div id="focoExtra" class="space-y-3"></div>
-                        <div id="focoLetra" class="text-slate-100 font-medium leading-relaxed tracking-wide pb-12 cursor-text select-text"></div>
-                        <div class="text-center pt-8 mt-auto border-t border-slate-800/50">
-                            <span class="text-[11px] text-slate-500 font-black uppercase tracking-widest bg-slate-900 px-4 py-2.5 rounded-full border border-slate-800 shadow-inner">
-                                <i class="fas fa-hand-pointer mr-1.5 text-indigo-500"></i> 2 cliques em qualquer lugar para fechar
+                        <div id="focoLetra" class="text-slate-100 font-medium leading-relaxed tracking-wide pb-10 cursor-text select-text"></div>
+                        <div class="text-center pt-6 mt-auto border-t border-slate-800/50">
+                            <span class="text-[11px] text-slate-400 font-bold uppercase tracking-wider bg-slate-900 px-4 py-2 rounded-full border border-slate-800">
+                                <i class="fas fa-hand-pointer mr-1.5 text-indigo-400"></i> Dê 2 toques na tela para voltar
                             </span>
                         </div>
                     </div>
@@ -625,6 +647,13 @@
             await ativarWakeLockLivro();
         };
         
+        window.ajustarFonteModoFoco = (delta) => {
+            const letraEl = document.getElementById('focoLetra');
+            if (!letraEl) return;
+            const atual = parseInt(letraEl.style.fontSize || '21', 10);
+            letraEl.style.fontSize = Math.min(Math.max(16, atual + delta), 42) + 'px';
+        };
+
         window.fecharModoFocoCantiga = (event) => {
             if (event) event.stopPropagation();
             const modalFoco = document.getElementById('modalFocoCantigaImersivo');
@@ -693,7 +722,7 @@
                 : '';
 
             return `
-                    <div ondblclick="window.abrirModoFocoCantiga(${c.id})" class="card-cantiga-curimba bg-slate-900 rounded-2xl border border-slate-800 border-l-4 border-l-indigo-500 p-3.5 space-y-2 shadow-md transition-all duration-300 select-none cursor-pointer" title="Dê 2 cliques para tela cheia">
+                    <div ondblclick="window.abrirModoFocoCantiga(${c.id})" ontouchend="if(!event.target.closest('button, audio')) window.detectarDuploToqueCurimba(event, () => window.abrirModoFocoCantiga(${c.id}))" class="card-cantiga-curimba bg-slate-900 rounded-2xl border border-slate-800 border-l-4 border-l-indigo-500 p-3.5 space-y-2 shadow-md transition-all duration-300 select-none cursor-pointer" title="Dê 2 toques para tela cheia">
                         <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-800">
                             <div>
                                 <span class="text-[10px] font-bold text-indigo-400 uppercase block">${c.categoria}</span>
@@ -1394,50 +1423,6 @@
             pdf.text(`Página ${i} de ${totalPages}`, pageW - marginX, pageH - 7, { align: 'right' });
             pdf.text(`${nomeTemplo} — Documento Oficial`, marginX, pageH - 7, { align: 'left' });
         }
-
-
-    // --- MÓDULO DE TELA CHEIA POR DUPLO CLIQUE / TOQUE (WAKE LOCK ATIVO) ---
-    let wakeLockTelaCheia = null;
-
-    window.alternarTelaCheiaCantiga = async (cardElement) => {
-        const isFull = cardElement.classList.contains('fixed');
-
-        if (!isFull) {
-            cardElement.dataset.fontSizeOriginal = cardElement.querySelector('.select-text')?.style.fontSize || '15px';
-            cardElement.classList.remove('rounded-2xl', 'p-3.5', 'border-l-4');
-            cardElement.classList.add(
-                'fixed', 'inset-0', 'z-[99999]', 'bg-slate-950', 'p-6', 'overflow-y-auto', 
-                'flex', 'flex-col', 'justify-start', 'space-y-4', 'border-none', 'rounded-none'
-            );
-            
-            const textoDiv = cardElement.querySelector('.select-text');
-            if (textoDiv) {
-                textoDiv.style.fontSize = '22px';
-            }
-
-            if ('wakeLock' in navigator) {
-                try {
-                    wakeLockTelaCheia = await navigator.wakeLock.request('screen');
-                } catch (e) {}
-            }
-        } else {
-            cardElement.classList.remove(
-                'fixed', 'inset-0', 'z-[99999]', 'bg-slate-950', 'p-6', 'overflow-y-auto', 
-                'flex', 'flex-col', 'justify-start', 'space-y-4', 'border-none', 'rounded-none'
-            );
-            cardElement.classList.add('rounded-2xl', 'p-3.5', 'border-l-4');
-
-            const textoDiv = cardElement.querySelector('.select-text');
-            if (textoDiv) {
-                textoDiv.style.fontSize = cardElement.dataset.fontSizeOriginal || '15px';
-            }
-
-            if (wakeLockTelaCheia) {
-                wakeLockTelaCheia.release().catch(() => {});
-                wakeLockTelaCheia = null;
-            }
-        }
-    };
 
         pdf.save(`Livro_Curimba_${nomeTemplo.replace(/\s+/g, '_')}.pdf`);
     };
