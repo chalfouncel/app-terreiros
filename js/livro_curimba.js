@@ -569,12 +569,6 @@
         }
     };
 
-            window.abrirModoFocoCantiga = async (id) => { wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww
-            document.querySelectorAll('audio').forEach(a => a.pause());
-        
-            const cantiga = cacheCantigasLivro.find(c => c.id === id);
-            if (!cantiga) return;
-        
             let ultimoToqueFoco = 0;
         window.detectarDuploToqueCurimba = ( e, acaoCallback ) => {
             const agora = Date.now();
