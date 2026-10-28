@@ -36,8 +36,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         let perfil = null;
         const authId = session.user.id;
 
-        // Busca o médium pelo auth_id
-        const { data: p1 } = await supabaseClient.from('mediuns').select('*').eq('auth_id', authId).limit(1);
+        // Busca o médium pelo auth_id (Priorizando cadastro ativo no Multiterreiro SaaS)
+        const { data: p1 } = await supabaseClient
+            .from('mediuns')
+            .select('*')
+            .eq('auth_id', authId)
+            .order('status_ativo', { ascending: false })
+            .limit(1);
         
         if (p1 && p1.length > 0) {
             perfil = p1[0];
@@ -1625,8 +1630,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (totalMesesSelecionados > 0) {
             if (terreiroConfigMensalidade && terreiroConfigMensalidade.gateway_pagamento === 'asaas') {
-                const TARIFA_BANCARIA = 2.99;
+                const taxaFixaCfg = Number(terreiroConfigMensalidade.taxa_plataforma_fixa || 0);
+                const taxaPercCfg = Number(terreiroConfigMensalidade.taxa_plataforma_percentual || 0);
+                const TARIFA_BANCARIA = (taxaFixaCfg > 0 || taxaPercCfg > 0)
+                    ? Number((taxaFixaCfg + (totalGeral * (taxaPercCfg / 100))).toFixed(2))
+                    : 2.99;
                 const totalComTaxa = totalGeral + TARIFA_BANCARIA;
+                const strTarifa = TARIFA_BANCARIA.toFixed(2).replace('.', ',');
 
                 valorPendenteParaPix = totalGeral;
 
@@ -1637,7 +1647,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     btnFinalizarMensalidade.disabled = false;
                     btnFinalizarMensalidade.classList.remove('opacity-50', 'cursor-not-allowed', 'bg-tema-secundaria', 'hover:bg-green-700');
                     btnFinalizarMensalidade.classList.add('bg-blue-600', 'hover:bg-blue-700');
-                    btnFinalizarMensalidade.innerHTML = `<i class="fas fa-bolt mr-2"></i> Pagar R$ ${totalGeral.toFixed(2).replace('.', ',')} (+ 2,99) = R$ ${totalComTaxa.toFixed(2).replace('.', ',')}`;
+                    btnFinalizarMensalidade.innerHTML = `<i class="fas fa-bolt mr-2"></i> Pagar R$ ${totalGeral.toFixed(2).replace('.', ',')} (+ ${strTarifa}) = R$ ${totalComTaxa.toFixed(2).replace('.', ',')}`;
                 }
             } else {
                 valorPendenteParaPix = totalGeral;
@@ -1717,15 +1727,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // FUNÇÃO QUE GERA O CÓDIGO BRCODE (EMV) DO PIX COPIA E COLA
+    // FUNÇÃO QUE GERA O CÓDIGO BRCODE (EMV) DO PIX COPIA E COLA (100% Compatível com todos os Bancos)
     function gerarPayloadPix(chavePix, valorTotal, nomeBeneficiario = 'Terreiro', cidade = 'Rio de Janeiro') {
         const formatarTamanho = (id, valor) => {
             const v = String(valor);
             return id + String(v.length).padStart(2, '0') + v;
         };
 
-        const chave = String(chavePix).trim().replace(/ /g, '');
+        const limparAscii = (txt, maxLen) => String(txt || '')
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-zA-Z0-9 ]/g, '')
+            .trim()
+            .substring(0, maxLen) || 'TERREIRO';
+
+        const chave = String(chavePix).trim().replace(/\s+/g, '');
         const valor = Number(valorTotal).toFixed(2);
+        const nomeLimpo = limparAscii(nomeBeneficiario, 25);
+        const cidadeLimpa = limparAscii(cidade, 15);
         const merchantAccount = formatarTamanho('00', 'br.gov.bcb.pix') + formatarTamanho('01', chave);
         
         let payload = formatarTamanho('00', '01') + 
@@ -1734,10 +1752,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                       formatarTamanho('53', '986') + 
                       formatarTamanho('54', valor) + 
                       formatarTamanho('58', 'BR') + 
-                      formatarTamanho('59', nomeBeneficiario.substring(0, 25)) + 
-                      formatarTamanho('60', cidade.substring(0, 15)) + 
+                      formatarTamanho('59', nomeLimpo) + 
+                      formatarTamanho('60', cidadeLimpa) + 
                       formatarTamanho('62', formatarTamanho('05', 'MENSALIDADE')); 
-        payload += '6304'; 
+        payload += '6304';
 
         let crc = 0xFFFF;
         for (let i = 0; i < payload.length; i++) {
@@ -1916,7 +1934,13 @@ async function iniciarCheckoutAsaas(valorTotal, mesesArray) {
 
 async function chamarEdgeFunctionAsaas(valorTotal, carrinhoArray) {
     const btnOriginal = document.getElementById('btnFinalizarMensalidade');
-    const valorComTaxa = valorTotal + 2.99;
+    const taxaFixaCfg = Number(terreiroConfigMensalidade?.taxa_plataforma_fixa || 0);
+    const taxaPercCfg = Number(terreiroConfigMensalidade?.taxa_plataforma_percentual || 0);
+    const tarifaAplicada = (taxaFixaCfg > 0 || taxaPercCfg > 0)
+        ? Number((taxaFixaCfg + (valorTotal * (taxaPercCfg / 100))).toFixed(2))
+        : 2.99;
+    const valorComTaxa = Number((valorTotal + tarifaAplicada).toFixed(2));
+    const strTarifa = tarifaAplicada.toFixed(2).replace('.', ',');
     
     if (btnOriginal) {
         btnOriginal.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> A Gerar Link Seguro...';
@@ -1951,7 +1975,7 @@ async function chamarEdgeFunctionAsaas(valorTotal, carrinhoArray) {
                 terreiroId: idTerreiroGlobal,
                 valorTotal: valorComTaxa,
                 valorMensalidades: valorTotal,
-                taxaBancaria: 2.99,
+                taxaBancaria: tarifaAplicada,
                 detalhesPagamento: detalhesArray
             }
         });
@@ -1971,7 +1995,7 @@ async function chamarEdgeFunctionAsaas(valorTotal, carrinhoArray) {
         alert("Erro ao gerar link de pagamento: " + (err.message || err));
     } finally {
         if (btnOriginal) {
-            btnOriginal.innerHTML = `<i class="fas fa-bolt mr-2"></i> Pagar R$ ${valorTotal.toFixed(2).replace('.', ',')} (+ 2,99) = R$ ${valorComTaxa.toFixed(2).replace('.', ',')}`;
+            btnOriginal.innerHTML = `<i class="fas fa-bolt mr-2"></i> Pagar R$ ${valorTotal.toFixed(2).replace('.', ',')} (+ ${strTarifa}) = R$ ${valorComTaxa.toFixed(2).replace('.', ',')}`;
             btnOriginal.disabled = false;
         }
     }
