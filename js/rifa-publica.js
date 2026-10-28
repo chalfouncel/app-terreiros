@@ -247,9 +247,15 @@ function atualizarBarraFlutuante() {
     txtTotal.textContent = formatarMoeda(totalComTaxa);
 }
 
-// 11. Função de Cálculo da Taxa do Asaas (R$ 1,99 fixo)
+// 11. Função de Cálculo da Taxa do Asaas (Dinâmica por Terreiro SaaS ou R$ 1,99 padrão)
 function calcularTaxaAsaas(subtotal) {
     if (subtotal <= 0) return 0;
+    const taxaFixaTerreiro = Number(terreiroAtual?.taxa_plataforma_fixa || 0);
+    const taxaPercTerreiro = Number(terreiroAtual?.taxa_plataforma_percentual || 0);
+
+    if (taxaFixaTerreiro > 0 || taxaPercTerreiro > 0) {
+        return Number((taxaFixaTerreiro + (subtotal * (taxaPercTerreiro / 100))).toFixed(2));
+    }
     return TAXA_FIXA_ASAAS;
 }
 
@@ -316,11 +322,14 @@ async function processarPagamentoAsaas(event) {
             valor_total: valorCobrado
         };
 
-        const response = await fetch('https://pbjwqhfzsvdougeksztq.supabase.co/functions/v1/asaas-gerar-cobranca-rifa', {
+        const baseUrl = window.supabaseClient?.supabaseUrl || SUPABASE_URL;
+        const apiKey = window.supabaseClient?.supabaseKey || SUPABASE_ANON_KEY;
+
+        const response = await fetch(`${baseUrl}/functions/v1/asaas-gerar-cobranca-rifa`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'apikey': SUPABASE_ANON_KEY
+                'apikey': apiKey
             },
             body: JSON.stringify(payload)
         });
