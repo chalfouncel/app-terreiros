@@ -1256,6 +1256,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
 
                 listaMediunsGlobal = data || [];
+
+                // Sincroniza os selects de filtro de Grau com os Graus personalizados do Terreiro (SaaS)
+                ['filtroGrauMedium', 'filtroConvocadosGrau', 'editFiltroConvocadosGrau'].forEach(selId => {
+                    const selEl = document.getElementById(selId);
+                    if (selEl && grausAtuaisTerreiro && grausAtuaisTerreiro.length > 0) {
+                        const valAtual = selEl.value;
+                        selEl.innerHTML = '<option value="">Todos os Graus</option>' +
+                            grausAtuaisTerreiro.map(g => `<option value="${g}" ${g === valAtual ? 'selected' : ''}>${g}</option>`).join('');
+                    }
+                });
+
                 window.aplicarFiltrosMediuns();
                 renderizarAniversariantes(listaMediunsGlobal);
                 
