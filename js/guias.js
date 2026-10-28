@@ -235,9 +235,10 @@
         if (typeof perfilMediumLogado === 'undefined' || !perfilMediumLogado?.id) return;
         try {
             const { data, error } = await supabaseClient
-                    .from('mediuns')
-                    .select('grau, padrinhos_batismo, padrinhos_consagracao, padrinhos_coroacao, data_batismo, data_consagracao, data_coroacao, guia_caboclo, guia_preto_velho, guia_exu_pombagira, guia_crianca, guia_oriental, guia_cigano, pontos_cantados')
-                    .eq('id', perfilMediumLogado.id)
+                .from('mediuns')
+                .select('grau, padrinhos_batismo, padrinhos_consagracao, padrinhos_coroacao, data_batismo, data_consagracao, data_coroacao, guia_caboclo, guia_preto_velho, guia_exu_pombagira, guia_crianca, guia_oriental, guia_cigano, pontos_cantados')
+                .eq('id', perfilMediumLogado.id)
+                .eq('terreiro_id', idTerreiroGlobal)
                 .single();
 
             if (!error && data) {
@@ -1135,15 +1136,15 @@
                 await document.fonts.ready;
             }
 
-            // 1. Obter a URL da imagem de fundo e os Dados Cadastrais do Templo/Dirigente
+            // 1. Obter a URL da imagem de fundo e os Dados Cadastrais do Templo/Dirigente (Multiterreiro SaaS)
             let fundoUrl = '';
             let nomeTemplo = 'NOSSO TEMPLO';
-            let nomeTemploFormatado = 'Templo de Umbanda Cantinho dos Irmãos Caboclos';
-            let enderecoTemplo = 'Rua Teixeira de Azevedo, 403 – Abolição, Rio de Janeiro - RJ';
-            let nomeDirigente = 'Paulo Roberto Pereira de Oliveira';
-            let cpfDirigente = '80693873787';
-            let estCivilDirigente = 'solteiro';
-            let profissaoDirigente = 'psicólogo';
+            let nomeTemploFormatado = 'Templo Espiritualista';
+            let enderecoTemplo = 'endereço da sede social';
+            let nomeDirigente = '_______________________________';
+            let cpfDirigente = '___.___.___-__';
+            let estCivilDirigente = '____________';
+            let profissaoDirigente = '____________';
 
             try {
                 const { data } = await supabaseClient
@@ -1165,6 +1166,7 @@
                             .from('mediuns')
                             .select('nome_completo, cpf, estado_civil, profissao')
                             .eq('id', data.dirigente_id)
+                            .eq('terreiro_id', idTerreiroGlobal)
                             .single();
                         if (dirData) {
                             if (dirData.nome_completo) nomeDirigente = dirData.nome_completo;
@@ -1172,6 +1174,8 @@
                             if (dirData.estado_civil) estCivilDirigente = dirData.estado_civil;
                             if (dirData.profissao) profissaoDirigente = dirData.profissao;
                         }
+                    } else if (tipoSacramento === 'Coroação') {
+                        alert('Aviso: Nenhum Dirigente Espiritual foi vinculado em "Configurações da Casa". Os campos do Dirigente sairão com linha para preenchimento.');
                     }
                 }
             } catch(e) { console.error('Erro ao buscar fundo:', e); }
@@ -1212,6 +1216,7 @@
                     .from('mediuns')
                     .select('data_nascimento, cpf, estado_civil, profissao')
                     .eq('id', medium.id)
+                    .eq('terreiro_id', idTerreiroGlobal)
                     .single();
                 if (mData) {
                     dataNascimento = mData.data_nascimento || '';
