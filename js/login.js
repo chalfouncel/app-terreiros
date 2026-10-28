@@ -162,9 +162,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                     if (error) throw new Error("Identificação ou senha incorretos.");
 
-                    // Sucesso: Salva o telefone
+                    // Sucesso: Salva o telefone e roteia garantindo vínculo ativo (Multiterreiro SaaS)
                     localStorage.setItem('telefone_acesso', telefoneAcesso);
-                    window.location.replace('presenca.html');
+                    await rotearParaPainel(data.user.id, telefoneAcesso);
                 }
             } catch (err) {
                 console.error(err);
@@ -180,13 +180,26 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function rotearParaPainel(authId, telefone = null) {
         try {
-            // Se for o Admin (Master), ele não terá registo na tabela 'mediuns' ou terá is_admin/is_master = true
-            let { data: perfil } = await supabaseClient.from('mediuns').select('id, cadastro_completo, is_master').eq('auth_id', authId).maybeSingle();
+            // Prioriza ficha ativa caso o usuário já tenha pertencido a outro terreiro no SaaS
+            const { data: listaAuth } = await supabaseClient
+                .from('mediuns')
+                .select('id, cadastro_completo, is_master, status_ativo')
+                .eq('auth_id', authId)
+                .order('status_ativo', { ascending: false })
+                .limit(1);
+
+            let perfil = (listaAuth && listaAuth.length > 0) ? listaAuth[0] : null;
 
             if (!perfil && telefone) {
-                const { data: pTel } = await supabaseClient.from('mediuns').select('id, cadastro_completo').eq('telefone', telefone).maybeSingle();
-                if (pTel) {
-                    perfil = pTel;
+                const { data: listaTel } = await supabaseClient
+                    .from('mediuns')
+                    .select('id, cadastro_completo, status_ativo')
+                    .eq('telefone', telefone)
+                    .order('status_ativo', { ascending: false })
+                    .limit(1);
+
+                if (listaTel && listaTel.length > 0) {
+                    perfil = listaTel[0];
                     await supabaseClient.from('mediuns').update({ auth_id: authId }).eq('id', perfil.id);
                 }
             }
