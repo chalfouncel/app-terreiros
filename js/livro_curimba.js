@@ -810,7 +810,11 @@
             };
 
             if (id) {
-                const { error } = await supabaseClient.from('curimba_cantigas').update(payload).eq('id', parseInt(id));
+                const { error } = await supabaseClient
+                    .from('curimba_cantigas')
+                    .update(payload)
+                    .eq('id', parseInt(id))
+                    .eq('terreiro_id', idTerreiroGlobal);
                 if (error) throw error;
             } else {
                 const { error } = await supabaseClient.from('curimba_cantigas').insert([payload]);
@@ -830,7 +834,11 @@
     window.excluirCantigaLivroAtual = async () => {
         const id = document.getElementById('editCantigaLivroId').value;
         if (!id || !confirm('Deseja excluir esta cantiga do Livro da Curimba?')) return;
-        await supabaseClient.from('curimba_cantigas').delete().eq('id', parseInt(id));
+        await supabaseClient
+            .from('curimba_cantigas')
+            .delete()
+            .eq('id', parseInt(id))
+            .eq('terreiro_id', idTerreiroGlobal);
         window.fecharModalEditarCantigaLivro();
         await carregarCantigasDoBanco();
     };
