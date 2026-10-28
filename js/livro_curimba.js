@@ -115,23 +115,25 @@
             </div>
 
             <!-- Filtros -->
-            <!-- Filtros -->
-            <div class="bg-slate-900/90 border-b border-slate-800 p-3 space-y-2 shrink-0">
-                <div class="flex flex-wrap sm:flex-nowrap gap-1.5">
-                    <div class="relative flex-1 min-w-[160px] flex gap-1.5">
-                        <div class="relative flex-1">
-                            <i class="fas fa-search absolute left-3 top-2.5 text-slate-400 text-xs"></i>
-                            <input type="text" id="buscaLivroCurimbaInput" oninput="window.limparFiltroIALivro(); window.renderizarCardsLivroCurimba()" onkeydown="if(event.key==='Enter'){event.preventDefault(); window.buscarComIALivroCurimba();}" placeholder="Ex: Cabocla de Iemanjá, Caboclo de Ogum..." class="w-full pl-8 pr-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-400 outline-none focus:border-indigo-500" style="color: #ffffff !important;">
-                        </div>
-                        <button type="button" id="btnBuscarIALivro" onclick="window.buscarComIALivroCurimba()" class="px-3 py-2 rounded-xl text-[11px] font-black bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow flex items-center gap-1.5 shrink-0 active:scale-95 transition" title="Busca Inteligente por Contexto e Cruzamento de Linhas">
-                            <i class="fas fa-wand-magic-sparkles"></i> <span>IA</span>
-                        </button>
+            <div class="bg-slate-900/90 border-b border-slate-800 p-3 space-y-2.5 shrink-0">
+                <!-- Linha 1: Barra de Pesquisa Ocupando Toda a Largura no Celular -->
+                <div class="relative w-full flex gap-1.5">
+                    <div class="relative flex-1">
+                        <i class="fas fa-search absolute left-3 top-3 text-slate-400 text-xs"></i>
+                        <input type="text" id="buscaLivroCurimbaInput" oninput="window.limparFiltroIALivro(); window.renderizarCardsLivroCurimba()" onkeydown="if(event.key==='Enter'){event.preventDefault(); window.buscarComIALivroCurimba();}" placeholder="Pesquisar cantiga, guia, letra..." class="w-full pl-8 pr-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-400 outline-none focus:border-indigo-500 shadow-inner" style="color: #ffffff !important;">
                     </div>
-                    <button type="button" id="btnFiltroSemAudioLivro" onclick="window.alternarFiltroSemAudioLivro()" class="px-3 py-2 rounded-xl text-[11px] font-black border transition active:scale-95 flex items-center gap-1.5 shrink-0 bg-slate-800 text-amber-300 border-slate-700">
+                    <button type="button" id="btnBuscarIALivro" onclick="window.buscarComIALivroCurimba()" class="px-3.5 py-2.5 rounded-xl text-xs font-black bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow flex items-center gap-1.5 shrink-0 active:scale-95 transition" title="Busca Inteligente por Contexto">
+                        <i class="fas fa-wand-magic-sparkles"></i> <span>IA</span>
+                    </button>
+                </div>
+
+                <!-- Linha 2: Botões de Filtro Rápido (Distribuição Uniforme) -->
+                <div class="grid grid-cols-2 gap-1.5">
+                    <button type="button" id="btnFiltroSemAudioLivro" onclick="window.alternarFiltroSemAudioLivro()" class="py-2 px-3 rounded-xl text-[11px] font-black border transition active:scale-95 flex items-center justify-center gap-1.5 bg-slate-800 text-amber-300 border-slate-700 shadow-sm">
                         <i class="fas fa-microphone-slash text-[10px]"></i> Sem Áudio
                     </button>
-                    <button type="button" onclick="window.limparTodosFiltrosLivroCurimba()" class="px-3 py-2 rounded-xl text-[11px] font-black border border-slate-700 bg-slate-800 hover:bg-slate-700 text-rose-300 transition active:scale-95 flex items-center gap-1.5 shrink-0" title="Limpar busca e todos os filtros">
-                        <i class="fas fa-eraser text-[10px]"></i> Limpar
+                    <button type="button" onclick="window.limparTodosFiltrosLivroCurimba()" class="py-2 px-3 rounded-xl text-[11px] font-black border border-slate-700 bg-slate-800 hover:bg-slate-700 text-rose-300 transition active:scale-95 flex items-center justify-center gap-1.5 shadow-sm" title="Limpar busca e todos os filtros">
+                        <i class="fas fa-eraser text-[10px]"></i> Limpar Filtros
                     </button>
                 </div>
 
