@@ -628,7 +628,7 @@
                 : '';
 
             return `
-                <div class="bg-slate-900 rounded-2xl border border-slate-800 border-l-4 border-l-indigo-500 p-3.5 space-y-2 shadow-md">
+                <div ondblclick="window.alternarTelaCheiaCantiga(this)" class="card-cantiga-curimba bg-slate-900 rounded-2xl border border-slate-800 border-l-4 border-l-indigo-500 p-3.5 space-y-2 shadow-md transition-all duration-300" title="Dê 2 cliques para tela cheia">
                     <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-800">
                         <div>
                             <span class="text-[10px] font-bold text-indigo-400 uppercase block">${c.categoria}</span>
@@ -645,6 +645,9 @@
                     ${audioHtml}
                     <div class="pt-1 font-medium text-slate-100 leading-relaxed select-text" style="font-size: ${tamanhoFonteLivro}px;">
                         ${formatarLetraCantiga(c.letra)}
+                    </div>
+                    <div class="text-center pt-1 no-print">
+                        <span class="text-[9px] text-slate-500 italic">💡 2 cliques na cantiga para tela cheia</span>
                     </div>
                 </div>
             `;
@@ -1323,6 +1326,50 @@
             pdf.text(`Página ${i} de ${totalPages}`, pageW - marginX, pageH - 7, { align: 'right' });
             pdf.text(`${nomeTemplo} — Documento Oficial`, marginX, pageH - 7, { align: 'left' });
         }
+
+
+    // --- MÓDULO DE TELA CHEIA POR DUPLO CLIQUE / TOQUE (WAKE LOCK ATIVO) ---
+    let wakeLockTelaCheia = null;
+
+    window.alternarTelaCheiaCantiga = async (cardElement) => {
+        const isFull = cardElement.classList.contains('fixed');
+
+        if (!isFull) {
+            cardElement.dataset.fontSizeOriginal = cardElement.querySelector('.select-text')?.style.fontSize || '15px';
+            cardElement.classList.remove('rounded-2xl', 'p-3.5', 'border-l-4');
+            cardElement.classList.add(
+                'fixed', 'inset-0', 'z-[99999]', 'bg-slate-950', 'p-6', 'overflow-y-auto', 
+                'flex', 'flex-col', 'justify-start', 'space-y-4', 'border-none', 'rounded-none'
+            );
+            
+            const textoDiv = cardElement.querySelector('.select-text');
+            if (textoDiv) {
+                textoDiv.style.fontSize = '22px';
+            }
+
+            if ('wakeLock' in navigator) {
+                try {
+                    wakeLockTelaCheia = await navigator.wakeLock.request('screen');
+                } catch (e) {}
+            }
+        } else {
+            cardElement.classList.remove(
+                'fixed', 'inset-0', 'z-[99999]', 'bg-slate-950', 'p-6', 'overflow-y-auto', 
+                'flex', 'flex-col', 'justify-start', 'space-y-4', 'border-none', 'rounded-none'
+            );
+            cardElement.classList.add('rounded-2xl', 'p-3.5', 'border-l-4');
+
+            const textoDiv = cardElement.querySelector('.select-text');
+            if (textoDiv) {
+                textoDiv.style.fontSize = cardElement.dataset.fontSizeOriginal || '15px';
+            }
+
+            if (wakeLockTelaCheia) {
+                wakeLockTelaCheia.release().catch(() => {});
+                wakeLockTelaCheia = null;
+            }
+        }
+    };
 
         pdf.save(`Livro_Curimba_${nomeTemplo.replace(/\s+/g, '_')}.pdf`);
     };
