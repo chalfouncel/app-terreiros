@@ -15,6 +15,7 @@ if (!window.supabaseClient && window.supabase) {
 // 2. Parâmetros e Estado da Aplicação
 const urlParams = new URLSearchParams(window.location.search);
 const rifaId = urlParams.get('r') || urlParams.get('id');
+const vendedorId = urlParams.get('v') ? parseInt(urlParams.get('v'), 10) : null;
 
 let rifaAtual = null;
 let terreiroAtual = null;
@@ -319,7 +320,8 @@ async function processarPagamentoAsaas(event) {
             comprador_nome: nome,
             comprador_telefone: telefone,
             comprador_cpf: cpf,
-            valor_total: valorCobrado
+            valor_total: valorCobrado,
+            vendido_por_medium_id: (!isNaN(vendedorId) && vendedorId > 0) ? vendedorId : null
         };
 
         const baseUrl = window.supabaseClient?.supabaseUrl || SUPABASE_URL;
