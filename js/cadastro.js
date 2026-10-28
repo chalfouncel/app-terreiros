@@ -123,7 +123,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const emailAuth = `${telefoneLimpo}@terreiro.app`;
                 let novoAuthId = dadosMedium.auth_id;
 
-                // Só tenta criar a conta Auth se ela ainda não existir
+                // Só tenta criar a conta Auth se ela ainda não existir (Com suporte a reaproveitamento Multiterreiro SaaS)
                 if (!novoAuthId) {
                     const { data: authData, error: errAuth } = await supabaseClient.auth.signUp({
                         email: emailAuth,
@@ -132,11 +132,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                     if (errAuth) {
                         if (errAuth.message.includes('already registered')) {
-                            throw new Error("Este número de WhatsApp já possui acesso registrado no sistema.");
+                            const { data: loginExistente, error: errLoginEx } = await supabaseClient.auth.signInWithPassword({
+                                email: emailAuth,
+                                password: valNovaSenha
+                            });
+                            if (errLoginEx || !loginExistente?.user) {
+                                throw new Error("Este WhatsApp já possui conta na plataforma. Digite a mesma senha de 6 dígitos que você já utilizava ou peça suporte à direção.");
+                            }
+                            novoAuthId = loginExistente.user.id;
+                        } else {
+                            throw new Error("Erro na criação do acesso: " + errAuth.message);
                         }
-                        throw new Error("Erro na criação do acesso: " + errAuth.message);
+                    } else {
+                        novoAuthId = authData.user.id;
                     }
-                    novoAuthId = authData.user.id;
                 }
 
                 const updateData = {
