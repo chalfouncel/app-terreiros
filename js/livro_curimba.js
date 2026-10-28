@@ -808,10 +808,14 @@
         const file = input.files?.[0];
         if (!file) return;
 
-        if (!confirm(`Deseja importar todas as cantigas e classificações do arquivo "${file.name}" para o Livro da Curimba deste Terreiro?`)) {
+        if (!confirm(`Deseja importar as cantigas do arquivo "${file.name}" para o Livro da Curimba?`)) {
             input.value = '';
             return;
         }
+
+        const substituirExistentes = cacheCantigasLivro.length > 0
+            ? confirm(`Já existem ${cacheCantigasLivro.length} cantigas cadastradas.\n\nClique em "OK" para APAGAR as atuais e substituir pelo novo arquivo.\nClique em "Cancelar" para MANTER as atuais e apenas adicionar as novas.`)
+            : false;
 
         try {
             if (typeof mammoth === 'undefined') {
@@ -829,69 +833,101 @@
             const linhas = result.value.split(/\r?\n/).map(l => l.trim());
 
             const mapaSecoes = [
-                { match: /^REFLETIU A LUZ DIVINA|^HINO D/, cat: "1. Hinos Oficiais" },
-                { match: /^PONTOS DE DEFUMAÇÃO|^DEFUMADOR/, cat: "2. Pontos de Defumação" },
-                { match: /^PONTOS DE ABERTURA E ENCERRAMENTO|^ABERTURA E ENCERRAMENTO DOS/, cat: "3. Abertura, Encerramento e Rituais" },
-                { match: /^PRECES DIVERSAS|^PRECE DE CÁRITAS/, cat: "4. Preces Diversas" },
-                { match: /^PONTOS DE OXALÁ/, cat: "5. Oxalá" },
-                { match: /^PONTOS DO POVO DO ORIENTE|^PONTOS DE SUBIDA DE POVO DO ORIENTE/, cat: "6. Povo do Oriente" },
-                { match: /^PONTOS DE IBEIJADA|^PONTOS DE SUBIDA DE IBEIJADA/, cat: "7. Ibeijada" },
-                { match: /^PONTOS DE OXÓSSI/, cat: "8. Oxóssi" },
-                { match: /^DESCIDA DOS CABOCLOS ARRANCA-TOCO|^DESCIDA DOS MORUBIXABAS|^DESCIDA DO CABOCLO BOIADEIRO DA MATA|^DESCIDA DA CABOCLA CACHOEIRA|^DESCIDA DO CABOCLO GUERREIRO|^DESCIDA DO CABOCLO BOIADEIRO DOS PAMPAS|^DESCIDA DE OGUM BEIRA MAR|^DESCIDA DO CABOCLO BOIADEIRO DA ESTRADA|^DESCIDA DO CABOCLO BOIADEIRO NAVIZALA|^DESCIDA DO CABOCLO COBRA D/, cat: "9. Caboclos - Tupixabas e Morubixabas" },
-                { match: /^PONTOS DE CABOCLOS|^PONTOS DE BOIADEIRO|^PONTOS DE CABOCLAS|^PONTOS DE SUBIDA DE CABOCLOS/, cat: "10. Caboclos, Boiadeiros e Caboclas" },
-                { match: /^PONTOS DE OGUM|^PONTOS DE SUBIDA DE OGUM/, cat: "11. Ogum" },
-                { match: /^PONTOS DE IEMANJÁ|^PONTOS DE SUBIDA DE IEMANJÁ/, cat: "12. Iemanjá" },
-                { match: /^PONTOS DE MARINHEIROS|^PONTOS DE SUBIDA DE MARINHEIROS/, cat: "13. Marinheiros" },
-                { match: /^PONTOS DE OXUM|^PONTOS DE SUBIDA DE OXUM/, cat: "14. Oxum" },
-                { match: /^PONTOS DE NANÃ|^PONTOS DE SUBIDA DE NANÃ/, cat: "15. Nanã Buruquê" },
-                { match: /^PONTOS DE IANSÃ|^PONTOS DE SUBIDA DE IANSÃ/, cat: "16. Iansã" },
-                { match: /^PONTOS DE XANGÔ|^PONTOS DE SUBIDA DE XANGÔ/, cat: "17. Xangô" },
-                { match: /^PONTOS DE OMULÚ|^PONTOS DE SUBIDA OMULÚ/, cat: "18. Omulú" },
-                { match: /^DESCIDA DO PAI JOÃO DA PEDREIRA|^DESCIDA DO PAI JOAQUIM DE ANGOLA|^DESCIDA DA VOVÓ CATARINA|^DESCIDA DA VOVÓ CAMBINDA|^DESCIDA DO PAI JOSÉ DO CRUZEIRO|^DESCIDA DO PAI BENEDITO DAS ALMAS|^DESCIDA DA VOVÓ MARIA CONGA|^DESCIDA DO PAI JOAQUIM DE ARUANDA|^DESCIDA DO VOVÔ BENEDITO AFRICANO/, cat: "19. Pretos Velhos - Tupixabas e Morubixabas" },
-                { match: /^PONTOS DE PRETOS VELHOS|^PONTOS DO POVO DE CONGO|^PONTOS DO POVO DE ANGOLA|^PONTOS DO POVO DE MINAS|^PONTOS DO POVO DA BAHIA|^PONTOS DO POVO DO CATIVEIRO|^PONTOS DAS SANTAS ALMAS|^PONTOS DE SANTO ANTÔNIO|^PONTOS DE SUBIDA DE PRETOS VELHOS/, cat: "20. Pretos Velhos e Falanges (Congo, Angola, Minas, Bahia, Almas)" },
-                { match: /^PONTOS DE EXÚS|^PONTOS DE POMBAGIRAS|^PONTOS DE MALANDROS|^PONTOS DE SUBIDA DE EXÚS/, cat: "21. Exús, Pombagiras e Malandros" },
-                { match: /^ENCERRAMENTO DE GIRA OFICIAL/, cat: "22. Encerramento de Gira Oficial" }
+                { match: /^1\.\s*HINOS|^REFLETIU A LUZ DIVINA|^HINO D/i, cat: "1. Hinos Oficiais" },
+                { match: /^2\.\s*PONTOS DE DEFUMA|^PONTOS DE DEFUMAÇÃO|^DEFUMADOR/i, cat: "2. Pontos de Defumação" },
+                { match: /^3\.\s*ABERTURA|^PONTOS DE ABERTURA E ENCERRAMENTO|^ABERTURA E ENCERRAMENTO DOS/i, cat: "3. Abertura, Encerramento e Rituais" },
+                { match: /^4\.\s*PRECES|^PRECES DIVERSAS|^PRECE DE CÁRITAS/i, cat: "4. Preces Diversas" },
+                { match: /^5\.\s*OXAL|^PONTOS DE OXALÁ/i, cat: "5. Oxalá" },
+                { match: /^6\.\s*POVO DO ORIENTE|^PONTOS DO POVO DO ORIENTE|^PONTOS DE SUBIDA DE POVO DO ORIENTE/i, cat: "6. Povo do Oriente" },
+                { match: /^7\.\s*IBEIJADA|^PONTOS DE IBEIJADA|^PONTOS DE SUBIDA DE IBEIJADA/i, cat: "7. Ibeijada" },
+                { match: /^8\.\s*OXÓSSI|^PONTOS DE OXÓSSI/i, cat: "8. Oxóssi" },
+                { match: /^9\.\s*CABOCLOS|^DESCIDA DOS CABOCLOS ARRANCA-TOCO|^DESCIDA DOS MORUBIXABAS|^DESCIDA DO CABOCLO BOIADEIRO DA MATA|^DESCIDA DA CABOCLA CACHOEIRA|^DESCIDA DO CABOCLO GUERREIRO|^DESCIDA DO CABOCLO BOIADEIRO DOS PAMPAS|^DESCIDA DE OGUM BEIRA MAR|^DESCIDA DO CABOCLO BOIADEIRO DA ESTRADA|^DESCIDA DO CABOCLO BOIADEIRO NAVIZALA|^DESCIDA DO CABOCLO COBRA D/i, cat: "9. Caboclos - Tupixabas e Morubixabas" },
+                { match: /^10\.\s*CABOCLOS|^PONTOS DE CABOCLOS|^PONTOS DE BOIADEIRO|^PONTOS DE CABOCLAS|^PONTOS DE SUBIDA DE CABOCLOS/i, cat: "10. Caboclos, Boiadeiros e Caboclas" },
+                { match: /^11\.\s*OGUM|^PONTOS DE OGUM|^PONTOS DE SUBIDA DE OGUM/i, cat: "11. Ogum" },
+                { match: /^12\.\s*IEMANJ|^PONTOS DE IEMANJÁ|^PONTOS DE SUBIDA DE IEMANJÁ/i, cat: "12. Iemanjá" },
+                { match: /^13\.\s*MARINHEIROS|^PONTOS DE MARINHEIROS|^PONTOS DE SUBIDA DE MARINHEIROS/i, cat: "13. Marinheiros" },
+                { match: /^14\.\s*OXUM|^PONTOS DE OXUM|^PONTOS DE SUBIDA DE OXUM/i, cat: "14. Oxum" },
+                { match: /^15\.\s*NAN|^PONTOS DE NANÃ|^PONTOS DE SUBIDA DE NANÃ/i, cat: "15. Nanã Buruquê" },
+                { match: /^16\.\s*IANS|^PONTOS DE IANSÃ|^PONTOS DE SUBIDA DE IANSÃ/i, cat: "16. Iansã" },
+                { match: /^17\.\s*XANG|^PONTOS DE XANGÔ|^PONTOS DE SUBIDA DE XANGÔ/i, cat: "17. Xangô" },
+                { match: /^18\.\s*OMUL|^PONTOS DE OMULÚ|^PONTOS DE SUBIDA OMULÚ/i, cat: "18. Omulú" },
+                { match: /^19\.\s*PRETOS VELHOS|^DESCIDA DO PAI JOÃO DA PEDREIRA|^DESCIDA DO PAI JOAQUIM DE ANGOLA|^DESCIDA DA VOVÓ CATARINA|^DESCIDA DA VOVÓ CAMBINDA|^DESCIDA DO PAI JOSÉ DO CRUZEIRO|^DESCIDA DO PAI BENEDITO DAS ALMAS|^DESCIDA DA VOVÓ MARIA CONGA|^DESCIDA DO PAI JOAQUIM DE ARUANDA|^DESCIDA DO VOVÔ BENEDITO AFRICANO/i, cat: "19. Pretos Velhos - Tupixabas e Morubixabas" },
+                { match: /^20\.\s*PRETOS VELHOS|^PONTOS DE PRETOS VELHOS|^PONTOS DO POVO DE CONGO|^PONTOS DO POVO DE ANGOLA|^PONTOS DO POVO DE MINAS|^PONTOS DO POVO DA BAHIA|^PONTOS DO POVO DO CATIVEIRO|^PONTOS DAS SANTAS ALMAS|^PONTOS DE SANTO ANTÔNIO|^PONTOS DE SUBIDA DE PRETOS VELHOS/i, cat: "20. Pretos Velhos e Falanges (Congo, Angola, Minas, Bahia, Almas)" },
+                { match: /^21\.\s*EX|^PONTOS DE EXÚS|^PONTOS DE POMBAGIRAS|^PONTOS DE MALANDROS|^PONTOS DE SUBIDA DE EXÚS/i, cat: "21. Exús, Pombagiras e Malandros" },
+                { match: /^22\.\s*ENCERRAMENTO|^ENCERRAMENTO DE GIRA OFICIAL/i, cat: "22. Encerramento de Gira Oficial" }
             ];
 
             const ehSubtitulo = (str) => {
-                if (!str || str.length > 55) return false;
-                return /^(HINO |VIBRAÇÃO |SALVE |OKÊ CABOCLO|JETRUÁ BOIADEIRO|CABOCLO |CABOCLA |CABOCLINH|BOIADEIRO |OGUM |PAI |MÃE |TIA |TIO |VOVÓ |VOVÔ |PRETO VELHO|PRETA VELHA|REI CONGO|NEGA |EXÚ |POMBAGIRA |ZÉ PELINTRA|CAMISA PRETA|MESTRE |TUNIQUINHO|FREI |NOSSA SENHORA|SÃO |COSMINHO|DAMIÃO|DOUM|FORMIGUINHA|JUREMINHA|MARIAZINHA|PEDRINHO|PINGUINHO|ROSINHA|TEREZINHA|ZEZINHO|DESCIDA |SUBIDA |LOUVAÇÃO |CRUZAMENTO |IMANTAÇÃO |BATER CABEÇA|SAUDAÇÃO |CORTAR BOLO|VISITA |HOMENAGEM |DESPEDIDA|RITUAL |BATIZA|FINALIZAR BATIZADO|CONSAGRAÇÃO|PRECE |ORAÇÃO )/.test(str);
+                if (!str || str.length > 65) return false;
+                return /^(SUBCATEGORIA:|GUIA:|HINO |VIBRAÇÃO |SALVE |OKÊ CABOCLO|JETRUÁ BOIADEIRO|CABOCLO |CABOCLA |CABOCLINH|BOIADEIRO |OGUM |PAI |MÃE |TIA |TIO |VOVÓ |VOVÔ |PRETO VELHO|PRETA VELHA|REI CONGO|NEGA |EXÚ |POMBAGIRA |ZÉ PELINTRA|CAMISA PRETA|MESTRE |TUNIQUINHO|FREI |NOSSA SENHORA|SÃO |COSMINHO|DAMIÃO|DOUM|FORMIGUINHA|JUREMINHA|MARIAZINHA|PEDRINHO|PINGUINHO|ROSINHA|TEREZINHA|ZEZINHO|DESCIDA |SUBIDA |LOUVAÇÃO |CRUZAMENTO |IMANTAÇÃO |BATER CABEÇA|SAUDAÇÃO |CORTAR BOLO|VISITA |HOMENAGEM |DESPEDIDA|RITUAL |BATIZA|FINALIZAR BATIZADO|CONSAGRAÇÃO|PRECE |ORAÇÃO )/i.test(str);
             };
 
             let catAtual = null;
             let subAtual = "Geral";
+            let tituloAtual = null;
+            let ritmoAtual = null;
+            let melodiaAtual = null;
             let bufferLetra = [];
             let registros = [];
             let ordem = 1;
 
             const fecharPonto = () => {
                 const textoLimpo = bufferLetra.join('\n').trim();
-                if (catAtual && textoLimpo.length > 15) {
+                if (catAtual && textoLimpo.length > 10) {
                     registros.push({
                         terreiro_id: idTerreiroGlobal,
                         categoria: catAtual,
-                        subcategoria: subAtual,
+                        subcategoria: subAtual || 'Geral',
+                        titulo: tituloAtual,
+                        ritmo: ritmoAtual,
+                        obs_melodia: melodiaAtual,
                         letra: textoLimpo,
                         ordem: ordem++
                     });
                 }
                 bufferLetra = [];
+                tituloAtual = null;
+                ritmoAtual = null;
+                melodiaAtual = null;
             };
 
             for (const l of linhas) {
                 if (!l) continue;
+
+                if (/^---+$/.test(l)) {
+                    fecharPonto();
+                    continue;
+                }
+
                 const sec = mapaSecoes.find(s => s.match.test(l));
                 if (sec) {
                     fecharPonto();
                     catAtual = sec.cat;
-                    if (ehSubtitulo(l)) subAtual = l;
+                    if (ehSubtitulo(l)) subAtual = l.replace(/^(SUBCATEGORIA|GUIA):\s*/i, '').trim();
                     continue;
                 }
                 if (!catAtual) continue;
 
+                if (/^(TITULO|TÍTULO|PONTO):\s*/i.test(l)) {
+                    if (bufferLetra.length > 0) fecharPonto();
+                    tituloAtual = l.replace(/^(TITULO|TÍTULO|PONTO):\s*/i, '').trim();
+                    continue;
+                }
+                if (/^(RITMO|TOQUE):\s*/i.test(l)) {
+                    ritmoAtual = l.replace(/^(RITMO|TOQUE):\s*/i, '').trim();
+                    continue;
+                }
+                if (/^(MELODIA|TOM|OBS):\s*/i.test(l)) {
+                    melodiaAtual = l.replace(/^(MELODIA|TOM|OBS):\s*/i, '').trim();
+                    continue;
+                }
+
                 if (ehSubtitulo(l)) {
                     fecharPonto();
-                    subAtual = l;
+                    const limpo = l.replace(/^(SUBCATEGORIA|GUIA):\s*/i, '').trim();
+                    const partes = limpo.split(/\s*[•\-–]\s*/);
+                    subAtual = partes[0].trim();
+                    if (partes.length > 1) tituloAtual = partes.slice(1).join(' - ').trim();
                 } else {
                     bufferLetra.push(l);
                 }
@@ -901,6 +937,14 @@
             if (registros.length === 0) {
                 alert('Não foi possível identificar cantigas no arquivo selecionado.');
                 return;
+            }
+
+            if (substituirExistentes) {
+                const { error: errDel } = await supabaseClient
+                    .from('curimba_cantigas')
+                    .delete()
+                    .eq('terreiro_id', idTerreiroGlobal);
+                if (errDel) throw errDel;
             }
 
             for (let i = 0; i < registros.length; i += 100) {
@@ -918,13 +962,13 @@
         }
     };
 
-    // --- EXPORTADOR DE PDF A4 DO LIVRO GERAL DA CURIMBA (PAISAGEM / LAYOUT OFICIAL) ---
+    // --- EXPORTADOR DE PDF A4 DO LIVRO GERAL DA CURIMBA (PAISAGEM / VETORIAL SEM PÁGINAS EM BRANCO) ---
     window.exportarPDFLivroCurimba = async () => {
         if (!cacheCantigasLivro || cacheCantigasLivro.length === 0) {
             return alert('Não há cantigas carregadas para gerar o PDF.');
         }
 
-        if (typeof html2pdf === 'undefined') {
+        if (typeof html2pdf === 'undefined' && typeof window.jspdf === 'undefined') {
             await new Promise((resolve, reject) => {
                 const s = document.createElement('script');
                 s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
@@ -936,7 +980,11 @@
 
         const listaParaImprimir = categoriaAtiva === 'todas'
             ? cacheCantigasLivro
-            : cacheCantigasLivro.filter(c => c.categoria === categoriaAtiva);
+            : cacheCantigasLivro.filter(c => c.categoria === categoriaAtiva && (subcategoriaAtiva === 'todas' || c.subcategoria === subcategoriaAtiva));
+
+        if (listaParaImprimir.length === 0) {
+            return alert('Nenhuma cantiga encontrada no filtro atual para gerar o PDF.');
+        }
 
         const nomeTemplo = (typeof nomeTerreiroGlobal !== 'undefined' && nomeTerreiroGlobal)
             ? nomeTerreiroGlobal
@@ -944,94 +992,188 @@
 
         const logoTemplo = (typeof logoTerreiroGlobal !== 'undefined' && logoTerreiroGlobal)
             ? logoTerreiroGlobal
-            : '';
+            : (document.getElementById('logoTerreiro')?.src || '');
 
-        const larguraPdfPx = 1045; // Formato Paisagem A4
-        const watermarkHtml = logoTemplo
-            ? `<div style="position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); opacity: 0.05; z-index: 0; pointer-events: none;">
-                 <img src="${logoTemplo}" style="width: 320px; max-width: 80%;">
-               </div>`
-            : '';
-
-        let htmlSecoes = '';
-        let catAnterior = '';
-
-        listaParaImprimir.forEach(c => {
-            if (c.categoria !== catAnterior) {
-                catAnterior = c.categoria;
-                htmlSecoes += `
-                    <div style="background-color: #1e293b; color: #fff; padding: 8px 14px; font-size: 11pt; font-weight: bold; text-transform: uppercase; border-radius: 6px; margin: 20px 0 12px 0; page-break-after: avoid;">
-                        ${c.categoria}
-                    </div>
-                `;
-            }
-
-            const infoExtra = [
-                c.ritmo ? `Toque: ${c.ritmo}` : '',
-                c.obs_melodia ? `Melodia: ${c.obs_melodia}` : ''
-            ].filter(Boolean).join(' | ');
-
-            htmlSecoes += `
-                <div style="border: 1px solid #cbd5e1; border-left: 4px solid #4f46e5; border-radius: 6px; padding: 10px 14px; margin-bottom: 12px; background: #ffffff; page-break-inside: avoid;">
-                    <div style="display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid #f1f5f9; padding-bottom: 5px; margin-bottom: 8px;">
-                        <strong style="font-size: 10pt; color: #1e1b4b; text-transform: uppercase;">
-                            ${c.subcategoria || 'Geral'} ${c.titulo ? `• ${c.titulo}` : ''}
-                        </strong>
-                        ${infoExtra ? `<span style="font-size: 8.5pt; color: #b45309; font-weight: bold;">${infoExtra}</span>` : ''}
-                    </div>
-                    <div style="font-size: 9.5pt; line-height: 1.6; color: #0f172a; white-space: pre-wrap;">${c.letra || ''}</div>
-                </div>
-            `;
+        const carregarLogoBase64 = (url) => new Promise((resolve) => {
+            if (!url || url.endsWith('.html')) return resolve(null);
+            const img = new Image();
+            img.crossOrigin = 'Anonymous';
+            img.onload = () => {
+                try {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.naturalWidth || img.width;
+                    canvas.height = img.naturalHeight || img.height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+                    resolve(canvas.toDataURL('image/png'));
+                } catch (e) { resolve(null); }
+            };
+            img.onerror = () => resolve(null);
+            img.src = url + (url.includes('?') ? '&' : '?') + 't=' + Date.now();
         });
+
+        const logoBase64 = await carregarLogoBase64(logoTemplo);
+
+        // Cria um PDF vetorial nativo via jsPDF em Paisagem (A4: 297mm x 210mm)
+        const worker = html2pdf().set({ jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' } }).from(document.createElement('div')).toPdf();
+        const pdf = await worker.get('pdf');
+
+        const pageW = pdf.internal.pageSize.getWidth();  // 297 mm
+        const pageH = pdf.internal.pageSize.getHeight(); // 210 mm
+        const marginX = 12;
+        const usableW = pageW - (marginX * 2); // 273 mm
+
+        // Colunas idênticas ao modelo de relatório da casa
+        const colW = [52, 68, 42, usableW - 52 - 68 - 42]; // Classificação | Sub-classificação/Título | Toque/Melodia | Letra da Cantiga
+        const headers = ['CLASSIFICAÇÃO', 'GUIA / IDENTIFICADOR', 'TOQUE / MELODIA', 'LETRA DA CANTIGA'];
 
         const dataAtual = `${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
         const tituloRelatorio = `Livro Geral da Curimba ${categoriaAtiva !== 'todas' ? `— ${categoriaAtiva}` : '(Completo)'}`;
 
-        const div = document.createElement('div');
-        div.style.cssText = `width: ${larguraPdfPx}px; font-family: Arial, sans-serif; color: #333; background: #ffffff; padding: 15px; box-sizing: border-box;`;
-        
-        div.innerHTML = `
-            <div style="position: relative; background: #ffffff;">
-                ${watermarkHtml}
-                <div style="position: relative; z-index: 1;">
-                    <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #2563eb; padding-bottom: 10px; margin-bottom: 15px;">
-                        <div style="width: 80px;">
-                            ${logoTemplo ? `<img src="${logoTemplo}" style="max-height: 55px; max-width: 80px; object-fit: contain;">` : ''}
-                        </div>
-                        <div style="text-align: center; flex: 1;">
-                            <h2 style="margin: 0; color: #1e3a8a; font-size: 14pt; text-transform: uppercase; font-weight: bold;">${nomeTemplo}</h2>
-                            <h3 style="margin: 4px 0 0 0; color: #475569; font-size: 11pt; text-transform: uppercase;">${tituloRelatorio}</h3>
-                            <p style="margin: 4px 0 0 0; color: #64748b; font-size: 8pt;">Emitido em: ${dataAtual} | Total de Cantigas: ${listaParaImprimir.length}</p>
-                        </div>
-                        <div style="width: 80px;"></div>
-                    </div>
-                    ${htmlSecoes}
-                </div>
-            </div>
-        `;
+        const desenharCabecalho = (ehPrimeira) => {
+            if (ehPrimeira) {
+                if (logoBase64) {
+                    try { pdf.addImage(logoBase64, 'PNG', marginX, 8, 16, 16); } catch (e) {}
+                }
+                pdf.setFont('helvetica', 'bold');
+                pdf.setFontSize(13);
+                pdf.setTextColor(30, 58, 138); // #1e3a8a
+                pdf.text(nomeTemplo.toUpperCase(), pageW / 2, 13, { align: 'center' });
 
-        alert('Gerando PDF do Livro da Curimba em Paisagem... Aguarde um instante.');
-        const opt = {
-            margin:       [10, 10, 15, 10],
-            filename:     `Livro_Curimba_${nomeTemplo.replace(/\s+/g, '_')}.pdf`,
-            image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true },
-            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' },
-            pagebreak:    { mode: ['css', 'legacy'] }
-        };
+                pdf.setFontSize(10.5);
+                pdf.setTextColor(71, 85, 105); // #475569
+                pdf.text(tituloRelatorio, pageW / 2, 18.5, { align: 'center' });
 
-        html2pdf().set(opt).from(div).toPdf().get('pdf').then((pdf) => {
-            const totalPages = pdf.internal.getNumberOfPages();
-            for (let i = 1; i <= totalPages; i++) {
-                pdf.setPage(i);
                 pdf.setFont('helvetica', 'normal');
                 pdf.setFontSize(8);
-                pdf.setTextColor(100, 100, 100);
-                const pageWidth = pdf.internal.pageSize.getWidth();
-                const pageHeight = pdf.internal.pageSize.getHeight();
-                pdf.text(`Página ${i} de ${totalPages}`, pageWidth - 15, pageHeight - 8, { align: 'right' });
-                pdf.text(`${nomeTemplo} — Livro Geral da Curimba`, 15, pageHeight - 8, { align: 'left' });
+                pdf.setTextColor(100, 116, 139); // #64748b
+                pdf.text(`Emitido em: ${dataAtual} | Registros: ${listaParaImprimir.length}`, pageW / 2, 23, { align: 'center' });
+
+                pdf.setDrawColor(37, 99, 235); // Linha Azul #2563eb
+                pdf.setLineWidth(0.6);
+                pdf.line(marginX, 26, pageW - marginX, 26);
+                return 29;
+            } else {
+                pdf.setFont('helvetica', 'bold');
+                pdf.setFontSize(8.5);
+                pdf.setTextColor(71, 85, 105);
+                pdf.text(`${nomeTemplo} — ${tituloRelatorio} (Continuação)`, marginX, 12);
+
+                pdf.setDrawColor(203, 213, 225); // #cbd5e1
+                pdf.setLineWidth(0.3);
+                pdf.line(marginX, 14.5, pageW - marginX, 14.5);
+                return 17.5;
             }
-        }).save();
+        };
+
+        const desenharCabecalhoTabela = (yTop) => {
+            const hHead = 7.5;
+            pdf.setFillColor(241, 245, 249); // #f1f5f9
+            pdf.setDrawColor(203, 213, 225); // #cbd5e1
+            pdf.setLineWidth(0.25);
+
+            let xCur = marginX;
+            headers.forEach((h, i) => {
+                pdf.rect(xCur, yTop, colW[i], hHead, 'FD');
+                pdf.setFont('helvetica', 'bold');
+                pdf.setFontSize(8.5);
+                pdf.setTextColor(30, 41, 59); // #1e293b
+                pdf.text(h, xCur + 2.5, yTop + 5);
+                xCur += colW[i];
+            });
+            return yTop + hHead;
+        };
+
+        let y = desenharCabecalho(true);
+        y = desenharCabecalhoTabela(y);
+        const limiteRodape = pageH - 15; // 195 mm
+        const lineH = 4.1;
+
+        listaParaImprimir.forEach((c, idx) => {
+            pdf.setFont('helvetica', 'bold');
+            pdf.setFontSize(8.5);
+            const txtCat = pdf.splitTextToSize(String(c.categoria || '-'), colW[0] - 5);
+
+            const strSub = `${c.subcategoria || 'Geral'}${c.titulo ? `\n• ${c.titulo}` : ''}`;
+            const txtSub = pdf.splitTextToSize(strSub, colW[1] - 5);
+
+            pdf.setFont('helvetica', 'normal');
+            pdf.setFontSize(8);
+            const strInfo = [
+                c.ritmo ? `Toque: ${c.ritmo}` : '',
+                c.obs_melodia ? `Melodia: ${c.obs_melodia}` : ''
+            ].filter(Boolean).join('\n') || '-';
+            const txtInfo = pdf.splitTextToSize(strInfo, colW[2] - 5);
+
+            pdf.setFontSize(8.5);
+            const txtLetra = pdf.splitTextToSize(String(c.letra || '-').trim(), colW[3] - 5);
+
+            const maxLines = Math.max(txtCat.length, txtSub.length, txtInfo.length, txtLetra.length);
+            const rowH = (maxLines * lineH) + 4;
+
+            // Se a cantiga não couber na página atual, abre nova página mantendo o cabeçalho
+            if (y + rowH > limiteRodape && y > 38) {
+                pdf.addPage();
+                y = desenharCabecalho(false);
+                y = desenharCabecalhoTabela(y);
+            }
+
+            // Fundo zebrado idêntico ao gerarPDFRelatorio
+            if (idx % 2 === 0) {
+                pdf.setFillColor(255, 255, 255);
+            } else {
+                pdf.setFillColor(248, 250, 252); // #f8fafc
+            }
+            pdf.setDrawColor(226, 232, 240); // #e2e8f0
+            pdf.setLineWidth(0.2);
+
+            let xCur = marginX;
+            for (let i = 0; i < 4; i++) {
+                pdf.rect(xCur, y, colW[i], rowH, 'FD');
+                xCur += colW[i];
+            }
+
+            // Coluna 1: Classificação
+            pdf.setFont('helvetica', 'bold');
+            pdf.setFontSize(8);
+            pdf.setTextColor(30, 58, 138);
+            pdf.text(txtCat, marginX + 2.5, y + 4.5);
+
+            // Coluna 2: Sub-classificação e Título
+            pdf.setFont('helvetica', 'bold');
+            pdf.setFontSize(8.5);
+            pdf.setTextColor(30, 41, 59);
+            pdf.text(txtSub, marginX + colW[0] + 2.5, y + 4.5);
+
+            // Coluna 3: Toque / Melodia
+            pdf.setFont('helvetica', 'normal');
+            pdf.setFontSize(8);
+            pdf.setTextColor(180, 83, 9);
+            pdf.text(txtInfo, marginX + colW[0] + colW[1] + 2.5, y + 4.5);
+
+            // Coluna 4: Letra da Cantiga
+            pdf.setFont('helvetica', 'normal');
+            pdf.setFontSize(8.5);
+            pdf.setTextColor(15, 23, 42);
+            pdf.text(txtLetra, marginX + colW[0] + colW[1] + colW[2] + 2.5, y + 4.5);
+
+            y += rowH;
+        });
+
+        // Numeração de páginas no topo direito e no rodapé (igual ao gerarPDFRelatorio)
+        const totalPages = pdf.internal.getNumberOfPages();
+        for (let i = 1; i <= totalPages; i++) {
+            pdf.setPage(i);
+            pdf.setFont('helvetica', 'normal');
+            pdf.setFontSize(8);
+            pdf.setTextColor(148, 163, 184);
+            pdf.text(`Pág. ${i}/${totalPages}`, pageW - marginX, i === 1 ? 13 : 12, { align: 'right' });
+
+            pdf.setTextColor(100, 100, 100);
+            pdf.text(`Página ${i} de ${totalPages}`, pageW - marginX, pageH - 7, { align: 'right' });
+            pdf.text(`${nomeTemplo} — Documento Oficial`, marginX, pageH - 7, { align: 'left' });
+        }
+
+        pdf.save(`Livro_Curimba_${nomeTemplo.replace(/\s+/g, '_')}.pdf`);
     };
 })();
