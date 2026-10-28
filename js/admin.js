@@ -605,7 +605,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Cadastrando...';
                 if (msg) msg.classList.add('hidden');
 
-                try {
                     try {
                     const novoRegistro = {
                         terreiro_id: idTerreiroGlobal,
