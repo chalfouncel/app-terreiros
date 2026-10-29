@@ -1610,10 +1610,27 @@
         renderizarCardsCurimba();
     };
 
+    window.limparTodosFiltrosCurimba = () => {
+        filtroApenasPresentesCurimba = false;
+        filtroApenasIncompletosCurimba = false;
+        const inp = document.getElementById('buscaCurimbaInput');
+        if (inp) inp.value = '';
+
+        const btnP = document.getElementById('btnFiltroPresentesCurimba');
+        if (btnP) btnP.className = 'py-2 px-2 rounded-xl text-[11px] font-black border transition active:scale-95 flex items-center justify-center gap-1.5 bg-slate-800 text-slate-300 border-slate-700 shadow-sm';
+
+        const btnI = document.getElementById('btnFiltroIncompletosCurimba');
+        if (btnI) btnI.className = 'py-2 px-2 rounded-xl text-[11px] font-black border transition active:scale-95 flex items-center justify-center gap-1 bg-slate-800 text-amber-300 border-slate-700 shadow-sm';
+
+        window.setLinhaCurimba('todos');
+    };
+
     async function carregarDadosCurimba() {
         const container = document.getElementById('listaCardsCurimba');
         if (!container) return;
         container.innerHTML = '<p class="text-center text-slate-400 text-xs py-8"><i class="fas fa-spinner fa-spin mr-2"></i> Carregando pontos cantados...</p>';
+
+        const chaveCacheLocal = `cache_offline_pontos_guias_${idTerreiroGlobal}`;
 
         try {
             const { data: mediuns, error } = await supabaseClient
@@ -1629,6 +1646,9 @@
             // Filtra apenas médiuns de grau CT ou superior
             cacheMediunsCurimba = (mediuns || []).filter(m => window.grauPermiteConsagracao(m.grau));
 
+            // Salva cópia offline automática no aparelho
+            try { localStorage.setItem(chaveCacheLocal, JSON.stringify(cacheMediunsCurimba)); } catch (e) {}
+
             // Verifica quem bateu ponto na gira ativa de hoje
             idsPresentesHojeCurimba = new Set();
             if (typeof idGiraGlobal !== 'undefined' && idGiraGlobal) {
@@ -1641,6 +1661,18 @@
 
             renderizarCardsCurimba();
         } catch (err) {
+            // Fallback Offline Automático se a internet cair na gira
+            const salvoOffline = localStorage.getItem(chaveCacheLocal);
+            if (salvoOffline) {
+                try {
+                    cacheMediunsCurimba = JSON.parse(salvoOffline);
+                    renderizarCardsCurimba();
+                    if (typeof window.mostrarToastSistema === 'function') {
+                        window.mostrarToastSistema('Modo Offline ativado: exibindo pontos salvos no aparelho.', 'aviso');
+                    }
+                    return;
+                } catch (e) {}
+            }
             container.innerHTML = `<p class="text-center text-rose-400 text-xs py-6">Erro ao carregar: ${err.message}</p>`;
         }
     }
@@ -1653,6 +1685,15 @@
     }
 
     let ultimoToqueFocoGuia = 0;
+    let estadoFocoGuiaAtual = { mediumId: null, chave: null };
+
+    const SEQUENCIA_PONTOS_GUIA = [
+        { chave: 'caboclo_descida', titulo: '🌿 Descida de Caboclo(a)', campoGuia: 'guia_caboclo' },
+        { chave: 'caboclo_subida',  titulo: '🌿 Subida de Caboclo(a)',  campoGuia: 'guia_caboclo' },
+        { chave: 'pv_descida',      titulo: '☕ Descida de Preto(a) Velho(a)', campoGuia: 'guia_preto_velho' },
+        { chave: 'pv_subida',       titulo: '☕ Subida de Preto(a) Velho(a)',  campoGuia: 'guia_preto_velho' }
+    ];
+
     window.detectarDuploToquePontoGuia = (e, acaoCallback) => {
         const agora = Date.now();
         if (agora - ultimoToqueFocoGuia < 320) {
@@ -1664,11 +1705,24 @@
         }
     };
 
+    window.navegarModoFocoPontoGuia = (direcao) => {
+        const m = cacheMediunsCurimba.find(x => x.id === estadoFocoGuiaAtual.mediumId);
+        if (!m) return;
+        const idxAtual = SEQUENCIA_PONTOS_GUIA.findIndex(s => s.chave === estadoFocoGuiaAtual.chave);
+        if (idxAtual === -1) return;
+
+        const novoIdx = (idxAtual + direcao + SEQUENCIA_PONTOS_GUIA.length) % SEQUENCIA_PONTOS_GUIA.length;
+        const alvo = SEQUENCIA_PONTOS_GUIA[novoIdx];
+        const guiaLimpo = (m[alvo.campoGuia] || '').replace(/\n/g, ' / ');
+        window.abrirModoFocoPontoGuia(m.id, alvo.chave, alvo.titulo, guiaLimpo);
+    };
+
     window.abrirModoFocoPontoGuia = async (mediumId, chave, titulo, nomeGuia) => {
         document.querySelectorAll('audio').forEach(a => a.pause());
 
         const m = cacheMediunsCurimba.find(x => x.id === mediumId);
         if (!m) return;
+        estadoFocoGuiaAtual = { mediumId, chave };
         const pt = (m.pontos_cantados && m.pontos_cantados[chave]) ? m.pontos_cantados[chave] : {};
 
         let modalFoco = document.getElementById('modalFocoPontoGuiaImersivo');
@@ -1691,10 +1745,16 @@
                     </div>
                     <div id="focoGuiaExtra" class="space-y-3"></div>
                     <div id="focoGuiaLetra" class="text-slate-100 font-medium leading-relaxed tracking-wide pb-10 cursor-text select-text"></div>
-                    <div class="text-center pt-6 mt-auto border-t border-slate-800/50">
-                        <span class="text-[11px] text-slate-400 font-bold uppercase tracking-wider bg-slate-900 px-4 py-2 rounded-full border border-slate-800">
-                            <i class="fas fa-hand-pointer mr-1.5 text-amber-400"></i> Dê 2 toques na tela para voltar
+                    <div class="pt-4 mt-auto border-t border-slate-800/60 flex items-center justify-between gap-2">
+                        <button type="button" onclick="window.navegarModoFocoPontoGuia(-1)" class="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-black text-xs border border-slate-700 active:scale-95 flex items-center gap-1.5 shadow">
+                            <i class="fas fa-chevron-left text-amber-400"></i> Anterior
+                        </button>
+                        <span class="text-[10px] sm:text-[11px] text-slate-400 font-bold uppercase tracking-wider bg-slate-900 px-3 py-2 rounded-full border border-slate-800 text-center">
+                            <i class="fas fa-hand-pointer mr-1 text-amber-400"></i> 2 toques p/ sair
                         </span>
+                        <button type="button" onclick="window.navegarModoFocoPontoGuia(1)" class="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-black text-xs border border-slate-700 active:scale-95 flex items-center gap-1.5 shadow">
+                            Próximo <i class="fas fa-chevron-right text-amber-400"></i>
+                        </button>
                     </div>
                 </div>
             </div>`;
