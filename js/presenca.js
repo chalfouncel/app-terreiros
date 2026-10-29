@@ -2662,4 +2662,118 @@ async function verificarPendenciaMensalidade(mediumId) {
             alert('Erro ao processar pedido: ' + err.message);
         }
     };
+    // ====================================================================
+// FLUXO DE VALIDAÇÃO ASAAS E BAIXA AUTOMÁTICA (COMPRA DIRETA FORNECEDOR)
+// ====================================================================
+
+let intervalVerificaPixFornecedor = null;
+let dadosCompraGlobal = null;
+
+// Função chamada LOGO APÓS gerar a cobrança PIX no Asaas
+// Exemplo de uso no seu código atual: iniciarMonitoramentoPixFornecedor('pay_123456', { itemNome: 'Vela', valor: 7.99, ... });
+window.iniciarMonitoramentoPixFornecedor = (cobrancaIdAsaas, dadosCompra) => {
+    dadosCompraGlobal = dadosCompra; // Armazena para os botões do WhatsApp e a Baixa
+
+    const divAguardando = document.getElementById('statusAguardandoPixForn');
+    const divAprovado = document.getElementById('statusAprovadoPixForn');
+    const areaQrCode = document.getElementById('areaQrCodeFornecedor'); // Ou a div onde fica o QR Code
+
+    if (divAguardando) {
+        divAguardando.classList.remove('hidden');
+        divAguardando.classList.add('flex');
+    }
+    if (divAprovado) {
+        divAprovado.classList.add('hidden');
+        divAprovado.classList.remove('flex');
+    }
+
+    if (intervalVerificaPixFornecedor) clearInterval(intervalVerificaPixFornecedor);
+
+    // Bate no banco/Asaas a cada 5 segundos
+    intervalVerificaPixFornecedor = setInterval(async () => {
+        try {
+            // AQUI VOCÊ CHAMA SUA ENDPOINT OU EDGE FUNCTION DO ASAAS
+            // Exemplo hipotético usando Supabase Edge Function:
+            const { data, error } = await supabaseClient.functions.invoke('asaas-verificar-pagamento', {
+                body: { id: cobrancaIdAsaas }
+            });
+
+            // Se o status retornado for CONFIRMED ou RECEIVED
+            if (data && (data.status === 'RECEIVED' || data.status === 'CONFIRMED')) {
+                clearInterval(intervalVerificaPixFornecedor);
+                
+                // Esconde o QR Code e o loading
+                if (areaQrCode) areaQrCode.classList.add('hidden');
+                if (divAguardando) {
+                    divAguardando.classList.remove('flex');
+                    divAguardando.classList.add('hidden');
+                }
+                
+                // Mostra o Check verde e os botões de Whats
+                if (divAprovado) {
+                    divAprovado.classList.remove('hidden');
+                    divAprovado.classList.add('flex');
+                }
+
+                // Dispara a baixa automática da doação (Requisito 3)
+                await window.registrarBaixaAutomaticaCompraFornecedor(dadosCompraGlobal);
+                
+                // Configura os links do WhatsApp (Requisito 2)
+                configurarBotoesWhatsAppFornecedor();
+            }
+        } catch (err) {
+            console.error("Erro no monitoramento do PIX:", err);
+        }
+    }, 5000);
+};
+
+// Configura os botões de WhatsApp
+function configurarBotoesWhatsAppFornecedor() {
+    const btnFornecedor = document.getElementById('btnWhatsFornecedor');
+    const btnGestor = document.getElementById('btnWhatsGestor');
+
+    if (btnFornecedor && dadosCompraGlobal.telefoneFornecedor) {
+        btnFornecedor.onclick = () => {
+            const num = dadosCompraGlobal.telefoneFornecedor.replace(/\D/g, '');
+            const msg = `Olá! Realizei o pagamento de *${dadosCompraGlobal.quantidade}x ${dadosCompraGlobal.itemNome}* (Total: R$ ${dadosCompraGlobal.valorTotal}) pelo Aplicativo da Casa. O endereço de entrega é o do Terreiro já cadastrado no seu sistema. Aguardamos o envio!`;
+            window.open(`https://wa.me/55${num}?text=${encodeURIComponent(msg)}`, '_blank');
+        };
+    }
+
+    if (btnGestor && dadosCompraGlobal.telefoneGestor) {
+        btnGestor.onclick = () => {
+            const num = dadosCompraGlobal.telefoneGestor.replace(/\D/g, '');
+            const msg = `Olá, Administração! Realizei a compra de *${dadosCompraGlobal.quantidade}x ${dadosCompraGlobal.itemNome}* com o fornecedor ${dadosCompraGlobal.nomeFornecedor} diretamente pelo sistema. Logo será entregue na Casa!`;
+            window.open(`https://wa.me/55${num}?text=${encodeURIComponent(msg)}`, '_blank');
+        };
+    }
+}
+
+// Faz a inserção direto no banco (Baixa automática como "Entregue" / Pago)
+window.registrarBaixaAutomaticaCompraFornecedor = async (dados) => {
+    try {
+        const payload = {
+            terreiro_id: idTerreiroGlobal,
+            medium_auth_id: perfilMediumLogado.auth_id,
+            item_id: dados.itemId,
+            quantidade: dados.quantidade || 1,
+            data_registro: new Date().toISOString(),
+            entregue: true, // Já aprovado
+            origem_doacao: 'compra_direta_asaas', // Tag para você saber como entrou
+            valor_pago: dados.valorTotal,
+            fornecedor_id: dados.fornecedorId
+        };
+
+        const { error } = await supabaseClient.from('doacoes').insert([payload]);
+        if (error) throw error;
+        
+        console.log("Baixa automática realizada com sucesso no banco de doações.");
+        
+        // Se houver uma função de atualizar a interface de doações já na tela, chame-a
+        if (typeof carregarItensDoacao === 'function') carregarItensDoacao();
+
+    } catch (err) {
+        console.error("Erro ao realizar a baixa automática:", err);
+    }
+};
 })();
