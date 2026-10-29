@@ -1576,8 +1576,8 @@
         const btn = document.getElementById('btnFiltroPresentesCurimba');
         if (btn) {
             btn.className = filtroApenasPresentesCurimba
-                ? 'px-2.5 py-2 rounded-xl text-[11px] font-black border transition active:scale-95 flex items-center gap-1.5 shrink-0 bg-emerald-600 text-white border-emerald-400 shadow'
-                : 'px-2.5 py-2 rounded-xl text-[11px] font-black border transition active:scale-95 flex items-center gap-1.5 shrink-0 bg-slate-800 text-slate-300 border-slate-700';
+                ? 'py-2 px-3 rounded-xl text-[11px] font-black border transition active:scale-95 flex items-center justify-center gap-1.5 bg-emerald-600 text-white border-emerald-400 shadow'
+                : 'py-2 px-3 rounded-xl text-[11px] font-black border transition active:scale-95 flex items-center justify-center gap-1.5 bg-slate-800 text-slate-300 border-slate-700 shadow-sm';
         }
         renderizarCardsCurimba();
     };
@@ -1587,8 +1587,8 @@
         const btn = document.getElementById('btnFiltroIncompletosCurimba');
         if (btn) {
             btn.className = filtroApenasIncompletosCurimba
-                ? 'px-2.5 py-2 rounded-xl text-[11px] font-black border transition active:scale-95 flex items-center gap-1 shrink-0 bg-amber-500 text-slate-950 border-amber-300 shadow'
-                : 'px-2.5 py-2 rounded-xl text-[11px] font-black border transition active:scale-95 flex items-center gap-1 shrink-0 bg-slate-800 text-amber-300 border-slate-700';
+                ? 'py-2 px-3 rounded-xl text-[11px] font-black border transition active:scale-95 flex items-center justify-center gap-1.5 bg-amber-500 text-slate-950 border-amber-300 shadow'
+                : 'py-2 px-3 rounded-xl text-[11px] font-black border transition active:scale-95 flex items-center justify-center gap-1.5 bg-slate-800 text-amber-300 border-slate-700 shadow-sm';
         }
         renderizarCardsCurimba();
     };
@@ -1652,6 +1652,94 @@
             .replace(/\n/g, '<br>');
     }
 
+    let ultimoToqueFocoGuia = 0;
+    window.detectarDuploToquePontoGuia = (e, acaoCallback) => {
+        const agora = Date.now();
+        if (agora - ultimoToqueFocoGuia < 320) {
+            e.preventDefault();
+            ultimoToqueFocoGuia = 0;
+            acaoCallback();
+        } else {
+            ultimoToqueFocoGuia = agora;
+        }
+    };
+
+    window.abrirModoFocoPontoGuia = async (mediumId, chave, titulo, nomeGuia) => {
+        document.querySelectorAll('audio').forEach(a => a.pause());
+
+        const m = cacheMediunsCurimba.find(x => x.id === mediumId);
+        if (!m) return;
+        const pt = (m.pontos_cantados && m.pontos_cantados[chave]) ? m.pontos_cantados[chave] : {};
+
+        let modalFoco = document.getElementById('modalFocoPontoGuiaImersivo');
+        if (!modalFoco) {
+            const htmlFoco = `
+            <div id="modalFocoPontoGuiaImersivo" class="hidden fixed inset-0 z-[99999] bg-slate-950 flex flex-col p-4 sm:p-8 overflow-y-auto select-none transition-opacity" ondblclick="window.fecharModoFocoPontoGuia(event)" ontouchend="if(!event.target.closest('button, audio')) window.detectarDuploToquePontoGuia(event, () => window.fecharModoFocoPontoGuia(event))">
+                <div class="max-w-4xl w-full mx-auto mt-2 sm:mt-8 flex-1 flex flex-col space-y-5">
+                    <div class="flex justify-between items-start border-b border-slate-800 pb-3 gap-2">
+                        <div class="flex-1 min-w-0">
+                            <span class="text-[11px] font-bold text-amber-400 uppercase tracking-widest block mb-0.5" id="focoGuiaMediumNome"></span>
+                            <h2 class="font-black text-xl md:text-3xl text-white uppercase leading-tight" id="focoGuiaTitulo"></h2>
+                        </div>
+                        <div class="flex items-center gap-1.5 shrink-0">
+                            <button type="button" onclick="window.ajustarFonteModoFocoGuia(-2)" class="w-10 h-10 bg-slate-800 hover:bg-slate-700 rounded-xl text-slate-200 font-black text-xs border border-slate-700 active:scale-90">A-</button>
+                            <button type="button" onclick="window.ajustarFonteModoFocoGuia(2)" class="w-10 h-10 bg-slate-800 hover:bg-slate-700 rounded-xl text-slate-200 font-black text-xs border border-slate-700 active:scale-90">A+</button>
+                            <button type="button" onclick="window.fecharModoFocoPontoGuia(event)" class="w-10 h-10 bg-rose-500/20 hover:bg-rose-500/30 rounded-xl flex items-center justify-center text-rose-400 text-lg border border-rose-500/30 active:scale-90 transition" title="Fechar Tela Cheia">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="focoGuiaExtra" class="space-y-3"></div>
+                    <div id="focoGuiaLetra" class="text-slate-100 font-medium leading-relaxed tracking-wide pb-10 cursor-text select-text"></div>
+                    <div class="text-center pt-6 mt-auto border-t border-slate-800/50">
+                        <span class="text-[11px] text-slate-400 font-bold uppercase tracking-wider bg-slate-900 px-4 py-2 rounded-full border border-slate-800">
+                            <i class="fas fa-hand-pointer mr-1.5 text-amber-400"></i> Dê 2 toques na tela para voltar
+                        </span>
+                    </div>
+                </div>
+            </div>`;
+            document.body.insertAdjacentHTML('beforeend', htmlFoco);
+            modalFoco = document.getElementById('modalFocoPontoGuiaImersivo');
+        }
+
+        document.getElementById('focoGuiaMediumNome').textContent = `${m.nome_completo} (${m.grau || '-'})`;
+        document.getElementById('focoGuiaTitulo').innerHTML = `${titulo} ${nomeGuia ? `• <span class="text-amber-400">${nomeGuia}</span>` : ''}`;
+
+        let extraHtml = '';
+        if (pt.ritmo) extraHtml += `<span class="inline-block bg-amber-500 text-slate-950 text-[11px] font-black px-3 py-1 rounded-full uppercase mr-2 shadow"><i class="fas fa-drum mr-1.5"></i>${pt.ritmo}</span>`;
+        if (pt.obs_melodia) extraHtml += `<div class="text-sm text-sky-300 bg-sky-950/40 border border-sky-800/50 rounded-xl px-4 py-2.5 mt-2"><i class="fas fa-music mr-2"></i> <strong>Melodia:</strong> ${pt.obs_melodia}</div>`;
+        if (pt.audio_url) extraHtml += `<div class="mt-4 bg-slate-900/90 p-2.5 rounded-2xl border border-amber-500/40 flex items-center gap-3 shadow-lg">
+                            <span class="text-[11px] font-black text-amber-400 uppercase px-3 shrink-0"><i class="fas fa-headphones mr-1.5"></i>Ouvir:</span>
+                            <audio controls preload="none" src="${pt.audio_url}" class="w-full h-10 outline-none"></audio>
+                          </div>`;
+
+        document.getElementById('focoGuiaExtra').innerHTML = extraHtml;
+
+        const tamanhoFoco = Math.min(Math.max(18, tamanhoFonteCurimba + 6), 36);
+        const letraEl = document.getElementById('focoGuiaLetra');
+        letraEl.style.fontSize = tamanhoFoco + 'px';
+        letraEl.innerHTML = formatarLetraParaLeitura(pt.letra);
+
+        modalFoco.classList.remove('hidden');
+        await ativarWakeLockCurimba();
+    };
+
+    window.ajustarFonteModoFocoGuia = (delta) => {
+        const letraEl = document.getElementById('focoGuiaLetra');
+        if (!letraEl) return;
+        const atual = parseInt(letraEl.style.fontSize || '21', 10);
+        letraEl.style.fontSize = Math.min(Math.max(16, atual + delta), 42) + 'px';
+    };
+
+    window.fecharModoFocoPontoGuia = (event) => {
+        if (event) event.stopPropagation();
+        const modalFoco = document.getElementById('modalFocoPontoGuiaImersivo');
+        if (modalFoco) {
+            modalFoco.querySelectorAll('audio').forEach(a => a.pause());
+            modalFoco.classList.add('hidden');
+        }
+    };
+
     function renderizarBlocoPonto(m, chave, titulo, corBorda, nomeGuia) {
         const pt = (m.pontos_cantados && m.pontos_cantados[chave]) ? m.pontos_cantados[chave] : {};
         const ritmoBadge = pt.ritmo
@@ -1668,9 +1756,10 @@
         const melodiaHtml = (pt.obs_melodia ? `<div class="text-[11px] text-sky-300 bg-sky-950/50 border border-sky-800/50 rounded-lg px-2.5 py-1 mt-1.5"><i class="fas fa-music mr-1"></i> <strong>Melodia:</strong> ${pt.obs_melodia}</div>` : '') + audioPlayerHtml;
 
         const tituloEscapado = titulo.replace(/'/g, "\\'");
+        const guiaLimpo = (nomeGuia || '').replace(/\n/g, ' / ').replace(/'/g, "\\'");
 
         return `
-            <div class="bg-slate-950/80 rounded-xl p-3 border-l-4 ${corBorda} border border-slate-800">
+            <div ondblclick="window.abrirModoFocoPontoGuia(${m.id}, '${chave}', '${tituloEscapado}', '${guiaLimpo}')" ontouchend="if(!event.target.closest('button, audio')) window.detectarDuploToquePontoGuia(event, () => window.abrirModoFocoPontoGuia(${m.id}, '${chave}', '${tituloEscapado}', '${guiaLimpo}'))" class="bg-slate-950/80 rounded-xl p-3 border-l-4 ${corBorda} border border-slate-800 select-none cursor-pointer transition-all" title="Dê 2 toques para tela cheia">
                 <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-800/80">
                     <div>
                         <span class="text-xs font-black text-white uppercase">${titulo}</span>
@@ -1678,14 +1767,20 @@
                     </div>
                     <div class="flex items-center gap-1.5">
                         ${ritmoBadge}
-                        <button type="button" onclick="window.abrirEdicaoPontoCurimba(${m.id}, '${chave}', '${tituloEscapado}')" class="bg-slate-800 hover:bg-slate-700 text-amber-400 text-[11px] font-bold px-2.5 py-1 rounded-lg border border-slate-700 active:scale-95">
+                        <button type="button" onclick="window.abrirModoFocoPontoGuia(${m.id}, '${chave}', '${tituloEscapado}', '${guiaLimpo}'); event.stopPropagation();" class="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-[11px] font-bold px-2.5 py-1 rounded-lg border border-amber-500/30 active:scale-95" title="Modo Foco (Tela Cheia)">
+                            <i class="fas fa-expand"></i> Foco
+                        </button>
+                        <button type="button" onclick="window.abrirEdicaoPontoCurimba(${m.id}, '${chave}', '${tituloEscapado}'); event.stopPropagation();" class="bg-slate-800 hover:bg-slate-700 text-amber-400 text-[11px] font-bold px-2.5 py-1 rounded-lg border border-slate-700 active:scale-95">
                             <i class="fas fa-pen"></i> Editar
                         </button>
                     </div>
                 </div>
                 ${melodiaHtml}
-                <div class="mt-2.5 font-medium text-slate-100 leading-relaxed select-text" style="font-size: ${tamanhoFonteCurimba}px;">
+                <div class="mt-2.5 font-medium text-slate-100 leading-relaxed" style="font-size: ${tamanhoFonteCurimba}px;">
                     ${formatarLetraParaLeitura(pt.letra)}
+                </div>
+                <div class="text-center pt-2 no-print">
+                    <span class="text-[10px] font-bold text-slate-500 bg-slate-900/80 px-3 py-1 rounded-full"><i class="fas fa-expand-alt mr-1 text-amber-500/60"></i> 2 toques no ponto para tela cheia</span>
                 </div>
             </div>
         `;
