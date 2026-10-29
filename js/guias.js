@@ -2231,4 +2231,95 @@
         }
     };
 
+    // ========================================================================
+    // 9. MOTOR GLOBAL DE TOASTS MODERNOS E MÁSCARAS DE FORMULÁRIOS (CPF / TEL)
+    // ========================================================================
+    window.mostrarToastSistema = (mensagem, tipo = 'info') => {
+        let container = document.getElementById('containerToastsSistema');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'containerToastsSistema';
+            container.className = 'fixed top-4 left-1/2 -translate-x-1/2 z-[999999] flex flex-col gap-2 w-[92%] max-w-md pointer-events-none';
+            document.body.appendChild(container);
+        }
+
+        const msgStr = String(mensagem || '');
+        if (tipo === 'info') {
+            if (/erro|falha|inválid|bloquead|negad|oops|atenção/i.test(msgStr)) tipo = 'erro';
+            else if (/sucesso|✅|🎉|confirmad|copiad|salvo|aprovad/i.test(msgStr)) tipo = 'sucesso';
+        }
+
+        const cores = {
+            sucesso: 'bg-emerald-950/95 border-emerald-500 text-emerald-100 shadow-emerald-950/50',
+            erro:    'bg-rose-950/95 border-rose-500 text-rose-100 shadow-rose-950/50',
+            aviso:   'bg-amber-950/95 border-amber-500 text-amber-100 shadow-amber-950/50',
+            info:    'bg-slate-900/95 border-indigo-500 text-slate-100 shadow-slate-950/50'
+        };
+        const icones = {
+            sucesso: '<i class="fas fa-check-circle text-emerald-400 text-lg shrink-0"></i>',
+            erro:    '<i class="fas fa-exclamation-circle text-rose-400 text-lg shrink-0"></i>',
+            aviso:   '<i class="fas fa-exclamation-triangle text-amber-400 text-lg shrink-0"></i>',
+            info:    '<i class="fas fa-info-circle text-indigo-400 text-lg shrink-0"></i>'
+        };
+
+        const toast = document.createElement('div');
+        toast.className = `pointer-events-auto flex items-start gap-3 px-4 py-3.5 rounded-2xl border-l-4 shadow-2xl backdrop-blur-md transition-all duration-300 transform -translate-y-4 opacity-0 cursor-pointer ${cores[tipo] || cores.info}`;
+        toast.innerHTML = `
+            ${icones[tipo] || icones.info}
+            <div class="flex-1 text-xs sm:text-sm font-bold leading-relaxed whitespace-pre-line">${msgStr.replace(/^✅\s*/, '')}</div>
+            <i class="fas fa-times text-xs opacity-60 hover:opacity-100 mt-1"></i>
+        `;
+
+        const remover = () => {
+            toast.classList.add('-translate-y-4', 'opacity-0');
+            setTimeout(() => toast.remove(), 300);
+        };
+        toast.onclick = remover;
+        container.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.classList.remove('-translate-y-4', 'opacity-0');
+        });
+
+        // Mensagens longas (como Ficha SOS) ficam 8s; avisos rápidos ficam 4s
+        setTimeout(remover, msgStr.length > 120 ? 8000 : 4200);
+    };
+
+    // Substitui o alert() padrão pelo Toast moderno
+    const alertNativo = window.alert.bind(window);
+    window.alert = (msg) => {
+        if (document.body) window.mostrarToastSistema(msg);
+        else alertNativo(msg);
+    };
+
+    // Máscaras automáticas em tempo real para Telefone/WhatsApp e CPF/CNPJ
+    document.addEventListener('input', (e) => {
+        const el = e.target;
+        if (!el || el.tagName !== 'INPUT') return;
+
+        const id = (el.id || '').toLowerCase();
+        const ph = (el.placeholder || '').toLowerCase();
+
+        // 1. Máscara de Telefone / WhatsApp: (21) 99999-9999
+        if (id.includes('telefone') || id.includes('emergenciatel') || id.includes('phone') || ph.includes('9999')) {
+            let v = el.value.replace(/\D/g, '').slice(0, 11);
+            if (v.length > 6) {
+                v = v.length === 11
+                    ? `(${v.slice(0, 2)}) ${v.slice(2, 7)}-${v.slice(7)}`
+                    : `(${v.slice(0, 2)}) ${v.slice(2, 6)}-${v.slice(6)}`;
+            } else if (v.length > 2) {
+                v = `(${v.slice(0, 2)}) ${v.slice(2)}`;
+            }
+            el.value = v;
+        }
+        // 2. Máscara de CPF: 000.000.000-00 (exceto quando o input tem pattern="\d{11}" estrito)
+        else if ((id.includes('cpf') && !el.hasAttribute('pattern')) && !id.includes('cnpj')) {
+            let v = el.value.replace(/\D/g, '').slice(0, 11);
+            if (v.length > 9) v = `${v.slice(0, 3)}.${v.slice(3, 6)}.${v.slice(6, 9)}-${v.slice(9)}`;
+            else if (v.length > 6) v = `${v.slice(0, 3)}.${v.slice(3, 6)}.${v.slice(6)}`;
+            else if (v.length > 3) v = `${v.slice(0, 3)}.${v.slice(3)}`;
+            el.value = v;
+        }
+    });
+
 })();
