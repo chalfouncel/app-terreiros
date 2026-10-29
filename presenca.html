@@ -1074,15 +1074,18 @@
 
         <!-- Barra de Filtros Rápidos -->
         <div class="bg-slate-900/90 border-b border-slate-800 p-3 space-y-2.5 shrink-0">
-            <div class="flex flex-wrap sm:flex-nowrap gap-1.5">
-                <div class="relative flex-1 min-w-[160px]">
-                    <i class="fas fa-search absolute left-3 top-2.5 text-slate-400 text-xs"></i>
-                    <input type="text" id="buscaCurimbaInput" oninput="window.filtrarListaCurimba()" placeholder="Buscar médium, guia ou letra..." class="w-full pl-8 pr-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white! placeholder-slate-400 outline-none focus:border-amber-500" style="color: #ffffff !important;">
-                </div>
-                <button type="button" id="btnFiltroPresentesCurimba" onclick="window.alternarFiltroPresentesCurimba()" class="px-2.5 py-2 rounded-xl text-[11px] font-black border transition active:scale-95 flex items-center gap-1.5 shrink-0 bg-slate-800 text-slate-300 border-slate-700">
+            <!-- Linha 1: Barra de Pesquisa Ocupando 100% da Largura -->
+            <div class="relative w-full">
+                <i class="fas fa-search absolute left-3 top-3 text-slate-400 text-xs"></i>
+                <input type="text" id="buscaCurimbaInput" oninput="window.filtrarListaCurimba()" placeholder="Buscar médium, guia ou letra..." class="w-full pl-8 pr-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-400 outline-none focus:border-amber-500 shadow-inner" style="color: #ffffff !important;">
+            </div>
+
+            <!-- Linha 2: Botões Presentes e Incompletos distribuídos igualmente -->
+            <div class="grid grid-cols-2 gap-1.5">
+                <button type="button" id="btnFiltroPresentesCurimba" onclick="window.alternarFiltroPresentesCurimba()" class="py-2 px-3 rounded-xl text-[11px] font-black border transition active:scale-95 flex items-center justify-center gap-1.5 bg-slate-800 text-slate-300 border-slate-700 shadow-sm">
                     <span class="w-2 h-2 rounded-full bg-emerald-400"></span> Presentes
                 </button>
-                <button type="button" id="btnFiltroIncompletosCurimba" onclick="window.alternarFiltroIncompletosCurimba()" class="px-2.5 py-2 rounded-xl text-[11px] font-black border transition active:scale-95 flex items-center gap-1 shrink-0 bg-slate-800 text-amber-300 border-slate-700" title="Filtra médiuns que ainda não têm as 4 letras ou 4 áudios">
+                <button type="button" id="btnFiltroIncompletosCurimba" onclick="window.alternarFiltroIncompletosCurimba()" class="py-2 px-3 rounded-xl text-[11px] font-black border transition active:scale-95 flex items-center justify-center gap-1.5 bg-slate-800 text-amber-300 border-slate-700 shadow-sm" title="Filtra médiuns que ainda não têm as 4 letras ou 4 áudios">
                     <i class="fas fa-exclamation-triangle text-[10px]"></i> Incompletos
                 </button>
             </div>
