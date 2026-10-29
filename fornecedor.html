@@ -100,6 +100,9 @@
             document.getElementById('telaLoginFornecedor').classList.add('hidden');
             document.getElementById('painelFornecedorAtivo').classList.remove('hidden');
             document.getElementById('nomeFornecedorLogado').textContent = data.nome_fantasia;
+            
+            // CARREGA O CPF/CNPJ SE JÁ EXISTIR NO BANCO
+            document.getElementById('inputCpfCnpjFornecedor').value = data.cpf_cnpj || '';
 
             const { data: terreiros } = await supabaseClient.from('terreiros').select('id, nome, address, address_number').eq('status_bloqueado', false).order('nome');
             const sel = document.getElementById('selectTerreiroFornecedor');
@@ -166,9 +169,7 @@
             btn.disabled = true;
             btn.textContent = 'Salvando...';
 
-            try {
-                const taxaEntrega = parseFloat(document.getElementById('inputFreteTerreiro').value) || 0;
-                const freteGratis = document.getElementById('inputFreteGratisTerreiro').value ? parseFloat(document.getElementById('inputFreteGratisTerreiro').value) : null;
+            const taxaEntrega = parseFloat(document.getElementById('inputFreteTerreiro').value) || 0;
 
                 await supabaseClient.from('fornecedores_terreiros_frete').upsert({
                     fornecedor_id: fornecedorAtual.id,
