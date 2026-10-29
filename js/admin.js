@@ -6631,4 +6631,96 @@ async function carregarPreviewFundoCertificado() {
 
 document.addEventListener('DOMContentLoaded', () => {
     carregarPreviewFundoCertificado();
+    inicializarModuloFornecedoresAdmin();
 });
+
+// ==========================================================
+// MÓDULO: FORNECEDORES GLOBAIS (MASTER) E GESTOR DE DOAÇÕES
+// ==========================================================
+async function inicializarModuloFornecedoresAdmin() {
+    // 1. Carregar e Salvar Gestor de Doações do Terreiro
+    const selGestorDoacoes = document.getElementById('doacoesGestorSelect');
+    const btnSalvarGestorDoacoes = document.getElementById('btnSalvarGestorDoacoes');
+
+    const carregarGestorDoacoes = async () => {
+        if (!selGestorDoacoes || !idTerreiroGlobal) return;
+        if (selGestorDoacoes.options.length <= 1 && listaMediunsGlobal.length > 0) {
+            selGestorDoacoes.innerHTML = '<option value="">Selecione o médium responsável...</option>' +
+                listaMediunsGlobal.map(m => `<option value="${m.id}">${m.nome_completo} (${m.telefone || 'Sem tel'})</option>`).join('');
+        }
+        const { data } = await supabaseClient.from('terreiros').select('doacoes_gestor_id').eq('id', idTerreiroGlobal).single();
+        if (data && data.doacoes_gestor_id) selGestorDoacoes.value = data.doacoes_gestor_id;
+    };
+
+    document.getElementById('menuDoacoes')?.addEventListener('click', () => setTimeout(carregarGestorDoacoes, 200));
+    document.getElementById('btnTabDoacoes')?.addEventListener('click', () => setTimeout(carregarGestorDoacoes, 100));
+
+    if (btnSalvarGestorDoacoes) {
+        btnSalvarGestorDoacoes.addEventListener('click', async () => {
+            const val = selGestorDoacoes?.value ? parseInt(selGestorDoacoes.value, 10) : null;
+            btnSalvarGestorDoacoes.disabled = true;
+            const { error } = await supabaseClient.from('terreiros').update({ doacoes_gestor_id: val }).eq('id', idTerreiroGlobal);
+            btnSalvarGestorDoacoes.disabled = false;
+            if (error) alert('Erro ao salvar responsável: ' + error.message);
+            else alert('✅ Responsável pelas Doações salvo com sucesso!');
+        });
+    }
+
+    // 2. Gestão de Fornecedores Parceiros na aba Master SaaS
+    const formForn = document.getElementById('formNovoFornecedorMaster');
+    const listaFornEl = document.getElementById('listaFornecedoresMaster');
+
+    window.carregarFornecedoresMaster = async () => {
+        if (!listaFornEl) return;
+        const { data, error } = await supabaseClient.from('fornecedores').select('*').order('nome_fantasia');
+        if (error) {
+            listaFornEl.innerHTML = `<p class="text-xs text-red-500 col-span-full">Erro: ${error.message}</p>`;
+            return;
+        }
+        if (!data || data.length === 0) {
+            listaFornEl.innerHTML = `<p class="text-xs text-gray-400 col-span-full py-2">Nenhum fornecedor parceiro cadastrado ainda.</p>`;
+            return;
+        }
+        listaFornEl.innerHTML = data.map(f => `
+            <div class="bg-gray-50 border border-gray-200 rounded-xl p-3 flex justify-between items-center text-xs">
+                <div>
+                    <p class="font-black text-gray-800">${f.nome_fantasia}</p>
+                    <p class="text-[11px] text-gray-500"><i class="fab fa-whatsapp text-emerald-600"></i> ${f.whatsapp} • PIN: <strong class="font-mono">${f.pin_acesso}</strong></p>
+                    <p class="text-[10px] font-mono text-amber-700 mt-0.5">PIX (${f.tipo_chave_pix}): ${f.chave_pix}</p>
+                </div>
+                <button type="button" onclick="excluirFornecedorMaster(${f.id})" class="text-red-500 hover:text-red-700 p-2" title="Excluir Fornecedor">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        `).join('');
+    };
+
+    window.excluirFornecedorMaster = async (id) => {
+        if (!confirm('Deseja excluir este fornecedor parceiro?')) return;
+        await supabaseClient.from('fornecedores').delete().eq('id', id);
+        window.carregarFornecedoresMaster();
+    };
+
+    document.getElementById('menuMaster')?.addEventListener('click', () => setTimeout(window.carregarFornecedoresMaster, 200));
+    setTimeout(window.carregarFornecedoresMaster, 800);
+
+    if (formForn) {
+        formForn.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const payload = {
+                nome_fantasia: document.getElementById('fornNome').value.trim(),
+                whatsapp: document.getElementById('fornWhatsapp').value.replace(/\D/g, ''),
+                tipo_chave_pix: document.getElementById('fornTipoPix').value,
+                chave_pix: document.getElementById('fornChavePix').value.trim(),
+                pin_acesso: document.getElementById('fornPin').value.trim() || '123456',
+                ativo: true
+            };
+            const { error } = await supabaseClient.from('fornecedores').insert([payload]);
+            if (error) return alert('Erro ao cadastrar fornecedor: ' + error.message);
+            formForn.reset();
+            document.getElementById('fornPin').value = '123456';
+            alert('✅ Fornecedor cadastrado com sucesso!');
+            window.carregarFornecedoresMaster();
+        });
+    }
+}
