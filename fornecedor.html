@@ -37,13 +37,20 @@
 
     <!-- PAINEL DE TABELA DE PREÇOS E FRETE DO FORNECEDOR -->
     <div id="painelFornecedorAtivo" class="hidden w-full max-w-2xl mt-4 space-y-4">
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex justify-between items-center">
-            <div>
-                <span class="text-[10px] font-bold text-amber-400 uppercase">Fornecedor Parceiro</span>
-                <h2 id="nomeFornecedorLogado" class="text-base font-black text-white"></h2>
-            </div>
-            <button type="button" onclick="location.reload()" class="text-xs text-rose-400 font-bold bg-rose-500/10 px-3 py-1.5 rounded-xl border border-rose-500/20">Sair</button>
-        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+    <div>
+        <span class="text-[10px] font-bold text-amber-400 uppercase">Fornecedor Parceiro</span>
+        <h2 id="nomeFornecedorLogado" class="text-base font-black text-white"></h2>
+    </div>
+    
+    <!-- NOVO CAMPO CPF/CNPJ -->
+    <div class="w-full sm:w-auto">
+        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">CPF ou CNPJ (Para recebimento PIX/Asaas)</label>
+        <input type="text" id="inputCpfCnpjFornecedor" placeholder="Apenas números..." class="w-full sm:w-64 px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-sm font-bold text-white outline-none focus:border-amber-500">
+    </div>
+
+    <button type="button" onclick="location.reload()" class="text-xs text-rose-400 font-bold bg-rose-500/10 px-3 py-1.5 rounded-xl border border-rose-500/20">Sair</button>
+</div>
 
         <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
             <label class="block text-xs font-black text-indigo-300 uppercase"><i class="fas fa-synagogue mr-1"></i> 1. Selecione o Terreiro para atualizar preços e frete:</label>
