@@ -395,9 +395,22 @@
             });
 
             cacheCantigasLivro = todos;
+            try { localStorage.setItem(`cache_offline_livro_curimba_${idTerreiroGlobal}`, JSON.stringify(todos)); } catch (e) {}
             atualizarDropdownSubcategorias();
             window.renderizarCardsLivroCurimba();
         } catch (err) {
+            const salvoOffline = localStorage.getItem(`cache_offline_livro_curimba_${idTerreiroGlobal}`);
+            if (salvoOffline) {
+                try {
+                    cacheCantigasLivro = JSON.parse(salvoOffline);
+                    atualizarDropdownSubcategorias();
+                    window.renderizarCardsLivroCurimba();
+                    if (typeof window.mostrarToastSistema === 'function') {
+                        window.mostrarToastSistema('Modo Offline: exibindo Livro da Curimba salvo no aparelho.', 'aviso');
+                    }
+                    return;
+                } catch (e) {}
+            }
             container.innerHTML = `<p class="text-center text-rose-400 text-xs py-8">Erro ao carregar cantigas: ${err.message}</p>`;
         }
     }
@@ -570,6 +583,9 @@
     };
 
             let ultimoToqueFoco = 0;
+        let idCantigaFocoAtual = null;
+        let listaIdsFiltradosAtual = [];
+
         window.detectarDuploToqueCurimba = ( e, acaoCallback ) => {
             const agora = Date.now();
             if (agora - ultimoToqueFoco < 320) {
@@ -581,11 +597,20 @@
             }
         };
 
+        window.navegarModoFocoCantiga = (direcao) => {
+            const baseIds = listaIdsFiltradosAtual.length > 0 ? listaIdsFiltradosAtual : cacheCantigasLivro.map(c => c.id);
+            if (baseIds.length === 0) return;
+            const idxAtual = baseIds.indexOf(idCantigaFocoAtual);
+            const novoIdx = idxAtual === -1 ? 0 : (idxAtual + direcao + baseIds.length) % baseIds.length;
+            window.abrirModoFocoCantiga(baseIds[novoIdx]);
+        };
+
         window.abrirModoFocoCantiga = async (id) => {
             document.querySelectorAll('audio').forEach(a => a.pause());
         
             const cantiga = cacheCantigasLivro.find(c => c.id === id);
             if (!cantiga) return;
+            idCantigaFocoAtual = id;
         
             let modalFoco = document.getElementById('modalFocoCantigaImersivo');
             
@@ -608,10 +633,16 @@
                         </div>
                         <div id="focoExtra" class="space-y-3"></div>
                         <div id="focoLetra" class="text-slate-100 font-medium leading-relaxed tracking-wide pb-10 cursor-text select-text"></div>
-                        <div class="text-center pt-6 mt-auto border-t border-slate-800/50">
-                            <span class="text-[11px] text-slate-400 font-bold uppercase tracking-wider bg-slate-900 px-4 py-2 rounded-full border border-slate-800">
-                                <i class="fas fa-hand-pointer mr-1.5 text-indigo-400"></i> Dê 2 toques na tela para voltar
+                        <div class="pt-4 mt-auto border-t border-slate-800/60 flex items-center justify-between gap-2">
+                            <button type="button" onclick="window.navegarModoFocoCantiga(-1)" class="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-black text-xs border border-slate-700 active:scale-95 flex items-center gap-1.5 shadow">
+                                <i class="fas fa-chevron-left text-indigo-400"></i> Anterior
+                            </button>
+                            <span class="text-[10px] sm:text-[11px] text-slate-400 font-bold uppercase tracking-wider bg-slate-900 px-3 py-2 rounded-full border border-slate-800 text-center">
+                                <i class="fas fa-hand-pointer mr-1 text-indigo-400"></i> 2 toques p/ sair
                             </span>
+                            <button type="button" onclick="window.navegarModoFocoCantiga(1)" class="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-black text-xs border border-slate-700 active:scale-95 flex items-center gap-1.5 shadow">
+                                Próxima <i class="fas fa-chevron-right text-indigo-400"></i>
+                            </button>
                         </div>
                     </div>
                 </div>`;
@@ -689,6 +720,8 @@
             if (termo) listaComScore.sort((a, b) => b.score - a.score);
             filtradas = listaComScore.map(x => x.c);
         }
+
+        listaIdsFiltradosAtual = filtradas.map(c => c.id);
 
         if (filtradas.length === 0) {
             container.innerHTML = `
