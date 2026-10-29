@@ -983,6 +983,21 @@
     
                     <!-- ABA 1: DOAÇÕES GERAIS (LIMPEZA/FIRMEZA) -->
                     <div id="abaDoacoes" class="space-y-6">
+                        <!-- Configuração do Responsável pelas Doações da Casa -->
+                        <div class="bg-white p-4 md:p-5 rounded-2xl shadow-sm border-t-4 border-emerald-600 flex flex-col sm:flex-row items-start sm:items-end justify-between gap-3">
+                            <div class="flex-1 w-full">
+                                <label class="block text-xs font-bold text-gray-700 mb-1">
+                                    <i class="fab fa-whatsapp text-emerald-600 mr-1"></i> Médium Responsável por Receber Avisos de Doações / Entregas
+                                </label>
+                                <select id="doacoesGestorSelect" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm bg-white outline-none focus:ring-2 focus:ring-emerald-500">
+                                    <option value="">Selecione o médium responsável...</option>
+                                </select>
+                            </div>
+                            <button type="button" id="btnSalvarGestorDoacoes" class="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold py-2 px-5 rounded-xl shadow text-xs transition shrink-0">
+                                <i class="fas fa-save mr-1"></i> Salvar Responsável
+                            </button>
+                        </div>
+
                         <div class="bg-white p-5 md:p-6 rounded-2xl shadow-sm border-t-4 border-tema-secundaria">
                             <div class="flex justify-between items-center mb-2 flex-wrap gap-3">
                                 <h3 class="text-base md:text-lg font-bold text-tema-texto">
@@ -1649,6 +1664,58 @@
                             </button>
                         </form>
                         <p id="msgNovoTerreiro" class="text-xs md:text-sm mt-2 hidden"></p>
+                    </div>
+
+                    <!-- Gestão Global de Fornecedores Parceiros (Comuns a todos os Terreiros) -->
+                    <div class="bg-white p-5 md:p-6 rounded-2xl shadow-sm border-t-4 border-amber-500 space-y-4">
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <div class="flex items-center gap-2 text-amber-900">
+                                <i class="fas fa-truck-loading text-lg text-amber-600"></i>
+                                <div>
+                                    <h3 class="text-base font-bold leading-tight">Fornecedores Parceiros (Global SaaS)</h3>
+                                    <p class="text-[11px] text-gray-500">Fornecedores comuns a todos os terreiros com repasse automático via PIX Asaas.</p>
+                                </div>
+                            </div>
+                            <a href="fornecedor.html" target="_blank" class="bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold text-xs px-3.5 py-2 rounded-xl border border-amber-300 transition flex items-center gap-1.5">
+                                <i class="fas fa-external-link-alt"></i> Abrir Portal do Fornecedor
+                            </a>
+                        </div>
+
+                        <form id="formNovoFornecedorMaster" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2.5 items-end bg-amber-50/50 p-3.5 rounded-2xl border border-amber-200">
+                            <div class="lg:col-span-2">
+                                <label class="block text-[10px] font-bold text-gray-600 uppercase mb-1">Nome da Loja / Fornecedor *</label>
+                                <input type="text" id="fornNome" required placeholder="Ex: Casa de Umbanda Aruanda" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs bg-white outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-600 uppercase mb-1">WhatsApp (Login) *</label>
+                                <input type="tel" id="fornWhatsapp" required placeholder="(21) 99999-9999" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs bg-white outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-600 uppercase mb-1">Tipo PIX *</label>
+                                <select id="fornTipoPix" class="w-full px-2.5 py-2 border border-gray-300 rounded-xl text-xs bg-white outline-none">
+                                    <option value="CPF">CPF</option>
+                                    <option value="CNPJ">CNPJ</option>
+                                    <option value="PHONE">Celular</option>
+                                    <option value="EMAIL">E-mail</option>
+                                    <option value="EVP">Aleatória</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-600 uppercase mb-1">Chave PIX p/ Repasse *</label>
+                                <input type="text" id="fornChavePix" required placeholder="Chave PIX" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs bg-white outline-none font-mono">
+                            </div>
+                            <div class="flex gap-1.5">
+                                <div class="w-20">
+                                    <label class="block text-[10px] font-bold text-gray-600 uppercase mb-1">PIN (6 díg)</label>
+                                    <input type="text" id="fornPin" required maxlength="6" value="123456" class="w-full px-2 py-2 border border-gray-300 rounded-xl text-xs bg-white text-center font-mono font-bold outline-none">
+                                </div>
+                                <button type="submit" class="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 px-3 rounded-xl text-xs shadow active:scale-95 transition">
+                                    <i class="fas fa-plus"></i> Salvar
+                                </button>
+                            </div>
+                        </form>
+
+                        <div id="listaFornecedoresMaster" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3"></div>
                     </div>
     
                     <!-- Cabeçalho e Busca da Lista -->
