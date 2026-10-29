@@ -780,6 +780,51 @@
         </div>
     </div>
 
+    <!-- ============================================== -->
+    <!-- NOVO MODAL: CHECKOUT FORNECEDOR (ASAAS + WHATSAPP) -->
+    <!-- ============================================== -->
+    <div id="modalCheckoutFornecedor" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[9999] transition-opacity">
+        <div class="bg-white rounded-3xl shadow-xl w-full max-w-md p-6 text-center transform scale-95 transition-all flex flex-col max-h-[92vh]">
+            <h3 class="text-xl font-black text-gray-800 mb-2">Compra c/ Fornecedor</h3>
+            
+            <!-- Estado 1: PIX Gerado / Aguardando Asaas -->
+            <div id="statusAguardandoPixForn" class="flex flex-col items-center">
+                <p class="text-sm text-gray-600 mb-3">O pagamento será dividido automaticamente. Escaneie ou copie a chave abaixo.</p>
+                
+                <!-- Aqui seu JS vai jogar o QR Code e o Copia/Cola -->
+                <div id="areaQrCodeFornecedor" class="bg-gray-50 p-4 rounded-xl border border-gray-200 mb-4 w-full"></div>
+                
+                <div class="flex flex-col items-center justify-center mt-2 p-3 bg-amber-50 rounded-xl border border-amber-200 w-full">
+                    <i class="fas fa-circle-notch fa-spin text-2xl text-amber-500 mb-2"></i>
+                    <p class="text-sm font-bold text-amber-800">Aguardando confirmação do Asaas...</p>
+                    <p class="text-[10px] text-amber-600 text-center mt-1">A liberação do WhatsApp é automática. Não feche.</p>
+                </div>
+                <button type="button" onclick="document.getElementById('modalCheckoutFornecedor').classList.add('hidden')" class="w-full mt-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 px-4 rounded-xl text-sm border border-gray-200">Cancelar Compra</button>
+            </div>
+
+            <!-- Estado 2: Pagamento Aprovado e Botões do WhatsApp Liberados -->
+            <div id="statusAprovadoPixForn" class="hidden flex-col items-center justify-center mt-2">
+                <div class="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-3 shadow-sm">
+                    <i class="fas fa-check text-3xl"></i>
+                </div>
+                <h3 class="text-xl font-black text-green-700 mb-2">Pagamento Aprovado!</h3>
+                <p class="text-xs text-green-600 text-center mb-6">A doação já foi baixada no sistema. Agora avise o fornecedor e a Casa.</p>
+                
+                <div class="w-full space-y-3">
+                    <button type="button" id="btnWhatsFornecedor" class="w-full bg-[#25D366] hover:bg-[#128C7E] text-white font-bold py-3.5 rounded-xl text-sm flex items-center justify-center gap-2 shadow-md active:scale-95 transition">
+                        <i class="fab fa-whatsapp text-xl"></i> Avisar Fornecedor
+                    </button>
+                    
+                    <button type="button" id="btnWhatsGestor" class="w-full bg-gray-800 hover:bg-gray-900 text-white font-bold py-3.5 rounded-xl text-sm flex items-center justify-center gap-2 shadow-md active:scale-95 transition">
+                        <i class="fab fa-whatsapp text-xl"></i> Avisar Gestor da Casa
+                    </button>
+
+                    <button type="button" onclick="document.getElementById('modalCheckoutFornecedor').classList.add('hidden'); location.reload();" class="w-full mt-2 bg-gray-100 text-gray-700 font-bold py-3 rounded-xl text-xs border border-gray-200">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal Educativo de Permissão de GPS -->
     <div id="modalPermissaoGPS" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-[60] transition-opacity">
         <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 text-center transform scale-95 transition-all flex flex-col">
