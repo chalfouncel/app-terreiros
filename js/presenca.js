@@ -1211,16 +1211,25 @@ document.addEventListener('DOMContentLoaded', async () => {
             let totalItens = 0;
             for (let id in carrinhoDoacoes) totalItens += carrinhoDoacoes[id];
             
+            const btnForn = document.getElementById('btnComprarFornecedorApp');
             if (totalItens > 0) {
                 if(qtdTotalDoacao) qtdTotalDoacao.textContent = totalItens;
                 if(btnConfirmarDoacao) {
                     btnConfirmarDoacao.classList.remove('hidden');
                     btnConfirmarDoacao.classList.add('flex');
                 }
+                if (btnForn && abaCampanhaAtiva === 'doacao') {
+                    btnForn.classList.remove('hidden');
+                    btnForn.classList.add('flex');
+                }
             } else {
                 if(btnConfirmarDoacao) {
                     btnConfirmarDoacao.classList.add('hidden');
                     btnConfirmarDoacao.classList.remove('flex');
+                }
+                if (btnForn) {
+                    btnForn.classList.add('hidden');
+                    btnForn.classList.remove('flex');
                 }
             }
         });
@@ -2331,3 +2340,326 @@ async function verificarPendenciaMensalidade(mediumId) {
         console.error('Erro ao verificar pendência de mensalidade:', err);
     }
 }
+// ====================================================================
+// MÓDULO: COMPRA DIRETA COM FORNECEDORES PARCEIROS (ASAAS -> PIX DIRETO)
+// ====================================================================
+(function () {
+    // Taxas Asaas para cálculo transparente de repasse integral à vista ao fornecedor
+    const TAXA_ASAAS_PIX_FIXA = 1.99; // Taxa PIX + Transferência PIX automática
+    const TAXA_CARTAO_FIXA = 0.49;
+    const TAXA_CARTAO_PERC = 4.19; // 2.99% intermediação cartão + 1.20% antecipação p/ repasse à vista
+
+    function calcularTotalComTaxas(valorLiquidoFornecedor, metodo) {
+        if (metodo === 'CREDIT_CARD') {
+            const divisor = 1 - (TAXA_CARTAO_PERC / 100);
+            const total = (valorLiquidoFornecedor + TAXA_CARTAO_FIXA) / divisor;
+            return Number(total.toFixed(2));
+        }
+        return Number((valorLiquidoFornecedor + TAXA_ASAAS_PIX_FIXA).toFixed(2));
+    }
+
+    window.abrirComparadorFornecedoresDoacao = async () => {
+        const itensSelecionados = Object.entries(carrinhoDoacoes)
+            .filter(([_, qtd]) => qtd > 0)
+            .map(([id, qtd]) => {
+                const obj = window.todosItensDoacaoCache.find(i => String(i.id) === String(id));
+                return { id: parseInt(id, 10), nome: obj?.nome || 'Item', qtd };
+            });
+
+        if (itensSelecionados.length === 0) return alert('Selecione ao menos 1 item para cotar nos fornecedores.');
+
+        let modalComp = document.getElementById('modalComparadorFornecedores');
+        if (!modalComp) {
+            const html = `
+            <div id="modalComparadorFornecedores" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-[99998] flex items-center justify-center p-4">
+                <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md p-5 flex flex-col max-h-[92vh]">
+                    <div class="flex justify-between items-center border-b border-gray-100 pb-3 mb-3">
+                        <div>
+                            <h3 class="font-black text-base text-gray-800 flex items-center gap-2">
+                                <i class="fas fa-store text-amber-500"></i> Compra Direta p/ o Terreiro
+                            </h3>
+                            <p class="text-[11px] text-gray-500">Compare os preços e envie direto para o endereço da Casa</p>
+                        </div>
+                        <button type="button" onclick="document.getElementById('modalComparadorFornecedores').classList.add('hidden')" class="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 mb-3 bg-gray-100 p-1 rounded-xl text-xs font-bold">
+                        <button type="button" id="btnMetodoFornecedorPix" onclick="window.setMetodoPagamentoFornecedor('PIX')" class="py-2 rounded-lg bg-white text-emerald-700 shadow-sm transition">
+                            <i class="fab fa-pix mr-1"></i> Pagar via PIX
+                        </button>
+                        <button type="button" id="btnMetodoFornecedorCartao" onclick="window.setMetodoPagamentoFornecedor('CREDIT_CARD')" class="py-2 rounded-lg text-gray-500 transition">
+                            <i class="far fa-credit-card mr-1"></i> Cartão (c/ Juros)
+                        </button>
+                    </div>
+
+                    <div id="listaOpcoesFornecedores" class="flex-1 overflow-y-auto space-y-3 pr-1"></div>
+
+                    <div id="boxPosPagamentoFornecedor" class="hidden mt-3 pt-3 border-t border-gray-200 space-y-2"></div>
+                </div>
+            </div>`;
+            document.body.insertAdjacentHTML('beforeend', html);
+            modalComp = document.getElementById('modalComparadorFornecedores');
+        }
+
+        modalComp.classList.remove('hidden');
+        document.getElementById('boxPosPagamentoFornecedor').classList.add('hidden');
+        window.metodoPagamentoFornecedorAtual = 'PIX';
+        await window.renderizarCotacoesFornecedores(itensSelecionados);
+    };
+
+    window.setMetodoPagamentoFornecedor = async (metodo) => {
+        window.metodoPagamentoFornecedorAtual = metodo;
+        const bPix = document.getElementById('btnMetodoFornecedorPix');
+        const bCar = document.getElementById('btnMetodoFornecedorCartao');
+        if (bPix && bCar) {
+            bPix.className = metodo === 'PIX' ? 'py-2 rounded-lg bg-white text-emerald-700 shadow-sm font-black transition' : 'py-2 rounded-lg text-gray-500 font-bold transition';
+            bCar.className = metodo === 'CREDIT_CARD' ? 'py-2 rounded-lg bg-white text-indigo-700 shadow-sm font-black transition' : 'py-2 rounded-lg text-gray-500 font-bold transition';
+        }
+        const itensSelecionados = Object.entries(carrinhoDoacoes)
+            .filter(([_, qtd]) => qtd > 0)
+            .map(([id, qtd]) => {
+                const obj = window.todosItensDoacaoCache.find(i => String(i.id) === String(id));
+                return { id: parseInt(id, 10), nome: obj?.nome || 'Item', qtd };
+            });
+        await window.renderizarCotacoesFornecedores(itensSelecionados);
+    };
+
+    window.renderizarCotacoesFornecedores = async (itensSelecionados) => {
+        const container = document.getElementById('listaOpcoesFornecedores');
+        if (!container) return;
+        container.innerHTML = '<p class="text-center text-gray-400 text-xs py-8"><i class="fas fa-spinner fa-spin mr-2"></i> Buscando menores preços nos fornecedores...</p>';
+
+        try {
+            const { data: fornecedores } = await supabaseClient.from('fornecedores').select('*').eq('ativo', true);
+            const { data: fretes } = await supabaseClient.from('fornecedores_terreiros_frete').select('*').eq('terreiro_id', idTerreiroGlobal);
+            const idsItens = itensSelecionados.map(i => i.id);
+            const { data: precos } = await supabaseClient.from('fornecedores_precos_itens')
+                .select('*')
+                .eq('terreiro_id', idTerreiroGlobal)
+                .in('item_id', idsItens)
+                .eq('disponivel', true);
+
+            if (!fornecedores || fornecedores.length === 0 || !precos || precos.length === 0) {
+                container.innerHTML = `<div class="p-6 text-center text-gray-500 text-xs bg-gray-50 rounded-2xl border border-gray-200">Nenhum fornecedor parceiro cadastrou preços para estes itens ainda.</div>`;
+                return;
+            }
+
+            const metodo = window.metodoPagamentoFornecedorAtual || 'PIX';
+            const opcoesFornecedorUnico = [];
+
+            fornecedores.forEach(f => {
+                const freteObj = (fretes || []).find(fr => fr.fornecedor_id === f.id);
+                const taxaEntregaPadrao = freteObj ? parseFloat(freteObj.taxa_entrega) || 0 : 0;
+                const minFreteGratis = freteObj && freteObj.frete_gratis_acima ? parseFloat(freteObj.frete_gratis_acima) : null;
+
+                let somaProdutos = 0;
+                let temTodosItens = true;
+                const itensDetalhados = [];
+
+                for (const item of itensSelecionados) {
+                    const pObj = precos.find(p => p.fornecedor_id === f.id && p.item_id === item.id && parseFloat(p.preco_unitario) > 0);
+                    if (!pObj) {
+                        temTodosItens = false;
+                        break;
+                    }
+                    const unit = parseFloat(pObj.preco_unitario);
+                    const sub = unit * item.qtd;
+                    somaProdutos += sub;
+                    itensDetalhados.push({ ...item, unitario: unit, subtotal: sub });
+                }
+
+                if (temTodosItens) {
+                    const freteFinal = (minFreteGratis !== null && somaProdutos >= minFreteGratis) ? 0 : taxaEntregaPadrao;
+                    const liquidoFornecedor = Number((somaProdutos + freteFinal).toFixed(2));
+                    const totalCobrado = calcularTotalComTaxas(liquidoFornecedor, metodo);
+                    const taxaServico = Number((totalCobrado - liquidoFornecedor).toFixed(2));
+
+                    opcoesFornecedorUnico.push({
+                        fornecedor: f,
+                        itens: itensDetalhados,
+                        somaProdutos,
+                        freteFinal,
+                        liquidoFornecedor,
+                        taxaServico,
+                        totalCobrado
+                    });
+                }
+            });
+
+            opcoesFornecedorUnico.sort((a, b) => a.totalCobrado - b.totalCobrado);
+
+            if (opcoesFornecedorUnico.length === 0) {
+                container.innerHTML = `<div class="p-6 text-center text-gray-500 text-xs bg-gray-50 rounded-2xl border border-gray-200">Nenhum fornecedor possui todos os itens selecionados disponíveis no momento.</div>`;
+                return;
+            }
+
+            window.opcoesCotadasCache = opcoesFornecedorUnico;
+
+            container.innerHTML = opcoesFornecedorUnico.map((op, idx) => {
+                const ehMaisBarato = idx === 0;
+                const badgeMelhor = ehMaisBarato
+                    ? `<span class="bg-emerald-500 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider">🏆 Menor Preço Total</span>`
+                    : `<span class="bg-gray-200 text-gray-700 text-[10px] font-bold px-2 py-0.5 rounded-full">Opção ${idx + 1}</span>`;
+
+                return `
+                <div class="rounded-2xl border-2 ${ehMaisBarato ? 'border-emerald-500 bg-emerald-50/30' : 'border-gray-200 bg-white'} p-4 space-y-2.5 shadow-sm">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            ${badgeMelhor}
+                            <h4 class="font-black text-gray-800 text-sm mt-1">${op.fornecedor.nome_fantasia}</h4>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-[10px] text-gray-400 font-bold uppercase block">Total Final</span>
+                            <span class="text-lg font-black text-emerald-700">R$ ${op.totalCobrado.toFixed(2).replace('.', ',')}</span>
+                        </div>
+                    </div>
+
+                    <div class="text-[11px] text-gray-600 bg-white/90 rounded-xl p-2.5 border border-gray-100 space-y-1">
+                        ${op.itens.map(i => `<div class="flex justify-between"><span>${i.qtd}x ${i.nome}</span><span class="font-bold">R$ ${i.subtotal.toFixed(2)}</span></div>`).join('')}
+                        <div class="border-t border-dashed border-gray-200 pt-1 mt-1 flex justify-between text-gray-500">
+                            <span>Taxa de Entrega ao Terreiro:</span>
+                            <span class="font-bold">${op.freteFinal === 0 ? 'GRÁTIS' : `R$ ${op.freteFinal.toFixed(2)}`}</span>
+                        </div>
+                        <div class="flex justify-between text-gray-400 text-[10px]">
+                            <span>Taxa de processamento (${metodo === 'PIX' ? 'PIX' : 'Cartão à vista'}):</span>
+                            <span>R$ ${op.taxaServico.toFixed(2)}</span>
+                        </div>
+                    </div>
+
+                    <button type="button" onclick="window.fecharPedidoFornecedorParceiro(${idx})" class="w-full py-3 rounded-xl font-black text-xs text-white ${ehMaisBarato ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-gray-800 hover:bg-gray-900'} shadow active:scale-95 transition flex items-center justify-center gap-2">
+                        <i class="fas fa-bolt"></i> Comprar neste Fornecedor (R$ ${op.totalCobrado.toFixed(2).replace('.', ',')})
+                    </button>
+                </div>`;
+            }).join('');
+        } catch (err) {
+            container.innerHTML = `<p class="text-center text-red-500 text-xs py-4">Erro na cotação: ${err.message}</p>`;
+        }
+    };
+
+    window.fecharPedidoFornecedorParceiro = async (idxOpcao) => {
+        const op = window.opcoesCotadasCache?.[idxOpcao];
+        if (!op) return;
+
+        const metodo = window.metodoPagamentoFornecedorAtual || 'PIX';
+
+        try {
+            // 1. Registra o pedido no banco
+            const { data: pedidoCriado, error: errPed } = await supabaseClient.from('pedidos_fornecedores').insert([{
+                terreiro_id: idTerreiroGlobal,
+                medium_id: perfilMediumLogado.id,
+                medium_nome: perfilMediumLogado.nome_completo,
+                fornecedor_id: op.fornecedor.id,
+                itens_json: op.itens,
+                valor_produtos: op.somaProdutos,
+                valor_frete: op.freteFinal,
+                taxa_servico: op.taxaServico,
+                valor_total_cobrado: op.totalCobrado,
+                valor_repasse_fornecedor: op.liquidoFornecedor,
+                metodo_pagamento: metodo,
+                status_pagamento: 'pendente'
+            }]).select('*').single();
+
+            if (errPed) throw errPed;
+
+            // 2. Registra as doações na tabela doacoes_registradas como compradas via fornecedor
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            const insercoesDoacao = op.itens.map(i => ({
+                terreiro_id: idTerreiroGlobal,
+                medium_auth_id: session.user.id,
+                item_id: i.id,
+                quantidade: i.qtd,
+                valor_total: i.subtotal,
+                metodo_pagamento: 'fornecedor_asaas',
+                status_pagamento: 'pendente'
+            }));
+            await supabaseClient.from('doacoes_registradas').insert(insercoesDoacao);
+
+            // 3. Dispara a cobrança para a Edge Function do Asaas passando a Chave PIX do Fornecedor para Transferência Direta
+            try {
+                const { data: cobrancaAsaas } = await supabaseClient.functions.invoke('asaas-gerar-cobranca', {
+                    body: {
+                        tipoOperacao: 'COMPRA_FORNECEDOR',
+                        pedidoFornecedorId: pedidoCriado.id,
+                        mediumId: perfilMediumLogado.id,
+                        terreiroId: idTerreiroGlobal,
+                        metodoPagamento: metodo,
+                        valorTotal: op.totalCobrado,
+                        valorRepasseFornecedor: op.liquidoFornecedor,
+                        taxaBancaria: op.taxaServico,
+                        fornecedorPixKey: op.fornecedor.chave_pix,
+                        fornecedorPixType: op.fornecedor.tipo_chave_pix,
+                        fornecedorNome: op.fornecedor.nome_fantasia
+                    }
+                });
+                if (cobrancaAsaas && cobrancaAsaas.invoiceUrl) {
+                    window.open(cobrancaAsaas.invoiceUrl, '_blank');
+                }
+            } catch (eAsaas) {
+                console.warn('Edge function Asaas aviso:', eAsaas);
+            }
+
+            // 4. Monta os botões de disparo WhatsApp para o Fornecedor (com endereço do terreiro) e para o Gestor de Doações
+            const endTerreiro = [
+                terreiroConfigMensalidade?.address,
+                terreiroConfigMensalidade?.address_number ? `nº ${terreiroConfigMensalidade.address_number}` : '',
+                terreiroConfigMensalidade?.postal_code ? `CEP: ${terreiroConfigMensalidade.postal_code}` : ''
+            ].filter(Boolean).join(', ') || 'Endereço da Sede do Terreiro';
+
+            const resumoItensTxt = op.itens.map(i => `• ${i.qtd}x ${i.nome}`).join('\n');
+
+            const msgFornecedor =
+                `🛒 *NOVO PEDIDO DE DOAÇÃO — ${terreiroConfigMensalidade?.nome || 'Terreiro'}*\n` +
+                `*Pedido Nº:* #${pedidoCriado.id}\n` +
+                `*Comprador (Médium):* ${perfilMediumLogado.nome_completo}\n\n` +
+                `*Itens Solicitados:*\n${resumoItensTxt}\n\n` +
+                `*Valor Produtos + Entrega:* R$ ${op.liquidoFornecedor.toFixed(2)}\n` +
+                `*Local de Entrega:* ${endTerreiro}`;
+
+            const foneFornecedor = String(op.fornecedor.whatsapp || '').replace(/\D/g, '');
+            const urlWhatsFornecedor = `https://wa.me/55${foneFornecedor}?text=${encodeURIComponent(msgFornecedor)}`;
+
+            // Busca o telefone do gestor de doações do terreiro
+            let urlWhatsGestor = '';
+            if (terreiroConfigMensalidade?.doacoes_gestor_id) {
+                const { data: gestorMed } = await supabaseClient.from('mediuns')
+                    .select('nome_completo, telefone')
+                    .eq('id', terreiroConfigMensalidade.doacoes_gestor_id)
+                    .single();
+                if (gestorMed && gestorMed.telefone) {
+                    const foneGestor = gestorMed.telefone.replace(/\D/g, '');
+                    const msgGestor =
+                        `🕊️ *AVISO DE DOAÇÃO COMPRADA PELO APP*\n\n` +
+                        `Olá, ${gestorMed.nome_completo.split(' ')[0]}!\n` +
+                        `O(a) médium *${perfilMediumLogado.nome_completo}* acabou de adquirir os seguintes materiais no fornecedor *${op.fornecedor.nome_fantasia}* para entrega direta no nosso Terreiro:\n\n` +
+                        `${resumoItensTxt}\n\n` +
+                        `*Pedido:* #${pedidoCriado.id}`;
+                    urlWhatsGestor = `https://wa.me/55${foneGestor}?text=${encodeURIComponent(msgGestor)}`;
+                }
+            }
+
+            const boxPos = document.getElementById('boxPosPagamentoFornecedor');
+            if (boxPos) {
+                boxPos.innerHTML = `
+                    <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-3 text-center space-y-2">
+                        <p class="text-xs font-black text-emerald-900"><i class="fas fa-check-circle text-emerald-600 mr-1"></i> Pedido #${pedidoCriado.id} Gerado!</p>
+                        <p class="text-[11px] text-emerald-700">Após concluir o pagamento, envie a ordem de entrega ao fornecedor e avise o responsável do terreiro:</p>
+                        <a href="${urlWhatsFornecedor}" target="_blank" class="w-full py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl flex items-center justify-center gap-2 shadow">
+                            <i class="fab fa-whatsapp text-base"></i> 1. Enviar Pedido e Endereço ao Fornecedor
+                        </a>
+                        ${urlWhatsGestor ? `
+                        <a href="${urlWhatsGestor}" target="_blank" class="w-full py-2.5 px-3 bg-sky-600 hover:bg-sky-700 text-white font-black text-xs rounded-xl flex items-center justify-center gap-2 shadow">
+                            <i class="fab fa-whatsapp text-base"></i> 2. Avisar Responsável pelas Doações do Terreiro
+                        </a>` : ''}
+                    </div>
+                `;
+                boxPos.classList.remove('hidden');
+            }
+
+            carrinhoDoacoes = {};
+        } catch (err) {
+            alert('Erro ao processar pedido: ' + err.message);
+        }
+    };
+})();
