@@ -1028,9 +1028,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const elTotalMed = document.getElementById('totalMediuns');
                 if (elTotalMed) elTotalMed.textContent = totalMediuns || '0';
 
-                // 2. Próximo Evento (Gira)
+                // 2. Próximo Evento (Gira - Ignorando informativos)
                 const agora = new Date().toISOString();
-                const { data: agendaData } = await supabaseClient.from('agenda').select('*').eq('terreiro_id', idTerreiroGlobal).gte('data_hora_fim', agora).order('data_hora_inicio').limit(1);
+                const { data: agendaData } = await supabaseClient.from('agenda')
+                    .select('*')
+                    .eq('terreiro_id', idTerreiroGlobal)
+                    .gte('data_hora_fim', agora)
+                    .neq('tipo', 'informativo')
+                    .order('data_hora_inicio')
+                    .limit(1);
 
                 let giraAtualId = null;
                 const elProxGira = document.getElementById('proximaGira');
