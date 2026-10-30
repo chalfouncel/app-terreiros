@@ -166,10 +166,28 @@
         async function salvarTabelaFornecedor() {
             const terreiroId = document.getElementById('selectTerreiroFornecedor').value;
             const btn = document.getElementById('btnSalvarTabelaFornecedor');
+            const cpfCnpjLimpo = (document.getElementById('inputCpfCnpjFornecedor')?.value || '').replace(/\D/g, '');
+
+            if (!cpfCnpjLimpo || (cpfCnpjLimpo.length !== 11 && cpfCnpjLimpo.length !== 14)) {
+                return alert('Informe um CPF (11 dígitos) ou CNPJ (14 dígitos) válido para recebimento via PIX/Asaas.');
+            }
+
             btn.disabled = true;
             btn.textContent = 'Salvando...';
 
-            const taxaEntrega = parseFloat(document.getElementById('inputFreteTerreiro').value) || 0;
+            try {
+                // 1. Atualiza o CPF/CNPJ do fornecedor no cadastro dele
+                const { error: errForn } = await supabaseClient
+                    .from('fornecedores')
+                    .update({ cpf_cnpj: cpfCnpjLimpo })
+                    .eq('id', fornecedorAtual.id);
+                if (errForn) throw errForn;
+                fornecedorAtual.cpf_cnpj = cpfCnpjLimpo;
+
+                // 2. Salva frete para o Terreiro selecionado
+                const taxaEntrega = parseFloat(document.getElementById('inputFreteTerreiro').value) || 0;
+                const valFreteGratis = document.getElementById('inputFreteGratisTerreiro').value;
+                const freteGratis = valFreteGratis ? parseFloat(valFreteGratis) : null;
 
                 await supabaseClient.from('fornecedores_terreiros_frete').upsert({
                     fornecedor_id: fornecedorAtual.id,
