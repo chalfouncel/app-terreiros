@@ -6686,7 +6686,8 @@ async function inicializarModuloFornecedoresAdmin() {
                 <div>
                     <p class="font-black text-gray-800">${f.nome_fantasia}</p>
                     <p class="text-[11px] text-gray-500"><i class="fab fa-whatsapp text-emerald-600"></i> ${f.whatsapp} • PIN: <strong class="font-mono">${f.pin_acesso}</strong></p>
-                    <p class="text-[10px] font-mono text-amber-700 mt-0.5">PIX (${f.tipo_chave_pix}): ${f.chave_pix}</p>
+                    <p class="text-[10px] font-mono text-gray-600 mt-0.5">CPF/CNPJ: ${f.cpf_cnpj || 'Não informado'}</p>
+                    <p class="text-[10px] font-mono text-amber-700">PIX (${f.tipo_chave_pix}): ${f.chave_pix}</p>
                 </div>
                 <button type="button" onclick="excluirFornecedorMaster(${f.id})" class="text-red-500 hover:text-red-700 p-2" title="Excluir Fornecedor">
                     <i class="fas fa-trash"></i>
@@ -6707,8 +6708,10 @@ async function inicializarModuloFornecedoresAdmin() {
     if (formForn) {
         formForn.addEventListener('submit', async (e) => {
             e.preventDefault();
+            const cpfCnpjLimpo = (document.getElementById('fornCpfCnpj')?.value || '').replace(/\D/g, '');
             const payload = {
                 nome_fantasia: document.getElementById('fornNome').value.trim(),
+                cpf_cnpj: cpfCnpjLimpo || null,
                 whatsapp: document.getElementById('fornWhatsapp').value.replace(/\D/g, ''),
                 tipo_chave_pix: document.getElementById('fornTipoPix').value,
                 chave_pix: document.getElementById('fornChavePix').value.trim(),
