@@ -2344,10 +2344,9 @@ async function verificarPendenciaMensalidade(mediumId) {
 // MÓDULO: COMPRA DIRETA COM FORNECEDORES PARCEIROS (ASAAS -> PIX DIRETO)
 // ====================================================================
 (function () {
-    // Taxas Asaas para cálculo transparente de repasse integral à vista ao fornecedor
-    const TAXA_ASAAS_PIX_FIXA = 1.99; // Taxa PIX + Transferência PIX automática
+    const TAXA_ASAAS_PIX_FIXA = 1.99;
     const TAXA_CARTAO_FIXA = 0.49;
-    const TAXA_CARTAO_PERC = 4.19; // 2.99% intermediação cartão + 1.20% antecipação p/ repasse à vista
+    const TAXA_CARTAO_PERC = 4.19;
 
     function calcularTotalComTaxas(valorLiquidoFornecedor, metodo) {
         if (metodo === 'CREDIT_CARD') {
@@ -2356,6 +2355,26 @@ async function verificarPendenciaMensalidade(mediumId) {
             return Number(Math.max(5.00, total).toFixed(2));
         }
         return Number(Math.max(5.00, valorLiquidoFornecedor + TAXA_ASAAS_PIX_FIXA).toFixed(2));
+    }
+
+    function verificarFornecedorAberto(horaAbre, horaFecha) {
+        const abre = horaAbre || '08:00';
+        const fecha = horaFecha || '18:00';
+        const agora = new Date();
+        const minAtual = agora.getHours() * 60 + agora.getMinutes();
+
+        const [hI, mI] = String(abre).split(':').map(Number);
+        const [hF, mF] = String(fecha).split(':').map(Number);
+        if (isNaN(hI) || isNaN(hF)) return true;
+
+        const minInicio = hI * 60 + (mI || 0);
+        const minFim = hF * 60 + (mF || 0);
+
+        if (minFim >= minInicio) {
+            return minAtual >= minInicio && minAtual <= minFim;
+        } else {
+            return minAtual >= minInicio || minAtual <= minFim;
+        }
     }
 
     window.abrirComparadorFornecedoresDoacao = async () => {
@@ -2385,7 +2404,7 @@ async function verificarPendenciaMensalidade(mediumId) {
                         </button>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-2 mb-3 bg-gray-100 p-1 rounded-xl text-xs font-bold">
+                    <div id="boxAbasMetodoFornecedor" class="grid grid-cols-2 gap-2 mb-3 bg-gray-100 p-1 rounded-xl text-xs font-bold">
                         <button type="button" id="btnMetodoFornecedorPix" onclick="window.setMetodoPagamentoFornecedor('PIX')" class="py-2 rounded-lg bg-white text-emerald-700 shadow-sm transition">
                             <i class="fab fa-pix mr-1"></i> Pagar via PIX
                         </button>
@@ -2396,7 +2415,7 @@ async function verificarPendenciaMensalidade(mediumId) {
 
                     <div id="listaOpcoesFornecedores" class="flex-1 overflow-y-auto space-y-3 pr-1"></div>
 
-                    <div id="boxPosPagamentoFornecedor" class="hidden mt-3 pt-3 border-t border-gray-200 space-y-2"></div>
+                    <div id="boxPosPagamentoFornecedor" class="hidden mt-1 space-y-2"></div>
                 </div>
             </div>`;
             document.body.insertAdjacentHTML('beforeend', html);
@@ -2404,7 +2423,9 @@ async function verificarPendenciaMensalidade(mediumId) {
         }
 
         modalComp.classList.remove('hidden');
-        document.getElementById('boxPosPagamentoFornecedor').classList.add('hidden');
+        document.getElementById('boxAbasMetodoFornecedor')?.classList.remove('hidden');
+        document.getElementById('listaOpcoesFornecedores')?.classList.remove('hidden');
+        document.getElementById('boxPosPagamentoFornecedor')?.classList.add('hidden');
         window.metodoPagamentoFornecedorAtual = 'PIX';
         await window.renderizarCotacoesFornecedores(itensSelecionados);
     };
@@ -2475,6 +2496,9 @@ async function verificarPendenciaMensalidade(mediumId) {
                     const liquidoFornecedor = Number((somaProdutos + freteFinal).toFixed(2));
                     const totalCobrado = calcularTotalComTaxas(liquidoFornecedor, metodo);
                     const taxaServico = Number((totalCobrado - liquidoFornecedor).toFixed(2));
+                    const horaAbre = f.hora_abertura || '08:00';
+                    const horaFecha = f.hora_fechamento || '18:00';
+                    const estaAberto = verificarFornecedorAberto(horaAbre, horaFecha);
 
                     opcoesFornecedorUnico.push({
                         fornecedor: f,
@@ -2483,7 +2507,10 @@ async function verificarPendenciaMensalidade(mediumId) {
                         freteFinal,
                         liquidoFornecedor,
                         taxaServico,
-                        totalCobrado
+                        totalCobrado,
+                        horaAbre,
+                        horaFecha,
+                        estaAberto
                     });
                 }
             });
@@ -2503,12 +2530,23 @@ async function verificarPendenciaMensalidade(mediumId) {
                     ? `<span class="bg-emerald-500 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider">🏆 Menor Preço Total</span>`
                     : `<span class="bg-gray-200 text-gray-700 text-[10px] font-bold px-2 py-0.5 rounded-full">Opção ${idx + 1}</span>`;
 
+                const botaoCompraHtml = op.estaAberto
+                    ? `<button type="button" onclick="window.fecharPedidoFornecedorParceiro(${idx})" class="w-full py-3 rounded-xl font-black text-xs text-white ${ehMaisBarato ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-gray-800 hover:bg-gray-900'} shadow active:scale-95 transition flex items-center justify-center gap-2">
+                           <i class="fas fa-bolt"></i> Comprar neste Fornecedor (R$ ${op.totalCobrado.toFixed(2).replace('.', ',')})
+                       </button>`
+                    : `<button type="button" disabled class="w-full py-3 rounded-xl font-black text-xs bg-rose-50 text-rose-700 border border-rose-200 cursor-not-allowed flex items-center justify-center gap-2">
+                           <i class="fas fa-lock"></i> Fechado p/ Pagamentos (Funciona das ${op.horaAbre} às ${op.horaFecha})
+                       </button>`;
+
                 return `
                 <div class="rounded-2xl border-2 ${ehMaisBarato ? 'border-emerald-500 bg-emerald-50/30' : 'border-gray-200 bg-white'} p-4 space-y-2.5 shadow-sm">
                     <div class="flex justify-between items-start">
                         <div>
                             ${badgeMelhor}
                             <h4 class="font-black text-gray-800 text-sm mt-1">${op.fornecedor.nome_fantasia}</h4>
+                            <span class="text-[10px] font-bold ${op.estaAberto ? 'text-emerald-600' : 'text-rose-600'}">
+                                <i class="far fa-clock mr-0.5"></i> Horário: ${op.horaAbre} às ${op.horaFecha}
+                            </span>
                         </div>
                         <div class="text-right">
                             <span class="text-[10px] text-gray-400 font-bold uppercase block">Total Final</span>
@@ -2528,9 +2566,7 @@ async function verificarPendenciaMensalidade(mediumId) {
                         </div>
                     </div>
 
-                    <button type="button" onclick="window.fecharPedidoFornecedorParceiro(${idx})" class="w-full py-3 rounded-xl font-black text-xs text-white ${ehMaisBarato ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-gray-800 hover:bg-gray-900'} shadow active:scale-95 transition flex items-center justify-center gap-2">
-                        <i class="fas fa-bolt"></i> Comprar neste Fornecedor (R$ ${op.totalCobrado.toFixed(2).replace('.', ',')})
-                    </button>
+                    ${botaoCompraHtml}
                 </div>`;
             }).join('');
         } catch (err) {
@@ -2539,10 +2575,15 @@ async function verificarPendenciaMensalidade(mediumId) {
     };
 
     let intervaloVerificacaoPedidoFornecedor = null;
+    let janelaPagamentoAsaasRef = null;
 
     window.fecharPedidoFornecedorParceiro = async (idxOpcao) => {
         const op = window.opcoesCotadasCache?.[idxOpcao];
         if (!op) return;
+
+        if (!verificarFornecedorAberto(op.horaAbre, op.horaFecha)) {
+            return alert(`Este fornecedor recebe pedidos apenas das ${op.horaAbre} às ${op.horaFecha}.`);
+        }
 
         const metodo = window.metodoPagamentoFornecedorAtual || 'PIX';
 
@@ -2550,6 +2591,21 @@ async function verificarPendenciaMensalidade(mediumId) {
             if (intervaloVerificacaoPedidoFornecedor) {
                 clearInterval(intervaloVerificacaoPedidoFornecedor);
                 intervaloVerificacaoPedidoFornecedor = null;
+            }
+
+            // Oculta a lista de fornecedores e abas para não confundir o usuário
+            document.getElementById('boxAbasMetodoFornecedor')?.classList.add('hidden');
+            document.getElementById('listaOpcoesFornecedores')?.classList.add('hidden');
+
+            const boxPos = document.getElementById('boxPosPagamentoFornecedor');
+            if (boxPos) {
+                boxPos.innerHTML = `
+                    <div class="bg-gray-50 border border-gray-200 rounded-2xl p-6 text-center space-y-2">
+                        <i class="fas fa-circle-notch fa-spin text-2xl text-emerald-600"></i>
+                        <p class="text-xs font-bold text-gray-700">Gerando cobrança segura no Asaas...</p>
+                    </div>
+                `;
+                boxPos.classList.remove('hidden');
             }
 
             // 1. Registra o pedido no banco como pendente
@@ -2570,7 +2626,7 @@ async function verificarPendenciaMensalidade(mediumId) {
 
             if (errPed) throw errPed;
 
-            // 2. Registra as doações na tabela doacoes_registradas como pendentes (serão baixadas automaticamente pelo Webhook Asaas)
+            // 2. Registra as doações na tabela doacoes_registradas como pendentes
             const { data: { session } } = await supabaseClient.auth.getSession();
             const insercoesDoacao = op.itens.map(i => ({
                 terreiro_id: idTerreiroGlobal,
@@ -2605,10 +2661,10 @@ async function verificarPendenciaMensalidade(mediumId) {
 
             const linkPagamento = cobrancaAsaas?.invoiceUrl || '';
             if (linkPagamento) {
-                window.open(linkPagamento, '_blank');
+                janelaPagamentoAsaasRef = window.open(linkPagamento, '_blank');
             }
 
-            // 4. Prepara as mensagens e URLs do WhatsApp (mas NÃO exibe os botões ainda!)
+            // 4. Prepara as mensagens e URLs do WhatsApp
             const endTerreiro = [
                 terreiroConfigMensalidade?.address,
                 terreiroConfigMensalidade?.address_number ? `nº ${terreiroConfigMensalidade.address_number}` : '',
@@ -2647,61 +2703,73 @@ async function verificarPendenciaMensalidade(mediumId) {
                 }
             }
 
-            // 5. Exibe tela de "AGUARDANDO CONFIRMAÇÃO DO PAGAMENTO PELO ASAAS" (Botões de WhatsApp bloqueados)
-            const boxPos = document.getElementById('boxPosPagamentoFornecedor');
+            // 5. Exibe SOMENTE o card de aguardo (sem a lista de fornecedores em cima)
             if (boxPos) {
                 boxPos.innerHTML = `
-                    <div class="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 text-center space-y-2.5">
+                    <div class="bg-amber-50 border-2 border-amber-300 rounded-2xl p-5 text-center space-y-3">
                         <div class="flex items-center justify-center gap-2 text-amber-700 font-black text-xs">
                             <i class="fas fa-circle-notch fa-spin text-base"></i>
-                            <span>AGUARDANDO CONFIRMAÇÃO DO PAGAMENTO (PEDIDO #${pedidoCriado.id})</span>
+                            <span>AGUARDANDO PAGAMENTO (PEDIDO #${pedidoCriado.id})</span>
                         </div>
+                        <p class="text-xs font-bold text-gray-800">
+                            Fornecedor: ${op.fornecedor.nome_fantasia} • Total: R$ ${op.totalCobrado.toFixed(2).replace('.', ',')}
+                        </p>
                         <p class="text-[11px] text-amber-800 leading-relaxed">
-                            Conclua o pagamento na aba do Asaas. Assim que o Asaas validar o pagamento, <strong>a baixa será feita automaticamente</strong> e os botões para enviar o pedido no WhatsApp do Fornecedor e do Gestor serão liberados aqui!
+                            Assim que você concluir o pagamento na guia do Asaas, <strong>aquela guia será fechada automaticamente</strong> e você voltará para cá com os botões de WhatsApp liberados!
                         </p>
                         ${linkPagamento ? `
-                        <a href="${linkPagamento}" target="_blank" class="inline-flex items-center justify-center gap-1.5 text-[11px] font-bold text-amber-900 underline pt-1">
-                            <i class="fas fa-external-link-alt"></i> Reabrir tela de pagamento Asaas
+                        <a href="${linkPagamento}" target="_blank" class="w-full py-2.5 px-3 bg-amber-500 hover:bg-amber-600 text-white font-black text-xs rounded-xl inline-flex items-center justify-center gap-1.5 shadow">
+                            <i class="fas fa-external-link-alt"></i> Abrir Tela de Pagamento Asaas
                         </a>` : ''}
                     </div>
                 `;
-                boxPos.classList.remove('hidden');
             }
 
-            // Função interna que atualiza a tela assim que o pagamento é validado
+            // Função disparada automaticamente quando o pagamento é validado
             const exibirPagamentoValidadoELiberarWhats = () => {
                 if (intervaloVerificacaoPedidoFornecedor) {
                     clearInterval(intervaloVerificacaoPedidoFornecedor);
                     intervaloVerificacaoPedidoFornecedor = null;
                 }
+
+                // Fecha a aba do Asaas automaticamente e traz o foco de volta para o App
+                if (janelaPagamentoAsaasRef && !janelaPagamentoAsaasRef.closed) {
+                    try { janelaPagamentoAsaasRef.close(); } catch (_) {}
+                }
+                try { window.focus(); } catch (_) {}
+
+                // Garante que a lista de fornecedores e abas continuem ocultas
+                document.getElementById('boxAbasMetodoFornecedor')?.classList.add('hidden');
+                document.getElementById('listaOpcoesFornecedores')?.classList.add('hidden');
+
                 if (!boxPos) return;
 
                 boxPos.innerHTML = `
-                    <div class="bg-emerald-50 border-2 border-emerald-500 rounded-2xl p-4 text-center space-y-2.5 shadow-md">
-                        <div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto text-lg shadow-inner">
+                    <div class="bg-emerald-50 border-2 border-emerald-500 rounded-2xl p-5 text-center space-y-3 shadow-md">
+                        <div class="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto text-xl shadow-inner">
                             <i class="fas fa-check-double"></i>
                         </div>
-                        <p class="text-xs sm:text-sm font-black text-emerald-900 uppercase">
-                            ✅ Pagamento Validado pelo Asaas!
+                        <p class="text-sm font-black text-emerald-900 uppercase">
+                            ✅ Pagamento Concluído com Sucesso!
                         </p>
                         <p class="text-[11px] font-bold text-emerald-700 bg-emerald-100/80 py-1 px-2.5 rounded-lg inline-block">
-                            Baixa automática realizada no Painel de Doações da Casa!
+                            Pedido #${pedidoCriado.id} • Baixa automática realizada no Painel da Casa!
                         </p>
-                        <p class="text-[11px] text-emerald-800">
-                            Agora clique nos botões abaixo para disparar a ordem de entrega ao fornecedor e avisar o responsável do terreiro:
+                        <p class="text-xs text-emerald-800">
+                            Agora envie o pedido no WhatsApp do fornecedor e avise o responsável do terreiro:
                         </p>
-                        <a href="${urlWhatsFornecedor}" target="_blank" class="w-full py-3 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-95 transition text-white font-black text-xs rounded-xl flex items-center justify-center gap-2 shadow">
+                        <a href="${urlWhatsFornecedor}" target="_blank" class="w-full py-3.5 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-95 transition text-white font-black text-xs rounded-xl flex items-center justify-center gap-2 shadow">
                             <i class="fab fa-whatsapp text-base"></i> 1. Enviar Pedido e Endereço ao Fornecedor
                         </a>
                         ${urlWhatsGestor ? `
-                        <a href="${urlWhatsGestor}" target="_blank" class="w-full py-3 px-3 bg-sky-600 hover:bg-sky-700 active:scale-95 transition text-white font-black text-xs rounded-xl flex items-center justify-center gap-2 shadow">
+                        <a href="${urlWhatsGestor}" target="_blank" class="w-full py-3.5 px-3 bg-sky-600 hover:bg-sky-700 active:scale-95 transition text-white font-black text-xs rounded-xl flex items-center justify-center gap-2 shadow">
                             <i class="fab fa-whatsapp text-base"></i> 2. Avisar Responsável pelas Doações do Terreiro
                         </a>` : ''}
                     </div>
                 `;
             };
 
-            // 6. Monitora no banco de dados a cada 3 segundos se o Asaas Webhook confirmou o pagamento
+            // 6. Monitora a cada 3 segundos se o Asaas Webhook confirmou o pagamento
             intervaloVerificacaoPedidoFornecedor = setInterval(async () => {
                 try {
                     const { data: pedAtual } = await supabaseClient
@@ -2720,6 +2788,9 @@ async function verificarPendenciaMensalidade(mediumId) {
 
             carrinhoDoacoes = {};
         } catch (err) {
+            document.getElementById('boxAbasMetodoFornecedor')?.classList.remove('hidden');
+            document.getElementById('listaOpcoesFornecedores')?.classList.remove('hidden');
+            document.getElementById('boxPosPagamentoFornecedor')?.classList.add('hidden');
             alert('Erro ao processar pedido: ' + err.message);
         }
     };
