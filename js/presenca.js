@@ -2353,9 +2353,9 @@ async function verificarPendenciaMensalidade(mediumId) {
         if (metodo === 'CREDIT_CARD') {
             const divisor = 1 - (TAXA_CARTAO_PERC / 100);
             const total = (valorLiquidoFornecedor + TAXA_CARTAO_FIXA) / divisor;
-            return Number(total.toFixed(2));
+            return Number(Math.max(5.00, total).toFixed(2));
         }
-        return Number((valorLiquidoFornecedor + TAXA_ASAAS_PIX_FIXA).toFixed(2));
+        return Number(Math.max(5.00, valorLiquidoFornecedor + TAXA_ASAAS_PIX_FIXA).toFixed(2));
     }
 
     window.abrirComparadorFornecedoresDoacao = async () => {
@@ -2538,6 +2538,8 @@ async function verificarPendenciaMensalidade(mediumId) {
         }
     };
 
+    let intervaloVerificacaoPedidoFornecedor = null;
+
     window.fecharPedidoFornecedorParceiro = async (idxOpcao) => {
         const op = window.opcoesCotadasCache?.[idxOpcao];
         if (!op) return;
@@ -2545,7 +2547,12 @@ async function verificarPendenciaMensalidade(mediumId) {
         const metodo = window.metodoPagamentoFornecedorAtual || 'PIX';
 
         try {
-            // 1. Registra o pedido no banco
+            if (intervaloVerificacaoPedidoFornecedor) {
+                clearInterval(intervaloVerificacaoPedidoFornecedor);
+                intervaloVerificacaoPedidoFornecedor = null;
+            }
+
+            // 1. Registra o pedido no banco como pendente
             const { data: pedidoCriado, error: errPed } = await supabaseClient.from('pedidos_fornecedores').insert([{
                 terreiro_id: idTerreiroGlobal,
                 medium_id: perfilMediumLogado.id,
@@ -2563,7 +2570,7 @@ async function verificarPendenciaMensalidade(mediumId) {
 
             if (errPed) throw errPed;
 
-            // 2. Registra as doações na tabela doacoes_registradas como compradas via fornecedor
+            // 2. Registra as doações na tabela doacoes_registradas como pendentes (serão baixadas automaticamente pelo Webhook Asaas)
             const { data: { session } } = await supabaseClient.auth.getSession();
             const insercoesDoacao = op.itens.map(i => ({
                 terreiro_id: idTerreiroGlobal,
@@ -2572,35 +2579,36 @@ async function verificarPendenciaMensalidade(mediumId) {
                 quantidade: i.qtd,
                 valor_total: i.subtotal,
                 metodo_pagamento: 'fornecedor_asaas',
-                status_pagamento: 'pendente'
+                status_pagamento: 'pendente',
+                entregue: false
             }));
             await supabaseClient.from('doacoes_registradas').insert(insercoesDoacao);
 
-            // 3. Dispara a cobrança para a Edge Function do Asaas passando a Chave PIX do Fornecedor para Transferência Direta
-            try {
-                const { data: cobrancaAsaas } = await supabaseClient.functions.invoke('asaas-gerar-cobranca', {
-                    body: {
-                        tipoOperacao: 'COMPRA_FORNECEDOR',
-                        pedidoFornecedorId: pedidoCriado.id,
-                        mediumId: perfilMediumLogado.id,
-                        terreiroId: idTerreiroGlobal,
-                        metodoPagamento: metodo,
-                        valorTotal: op.totalCobrado,
-                        valorRepasseFornecedor: op.liquidoFornecedor,
-                        taxaBancaria: op.taxaServico,
-                        fornecedorPixKey: op.fornecedor.chave_pix,
-                        fornecedorPixType: op.fornecedor.tipo_chave_pix,
-                        fornecedorNome: op.fornecedor.nome_fantasia
-                    }
-                });
-                if (cobrancaAsaas && cobrancaAsaas.invoiceUrl) {
-                    window.open(cobrancaAsaas.invoiceUrl, '_blank');
+            // 3. Dispara a cobrança para a Edge Function do Asaas
+            const { data: cobrancaAsaas, error: errAsaas } = await supabaseClient.functions.invoke('asaas-gerar-cobranca', {
+                body: {
+                    tipoOperacao: 'COMPRA_FORNECEDOR',
+                    pedidoFornecedorId: pedidoCriado.id,
+                    mediumId: perfilMediumLogado.id,
+                    terreiroId: idTerreiroGlobal,
+                    metodoPagamento: metodo,
+                    valorTotal: op.totalCobrado,
+                    valorRepasseFornecedor: op.liquidoFornecedor,
+                    taxaBancaria: op.taxaServico,
+                    fornecedorPixKey: op.fornecedor.chave_pix,
+                    fornecedorPixType: op.fornecedor.tipo_chave_pix,
+                    fornecedorNome: op.fornecedor.nome_fantasia
                 }
-            } catch (eAsaas) {
-                console.warn('Edge function Asaas aviso:', eAsaas);
+            });
+
+            if (errAsaas) throw new Error(errAsaas.message || 'Falha ao gerar cobrança no Asaas.');
+
+            const linkPagamento = cobrancaAsaas?.invoiceUrl || '';
+            if (linkPagamento) {
+                window.open(linkPagamento, '_blank');
             }
 
-            // 4. Monta os botões de disparo WhatsApp para o Fornecedor (com endereço do terreiro) e para o Gestor de Doações
+            // 4. Prepara as mensagens e URLs do WhatsApp (mas NÃO exibe os botões ainda!)
             const endTerreiro = [
                 terreiroConfigMensalidade?.address,
                 terreiroConfigMensalidade?.address_number ? `nº ${terreiroConfigMensalidade.address_number}` : '',
@@ -2610,17 +2618,17 @@ async function verificarPendenciaMensalidade(mediumId) {
             const resumoItensTxt = op.itens.map(i => `• ${i.qtd}x ${i.nome}`).join('\n');
 
             const msgFornecedor =
-                `🛒 *NOVO PEDIDO DE DOAÇÃO — ${terreiroConfigMensalidade?.nome || 'Terreiro'}*\n` +
+                `🛒 *NOVO PEDIDO DE DOAÇÃO (PAGO) — ${terreiroConfigMensalidade?.nome || 'Terreiro'}*\n` +
                 `*Pedido Nº:* #${pedidoCriado.id}\n` +
                 `*Comprador (Médium):* ${perfilMediumLogado.nome_completo}\n\n` +
                 `*Itens Solicitados:*\n${resumoItensTxt}\n\n` +
                 `*Valor Produtos + Entrega:* R$ ${op.liquidoFornecedor.toFixed(2)}\n` +
+                `*Status:* ✅ PAGAMENTO CONFIRMADO VIA ASAAS\n` +
                 `*Local de Entrega:* ${endTerreiro}`;
 
             const foneFornecedor = String(op.fornecedor.whatsapp || '').replace(/\D/g, '');
             const urlWhatsFornecedor = `https://wa.me/55${foneFornecedor}?text=${encodeURIComponent(msgFornecedor)}`;
 
-            // Busca o telefone do gestor de doações do terreiro
             let urlWhatsGestor = '';
             if (terreiroConfigMensalidade?.doacoes_gestor_id) {
                 const { data: gestorMed } = await supabaseClient.from('mediuns')
@@ -2630,150 +2638,89 @@ async function verificarPendenciaMensalidade(mediumId) {
                 if (gestorMed && gestorMed.telefone) {
                     const foneGestor = gestorMed.telefone.replace(/\D/g, '');
                     const msgGestor =
-                        `🕊️ *AVISO DE DOAÇÃO COMPRADA PELO APP*\n\n` +
+                        `🕊️ *AVISO DE DOAÇÃO COMPRADA E PAGA PELO APP*\n\n` +
                         `Olá, ${gestorMed.nome_completo.split(' ')[0]}!\n` +
-                        `O(a) médium *${perfilMediumLogado.nome_completo}* acabou de adquirir os seguintes materiais no fornecedor *${op.fornecedor.nome_fantasia}* para entrega direta no nosso Terreiro:\n\n` +
+                        `O(a) médium *${perfilMediumLogado.nome_completo}* acabou de pagar e adquirir os seguintes materiais no fornecedor *${op.fornecedor.nome_fantasia}* para entrega direta no nosso Terreiro:\n\n` +
                         `${resumoItensTxt}\n\n` +
-                        `*Pedido:* #${pedidoCriado.id}`;
+                        `*Pedido:* #${pedidoCriado.id} (Baixa automática já realizada no painel)`;
                     urlWhatsGestor = `https://wa.me/55${foneGestor}?text=${encodeURIComponent(msgGestor)}`;
                 }
             }
 
+            // 5. Exibe tela de "AGUARDANDO CONFIRMAÇÃO DO PAGAMENTO PELO ASAAS" (Botões de WhatsApp bloqueados)
             const boxPos = document.getElementById('boxPosPagamentoFornecedor');
             if (boxPos) {
                 boxPos.innerHTML = `
-                    <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-3 text-center space-y-2">
-                        <p class="text-xs font-black text-emerald-900"><i class="fas fa-check-circle text-emerald-600 mr-1"></i> Pedido #${pedidoCriado.id} Gerado!</p>
-                        <p class="text-[11px] text-emerald-700">Após concluir o pagamento, envie a ordem de entrega ao fornecedor e avise o responsável do terreiro:</p>
-                        <a href="${urlWhatsFornecedor}" target="_blank" class="w-full py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl flex items-center justify-center gap-2 shadow">
-                            <i class="fab fa-whatsapp text-base"></i> 1. Enviar Pedido e Endereço ao Fornecedor
-                        </a>
-                        ${urlWhatsGestor ? `
-                        <a href="${urlWhatsGestor}" target="_blank" class="w-full py-2.5 px-3 bg-sky-600 hover:bg-sky-700 text-white font-black text-xs rounded-xl flex items-center justify-center gap-2 shadow">
-                            <i class="fab fa-whatsapp text-base"></i> 2. Avisar Responsável pelas Doações do Terreiro
+                    <div class="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 text-center space-y-2.5">
+                        <div class="flex items-center justify-center gap-2 text-amber-700 font-black text-xs">
+                            <i class="fas fa-circle-notch fa-spin text-base"></i>
+                            <span>AGUARDANDO CONFIRMAÇÃO DO PAGAMENTO (PEDIDO #${pedidoCriado.id})</span>
+                        </div>
+                        <p class="text-[11px] text-amber-800 leading-relaxed">
+                            Conclua o pagamento na aba do Asaas. Assim que o Asaas validar o pagamento, <strong>a baixa será feita automaticamente</strong> e os botões para enviar o pedido no WhatsApp do Fornecedor e do Gestor serão liberados aqui!
+                        </p>
+                        ${linkPagamento ? `
+                        <a href="${linkPagamento}" target="_blank" class="inline-flex items-center justify-center gap-1.5 text-[11px] font-bold text-amber-900 underline pt-1">
+                            <i class="fas fa-external-link-alt"></i> Reabrir tela de pagamento Asaas
                         </a>` : ''}
                     </div>
                 `;
                 boxPos.classList.remove('hidden');
             }
 
+            // Função interna que atualiza a tela assim que o pagamento é validado
+            const exibirPagamentoValidadoELiberarWhats = () => {
+                if (intervaloVerificacaoPedidoFornecedor) {
+                    clearInterval(intervaloVerificacaoPedidoFornecedor);
+                    intervaloVerificacaoPedidoFornecedor = null;
+                }
+                if (!boxPos) return;
+
+                boxPos.innerHTML = `
+                    <div class="bg-emerald-50 border-2 border-emerald-500 rounded-2xl p-4 text-center space-y-2.5 shadow-md">
+                        <div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto text-lg shadow-inner">
+                            <i class="fas fa-check-double"></i>
+                        </div>
+                        <p class="text-xs sm:text-sm font-black text-emerald-900 uppercase">
+                            ✅ Pagamento Validado pelo Asaas!
+                        </p>
+                        <p class="text-[11px] font-bold text-emerald-700 bg-emerald-100/80 py-1 px-2.5 rounded-lg inline-block">
+                            Baixa automática realizada no Painel de Doações da Casa!
+                        </p>
+                        <p class="text-[11px] text-emerald-800">
+                            Agora clique nos botões abaixo para disparar a ordem de entrega ao fornecedor e avisar o responsável do terreiro:
+                        </p>
+                        <a href="${urlWhatsFornecedor}" target="_blank" class="w-full py-3 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-95 transition text-white font-black text-xs rounded-xl flex items-center justify-center gap-2 shadow">
+                            <i class="fab fa-whatsapp text-base"></i> 1. Enviar Pedido e Endereço ao Fornecedor
+                        </a>
+                        ${urlWhatsGestor ? `
+                        <a href="${urlWhatsGestor}" target="_blank" class="w-full py-3 px-3 bg-sky-600 hover:bg-sky-700 active:scale-95 transition text-white font-black text-xs rounded-xl flex items-center justify-center gap-2 shadow">
+                            <i class="fab fa-whatsapp text-base"></i> 2. Avisar Responsável pelas Doações do Terreiro
+                        </a>` : ''}
+                    </div>
+                `;
+            };
+
+            // 6. Monitora no banco de dados a cada 3 segundos se o Asaas Webhook confirmou o pagamento
+            intervaloVerificacaoPedidoFornecedor = setInterval(async () => {
+                try {
+                    const { data: pedAtual } = await supabaseClient
+                        .from('pedidos_fornecedores')
+                        .select('status_pagamento')
+                        .eq('id', pedidoCriado.id)
+                        .single();
+
+                    if (pedAtual && (pedAtual.status_pagamento === 'pago' || pedAtual.status_pagamento === 'repassado')) {
+                        exibirPagamentoValidadoELiberarWhats();
+                    }
+                } catch (e) {
+                    console.warn('Verificando status do pedido...', e);
+                }
+            }, 3000);
+
             carrinhoDoacoes = {};
         } catch (err) {
             alert('Erro ao processar pedido: ' + err.message);
         }
     };
-    // ====================================================================
-// FLUXO DE VALIDAÇÃO ASAAS E BAIXA AUTOMÁTICA (COMPRA DIRETA FORNECEDOR)
-// ====================================================================
-
-let intervalVerificaPixFornecedor = null;
-let dadosCompraGlobal = null;
-
-// Função chamada LOGO APÓS gerar a cobrança PIX no Asaas
-// Exemplo de uso no seu código atual: iniciarMonitoramentoPixFornecedor('pay_123456', { itemNome: 'Vela', valor: 7.99, ... });
-window.iniciarMonitoramentoPixFornecedor = (cobrancaIdAsaas, dadosCompra) => {
-    dadosCompraGlobal = dadosCompra; // Armazena para os botões do WhatsApp e a Baixa
-
-    const divAguardando = document.getElementById('statusAguardandoPixForn');
-    const divAprovado = document.getElementById('statusAprovadoPixForn');
-    const areaQrCode = document.getElementById('areaQrCodeFornecedor'); // Ou a div onde fica o QR Code
-
-    if (divAguardando) {
-        divAguardando.classList.remove('hidden');
-        divAguardando.classList.add('flex');
-    }
-    if (divAprovado) {
-        divAprovado.classList.add('hidden');
-        divAprovado.classList.remove('flex');
-    }
-
-    if (intervalVerificaPixFornecedor) clearInterval(intervalVerificaPixFornecedor);
-
-    // Bate no banco/Asaas a cada 5 segundos
-    intervalVerificaPixFornecedor = setInterval(async () => {
-        try {
-            // AQUI VOCÊ CHAMA SUA ENDPOINT OU EDGE FUNCTION DO ASAAS
-            // Exemplo hipotético usando Supabase Edge Function:
-            const { data, error } = await supabaseClient.functions.invoke('asaas-verificar-pagamento', {
-                body: { id: cobrancaIdAsaas }
-            });
-
-            // Se o status retornado for CONFIRMED ou RECEIVED
-            if (data && (data.status === 'RECEIVED' || data.status === 'CONFIRMED')) {
-                clearInterval(intervalVerificaPixFornecedor);
-                
-                // Esconde o QR Code e o loading
-                if (areaQrCode) areaQrCode.classList.add('hidden');
-                if (divAguardando) {
-                    divAguardando.classList.remove('flex');
-                    divAguardando.classList.add('hidden');
-                }
-                
-                // Mostra o Check verde e os botões de Whats
-                if (divAprovado) {
-                    divAprovado.classList.remove('hidden');
-                    divAprovado.classList.add('flex');
-                }
-
-                // Dispara a baixa automática da doação (Requisito 3)
-                await window.registrarBaixaAutomaticaCompraFornecedor(dadosCompraGlobal);
-                
-                // Configura os links do WhatsApp (Requisito 2)
-                configurarBotoesWhatsAppFornecedor();
-            }
-        } catch (err) {
-            console.error("Erro no monitoramento do PIX:", err);
-        }
-    }, 5000);
-};
-
-// Configura os botões de WhatsApp
-function configurarBotoesWhatsAppFornecedor() {
-    const btnFornecedor = document.getElementById('btnWhatsFornecedor');
-    const btnGestor = document.getElementById('btnWhatsGestor');
-
-    if (btnFornecedor && dadosCompraGlobal.telefoneFornecedor) {
-        btnFornecedor.onclick = () => {
-            const num = dadosCompraGlobal.telefoneFornecedor.replace(/\D/g, '');
-            const msg = `Olá! Realizei o pagamento de *${dadosCompraGlobal.quantidade}x ${dadosCompraGlobal.itemNome}* (Total: R$ ${dadosCompraGlobal.valorTotal}) pelo Aplicativo da Casa. O endereço de entrega é o do Terreiro já cadastrado no seu sistema. Aguardamos o envio!`;
-            window.open(`https://wa.me/55${num}?text=${encodeURIComponent(msg)}`, '_blank');
-        };
-    }
-
-    if (btnGestor && dadosCompraGlobal.telefoneGestor) {
-        btnGestor.onclick = () => {
-            const num = dadosCompraGlobal.telefoneGestor.replace(/\D/g, '');
-            const msg = `Olá, Administração! Realizei a compra de *${dadosCompraGlobal.quantidade}x ${dadosCompraGlobal.itemNome}* com o fornecedor ${dadosCompraGlobal.nomeFornecedor} diretamente pelo sistema. Logo será entregue na Casa!`;
-            window.open(`https://wa.me/55${num}?text=${encodeURIComponent(msg)}`, '_blank');
-        };
-    }
-}
-
-// Faz a inserção direto no banco (Baixa automática como "Entregue" / Pago)
-window.registrarBaixaAutomaticaCompraFornecedor = async (dados) => {
-    try {
-        const payload = {
-            terreiro_id: idTerreiroGlobal,
-            medium_auth_id: perfilMediumLogado.auth_id,
-            item_id: dados.itemId,
-            quantidade: dados.quantidade || 1,
-            data_registro: new Date().toISOString(),
-            entregue: true, // Já aprovado
-            origem_doacao: 'compra_direta_asaas', // Tag para você saber como entrou
-            valor_pago: dados.valorTotal,
-            fornecedor_id: dados.fornecedorId
-        };
-
-        const { error } = await supabaseClient.from('doacoes').insert([payload]);
-        if (error) throw error;
-        
-        console.log("Baixa automática realizada com sucesso no banco de doações.");
-        
-        // Se houver uma função de atualizar a interface de doações já na tela, chame-a
-        if (typeof carregarItensDoacao === 'function') carregarItensDoacao();
-
-    } catch (err) {
-        console.error("Erro ao realizar a baixa automática:", err);
-    }
-};
 })();
