@@ -2357,9 +2357,13 @@ async function verificarPendenciaMensalidade(mediumId) {
         return Number(Math.max(5.00, valorLiquidoFornecedor + TAXA_ASAAS_PIX_FIXA).toFixed(2));
     }
 
-    function verificarFornecedorAberto(horaAbre, horaFecha) {
-        const abre = horaAbre || '08:00';
-        const fecha = horaFecha || '18:00';
+    function verificarFornecedorAberto(fornecedorObj) {
+        if (!fornecedorObj) return true;
+        // Se aceita_24h estiver ativo (true ou null por padrão), libera 24h sem bloqueio
+        if (fornecedorObj.aceita_24h !== false) return true;
+
+        const abre = fornecedorObj.hora_abertura || '08:00';
+        const fecha = fornecedorObj.hora_fechamento || '18:00';
         const agora = new Date();
         const minAtual = agora.getHours() * 60 + agora.getMinutes();
 
@@ -2376,6 +2380,23 @@ async function verificarPendenciaMensalidade(mediumId) {
             return minAtual >= minInicio || minAtual <= minFim;
         }
     }
+
+    window.copiarPixFornecedorInApp = () => {
+        const inp = document.getElementById('inputPixCopiaColaFornApp');
+        const btn = document.getElementById('btnCopiarPixFornApp');
+        if (!inp || !inp.value) return;
+        navigator.clipboard.writeText(inp.value).then(() => {
+            if (btn) {
+                const orig = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-check"></i> Código PIX Copiado! Abra o app do seu banco';
+                btn.classList.replace('bg-emerald-600', 'bg-blue-600');
+                setTimeout(() => {
+                    btn.innerHTML = orig;
+                    btn.classList.replace('bg-blue-600', 'bg-emerald-600');
+                }, 3500);
+            }
+        });
+    };
 
     window.abrirComparadorFornecedoresDoacao = async () => {
         const itensSelecionados = Object.entries(carrinhoDoacoes)
@@ -2415,7 +2436,7 @@ async function verificarPendenciaMensalidade(mediumId) {
 
                     <div id="listaOpcoesFornecedores" class="flex-1 overflow-y-auto space-y-3 pr-1"></div>
 
-                    <div id="boxPosPagamentoFornecedor" class="hidden mt-1 space-y-2"></div>
+                    <div id="boxPosPagamentoFornecedor" class="hidden mt-1 space-y-2 overflow-y-auto"></div>
                 </div>
             </div>`;
             document.body.insertAdjacentHTML('beforeend', html);
@@ -2496,9 +2517,10 @@ async function verificarPendenciaMensalidade(mediumId) {
                     const liquidoFornecedor = Number((somaProdutos + freteFinal).toFixed(2));
                     const totalCobrado = calcularTotalComTaxas(liquidoFornecedor, metodo);
                     const taxaServico = Number((totalCobrado - liquidoFornecedor).toFixed(2));
+                    const aceita24h = f.aceita_24h !== false;
                     const horaAbre = f.hora_abertura || '08:00';
                     const horaFecha = f.hora_fechamento || '18:00';
-                    const estaAberto = verificarFornecedorAberto(horaAbre, horaFecha);
+                    const estaAberto = verificarFornecedorAberto(f);
 
                     opcoesFornecedorUnico.push({
                         fornecedor: f,
@@ -2508,6 +2530,7 @@ async function verificarPendenciaMensalidade(mediumId) {
                         liquidoFornecedor,
                         taxaServico,
                         totalCobrado,
+                        aceita24h,
                         horaAbre,
                         horaFecha,
                         estaAberto
@@ -2530,12 +2553,16 @@ async function verificarPendenciaMensalidade(mediumId) {
                     ? `<span class="bg-emerald-500 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider">🏆 Menor Preço Total</span>`
                     : `<span class="bg-gray-200 text-gray-700 text-[10px] font-bold px-2 py-0.5 rounded-full">Opção ${idx + 1}</span>`;
 
+                const txtHorario = op.aceita24h
+                    ? `<span class="text-[10px] font-bold text-emerald-600"><i class="fas fa-bolt mr-0.5"></i> Recebe pedidos 24h</span>`
+                    : `<span class="text-[10px] font-bold ${op.estaAberto ? 'text-emerald-600' : 'text-rose-600'}"><i class="far fa-clock mr-0.5"></i> Horário: ${op.horaAbre} às ${op.horaFecha}</span>`;
+
                 const botaoCompraHtml = op.estaAberto
                     ? `<button type="button" onclick="window.fecharPedidoFornecedorParceiro(${idx})" class="w-full py-3 rounded-xl font-black text-xs text-white ${ehMaisBarato ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-gray-800 hover:bg-gray-900'} shadow active:scale-95 transition flex items-center justify-center gap-2">
                            <i class="fas fa-bolt"></i> Comprar neste Fornecedor (R$ ${op.totalCobrado.toFixed(2).replace('.', ',')})
                        </button>`
                     : `<button type="button" disabled class="w-full py-3 rounded-xl font-black text-xs bg-rose-50 text-rose-700 border border-rose-200 cursor-not-allowed flex items-center justify-center gap-2">
-                           <i class="fas fa-lock"></i> Fechado p/ Pagamentos (Funciona das ${op.horaAbre} às ${op.horaFecha})
+                           <i class="fas fa-lock"></i> Fechado p/ Pagamentos (${op.horaAbre} às ${op.horaFecha})
                        </button>`;
 
                 return `
@@ -2544,9 +2571,7 @@ async function verificarPendenciaMensalidade(mediumId) {
                         <div>
                             ${badgeMelhor}
                             <h4 class="font-black text-gray-800 text-sm mt-1">${op.fornecedor.nome_fantasia}</h4>
-                            <span class="text-[10px] font-bold ${op.estaAberto ? 'text-emerald-600' : 'text-rose-600'}">
-                                <i class="far fa-clock mr-0.5"></i> Horário: ${op.horaAbre} às ${op.horaFecha}
-                            </span>
+                            ${txtHorario}
                         </div>
                         <div class="text-right">
                             <span class="text-[10px] text-gray-400 font-bold uppercase block">Total Final</span>
@@ -2575,13 +2600,12 @@ async function verificarPendenciaMensalidade(mediumId) {
     };
 
     let intervaloVerificacaoPedidoFornecedor = null;
-    let janelaPagamentoAsaasRef = null;
 
     window.fecharPedidoFornecedorParceiro = async (idxOpcao) => {
         const op = window.opcoesCotadasCache?.[idxOpcao];
         if (!op) return;
 
-        if (!verificarFornecedorAberto(op.horaAbre, op.horaFecha)) {
+        if (!verificarFornecedorAberto(op.fornecedor)) {
             return alert(`Este fornecedor recebe pedidos apenas das ${op.horaAbre} às ${op.horaFecha}.`);
         }
 
@@ -2593,7 +2617,7 @@ async function verificarPendenciaMensalidade(mediumId) {
                 intervaloVerificacaoPedidoFornecedor = null;
             }
 
-            // Oculta a lista de fornecedores e abas para não confundir o usuário
+            // Oculta a lista de fornecedores e abas para exibir apenas a tela do pagamento
             document.getElementById('boxAbasMetodoFornecedor')?.classList.add('hidden');
             document.getElementById('listaOpcoesFornecedores')?.classList.add('hidden');
 
@@ -2602,7 +2626,7 @@ async function verificarPendenciaMensalidade(mediumId) {
                 boxPos.innerHTML = `
                     <div class="bg-gray-50 border border-gray-200 rounded-2xl p-6 text-center space-y-2">
                         <i class="fas fa-circle-notch fa-spin text-2xl text-emerald-600"></i>
-                        <p class="text-xs font-bold text-gray-700">Gerando cobrança segura no Asaas...</p>
+                        <p class="text-xs font-bold text-gray-700">Gerando pagamento seguro...</p>
                     </div>
                 `;
                 boxPos.classList.remove('hidden');
@@ -2653,15 +2677,20 @@ async function verificarPendenciaMensalidade(mediumId) {
                     taxaBancaria: op.taxaServico,
                     fornecedorPixKey: op.fornecedor.chave_pix,
                     fornecedorPixType: op.fornecedor.tipo_chave_pix,
-                    fornecedorNome: op.fornecedor.nome_fantasia
+                    fornecedorNome: op.fornecedor.nome_fantasia,
+                    urlRetornoApp: window.location.href
                 }
             });
 
             if (errAsaas) throw new Error(errAsaas.message || 'Falha ao gerar cobrança no Asaas.');
 
             const linkPagamento = cobrancaAsaas?.invoiceUrl || '';
-            if (linkPagamento) {
-                janelaPagamentoAsaasRef = window.open(linkPagamento, '_blank');
+            const pixQrBase64 = cobrancaAsaas?.pixEncodedImage || null;
+            const pixCopiaCola = cobrancaAsaas?.pixPayload || null;
+
+            // Só abre aba externa se for Cartão de Crédito ou se não vier o Copia e Cola do PIX
+            if (metodo === 'CREDIT_CARD' || !pixCopiaCola) {
+                if (linkPagamento) window.open(linkPagamento, '_blank');
             }
 
             // 4. Prepara as mensagens e URLs do WhatsApp
@@ -2703,42 +2732,63 @@ async function verificarPendenciaMensalidade(mediumId) {
                 }
             }
 
-            // 5. Exibe SOMENTE o card de aguardo (sem a lista de fornecedores em cima)
+            // 5. Renderiza o PIX Transparente DIRETO NO APP (Sem sair do aplicativo!)
             if (boxPos) {
-                boxPos.innerHTML = `
-                    <div class="bg-amber-50 border-2 border-amber-300 rounded-2xl p-5 text-center space-y-3">
-                        <div class="flex items-center justify-center gap-2 text-amber-700 font-black text-xs">
-                            <i class="fas fa-circle-notch fa-spin text-base"></i>
-                            <span>AGUARDANDO PAGAMENTO (PEDIDO #${pedidoCriado.id})</span>
+                if (pixCopiaCola) {
+                    boxPos.innerHTML = `
+                        <div class="bg-emerald-50/70 border-2 border-emerald-400 rounded-2xl p-4 text-center space-y-3">
+                            <div class="flex items-center justify-center gap-2 text-amber-700 font-black text-xs bg-amber-100 py-1.5 px-3 rounded-full">
+                                <i class="fas fa-circle-notch fa-spin"></i>
+                                <span>AGUARDANDO PAGAMENTO PIX (PEDIDO #${pedidoCriado.id})</span>
+                            </div>
+
+                            <p class="text-xs font-bold text-gray-800">
+                                ${op.fornecedor.nome_fantasia} • <span class="text-emerald-700 font-black">R$ ${op.totalCobrado.toFixed(2).replace('.', ',')}</span>
+                            </p>
+
+                            ${pixQrBase64 ? `
+                            <div class="bg-white p-2.5 rounded-2xl border border-gray-200 inline-block shadow-sm">
+                                <img src="data:image/png;base64,${pixQrBase64}" alt="QR Code PIX" class="w-40 h-40 mx-auto object-contain">
+                            </div>` : ''}
+
+                            <div class="space-y-1.5 text-left">
+                                <label class="block text-[10px] font-black text-gray-500 uppercase text-center">PIX Copia e Cola (Pague no app do seu banco):</label>
+                                <input type="text" id="inputPixCopiaColaFornApp" readonly value="${pixCopiaCola}" class="w-full px-3 py-2 bg-white border border-gray-300 rounded-xl text-[10px] font-mono text-gray-600 outline-none select-all">
+                                <button type="button" id="btnCopiarPixFornApp" onclick="window.copiarPixFornecedorInApp()" class="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 active:scale-95 transition text-white font-black text-xs rounded-xl flex items-center justify-center gap-2 shadow-md">
+                                    <i class="fas fa-copy text-sm"></i> Copiar Código PIX
+                                </button>
+                            </div>
+
+                            <p class="text-[10px] text-gray-500 leading-snug">
+                                Copie o código acima, pague no aplicativo do seu banco e volte para esta tela. <strong>A confirmação e os botões do WhatsApp aparecerão aqui automaticamente!</strong>
+                            </p>
                         </div>
-                        <p class="text-xs font-bold text-gray-800">
-                            Fornecedor: ${op.fornecedor.nome_fantasia} • Total: R$ ${op.totalCobrado.toFixed(2).replace('.', ',')}
-                        </p>
-                        <p class="text-[11px] text-amber-800 leading-relaxed">
-                            Assim que você concluir o pagamento na guia do Asaas, <strong>aquela guia será fechada automaticamente</strong> e você voltará para cá com os botões de WhatsApp liberados!
-                        </p>
-                        ${linkPagamento ? `
-                        <a href="${linkPagamento}" target="_blank" class="w-full py-2.5 px-3 bg-amber-500 hover:bg-amber-600 text-white font-black text-xs rounded-xl inline-flex items-center justify-center gap-1.5 shadow">
-                            <i class="fas fa-external-link-alt"></i> Abrir Tela de Pagamento Asaas
-                        </a>` : ''}
-                    </div>
-                `;
+                    `;
+                } else {
+                    boxPos.innerHTML = `
+                        <div class="bg-amber-50 border-2 border-amber-300 rounded-2xl p-5 text-center space-y-3">
+                            <div class="flex items-center justify-center gap-2 text-amber-700 font-black text-xs">
+                                <i class="fas fa-circle-notch fa-spin text-base"></i>
+                                <span>AGUARDANDO PAGAMENTO (PEDIDO #${pedidoCriado.id})</span>
+                            </div>
+                            <p class="text-xs font-bold text-gray-800">
+                                Fornecedor: ${op.fornecedor.nome_fantasia} • Total: R$ ${op.totalCobrado.toFixed(2).replace('.', ',')}
+                            </p>
+                            ${linkPagamento ? `
+                            <a href="${linkPagamento}" target="_blank" class="w-full py-2.5 px-3 bg-amber-500 hover:bg-amber-600 text-white font-black text-xs rounded-xl inline-flex items-center justify-center gap-1.5 shadow">
+                                <i class="fas fa-external-link-alt"></i> Abrir Tela de Pagamento
+                            </a>` : ''}
+                        </div>
+                    `;
+                }
             }
 
-            // Função disparada automaticamente quando o pagamento é validado
             const exibirPagamentoValidadoELiberarWhats = () => {
                 if (intervaloVerificacaoPedidoFornecedor) {
                     clearInterval(intervaloVerificacaoPedidoFornecedor);
                     intervaloVerificacaoPedidoFornecedor = null;
                 }
 
-                // Fecha a aba do Asaas automaticamente e traz o foco de volta para o App
-                if (janelaPagamentoAsaasRef && !janelaPagamentoAsaasRef.closed) {
-                    try { janelaPagamentoAsaasRef.close(); } catch (_) {}
-                }
-                try { window.focus(); } catch (_) {}
-
-                // Garante que a lista de fornecedores e abas continuem ocultas
                 document.getElementById('boxAbasMetodoFornecedor')?.classList.add('hidden');
                 document.getElementById('listaOpcoesFornecedores')?.classList.add('hidden');
 
