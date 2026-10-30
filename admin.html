@@ -763,63 +763,54 @@
                 <!-- SEÇÃO FINANCEIRO -->
                 <div id="secFinanceiro" class="secao-painel hidden">
                     
-                    
-                    <!-- MENU INTERNO DE ABAS (PADRÃO DE DOAÇÕES) -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-                        <button id="btnTabFinMensalidades" class="relative py-3 md:py-4 px-4 md:px-6 rounded-2xl font-black text-xs md:text-base transition-all duration-300 shadow-md bg-tema-secundaria text-white transform hover:-translate-y-1 active:scale-95 border-b-4 border-black/20 flex flex-col items-center justify-center gap-1.5 w-full">
-                            <i class="fas fa-list text-xl md:text-3xl mb-1"></i>
-                            <span class="text-center leading-tight">Mensalidades</span>
+                    <!-- MENU INTERNO DE ABAS COMPACTO -->
+                    <div class="grid grid-cols-2 gap-3 mb-4">
+                        <button id="btnTabFinMensalidades" class="py-2.5 px-4 rounded-xl font-black text-xs md:text-sm transition-all shadow-md bg-tema-secundaria text-white active:scale-95 flex items-center justify-center gap-2">
+                            <i class="fas fa-list"></i> <span>Mensalidades</span>
                         </button>
-                        <button id="btnTabFinArrecadacao" class="relative py-3 md:py-4 px-4 md:px-6 rounded-2xl font-bold text-xs md:text-base transition-all duration-300 shadow-sm bg-white text-gray-500 hover:text-gray-800 border border-gray-200 hover:border-gray-300 hover:shadow-md transform hover:-translate-y-1 active:scale-95 flex flex-col items-center justify-center gap-1.5 w-full">
-                            <i class="fas fa-chart-pie text-xl md:text-3xl mb-1 opacity-70"></i>
-                            <span class="text-center leading-tight">Painel de Arrecadação (Rifas / Cantina)</span>
+                        <button id="btnTabFinArrecadacao" class="py-2.5 px-4 rounded-xl font-bold text-xs md:text-sm transition-all shadow-sm bg-white text-gray-600 hover:text-gray-900 border border-gray-200 active:scale-95 flex items-center justify-center gap-2">
+                            <i class="fas fa-chart-pie opacity-70"></i> <span>Painel de Arrecadação (Rifas / Cantina)</span>
                         </button>
                     </div>
-    
+
                     <!-- ABA 1: MENSALIDADES -->
                     <div id="abaFinMensalidades">
-                        <div class="bg-white rounded-2xl shadow-sm border-t-4 border-tema-secundaria p-5 md:p-6">
-                            <div class="flex justify-between items-center mb-6 flex-wrap gap-3">
-                                <p class="text-xs md:text-sm text-gray-500"><i class="fas fa-info-circle mr-1"></i> Marque o mês para registrar o pagamento. Meses em cinza indicam período anterior ao ingresso do médium.</p>
-                                
-                                <div class="flex items-center gap-2">
-                                    <div class="flex items-center space-x-2 bg-gray-50 p-2 rounded-xl border border-gray-200">
-                                        <label class="text-xs md:text-sm font-bold text-gray-700">Ano:</label>
-                                        <select id="selectAnoFinanceiro" class="border-0 bg-transparent font-bold text-gray-800 text-sm outline-none cursor-pointer focus:ring-0">
+                        <div class="bg-white rounded-2xl shadow-sm border-t-4 border-tema-secundaria p-4 md:p-5">
+                            
+                            <!-- BARRA SUPERIOR E FILTROS COMPACTOS (TUDO NA MESMA LINHA) -->
+                            <div class="bg-gray-50 p-3 rounded-xl border border-gray-200 mb-4 flex flex-col xl:flex-row items-center gap-3 no-print">
+                                <div class="flex-1 w-full">
+                                    <input type="text" id="filtroNomeFinanceiro" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-tema-secundaria outline-none bg-white" placeholder="🔍 Buscar médium por nome...">
+                                </div>
+                                <div class="w-full xl:w-48">
+                                    <select id="filtroGrauFinanceiro" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-xs md:text-sm outline-none focus:ring-2 focus:ring-tema-secundaria bg-white">
+                                        <option value="">Todos os Graus</option>
+                                    </select>
+                                </div>
+                                <div class="w-full xl:w-36">
+                                    <select id="filtroStatusFinanceiro" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-xs md:text-sm outline-none focus:ring-2 focus:ring-tema-secundaria bg-white">
+                                        <option value="todos">Todas Situações</option>
+                                        <option value="em_dia">Em Dia</option>
+                                        <option value="pendente">Pendente</option>
+                                    </select>
+                                </div>
+                                <div class="flex items-center gap-2 w-full xl:w-auto justify-end">
+                                    <div class="flex items-center space-x-1.5 bg-white px-2.5 py-1 rounded-lg border border-gray-300">
+                                        <label class="text-xs font-bold text-gray-600">Ano:</label>
+                                        <select id="selectAnoFinanceiro" class="border-0 bg-transparent font-bold text-gray-800 text-xs md:text-sm outline-none cursor-pointer focus:ring-0">
                                             <option value="2026">2026</option>
                                             <option value="2027">2027</option>
                                             <option value="2028">2028</option>
                                         </select>
                                     </div>
-                                    <button id="btnImprimirFinanceiro" class="bg-gray-800 hover:bg-gray-900 text-white px-3.5 py-2.5 rounded-xl font-bold shadow transition flex items-center gap-2 text-xs md:text-sm active:scale-95">
-                                        <i class="fas fa-file-pdf text-red-400"></i> <span class="hidden md:inline">PDF Anual</span>
+                                    <button id="btnImprimirFinanceiro" class="bg-gray-800 hover:bg-gray-900 text-white px-3 py-1.5 rounded-lg font-bold shadow transition flex items-center gap-1.5 text-xs active:scale-95 shrink-0" title="Baixar PDF Anual">
+                                        <i class="fas fa-file-pdf text-red-400"></i> PDF
                                     </button>
                                 </div>
                             </div>
                             
-                            <!-- BARRA DE FILTROS DO FINANCEIRO -->
-                            <div class="bg-gray-50 p-4 rounded-2xl border border-gray-200 mb-6 flex flex-col md:flex-row gap-3 md:gap-4 no-print">
-                                <div class="flex-1">
-                                    <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Nome do Médium</label>
-                                    <input type="text" id="filtroNomeFinanceiro" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-tema-secundaria outline-none bg-white" placeholder="Buscar médium...">
-                                </div>
-                                <div class="w-full md:w-48">
-                                    <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Grau / Função</label>
-                                    <select id="filtroGrauFinanceiro" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-tema-secundaria bg-white">
-                                        <option value="">Todos os Graus</option>
-                                    </select>
-                                </div>
-                                <div class="w-full md:w-40">
-                                    <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Situação</label>
-                                    <select id="filtroStatusFinanceiro" class="w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-tema-secundaria bg-white">
-                                        <option value="todos">Todos</option>
-                                        <option value="em_dia">Em Dia</option>
-                                        <option value="pendente">Pendente</option>
-                                    </select>
-                                </div>
-                            </div>
-                            
-                            <div class="overflow-x-auto" style="max-height: 60vh;">
+                            <!-- TABELA EXPANDIDA OCUPANDO A MAIOR PARTE DA TELA -->
+                            <div class="overflow-x-auto shadow-inner rounded-xl border border-gray-200" style="max-height: 72vh;">
                                 <table class="w-full text-center border-collapse text-xs md:text-sm">
                                     <thead class="sticky top-0 z-20 shadow-sm">
                                         <tr class="bg-gray-100 border-b border-gray-200">
