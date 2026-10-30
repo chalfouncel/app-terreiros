@@ -17,7 +17,7 @@
                 <i class="fas fa-truck-loading"></i>
             </div>
             <h1 class="text-lg font-black uppercase text-white pt-2">Portal do Fornecedor</h1>
-            <p class="text-xs text-slate-400">Atualize preços, avisos de entrega e frete para os Terreiros</p>
+            <p class="text-xs text-slate-400">Atualize preços, horários, avisos de entrega e frete para os Terreiros</p>
         </div>
 
         <form id="formLoginFornecedor" class="space-y-3">
@@ -32,7 +32,7 @@
             <button type="submit" class="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs uppercase tracking-wider shadow active:scale-95 transition">
                 Entrar no Painel
             </button>
-        </div>
+        </form>
     </div>
 
     <!-- PAINEL DE TABELA DE PREÇOS E FRETE DO FORNECEDOR -->
@@ -46,12 +46,34 @@
                 <button type="button" onclick="location.reload()" class="text-xs text-rose-400 font-bold bg-rose-500/10 px-3 py-1.5 rounded-xl border border-rose-500/20">Sair</button>
             </div>
 
-            <div class="pt-2 border-t border-slate-800 space-y-3">
-                <div>
-                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">CPF ou CNPJ (Para recebimento automático PIX/Asaas)</label>
-                    <input type="text" id="inputCpfCnpjFornecedor" placeholder="Apenas números..." class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs font-bold text-white outline-none focus:border-amber-500 font-mono">
+            <div class="pt-3 border-t border-slate-800 space-y-3">
+                <!-- BOTÃO / TOGGLE ACEITA PEDIDO 24HS -->
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-slate-800/90 border border-slate-700 p-3 rounded-xl">
+                    <div>
+                        <span class="text-xs font-black text-emerald-400 uppercase flex items-center gap-1.5">
+                            <i class="fas fa-bolt"></i> Aceita pedido 24hs
+                        </span>
+                        <p class="text-[10px] text-slate-400">Se desmarcado, o aplicativo bloqueará compras fora do horário definido abaixo.</p>
+                    </div>
+                    <label class="inline-flex items-center gap-2 cursor-pointer shrink-0 bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-700">
+                        <input type="checkbox" id="chkAceita24hForn" onchange="alternarModo24hFornecedor()" class="w-4 h-4 accent-emerald-500 rounded cursor-pointer" checked>
+                        <span class="text-xs font-bold text-white" id="lblStatus24hForn">Ativado (24h)</span>
+                    </label>
                 </div>
 
+                <!-- HORÁRIOS DE FUNCIONAMENTO (SÓ APARECE SE DESMARCAR 24HS) -->
+                <div id="boxHorariosRestritosForn" class="hidden grid grid-cols-2 gap-3 bg-slate-950/60 p-3 rounded-xl border border-slate-800">
+                    <div>
+                        <label class="block text-[10px] font-bold text-emerald-400 uppercase mb-1"><i class="far fa-clock mr-1"></i> Abre às (Libera Pagto)</label>
+                        <input type="time" id="inputHoraAberturaForn" value="08:00" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs font-bold text-white outline-none focus:border-amber-500">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-rose-400 uppercase mb-1"><i class="fas fa-lock mr-1"></i> Fecha às (Bloqueia Pagto)</label>
+                        <input type="time" id="inputHoraFechamentoForn" value="18:00" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs font-bold text-white outline-none focus:border-amber-500">
+                    </div>
+                </div>
+
+                <!-- AVISO SOBRE HORÁRIOS DE ENTREGA EM DESTAQUE -->
                 <div>
                     <label class="block text-[10px] font-black text-amber-400 uppercase mb-1">
                         <i class="fas fa-bullhorn mr-1"></i> Aviso sobre Horários de Entrega / Condições (Aparece em destaque para o cliente antes do pagamento)
@@ -82,7 +104,7 @@
             <div id="listaItensPrecificacao" class="space-y-2 divide-y divide-slate-800"></div>
 
             <button type="button" id="btnSalvarTabelaFornecedor" onclick="salvarTabelaFornecedor()" class="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-xl text-xs uppercase shadow-lg active:scale-95 transition">
-                <i class="fas fa-save mr-1"></i> Salvar Aviso, Preços e Taxa de Entrega
+                <i class="fas fa-save mr-1"></i> Salvar Horários, Aviso, Preços e Taxa de Entrega
             </button>
         </div>
     </div>
@@ -90,6 +112,16 @@
     <script src="js/supabase.js"></script>
     <script>
         let fornecedorAtual = null;
+
+        function alternarModo24hFornecedor() {
+            const chk24h = document.getElementById('chkAceita24hForn');
+            const boxHr = document.getElementById('boxHorariosRestritosForn');
+            const lbl = document.getElementById('lblStatus24hForn');
+            if (chk24h && boxHr) {
+                boxHr.classList.toggle('hidden', chk24h.checked);
+                if (lbl) lbl.textContent = chk24h.checked ? 'Ativado (24h)' : 'Horário Fixo';
+            }
+        }
 
         document.getElementById('formLoginFornecedor').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -109,9 +141,12 @@
             document.getElementById('telaLoginFornecedor').classList.add('hidden');
             document.getElementById('painelFornecedorAtivo').classList.remove('hidden');
             document.getElementById('nomeFornecedorLogado').textContent = data.nome_fantasia;
-            
-            document.getElementById('inputCpfCnpjFornecedor').value = data.cpf_cnpj || '';
+
+            document.getElementById('chkAceita24hForn').checked = data.aceita_24h !== false;
+            document.getElementById('inputHoraAberturaForn').value = data.hora_abertura || '08:00';
+            document.getElementById('inputHoraFechamentoForn').value = data.hora_fechamento || '18:00';
             document.getElementById('inputAvisoEntregaFornecedor').value = data.aviso_entrega || '';
+            alternarModo24hFornecedor();
 
             const { data: terreiros } = await supabaseClient.from('terreiros').select('id, nome, address, address_number').eq('status_bloqueado', false).order('nome');
             const sel = document.getElementById('selectTerreiroFornecedor');
@@ -122,7 +157,10 @@
 
         async function carregarItensTerreiroFornecedor() {
             const terreiroId = document.getElementById('selectTerreiroFornecedor').value;
-            if (!terreiroId || !fornecedorAtual) return;
+            const container = document.getElementById('listaItensPrecificacao');
+            if (!terreiroId || !fornecedorAtual || !container) return;
+
+            container.innerHTML = '<p class="text-xs text-slate-400 py-4 text-center"><i class="fas fa-spinner fa-spin mr-1"></i> Carregando lista de doações...</p>';
 
             const { data: frete } = await supabaseClient.from('fornecedores_terreiros_frete')
                 .select('*')
@@ -133,26 +171,35 @@
             document.getElementById('inputFreteTerreiro').value = frete ? frete.taxa_entrega : '0.00';
             document.getElementById('inputFreteGratisTerreiro').value = frete && frete.frete_gratis_acima ? frete.frete_gratis_acima : '';
 
-            const { data: itens } = await supabaseClient.from('itens_doacao')
+            // Busca todos os itens do terreiro e filtra no JS (evita que itens com categoria NULL sumam no SQL .neq)
+            const { data: todosItens, error: errItens } = await supabaseClient.from('itens_doacao')
                 .select('*')
                 .eq('terreiro_id', terreiroId)
-                .eq('ativo', true)
-                .neq('categoria', 'cantina')
                 .order('nome');
+
+            if (errItens) {
+                container.innerHTML = `<p class="text-xs text-rose-400 py-4 text-center">Erro ao ler catálogo: ${errItens.message}</p>`;
+                return;
+            }
+
+            const itens = (todosItens || []).filter(item => {
+                const ativoOk = item.ativo !== false;
+                const cat = String(item.categoria || '').toLowerCase().trim();
+                return ativoOk && cat !== 'cantina';
+            });
 
             const { data: precos } = await supabaseClient.from('fornecedores_precos_itens')
                 .select('*')
                 .eq('fornecedor_id', fornecedorAtual.id)
                 .eq('terreiro_id', terreiroId);
 
-            const container = document.getElementById('listaItensPrecificacao');
-            if (!itens || itens.length === 0) {
+            if (itens.length === 0) {
                 container.innerHTML = '<p class="text-xs text-slate-500 py-4 text-center">Este terreiro ainda não cadastrou itens de doação.</p>';
                 return;
             }
 
             container.innerHTML = itens.map(item => {
-                const p = (precos || []).find(x => x.item_id === item.id);
+                const p = (precos || []).find(x => String(x.item_id) === String(item.id));
                 const val = p ? p.preco_unitario : '';
                 const disp = p ? p.disponivel !== false : true;
                 return `
@@ -161,7 +208,7 @@
                         <p class="text-xs font-bold text-white">${item.nome}</p>
                         <span class="text-[10px] text-slate-400 uppercase">${item.categoria || 'Geral'}</span>
                     </div>
-                    <label class="flex items-center gap-1 text-[10px] text-slate-300">
+                    <label class="flex items-center gap-1 text-[10px] text-slate-300 cursor-pointer">
                         <input type="checkbox" class="chk-disp-forn rounded" data-item-id="${item.id}" ${disp ? 'checked' : ''}> Estoque
                     </label>
                     <div class="flex items-center gap-1">
@@ -175,12 +222,10 @@
         async function salvarTabelaFornecedor() {
             const terreiroId = document.getElementById('selectTerreiroFornecedor').value;
             const btn = document.getElementById('btnSalvarTabelaFornecedor');
-            const cpfCnpjLimpo = (document.getElementById('inputCpfCnpjFornecedor')?.value || '').replace(/\D/g, '');
+            const aceita24h = document.getElementById('chkAceita24hForn')?.checked !== false;
+            const horaAbertura = document.getElementById('inputHoraAberturaForn')?.value || '08:00';
+            const horaFechamento = document.getElementById('inputHoraFechamentoForn')?.value || '18:00';
             const avisoEntrega = (document.getElementById('inputAvisoEntregaFornecedor')?.value || '').trim();
-
-            if (!cpfCnpjLimpo || (cpfCnpjLimpo.length !== 11 && cpfCnpjLimpo.length !== 14)) {
-                return alert('Informe um CPF (11 dígitos) ou CNPJ (14 dígitos) válido para recebimento via PIX/Asaas.');
-            }
 
             btn.disabled = true;
             btn.textContent = 'Salvando...';
@@ -189,13 +234,17 @@
                 const { error: errForn } = await supabaseClient
                     .from('fornecedores')
                     .update({
-                        cpf_cnpj: cpfCnpjLimpo,
+                        aceita_24h: aceita24h,
+                        hora_abertura: horaAbertura,
+                        hora_fechamento: horaFechamento,
                         aviso_entrega: avisoEntrega || null
                     })
                     .eq('id', fornecedorAtual.id);
                 if (errForn) throw errForn;
 
-                fornecedorAtual.cpf_cnpj = cpfCnpjLimpo;
+                fornecedorAtual.aceita_24h = aceita24h;
+                fornecedorAtual.hora_abertura = horaAbertura;
+                fornecedorAtual.hora_fechamento = horaFechamento;
                 fornecedorAtual.aviso_entrega = avisoEntrega;
 
                 const taxaEntrega = parseFloat(document.getElementById('inputFreteTerreiro').value) || 0;
@@ -231,12 +280,12 @@
                     await supabaseClient.from('fornecedores_precos_itens').upsert(upserts, { onConflict: 'fornecedor_id,item_id' });
                 }
 
-                alert('✅ Aviso de entrega, preços e frete atualizados com sucesso!');
+                alert('✅ Horários, aviso de entrega, preços e frete atualizados com sucesso!');
             } catch (err) {
                 alert('Erro ao salvar: ' + err.message);
             } finally {
                 btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-save mr-1"></i> Salvar Aviso, Preços e Taxa de Entrega';
+                btn.innerHTML = '<i class="fas fa-save mr-1"></i> Salvar Horários, Aviso, Preços e Taxa de Entrega';
             }
         }
     </script>
