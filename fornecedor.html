@@ -17,7 +17,7 @@
                 <i class="fas fa-truck-loading"></i>
             </div>
             <h1 class="text-lg font-black uppercase text-white pt-2">Portal do Fornecedor</h1>
-            <p class="text-xs text-slate-400">Atualize preços, horários e taxas de entrega para os Terreiros</p>
+            <p class="text-xs text-slate-400">Atualize preços, avisos de entrega e frete para os Terreiros</p>
         </div>
 
         <form id="formLoginFornecedor" class="space-y-3">
@@ -32,7 +32,7 @@
             <button type="submit" class="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs uppercase tracking-wider shadow active:scale-95 transition">
                 Entrar no Painel
             </button>
-        </form>
+        </div>
     </div>
 
     <!-- PAINEL DE TABELA DE PREÇOS E FRETE DO FORNECEDOR -->
@@ -46,32 +46,17 @@
                 <button type="button" onclick="location.reload()" class="text-xs text-rose-400 font-bold bg-rose-500/10 px-3 py-1.5 rounded-xl border border-rose-500/20">Sair</button>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-800 items-end">
+            <div class="pt-2 border-t border-slate-800 space-y-3">
                 <div>
-                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">CPF ou CNPJ (PIX/Asaas)</label>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">CPF ou CNPJ (Para recebimento automático PIX/Asaas)</label>
                     <input type="text" id="inputCpfCnpjFornecedor" placeholder="Apenas números..." class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs font-bold text-white outline-none focus:border-amber-500 font-mono">
                 </div>
 
-                <!-- BOTÃO / TOGGLE ACEITA PEDIDO 24HS -->
                 <div>
-                    <label class="flex items-center justify-between cursor-pointer bg-slate-800 border border-slate-700 px-3.5 py-2 rounded-xl hover:border-emerald-500/50 transition">
-                        <span class="text-xs font-black text-emerald-400 uppercase flex items-center gap-1.5">
-                            <i class="fas fa-bolt"></i> Aceita pedido 24hs
-                        </span>
-                        <input type="checkbox" id="chkAceita24hForn" onchange="alternarModo24hFornecedor()" class="w-4 h-4 accent-emerald-500 rounded cursor-pointer" checked>
+                    <label class="block text-[10px] font-black text-amber-400 uppercase mb-1">
+                        <i class="fas fa-bullhorn mr-1"></i> Aviso sobre Horários de Entrega / Condições (Aparece em destaque para o cliente antes do pagamento)
                     </label>
-                </div>
-            </div>
-
-            <!-- HORÁRIOS ESPECÍFICOS (SÓ APARECE SE DESMARCAR 24HS) -->
-            <div id="boxHorariosRestritosForn" class="hidden grid grid-cols-2 gap-3 pt-1">
-                <div>
-                    <label class="block text-[10px] font-bold text-emerald-400 uppercase mb-1"><i class="far fa-clock mr-1"></i> Abre às (Libera Pagto)</label>
-                    <input type="time" id="inputHoraAberturaForn" value="08:00" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs font-bold text-white outline-none focus:border-amber-500">
-                </div>
-                <div>
-                    <label class="block text-[10px] font-bold text-rose-400 uppercase mb-1"><i class="fas fa-lock mr-1"></i> Fecha às (Bloqueia Pagto)</label>
-                    <input type="time" id="inputHoraFechamentoForn" value="18:00" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs font-bold text-white outline-none focus:border-amber-500">
+                    <textarea id="inputAvisoEntregaFornecedor" rows="2" maxlength="220" placeholder="Ex: Entregas de Seg a Sex das 09h às 17h. Pedidos feitos à noite ou fim de semana serão entregues no próximo dia útil." class="w-full px-3 py-2 bg-slate-800 border border-amber-500/40 rounded-xl text-xs text-amber-100 outline-none focus:border-amber-400"></textarea>
                 </div>
             </div>
         </div>
@@ -97,7 +82,7 @@
             <div id="listaItensPrecificacao" class="space-y-2 divide-y divide-slate-800"></div>
 
             <button type="button" id="btnSalvarTabelaFornecedor" onclick="salvarTabelaFornecedor()" class="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-xl text-xs uppercase shadow-lg active:scale-95 transition">
-                <i class="fas fa-save mr-1"></i> Salvar Horários, Preços e Taxa de Entrega
+                <i class="fas fa-save mr-1"></i> Salvar Aviso, Preços e Taxa de Entrega
             </button>
         </div>
     </div>
@@ -105,14 +90,6 @@
     <script src="js/supabase.js"></script>
     <script>
         let fornecedorAtual = null;
-
-        function alternarModo24hFornecedor() {
-            const chk24h = document.getElementById('chkAceita24hForn');
-            const boxHr = document.getElementById('boxHorariosRestritosForn');
-            if (chk24h && boxHr) {
-                boxHr.classList.toggle('hidden', chk24h.checked);
-            }
-        }
 
         document.getElementById('formLoginFornecedor').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -134,10 +111,7 @@
             document.getElementById('nomeFornecedorLogado').textContent = data.nome_fantasia;
             
             document.getElementById('inputCpfCnpjFornecedor').value = data.cpf_cnpj || '';
-            document.getElementById('chkAceita24hForn').checked = data.aceita_24h !== false;
-            document.getElementById('inputHoraAberturaForn').value = data.hora_abertura || '08:00';
-            document.getElementById('inputHoraFechamentoForn').value = data.hora_fechamento || '18:00';
-            alternarModo24hFornecedor();
+            document.getElementById('inputAvisoEntregaFornecedor').value = data.aviso_entrega || '';
 
             const { data: terreiros } = await supabaseClient.from('terreiros').select('id, nome, address, address_number').eq('status_bloqueado', false).order('nome');
             const sel = document.getElementById('selectTerreiroFornecedor');
@@ -202,9 +176,7 @@
             const terreiroId = document.getElementById('selectTerreiroFornecedor').value;
             const btn = document.getElementById('btnSalvarTabelaFornecedor');
             const cpfCnpjLimpo = (document.getElementById('inputCpfCnpjFornecedor')?.value || '').replace(/\D/g, '');
-            const aceita24h = document.getElementById('chkAceita24hForn')?.checked !== false;
-            const horaAbertura = document.getElementById('inputHoraAberturaForn')?.value || '08:00';
-            const horaFechamento = document.getElementById('inputHoraFechamentoForn')?.value || '18:00';
+            const avisoEntrega = (document.getElementById('inputAvisoEntregaFornecedor')?.value || '').trim();
 
             if (!cpfCnpjLimpo || (cpfCnpjLimpo.length !== 11 && cpfCnpjLimpo.length !== 14)) {
                 return alert('Informe um CPF (11 dígitos) ou CNPJ (14 dígitos) válido para recebimento via PIX/Asaas.');
@@ -218,17 +190,13 @@
                     .from('fornecedores')
                     .update({
                         cpf_cnpj: cpfCnpjLimpo,
-                        aceita_24h: aceita24h,
-                        hora_abertura: horaAbertura,
-                        hora_fechamento: horaFechamento
+                        aviso_entrega: avisoEntrega || null
                     })
                     .eq('id', fornecedorAtual.id);
                 if (errForn) throw errForn;
 
                 fornecedorAtual.cpf_cnpj = cpfCnpjLimpo;
-                fornecedorAtual.aceita_24h = aceita24h;
-                fornecedorAtual.hora_abertura = horaAbertura;
-                fornecedorAtual.hora_fechamento = horaFechamento;
+                fornecedorAtual.aviso_entrega = avisoEntrega;
 
                 const taxaEntrega = parseFloat(document.getElementById('inputFreteTerreiro').value) || 0;
                 const valFreteGratis = document.getElementById('inputFreteGratisTerreiro').value;
@@ -263,12 +231,12 @@
                     await supabaseClient.from('fornecedores_precos_itens').upsert(upserts, { onConflict: 'fornecedor_id,item_id' });
                 }
 
-                alert('✅ Horários, preços e taxa de entrega atualizados com sucesso!');
+                alert('✅ Aviso de entrega, preços e frete atualizados com sucesso!');
             } catch (err) {
                 alert('Erro ao salvar: ' + err.message);
             } finally {
                 btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-save mr-1"></i> Salvar Horários, Preços e Taxa de Entrega';
+                btn.innerHTML = '<i class="fas fa-save mr-1"></i> Salvar Aviso, Preços e Taxa de Entrega';
             }
         }
     </script>
