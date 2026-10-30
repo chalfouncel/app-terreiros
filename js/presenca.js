@@ -79,6 +79,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
+        // Redirecionamento automático do Admin Master para Gestão da Plataforma (SaaS)
+        const emailLogado = (session.user.email || '').toLowerCase().trim();
+        if (emailLogado === 'chalfouncel@gmail.com' || emailLogado === 'chelfouncel@gmail.com' || (perfil.is_master === true && !sessionStorage.getItem('forcarAppPresenca'))) {
+            localStorage.removeItem('terreiroAtivoSaaS');
+            window.location.replace('admin.html?secao=menuMaster');
+            return;
+        }
+
         // Bloqueio se o médium estiver inativo
         if (perfil.status_ativo === false || perfil.status_ativo === 'false') {
             alert("O seu acesso ao sistema está inativo. Por favor, entre em contato com a Administração da Casa.");
@@ -1437,6 +1445,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             mesesSelecionados: []
         }];
 
+        if (btnFinalizarMensalidade) btnFinalizarMensalidade.classList.remove('hidden');
+        if (btnAdicionarOutroMedium && btnAdicionarOutroMedium.parentElement) {
+            btnAdicionarOutroMedium.parentElement.classList.remove('hidden');
+        }
+
         await atualizarCarrinhoRender();
 
         modalMensalidade.classList.remove('hidden');
@@ -1941,8 +1954,28 @@ async function iniciarCheckoutAsaas(valorTotal, mesesArray) {
     }
 }
 
+let intervaloVerificacaoMensalidadeAsaas = null;
+
+window.copiarPixMensalidadeInApp = () => {
+    const inp = document.getElementById('inputPixCopiaColaMensalidadeApp');
+    const btn = document.getElementById('btnCopiarPixMensalidadeApp');
+    if (!inp || !inp.value) return;
+    navigator.clipboard.writeText(inp.value).then(() => {
+        if (btn) {
+            const orig = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-check"></i> Código PIX Copiado! Abra o app do seu banco';
+            btn.classList.replace('bg-emerald-600', 'bg-blue-600');
+            setTimeout(() => {
+                btn.innerHTML = orig;
+                btn.classList.replace('bg-blue-600', 'bg-emerald-600');
+            }, 3500);
+        }
+    });
+};
+
 async function chamarEdgeFunctionAsaas(valorTotal, carrinhoArray) {
     const btnOriginal = document.getElementById('btnFinalizarMensalidade');
+    const containerCarrinho = document.getElementById('containerCarrinhoMensalidades');
     const taxaFixaCfg = Number(terreiroConfigMensalidade?.taxa_plataforma_fixa || 0);
     const taxaPercCfg = Number(terreiroConfigMensalidade?.taxa_plataforma_percentual || 0);
     const tarifaAplicada = (taxaFixaCfg > 0 || taxaPercCfg > 0)
@@ -1952,11 +1985,16 @@ async function chamarEdgeFunctionAsaas(valorTotal, carrinhoArray) {
     const strTarifa = tarifaAplicada.toFixed(2).replace('.', ',');
     
     if (btnOriginal) {
-        btnOriginal.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> A Gerar Link Seguro...';
+        btnOriginal.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Gerando QR Code PIX...';
         btnOriginal.disabled = true;
     }
     
     try {
+        if (intervaloVerificacaoMensalidadeAsaas) {
+            clearInterval(intervaloVerificacaoMensalidadeAsaas);
+            intervaloVerificacaoMensalidadeAsaas = null;
+        }
+
         const selectAno = document.getElementById('selectAnoMensalidade');
         const anoRef = selectAno ? parseInt(selectAno.value) : new Date().getFullYear();
 
@@ -1991,19 +2029,86 @@ async function chamarEdgeFunctionAsaas(valorTotal, carrinhoArray) {
 
         if (error) throw error;
 
-        if (data && data.invoiceUrl) {
+        const pixQrBase64 = data?.pixEncodedImage || null;
+        const pixCopiaCola = data?.pixPayload || null;
+        const comprovanteId = data?.comprovanteId || null;
+        const paymentId = data?.paymentId || null;
+
+        if (pixCopiaCola && containerCarrinho) {
+            if (btnOriginal) btnOriginal.classList.add('hidden');
+            document.getElementById('btnAdicionarOutroMedium')?.parentElement?.classList.add('hidden');
+
+            containerCarrinho.innerHTML = `
+                <div class="bg-emerald-50/80 border-2 border-emerald-400 rounded-2xl p-4 text-center space-y-3">
+                    <div class="flex items-center justify-center gap-2 text-amber-700 font-black text-xs bg-amber-100 py-1.5 px-3 rounded-full">
+                        <i class="fas fa-circle-notch fa-spin"></i>
+                        <span>AGUARDANDO PAGAMENTO PIX</span>
+                    </div>
+
+                    <p class="text-xs font-bold text-gray-800">
+                        Total c/ taxa: <span class="text-emerald-700 font-black">R$ ${valorComTaxa.toFixed(2).replace('.', ',')}</span>
+                    </p>
+
+                    ${pixQrBase64 ? `
+                    <div class="bg-white p-2.5 rounded-2xl border border-gray-200 inline-block shadow-sm">
+                        <img src="data:image/png;base64,${pixQrBase64}" alt="QR Code PIX Mensalidade" class="w-40 h-40 mx-auto object-contain">
+                    </div>` : ''}
+
+                    <div class="space-y-1.5 text-left">
+                        <label class="block text-[10px] font-black text-gray-500 uppercase text-center">PIX Copia e Cola (Pague no app do seu banco):</label>
+                        <input type="text" id="inputPixCopiaColaMensalidadeApp" readonly value="${pixCopiaCola}" class="w-full px-3 py-2 bg-white border border-gray-300 rounded-xl text-[10px] font-mono text-gray-600 outline-none select-all">
+                        <button type="button" id="btnCopiarPixMensalidadeApp" onclick="window.copiarPixMensalidadeInApp()" class="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 active:scale-95 transition text-white font-black text-xs rounded-xl flex items-center justify-center gap-2 shadow-md">
+                            <i class="fas fa-copy text-sm"></i> Copiar Código PIX
+                        </button>
+                    </div>
+
+                    <p class="text-[10px] text-gray-500 leading-snug">
+                        Copie o código acima, pague no app do seu banco e aguarde nesta tela. <strong>A baixa das mensalidades será feita automaticamente!</strong>
+                    </p>
+                </div>
+            `;
+
+            intervaloVerificacaoMensalidadeAsaas = setInterval(async () => {
+                try {
+                    let query = supabaseClient.from('comprovantes_mensalidade').select('status');
+                    if (comprovanteId) query = query.eq('id', comprovanteId);
+                    else query = query.eq('url_comprovante', paymentId);
+
+                    const { data: compCheck } = await query.maybeSingle();
+
+                    if (compCheck && compCheck.status === 'aprovado') {
+                        clearInterval(intervaloVerificacaoMensalidadeAsaas);
+                        intervaloVerificacaoMensalidadeAsaas = null;
+
+                        containerCarrinho.innerHTML = `
+                            <div class="bg-emerald-50 border-2 border-emerald-500 rounded-2xl p-6 text-center space-y-3 shadow-md">
+                                <div class="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto text-2xl shadow-inner">
+                                    <i class="fas fa-check-double"></i>
+                                </div>
+                                <h4 class="text-base font-black text-emerald-900 uppercase">✅ Mensalidade Quitada!</h4>
+                                <p class="text-xs font-bold text-emerald-700">
+                                    O pagamento foi confirmado pelo Asaas e os meses selecionados já constam como pagos na Tesouraria da Casa!
+                                </p>
+                            </div>
+                        `;
+                        verificarPendenciaMensalidade(perfilMediumLogado.id);
+                    }
+                } catch (e) {
+                    console.warn("Verificando status da mensalidade...", e);
+                }
+            }, 3000);
+
+        } else if (data && data.invoiceUrl) {
             window.open(data.invoiceUrl, '_blank');
-            const modalM = document.getElementById('modalMensalidade');
-            if (modalM) modalM.classList.add('hidden');
         } else {
-            throw new Error("O servidor não retornou o link de pagamento.");
+            throw new Error("O servidor não retornou os dados do PIX.");
         }
 
     } catch (err) {
         console.error("Erro no pagamento Asaas:", err);
-        alert("Erro ao gerar link de pagamento: " + (err.message || err));
-    } finally {
+        alert("Erro ao gerar PIX de pagamento: " + (err.message || err));
         if (btnOriginal) {
+            btnOriginal.classList.remove('hidden');
             btnOriginal.innerHTML = `<i class="fas fa-bolt mr-2"></i> Pagar R$ ${valorTotal.toFixed(2).replace('.', ',')} (+ ${strTarifa}) = R$ ${valorComTaxa.toFixed(2).replace('.', ',')}`;
             btnOriginal.disabled = false;
         }
@@ -2341,25 +2446,17 @@ async function verificarPendenciaMensalidade(mediumId) {
     }
 }
 // ====================================================================
-// MÓDULO: COMPRA DIRETA COM FORNECEDORES PARCEIROS (ASAAS -> PIX DIRETO)
+// MÓDULO: COMPRA DIRETA COM FORNECEDORES PARCEIROS (100% PIX IN-APP)
 // ====================================================================
 (function () {
     const TAXA_ASAAS_PIX_FIXA = 1.99;
-    const TAXA_CARTAO_FIXA = 0.49;
-    const TAXA_CARTAO_PERC = 4.19;
 
-    function calcularTotalComTaxas(valorLiquidoFornecedor, metodo) {
-        if (metodo === 'CREDIT_CARD') {
-            const divisor = 1 - (TAXA_CARTAO_PERC / 100);
-            const total = (valorLiquidoFornecedor + TAXA_CARTAO_FIXA) / divisor;
-            return Number(Math.max(5.00, total).toFixed(2));
-        }
+    function calcularTotalComTaxas(valorLiquidoFornecedor) {
         return Number(Math.max(5.00, valorLiquidoFornecedor + TAXA_ASAAS_PIX_FIXA).toFixed(2));
     }
 
     function verificarFornecedorAberto(fornecedorObj) {
         if (!fornecedorObj) return true;
-        // Se aceita_24h estiver ativo (true ou null por padrão), libera 24h sem bloqueio
         if (fornecedorObj.aceita_24h !== false) return true;
 
         const abre = fornecedorObj.hora_abertura || '08:00';
@@ -2418,19 +2515,10 @@ async function verificarPendenciaMensalidade(mediumId) {
                             <h3 class="font-black text-base text-gray-800 flex items-center gap-2">
                                 <i class="fas fa-store text-amber-500"></i> Compra Direta p/ o Terreiro
                             </h3>
-                            <p class="text-[11px] text-gray-500">Compare os preços e envie direto para o endereço da Casa</p>
+                            <p class="text-[11px] text-gray-500">Compare os preços e pague via PIX (Saldo ou Pix no Cartão pelo seu banco)</p>
                         </div>
                         <button type="button" onclick="document.getElementById('modalComparadorFornecedores').classList.add('hidden')" class="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center">
                             <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-
-                    <div id="boxAbasMetodoFornecedor" class="grid grid-cols-2 gap-2 mb-3 bg-gray-100 p-1 rounded-xl text-xs font-bold">
-                        <button type="button" id="btnMetodoFornecedorPix" onclick="window.setMetodoPagamentoFornecedor('PIX')" class="py-2 rounded-lg bg-white text-emerald-700 shadow-sm transition">
-                            <i class="fab fa-pix mr-1"></i> Pagar via PIX
-                        </button>
-                        <button type="button" id="btnMetodoFornecedorCartao" onclick="window.setMetodoPagamentoFornecedor('CREDIT_CARD')" class="py-2 rounded-lg text-gray-500 transition">
-                            <i class="far fa-credit-card mr-1"></i> Cartão (c/ Juros)
                         </button>
                     </div>
 
@@ -2444,27 +2532,9 @@ async function verificarPendenciaMensalidade(mediumId) {
         }
 
         modalComp.classList.remove('hidden');
-        document.getElementById('boxAbasMetodoFornecedor')?.classList.remove('hidden');
         document.getElementById('listaOpcoesFornecedores')?.classList.remove('hidden');
         document.getElementById('boxPosPagamentoFornecedor')?.classList.add('hidden');
         window.metodoPagamentoFornecedorAtual = 'PIX';
-        await window.renderizarCotacoesFornecedores(itensSelecionados);
-    };
-
-    window.setMetodoPagamentoFornecedor = async (metodo) => {
-        window.metodoPagamentoFornecedorAtual = metodo;
-        const bPix = document.getElementById('btnMetodoFornecedorPix');
-        const bCar = document.getElementById('btnMetodoFornecedorCartao');
-        if (bPix && bCar) {
-            bPix.className = metodo === 'PIX' ? 'py-2 rounded-lg bg-white text-emerald-700 shadow-sm font-black transition' : 'py-2 rounded-lg text-gray-500 font-bold transition';
-            bCar.className = metodo === 'CREDIT_CARD' ? 'py-2 rounded-lg bg-white text-indigo-700 shadow-sm font-black transition' : 'py-2 rounded-lg text-gray-500 font-bold transition';
-        }
-        const itensSelecionados = Object.entries(carrinhoDoacoes)
-            .filter(([_, qtd]) => qtd > 0)
-            .map(([id, qtd]) => {
-                const obj = window.todosItensDoacaoCache.find(i => String(i.id) === String(id));
-                return { id: parseInt(id, 10), nome: obj?.nome || 'Item', qtd };
-            });
         await window.renderizarCotacoesFornecedores(itensSelecionados);
     };
 
@@ -2488,7 +2558,6 @@ async function verificarPendenciaMensalidade(mediumId) {
                 return;
             }
 
-            const metodo = window.metodoPagamentoFornecedorAtual || 'PIX';
             const opcoesFornecedorUnico = [];
 
             fornecedores.forEach(f => {
@@ -2515,12 +2584,13 @@ async function verificarPendenciaMensalidade(mediumId) {
                 if (temTodosItens) {
                     const freteFinal = (minFreteGratis !== null && somaProdutos >= minFreteGratis) ? 0 : taxaEntregaPadrao;
                     const liquidoFornecedor = Number((somaProdutos + freteFinal).toFixed(2));
-                    const totalCobrado = calcularTotalComTaxas(liquidoFornecedor, metodo);
+                    const totalCobrado = calcularTotalComTaxas(liquidoFornecedor);
                     const taxaServico = Number((totalCobrado - liquidoFornecedor).toFixed(2));
                     const aceita24h = f.aceita_24h !== false;
                     const horaAbre = f.hora_abertura || '08:00';
                     const horaFecha = f.hora_fechamento || '18:00';
                     const estaAberto = verificarFornecedorAberto(f);
+                    const avisoEntrega = (f.aviso_entrega || '').trim();
 
                     opcoesFornecedorUnico.push({
                         fornecedor: f,
@@ -2533,7 +2603,8 @@ async function verificarPendenciaMensalidade(mediumId) {
                         aceita24h,
                         horaAbre,
                         horaFecha,
-                        estaAberto
+                        estaAberto,
+                        avisoEntrega
                     });
                 }
             });
@@ -2555,14 +2626,24 @@ async function verificarPendenciaMensalidade(mediumId) {
 
                 const txtHorario = op.aceita24h
                     ? `<span class="text-[10px] font-bold text-emerald-600"><i class="fas fa-bolt mr-0.5"></i> Recebe pedidos 24h</span>`
-                    : `<span class="text-[10px] font-bold ${op.estaAberto ? 'text-emerald-600' : 'text-rose-600'}"><i class="far fa-clock mr-0.5"></i> Horário: ${op.horaAbre} às ${op.horaFecha}</span>`;
+                    : `<span class="text-[10px] font-bold ${op.estaAberto ? 'text-emerald-600' : 'text-rose-600'}"><i class="far fa-clock mr-0.5"></i> Pedidos: ${op.horaAbre} às ${op.horaFecha}</span>`;
+
+                const blocoAvisoEntrega = op.avisoEntrega
+                    ? `<div class="bg-amber-50 border-2 border-amber-300 rounded-xl p-2.5 text-left flex items-start gap-2 shadow-sm">
+                           <i class="fas fa-exclamation-triangle text-amber-600 text-sm mt-0.5 shrink-0"></i>
+                           <div class="text-[11px] text-amber-950 leading-snug">
+                               <strong class="font-black uppercase block text-[10px] text-amber-800">Aviso Importante sobre Entrega:</strong>
+                               <span class="font-semibold">${op.avisoEntrega}</span>
+                           </div>
+                       </div>`
+                    : '';
 
                 const botaoCompraHtml = op.estaAberto
                     ? `<button type="button" onclick="window.fecharPedidoFornecedorParceiro(${idx})" class="w-full py-3 rounded-xl font-black text-xs text-white ${ehMaisBarato ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-gray-800 hover:bg-gray-900'} shadow active:scale-95 transition flex items-center justify-center gap-2">
-                           <i class="fas fa-bolt"></i> Comprar neste Fornecedor (R$ ${op.totalCobrado.toFixed(2).replace('.', ',')})
+                           <i class="fab fa-pix text-sm"></i> Pagar via PIX neste Fornecedor (R$ ${op.totalCobrado.toFixed(2).replace('.', ',')})
                        </button>`
                     : `<button type="button" disabled class="w-full py-3 rounded-xl font-black text-xs bg-rose-50 text-rose-700 border border-rose-200 cursor-not-allowed flex items-center justify-center gap-2">
-                           <i class="fas fa-lock"></i> Fechado p/ Pagamentos (${op.horaAbre} às ${op.horaFecha})
+                           <i class="fas fa-lock"></i> Fechado p/ Pedidos (${op.horaAbre} às ${op.horaFecha})
                        </button>`;
 
                 return `
@@ -2574,7 +2655,7 @@ async function verificarPendenciaMensalidade(mediumId) {
                             ${txtHorario}
                         </div>
                         <div class="text-right">
-                            <span class="text-[10px] text-gray-400 font-bold uppercase block">Total Final</span>
+                            <span class="text-[10px] text-gray-400 font-bold uppercase block">Total Final (PIX)</span>
                             <span class="text-lg font-black text-emerald-700">R$ ${op.totalCobrado.toFixed(2).replace('.', ',')}</span>
                         </div>
                     </div>
@@ -2586,10 +2667,12 @@ async function verificarPendenciaMensalidade(mediumId) {
                             <span class="font-bold">${op.freteFinal === 0 ? 'GRÁTIS' : `R$ ${op.freteFinal.toFixed(2)}`}</span>
                         </div>
                         <div class="flex justify-between text-gray-400 text-[10px]">
-                            <span>Taxa de processamento (${metodo === 'PIX' ? 'PIX' : 'Cartão à vista'}):</span>
+                            <span>Taxa de processamento (PIX):</span>
                             <span>R$ ${op.taxaServico.toFixed(2)}</span>
                         </div>
                     </div>
+
+                    ${blocoAvisoEntrega}
 
                     ${botaoCompraHtml}
                 </div>`;
@@ -2609,16 +2692,13 @@ async function verificarPendenciaMensalidade(mediumId) {
             return alert(`Este fornecedor recebe pedidos apenas das ${op.horaAbre} às ${op.horaFecha}.`);
         }
 
-        const metodo = window.metodoPagamentoFornecedorAtual || 'PIX';
-
         try {
             if (intervaloVerificacaoPedidoFornecedor) {
                 clearInterval(intervaloVerificacaoPedidoFornecedor);
                 intervaloVerificacaoPedidoFornecedor = null;
             }
 
-            // Oculta a lista de fornecedores e abas para exibir apenas a tela do pagamento
-            document.getElementById('boxAbasMetodoFornecedor')?.classList.add('hidden');
+            // Oculta a lista de fornecedores para mostrar apenas o QR Code PIX
             document.getElementById('listaOpcoesFornecedores')?.classList.add('hidden');
 
             const boxPos = document.getElementById('boxPosPagamentoFornecedor');
@@ -2626,7 +2706,7 @@ async function verificarPendenciaMensalidade(mediumId) {
                 boxPos.innerHTML = `
                     <div class="bg-gray-50 border border-gray-200 rounded-2xl p-6 text-center space-y-2">
                         <i class="fas fa-circle-notch fa-spin text-2xl text-emerald-600"></i>
-                        <p class="text-xs font-bold text-gray-700">Gerando pagamento seguro...</p>
+                        <p class="text-xs font-bold text-gray-700">Gerando QR Code PIX...</p>
                     </div>
                 `;
                 boxPos.classList.remove('hidden');
@@ -2644,7 +2724,7 @@ async function verificarPendenciaMensalidade(mediumId) {
                 taxa_servico: op.taxaServico,
                 valor_total_cobrado: op.totalCobrado,
                 valor_repasse_fornecedor: op.liquidoFornecedor,
-                metodo_pagamento: metodo,
+                metodo_pagamento: 'PIX',
                 status_pagamento: 'pendente'
             }]).select('*').single();
 
@@ -2671,14 +2751,13 @@ async function verificarPendenciaMensalidade(mediumId) {
                     pedidoFornecedorId: pedidoCriado.id,
                     mediumId: perfilMediumLogado.id,
                     terreiroId: idTerreiroGlobal,
-                    metodoPagamento: metodo,
+                    metodoPagamento: 'PIX',
                     valorTotal: op.totalCobrado,
                     valorRepasseFornecedor: op.liquidoFornecedor,
                     taxaBancaria: op.taxaServico,
                     fornecedorPixKey: op.fornecedor.chave_pix,
                     fornecedorPixType: op.fornecedor.tipo_chave_pix,
-                    fornecedorNome: op.fornecedor.nome_fantasia,
-                    urlRetornoApp: window.location.href
+                    fornecedorNome: op.fornecedor.nome_fantasia
                 }
             });
 
@@ -2688,9 +2767,8 @@ async function verificarPendenciaMensalidade(mediumId) {
             const pixQrBase64 = cobrancaAsaas?.pixEncodedImage || null;
             const pixCopiaCola = cobrancaAsaas?.pixPayload || null;
 
-            // Só abre aba externa se for Cartão de Crédito ou se não vier o Copia e Cola do PIX
-            if (metodo === 'CREDIT_CARD' || !pixCopiaCola) {
-                if (linkPagamento) window.open(linkPagamento, '_blank');
+            if (!pixCopiaCola && linkPagamento) {
+                window.open(linkPagamento, '_blank');
             }
 
             // 4. Prepara as mensagens e URLs do WhatsApp
@@ -2732,7 +2810,7 @@ async function verificarPendenciaMensalidade(mediumId) {
                 }
             }
 
-            // 5. Renderiza o PIX Transparente DIRETO NO APP (Sem sair do aplicativo!)
+            // 5. Renderiza o PIX Transparente DIRETO NO APP
             if (boxPos) {
                 if (pixCopiaCola) {
                     boxPos.innerHTML = `
@@ -2759,8 +2837,13 @@ async function verificarPendenciaMensalidade(mediumId) {
                                 </button>
                             </div>
 
+                            ${op.avisoEntrega ? `
+                            <div class="bg-amber-50 border border-amber-300 rounded-xl p-2 text-[10px] text-amber-950 text-left">
+                                <strong><i class="fas fa-exclamation-triangle text-amber-600 mr-1"></i> Entrega:</strong> ${op.avisoEntrega}
+                            </div>` : ''}
+
                             <p class="text-[10px] text-gray-500 leading-snug">
-                                Copie o código acima, pague no aplicativo do seu banco e volte para esta tela. <strong>A confirmação e os botões do WhatsApp aparecerão aqui automaticamente!</strong>
+                                Copie o código acima, pague no seu banco (saldo ou Pix no Cartão) e volte para esta tela. <strong>A confirmação e os botões do WhatsApp aparecerão aqui automaticamente!</strong>
                             </p>
                         </div>
                     `;
@@ -2789,9 +2872,7 @@ async function verificarPendenciaMensalidade(mediumId) {
                     intervaloVerificacaoPedidoFornecedor = null;
                 }
 
-                document.getElementById('boxAbasMetodoFornecedor')?.classList.add('hidden');
                 document.getElementById('listaOpcoesFornecedores')?.classList.add('hidden');
-
                 if (!boxPos) return;
 
                 boxPos.innerHTML = `
@@ -2838,7 +2919,6 @@ async function verificarPendenciaMensalidade(mediumId) {
 
             carrinhoDoacoes = {};
         } catch (err) {
-            document.getElementById('boxAbasMetodoFornecedor')?.classList.remove('hidden');
             document.getElementById('listaOpcoesFornecedores')?.classList.remove('hidden');
             document.getElementById('boxPosPagamentoFornecedor')?.classList.add('hidden');
             alert('Erro ao processar pedido: ' + err.message);
