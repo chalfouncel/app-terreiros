@@ -1907,24 +1907,58 @@ document.addEventListener('DOMContentLoaded', async () => {
                         `;
                     }
 
+                    if (item.tipoObj === 'mensalidade') {
+                        corBorda = 'border-t-yellow-400';
+                        iconeCard = '<i class="fas fa-file-invoice text-yellow-500 mr-1.5"></i>';
+                        const nomeSeguro = String(item.nomeExibicao).replace(/'/g, "\\'");
+                        btnAcao = `<button onclick="abrirModalVerComprovante('${item.id}', '${item.extra.url_comprovante}', '${nomeSeguro} - ${valFmt}')" class="w-full bg-gray-800 hover:bg-gray-900 active:scale-95 text-white font-bold py-2 px-3 rounded-xl shadow-sm transition text-xs flex justify-center items-center gap-2">
+                            <i class="fas fa-search"></i> Analisar Comprovante
+                        </button>`;
+                    } else if (item.tipoObj === 'rifa_comprovante') {
+                        corBorda = 'border-t-indigo-500';
+                        iconeCard = '<i class="fas fa-ticket-alt text-indigo-500 mr-1.5"></i>';
+                        const jsonStr = JSON.stringify(item.extra).replace(/'/g, "\\'").replace(/"/g, "&quot;");
+                        btnAcao = `<button onclick="abrirModalComprovante(JSON.parse('${jsonStr}'))" class="w-full bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold py-2 px-3 rounded-xl shadow-sm transition text-xs flex justify-center items-center gap-2">
+                            <i class="fas fa-search-plus"></i> Analisar Comprovante Rifa
+                        </button>`;
+                    } else {
+                        corBorda = 'border-t-blue-500';
+                        let icn = 'fa-cash-register';
+                        if(item.extra.tipo_transacao === 'RIFA') icn = 'fa-ticket-alt';
+                        if(item.extra.tipo_transacao === 'CANTINA') icn = 'fa-hamburger';
+                        if(item.extra.tipo_transacao === 'DOACAO') icn = 'fa-hand-holding-heart';
+
+                        iconeCard = `<i class="fas ${icn} text-blue-500 mr-1.5"></i>`;
+                        btnAcao = `
+                            <div class="flex gap-2 w-full mt-1">
+                                <button onclick="rejeitarCaixaPendente('${item.id}', '${item.extra.referencia_id}', '${item.extra.tipo_transacao}')" class="flex-1 bg-red-100 text-red-700 hover:bg-red-200 font-bold py-2 rounded-xl shadow-sm transition text-xs active:scale-95 border border-red-200">
+                                    <i class="fas fa-times"></i> Rejeitar
+                                </button>
+                                <button onclick="aprovarCaixaPendente('${item.id}', '${item.extra.referencia_id}', '${item.extra.tipo_transacao}')" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded-xl shadow-sm transition text-xs active:scale-95 flex items-center justify-center gap-1">
+                                    <i class="fas fa-check"></i> Baixar PIX
+                                </button>
+                            </div>
+                        `;
+                    }
+
                     const card = `
-                        <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-200 border-t-4 ${corBorda} hover:shadow-md transition flex flex-col justify-between">
+                        <div class="bg-white p-3.5 rounded-2xl shadow-sm border border-gray-200 border-t-4 ${corBorda} hover:shadow-md transition flex flex-col justify-between">
                             <div>
-                                <div class="flex justify-between items-start mb-3">
-                                    <h4 class="font-bold text-gray-800 text-sm truncate pr-2" title="${item.nomeExibicao}">${iconeCard} ${item.nomeExibicao}</h4>
-                                    <span class="bg-gray-100 text-gray-600 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">Pendente</span>
+                                <div class="flex justify-between items-start mb-2">
+                                    <h4 class="font-bold text-gray-800 text-xs truncate pr-2" title="${item.nomeExibicao}">${iconeCard} ${item.nomeExibicao}</h4>
+                                    <span class="bg-gray-100 text-gray-600 text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">Pendente</span>
                                 </div>
-                                <div class="text-xs text-gray-600 mb-3 bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                                <div class="text-[11px] text-gray-600 mb-2 bg-gray-50 p-2 rounded-lg border border-gray-100">
                                     <span class="font-bold text-gray-700">${item.descricao}</span>
                                 </div>
-                                <div class="flex justify-between items-end mb-4">
+                                <div class="flex justify-between items-end mb-3">
                                     <div>
-                                        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">Lançado em</p>
-                                        <p class="text-xs text-gray-600 font-medium">${dataEnvio}</p>
+                                        <p class="text-[9px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">Lançado em</p>
+                                        <p class="text-[11px] text-gray-600 font-medium">${dataEnvio}</p>
                                     </div>
                                     <div class="text-right">
-                                        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">Valor Total</p>
-                                        <p class="text-lg font-black text-green-600 leading-none">${valFmt}</p>
+                                        <p class="text-[9px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">Valor Total</p>
+                                        <p class="text-base font-black text-green-600 leading-none">${valFmt}</p>
                                     </div>
                                 </div>
                             </div>
