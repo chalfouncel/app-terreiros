@@ -17,7 +17,7 @@
                 <i class="fas fa-truck-loading"></i>
             </div>
             <h1 class="text-lg font-black uppercase text-white pt-2">Portal do Fornecedor</h1>
-            <p class="text-xs text-slate-400">Atualize preços e taxas de entrega para os Terreiros</p>
+            <p class="text-xs text-slate-400">Atualize preços, horários e taxas de entrega para os Terreiros</p>
         </div>
 
         <form id="formLoginFornecedor" class="space-y-3">
@@ -37,20 +37,30 @@
 
     <!-- PAINEL DE TABELA DE PREÇOS E FRETE DO FORNECEDOR -->
     <div id="painelFornecedorAtivo" class="hidden w-full max-w-2xl mt-4 space-y-4">
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-    <div>
-        <span class="text-[10px] font-bold text-amber-400 uppercase">Fornecedor Parceiro</span>
-        <h2 id="nomeFornecedorLogado" class="text-base font-black text-white"></h2>
-    </div>
-    
-    <!-- NOVO CAMPO CPF/CNPJ -->
-    <div class="w-full sm:w-auto">
-        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">CPF ou CNPJ (Para recebimento PIX/Asaas)</label>
-        <input type="text" id="inputCpfCnpjFornecedor" placeholder="Apenas números..." class="w-full sm:w-64 px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-sm font-bold text-white outline-none focus:border-amber-500">
-    </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
+            <div class="flex justify-between items-center">
+                <div>
+                    <span class="text-[10px] font-bold text-amber-400 uppercase">Fornecedor Parceiro</span>
+                    <h2 id="nomeFornecedorLogado" class="text-base font-black text-white"></h2>
+                </div>
+                <button type="button" onclick="location.reload()" class="text-xs text-rose-400 font-bold bg-rose-500/10 px-3 py-1.5 rounded-xl border border-rose-500/20">Sair</button>
+            </div>
 
-    <button type="button" onclick="location.reload()" class="text-xs text-rose-400 font-bold bg-rose-500/10 px-3 py-1.5 rounded-xl border border-rose-500/20">Sair</button>
-</div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-slate-800">
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">CPF ou CNPJ (PIX/Asaas)</label>
+                    <input type="text" id="inputCpfCnpjFornecedor" placeholder="Apenas números..." class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs font-bold text-white outline-none focus:border-amber-500 font-mono">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-emerald-400 uppercase mb-1"><i class="far fa-clock mr-1"></i> Abre às (Libera Pagto)</label>
+                    <input type="time" id="inputHoraAberturaForn" value="08:00" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs font-bold text-white outline-none focus:border-amber-500">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-rose-400 uppercase mb-1"><i class="fas fa-lock mr-1"></i> Fecha às (Bloqueia Pagto)</label>
+                    <input type="time" id="inputHoraFechamentoForn" value="18:00" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs font-bold text-white outline-none focus:border-amber-500">
+                </div>
+            </div>
+        </div>
 
         <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
             <label class="block text-xs font-black text-indigo-300 uppercase"><i class="fas fa-synagogue mr-1"></i> 1. Selecione o Terreiro para atualizar preços e frete:</label>
@@ -73,7 +83,7 @@
             <div id="listaItensPrecificacao" class="space-y-2 divide-y divide-slate-800"></div>
 
             <button type="button" id="btnSalvarTabelaFornecedor" onclick="salvarTabelaFornecedor()" class="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-xl text-xs uppercase shadow-lg active:scale-95 transition">
-                <i class="fas fa-save mr-1"></i> Salvar Preços e Taxa de Entrega
+                <i class="fas fa-save mr-1"></i> Salvar Horários, Preços e Taxa de Entrega
             </button>
         </div>
     </div>
@@ -101,8 +111,9 @@
             document.getElementById('painelFornecedorAtivo').classList.remove('hidden');
             document.getElementById('nomeFornecedorLogado').textContent = data.nome_fantasia;
             
-            // CARREGA O CPF/CNPJ SE JÁ EXISTIR NO BANCO
             document.getElementById('inputCpfCnpjFornecedor').value = data.cpf_cnpj || '';
+            document.getElementById('inputHoraAberturaForn').value = data.hora_abertura || '08:00';
+            document.getElementById('inputHoraFechamentoForn').value = data.hora_fechamento || '18:00';
 
             const { data: terreiros } = await supabaseClient.from('terreiros').select('id, nome, address, address_number').eq('status_bloqueado', false).order('nome');
             const sel = document.getElementById('selectTerreiroFornecedor');
@@ -167,6 +178,8 @@
             const terreiroId = document.getElementById('selectTerreiroFornecedor').value;
             const btn = document.getElementById('btnSalvarTabelaFornecedor');
             const cpfCnpjLimpo = (document.getElementById('inputCpfCnpjFornecedor')?.value || '').replace(/\D/g, '');
+            const horaAbertura = document.getElementById('inputHoraAberturaForn')?.value || '08:00';
+            const horaFechamento = document.getElementById('inputHoraFechamentoForn')?.value || '18:00';
 
             if (!cpfCnpjLimpo || (cpfCnpjLimpo.length !== 11 && cpfCnpjLimpo.length !== 14)) {
                 return alert('Informe um CPF (11 dígitos) ou CNPJ (14 dígitos) válido para recebimento via PIX/Asaas.');
@@ -176,15 +189,20 @@
             btn.textContent = 'Salvando...';
 
             try {
-                // 1. Atualiza o CPF/CNPJ do fornecedor no cadastro dele
                 const { error: errForn } = await supabaseClient
                     .from('fornecedores')
-                    .update({ cpf_cnpj: cpfCnpjLimpo })
+                    .update({
+                        cpf_cnpj: cpfCnpjLimpo,
+                        hora_abertura: horaAbertura,
+                        hora_fechamento: horaFechamento
+                    })
                     .eq('id', fornecedorAtual.id);
                 if (errForn) throw errForn;
-                fornecedorAtual.cpf_cnpj = cpfCnpjLimpo;
 
-                // 2. Salva frete para o Terreiro selecionado
+                fornecedorAtual.cpf_cnpj = cpfCnpjLimpo;
+                fornecedorAtual.hora_abertura = horaAbertura;
+                fornecedorAtual.hora_fechamento = horaFechamento;
+
                 const taxaEntrega = parseFloat(document.getElementById('inputFreteTerreiro').value) || 0;
                 const valFreteGratis = document.getElementById('inputFreteGratisTerreiro').value;
                 const freteGratis = valFreteGratis ? parseFloat(valFreteGratis) : null;
@@ -218,12 +236,12 @@
                     await supabaseClient.from('fornecedores_precos_itens').upsert(upserts, { onConflict: 'fornecedor_id,item_id' });
                 }
 
-                alert('✅ Tabela de preços e taxa de entrega atualizadas com sucesso!');
+                alert('✅ Horários, preços e taxa de entrega atualizados com sucesso!');
             } catch (err) {
                 alert('Erro ao salvar: ' + err.message);
             } finally {
                 btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-save mr-1"></i> Salvar Preços e Taxa de Entrega';
+                btn.innerHTML = '<i class="fas fa-save mr-1"></i> Salvar Horários, Preços e Taxa de Entrega';
             }
         }
     </script>
