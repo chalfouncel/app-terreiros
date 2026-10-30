@@ -1942,7 +1942,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
 
                     const card = `
-                        <div class="bg-white p-3.5 rounded-2xl shadow-sm border border-gray-200 border-t-4 ${corBorda} hover:shadow-md transition flex flex-col justify-between">
+                        <div class="bg-white p-3.5 rounded-2xl shadow-sm border border-gray-200 border-t-4 ${corBorda} hover:shadow-md transition flex flex-col justify-between w-full max-w-xs">
                             <div>
                                 <div class="flex justify-between items-start mb-2">
                                     <h4 class="font-bold text-gray-800 text-xs truncate pr-2" title="${item.nomeExibicao}">${iconeCard} ${item.nomeExibicao}</h4>
