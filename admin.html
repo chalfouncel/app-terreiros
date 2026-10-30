@@ -1682,9 +1682,13 @@
                         </div>
 
                         <form id="formNovoFornecedorMaster" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2.5 items-end bg-amber-50/50 p-3.5 rounded-2xl border border-amber-200">
-                            <div class="lg:col-span-2">
+                            <div>
                                 <label class="block text-[10px] font-bold text-gray-600 uppercase mb-1">Nome da Loja / Fornecedor *</label>
                                 <input type="text" id="fornNome" required placeholder="Ex: Casa de Umbanda Aruanda" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs bg-white outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-600 uppercase mb-1">CPF / CNPJ Titular *</label>
+                                <input type="text" id="fornCpfCnpj" required maxlength="18" placeholder="Somente números" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs bg-white outline-none font-mono">
                             </div>
                             <div>
                                 <label class="block text-[10px] font-bold text-gray-600 uppercase mb-1">WhatsApp (Login) *</label>
