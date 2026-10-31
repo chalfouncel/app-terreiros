@@ -120,27 +120,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
 
-        // BUSCA ROBUSTA DO PERFIL (Substituindo o .single() estrito por .maybeSingle() com seletor completo)
         const { data: perfil, error: erroPerfil } = await supabaseClient
             .from('mediuns')
-            .select('*')
+            .select('nome_completo, is_admin, terreiro_id, perm_agenda, ...')
             .eq('auth_id', session.user.id)
-            .maybeSingle();
+            .single();
 
-        if (erroPerfil || !perfil) {
-            console.error("Erro ao localizar perfil do médium:", erroPerfil);
-            alert('Aviso: A sua ficha de administrador/médium não foi encontrada. Fale com o suporte.');
-            return w.location.replace('presenca.html');
-        }
-        perfilAdminLogado = perfil;
-
-        // RESOLUÇÃO SEGURA DO TERREIRO ID (Priorizando SaaS Master ou ID do Perfil)
-        const terreiroSaaSLocal = localStorage.getItem('terreiroAtivoSaaS');
-        if (perfil.is_master && terreiroSaaSLocal) {
-            idTerreiroGlobal = terreiroSaaSLocal;
-        } else {
-            idTerreiroGlobal = perfil.terreiro_id;
-        }
+        if (erroPerfil) throw erroPerfil;
         perfilAdminLogado = perfil;
 
         const temAcessoPainel = perfil.is_admin || perfil.perm_visao_geral || perfil.perm_quadro_mediuns || perfil.perm_guias || perfil.perm_agenda || perfil.perm_grau || perfil.perm_financeiro || perfil.perm_doacoes || perfil.perm_admin || perfil.perm_ata || perfil.perm_ia || perfil.perm_escalas || perfil.is_master;
