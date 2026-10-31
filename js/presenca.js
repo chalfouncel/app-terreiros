@@ -1016,6 +1016,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     // CAMPANHAS, CANTINA E RIFAS (Ex-DOAÇÕES)
     // ====================================================================
 
+    // Cache global para saber quais itens têm fornecedor
+    window.itensComFornecedorCache = new Set();
+
     async function carregarItensDoacao() {
         try {
             const { data: itens, error } = await supabaseClient
@@ -1026,6 +1029,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                 .order('nome', { ascending: true }); 
 
             if (error) throw error;
+
+            // Busca quais itens possuem fornecedor com estoque e preço ativo
+            const { data: precosAtivos } = await supabaseClient.from('fornecedores_precos_itens')
+                .select('item_id')
+                .eq('terreiro_id', idTerreiroGlobal)
+                .eq('disponivel', true)
+                .gt('preco_unitario', 0);
+                
+            window.itensComFornecedorCache = new Set((precosAtivos || []).map(p => String(p.item_id)));
+
             window.todosItensDoacaoCache = itens || [];
             renderizarItensAba('doacao');
         } catch (err) {
@@ -1057,7 +1070,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         itensFiltrados.forEach(item => {
             const valorParsed = parseFloat(item.valor_sugerido);
             const valSugerido = !isNaN(valorParsed) && valorParsed > 0 
-                ? `<span class="text-green-600 font-bold text-[10px] bg-green-50 border border-green-100 px-1.5 py-0.5 rounded">R$ ${valorParsed.toFixed(2)}</span>` 
+                ? `<span class="text-green-600 font-bold text-[10px] bg-green-50 border border-green-100 px-1.5 py-0.5 rounded flex-shrink-0">R$ ${valorParsed.toFixed(2)}</span>` 
+                : '';
+            
+            // Verifica se o item tem fornecedor para exibir o selo
+            const tagFornecedor = (aba === 'doacao' && window.itensComFornecedorCache && window.itensComFornecedorCache.has(String(item.id)))
+                ? `<span class="text-indigo-600 font-bold text-[9px] bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded flex-shrink-0"><i class="fas fa-shopping-cart"></i> Entrega Parceiro</span>`
                 : '';
             
             const qtdCarrinho = carrinhoDoacoes[item.id] || 0;
@@ -1065,9 +1083,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             html += `
             <div class="flex justify-between items-center py-3 border-b border-gray-100 last:border-0 px-1">
                 <div class="flex-1 pr-2">
-                    <div class="flex items-center gap-2 mb-0.5">
-                        <p class="text-sm font-bold text-gray-800 leading-tight">${item.nome}</p>
+                    <div class="flex flex-wrap items-center gap-1.5 mb-0.5">
+                        <p class="text-sm font-bold text-gray-800 leading-tight mr-1">${item.nome}</p>
                         ${valSugerido}
+                        ${tagFornecedor}
                     </div>
                     ${item.descricao ? `<p class="text-[10px] text-gray-500 mt-0.5 leading-snug">${item.descricao}</p>` : ''}
                 </div>
@@ -1236,31 +1255,45 @@ document.addEventListener('DOMContentLoaded', async () => {
                     btnConfirmarDoacao.classList.add('flex');
                 }
                 
-                // Valida se os itens do carrinho possuem estoque ativo em fornecedores parceiros
-                if (btnForn && abaCampanhaAtiva === 'doacao') {
-                    supabaseClient.from('fornecedores_precos_itens')
-                        .select('item_id')
-                        .eq('terreiro_id', idTerreiroGlobal)
-                        .eq('disponivel', true)
-                        .gt('preco_unitario', 0)
-                        .in('item_id', Object.keys(carrinhoDoacoes).filter(id => carrinhoDoacoes[id] > 0))
-                        .then(({ data: precosAtivos }) => {
-                            const idsComEstoque = new Set((precosAtivos || []).map(p => String(p.item_id)));
-                            const idsNoCarrinho = Object.keys(carrinhoDoacoes).filter(id => carrinhoDoacoes[id] > 0);
-                            
-                            // Só mostra o botão de fornecedor se TODOS os itens do carrinho tiverem estoque ativo
-                            const todosTemEstoque = idsNoCarrinho.length > 0 && idsNoCarrinho.every(id => idsComEstoque.has(String(id)));
+                // Valida instantaneamente usando o cache se o carrinho tem itens mistos
+                if (abaCampanhaAtiva === 'doacao') {
+                    const idsNoCarrinho = Object.keys(carrinhoDoacoes).filter(id => carrinhoDoacoes[id] > 0);
+                    const todosTemEstoque = idsNoCarrinho.length > 0 && idsNoCarrinho.every(id => window.itensComFornecedorCache && window.itensComFornecedorCache.has(String(id)));
+                    const algumSemEstoque = idsNoCarrinho.length > 0 && !todosTemEstoque;
 
-                            if (todosTemEstoque) {
-                                btnForn.classList.remove('hidden');
-                                btnForn.classList.add('flex');
-                            } else {
-                                btnForn.classList.add('hidden');
-                                btnForn.classList.remove('flex');
-                            }
-                        });
+                    // Exibe ou oculta botão do fornecedor
+                    if (btnForn) {
+                        if (todosTemEstoque) {
+                            btnForn.classList.remove('hidden');
+                            btnForn.classList.add('flex');
+                        } else {
+                            btnForn.classList.add('hidden');
+                            btnForn.classList.remove('flex');
+                        }
+                    }
+
+                    // Renderiza Aviso Inteligente de Carrinho Misto
+                    let avisoMisto = document.getElementById('avisoCarrinhoMistoApp');
+                    if (!avisoMisto && btnConfirmarDoacao) {
+                        avisoMisto = document.createElement('div');
+                        avisoMisto.id = 'avisoCarrinhoMistoApp';
+                        avisoMisto.className = 'text-[10px] text-amber-700 bg-amber-50 p-2 rounded-xl text-center mt-2 border border-amber-200 font-medium leading-snug';
+                        btnConfirmarDoacao.parentNode.insertBefore(avisoMisto, btnConfirmarDoacao.nextSibling);
+                    }
+
+                    if (avisoMisto) {
+                        if (algumSemEstoque && idsNoCarrinho.some(id => window.itensComFornecedorCache && window.itensComFornecedorCache.has(String(id)))) {
+                            avisoMisto.innerHTML = '<i class="fas fa-info-circle mr-1"></i> Alguns itens selecionados não possuem entrega parceira. Pagamento via Fornecedor bloqueado.';
+                            avisoMisto.classList.remove('hidden');
+                        } else {
+                            avisoMisto.classList.add('hidden');
+                        }
+                    }
                 }
             } else {
+                // (Se carrinho == 0) Esconde o botão e o aviso
+                const avisoMisto = document.getElementById('avisoCarrinhoMistoApp');
+                if (avisoMisto) avisoMisto.classList.add('hidden');
                 if(btnConfirmarDoacao) {
                     btnConfirmarDoacao.classList.add('hidden');
                     btnConfirmarDoacao.classList.remove('flex');
