@@ -305,17 +305,26 @@ document.addEventListener('DOMContentLoaded', async () => {
                 hrInicioPermitidoGlobal = hrInicioPermitido;
             }
 
-            // Atualiza Título e Cartaz
+            // Atualiza Título e Cartaz mantendo altura 100% fixa
             const titleGira = document.getElementById('tituloGira');
-            if (titleGira) titleGira.textContent = ev.titulo;
+            if (titleGira) {
+                titleGira.textContent = ev.titulo;
+                titleGira.title = ev.titulo;
+            }
 
             const imgCartaz = document.getElementById('cartazGira');
+            const placeholderCartaz = document.getElementById('placeholderSemCartaz');
+            const dicaZoom = document.getElementById('dicaZoomCartaz');
             if (imgCartaz) {
                 if (ev.imagem_url) {
                     imgCartaz.src = ev.imagem_url;
                     imgCartaz.classList.remove('hidden');
+                    if (placeholderCartaz) placeholderCartaz.classList.add('hidden');
+                    if (dicaZoom) { dicaZoom.classList.remove('hidden'); dicaZoom.classList.add('flex'); }
                 } else {
                     imgCartaz.classList.add('hidden');
+                    if (placeholderCartaz) placeholderCartaz.classList.remove('hidden');
+                    if (dicaZoom) { dicaZoom.classList.add('hidden'); dicaZoom.classList.remove('flex'); }
                 }
             }
 
