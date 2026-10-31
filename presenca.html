@@ -72,9 +72,16 @@
             <div class="text-center mb-5 relative">
                 <span id="badgeTipoEvento" class="bg-green-100 text-green-800 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider transition-all">Evento Hoje</span>
                 
-                <!-- Container de Imagem com Setas do Carrossel -->
-                <div class="relative group mt-4">
-                    <img id="cartazGira" src="" onclick="abrirZoomCartaz(this.src)" class="hidden w-full h-auto max-h-64 object-contain bg-gray-50 rounded-xl shadow-sm mx-auto border border-gray-100 transition-opacity duration-300 cursor-zoom-in active:scale-[0.99]" title="Toque para ampliar">
+                <!-- Container de Imagem com Altura 100% Fixa (Nunca empurra os botões) -->
+                <div class="relative group mt-3 h-56 w-full bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-center overflow-hidden shadow-inner">
+                    <img id="cartazGira" src="" onclick="abrirZoomCartaz(this.src)" class="hidden w-full h-full object-contain transition-opacity duration-300 cursor-zoom-in active:scale-[0.99]" title="Toque para ampliar">
+                    
+                    <!-- Placeholder padrão quando o evento não tem imagem cadastrada -->
+                    <div id="placeholderSemCartaz" class="flex flex-col items-center justify-center text-gray-300 p-4 select-none">
+                        <i class="fas fa-calendar-check text-5xl mb-2 text-tema-primaria/30"></i>
+                        <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Agenda Oficial do Templo</span>
+                    </div>
+
                     <span id="dicaZoomCartaz" onclick="abrirZoomCartaz(document.getElementById('cartazGira').src)" class="hidden absolute bottom-2 right-2 bg-black/60 text-white text-[10px] font-bold px-2.5 py-1 rounded-full backdrop-blur-sm pointer-events-none items-center gap-1 shadow">
                         <i class="fas fa-search-plus"></i> Ampliar
                     </span>
@@ -88,11 +95,14 @@
                 </div>
 
                 <!-- Indicadores (Bolinhas) do Carrossel -->
-                <div id="indicadoresCarrossel" class="hidden justify-center items-center gap-1.5 mt-3"></div>
+                <div id="indicadoresCarrossel" class="hidden justify-center items-center gap-1.5 mt-2.5 h-3"></div>
                 
-                <h2 id="tituloGira" class="text-2xl font-bold text-gray-800 mt-3 leading-tight">Nome da Gira</h2>
-                <p id="horarioGira" class="text-gray-500 text-sm mt-1"><i class="far fa-clock"></i> 00:00 às 00:00</p>
-                <div id="boxMinhaEscalaGira" class="hidden mt-3 p-3 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs font-bold text-left shadow-sm"></div>
+                <!-- Bloco de Texto com Altura Fixa para não movimentar a tela -->
+                <div class="h-[72px] flex flex-col justify-center items-center mt-2 px-1">
+                    <h2 id="tituloGira" class="text-lg sm:text-xl font-black text-gray-800 leading-snug line-clamp-2" title="">Nome da Gira</h2>
+                    <p id="horarioGira" class="text-gray-500 text-xs sm:text-sm mt-1 shrink-0"><i class="far fa-clock"></i> 00:00 às 00:00</p>
+                </div>
+                <div id="boxMinhaEscalaGira" class="hidden mt-2 p-2.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs font-bold text-left shadow-sm max-h-24 overflow-y-auto"></div>
             </div>
 
             <!-- Botões de Ação (Check-in, Mensalidade, Doação) -->
