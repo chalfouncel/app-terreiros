@@ -1030,12 +1030,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (error) throw error;
 
-            // Busca quais itens possuem fornecedor com estoque e preço ativo
+            // Busca quais itens possuem fornecedor ATIVO com estoque e preço ativo
             const { data: precosAtivos } = await supabaseClient.from('fornecedores_precos_itens')
-                .select('item_id')
+                .select('item_id, fornecedores!inner(ativo)') // Join para validar o status do fornecedor
                 .eq('terreiro_id', idTerreiroGlobal)
                 .eq('disponivel', true)
-                .gt('preco_unitario', 0);
+                .gt('preco_unitario', 0)
+                .eq('fornecedores.ativo', true); // Garante que o fornecedor está ativo
                 
             window.itensComFornecedorCache = new Set((precosAtivos || []).map(p => String(p.item_id)));
 
@@ -1177,6 +1178,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         carrinhoDoacoes = {}; 
         if(qtdTotalDoacao) qtdTotalDoacao.textContent = '0';
         if(btnConfirmarDoacao) { btnConfirmarDoacao.classList.add('hidden'); btnConfirmarDoacao.classList.remove('flex'); }
+
+        // Limpa os elementos exclusivos do fornecedor ao trocar de aba
+        const btnForn = document.getElementById('btnComprarFornecedorApp');
+        if (btnForn) { btnForn.classList.add('hidden'); btnForn.classList.remove('flex'); }
+        const avisoMisto = document.getElementById('avisoCarrinhoMistoApp');
+        if (avisoMisto) avisoMisto.classList.add('hidden');
 
         const baseClasses = "relative py-2.5 px-1 rounded-xl transition-all duration-300 transform hover:-translate-y-1 active:scale-95 flex flex-col items-center justify-center gap-1 w-full text-[11px] md:text-sm";
 
