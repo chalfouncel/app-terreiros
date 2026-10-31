@@ -5888,17 +5888,39 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    window.filtrarOpcoesVendedorRifa = (termo = '') => {
+        const selectVendedor = document.getElementById('selectVendedorRifa');
+        if (!selectVendedor) return;
+
+        const busca = termo.trim().toLowerCase();
+        const filtrados = (listaMediunsGlobal || []).filter(m => {
+            if (!busca) return true;
+            const nomeComp = (m.nome_completo || '').toLowerCase();
+            const nomeSoc = (m.nome_social || '').toLowerCase();
+            return nomeComp.includes(busca) || nomeSoc.includes(busca);
+        });
+
+        if (filtrados.length === 0) {
+            selectVendedor.innerHTML = '<option value="">Nenhum médium encontrado...</option>';
+            return;
+        }
+
+        selectVendedor.innerHTML = '<option value="">Selecione um médium para adicionar...</option>' +
+            filtrados.map(m => `<option value="${m.id}">${m.nome_completo}</option>`).join('');
+
+        // Se o utilizador digitou algo, já deixa o primeiro nome encontrado selecionado para facilitar o clique em "+ Adicionar"
+        if (busca && filtrados.length > 0) {
+            selectVendedor.value = String(filtrados[0].id);
+        }
+    };
+
     window.abrirModalEquipeVendas = async (idRifa) => {
         const modal = document.getElementById('modalEquipeVendas');
         if (modal) modal.classList.remove('hidden');
         
-        const selectVendedor = document.getElementById('selectVendedorRifa');
-        if (selectVendedor && selectVendedor.options.length <= 1) {
-            // Popula com a lista de médiuns global já existente
-            listaMediunsGlobal.forEach(m => {
-                selectVendedor.innerHTML += `<option value="${m.id}">${m.nome_completo}</option>`;
-            });
-        }
+        const inputBusca = document.getElementById('inputBuscaVendedorRifa');
+        if (inputBusca) inputBusca.value = '';
+        window.filtrarOpcoesVendedorRifa('');
         
         await carregarListaVendedores(idRifa);
     };
