@@ -2096,7 +2096,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                     });
                 });
 
-                historicoMisto.sort((a, b) => new Date(b.data) - new Date(a.data));
+                historicoMisto.sort((a, b) => {
+                    const tempoA = a.data ? new Date(a.data).getTime() : 0;
+                    const tempoB = b.data ? new Date(b.data).getTime() : 0;
+                    return tempoB - tempoA;
+                });
                 const finalHistorico = historicoMisto.slice(0, 15);
 
                 if (finalHistorico.length === 0) {
