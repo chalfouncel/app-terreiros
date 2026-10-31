@@ -171,7 +171,6 @@
             document.getElementById('inputFreteTerreiro').value = frete ? frete.taxa_entrega : '0.00';
             document.getElementById('inputFreteGratisTerreiro').value = frete && frete.frete_gratis_acima ? frete.frete_gratis_acima : '';
 
-            // Busca todos os itens do terreiro e filtra no JS (evita que itens com categoria NULL sumam no SQL .neq)
             const { data: todosItens, error: errItens } = await supabaseClient.from('itens_doacao')
                 .select('*')
                 .eq('terreiro_id', terreiroId)
@@ -198,25 +197,98 @@
                 return;
             }
 
-            container.innerHTML = itens.map(item => {
+            // Mapeia os dados combinados para aplicar ordenação por estoque (Estoque no topo)
+            const itensProcessados = itens.map(item => {
                 const p = (precos || []).find(x => String(x.item_id) === String(item.id));
                 const val = p ? p.preco_unitario : '';
-                const disp = p ? p.disponivel !== false : true;
+                // REGRA 1: Se não houver registro prévio, o estoque nasce desabilitado (false)
+                const disp = p ? p.disponivel === true : false;
+                return { item, val, disp };
+            });
+
+            // REGRA 2: Ordena por estoque (true primeiro) e depois por nome
+            itensProcessados.sort((a, b) => {
+                if (a.disp === b.disp) return a.item.nome.localeCompare(b.item.nome);
+                return a.disp ? -1 : 1;
+            });
+
+            // REGRA 3: Agrupamento por família para lote (remove sufixos comuns de cores)
+            const familiasMap = {};
+            const coresTermos = ['branca', 'preta', 'vermelha', 'azul', 'amarela', 'verde', 'rosa', 'roxa', 'marrom', 'bicolor', '7 linhas'];
+            
+            itensProcessados.forEach(obj => {
+                let nomeBase = obj.item.nome.toLowerCase();
+                coresTermos.forEach(cor => {
+                    nomeBase = nomeBase.replace(new RegExp(`\\b${cor}\\b`, 'g'), '');
+                });
+                nomeBase = nomeBase.trim();
+                if (!familiasMap[nomeBase]) familiasMap[nomeBase] = [];
+                familiasMap[nomeBase].push(obj.item.id);
+            });
+
+            container.innerHTML = itensProcessados.map(({ item, val, disp }) => {
+                let nomeBase = item.nome.toLowerCase();
+                coresTermos.forEach(cor => { nomeBase = nomeBase.replace(new RegExp(`\\b${cor}\\b`, 'g'), ''); });
+                nomeBase = nomeBase.trim();
+                const temIrmaosCor = familiasMap[nomeBase] && familiasMap[nomeBase].length > 1;
+
+                const botaoLote = temIrmaosCor ? `
+                    <button type="button" onclick="aplicarPrecoEmLote('${nomeBase}', ${item.id})" class="text-[9px] bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30 px-2 py-0.5 rounded border border-indigo-500/30 transition" title="Aplicar este preço e estoque em todas as cores/variações semelhantes">
+                        <i class="fas fa-layer-group mr-1"></i> Aplicar em Lote
+                    </button>
+                ` : '';
+
                 return `
-                <div class="pt-2.5 flex items-center justify-between gap-3">
+                <div class="pt-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 item-linha-fornecedor" data-familia="${nomeBase}">
                     <div class="flex-1">
                         <p class="text-xs font-bold text-white">${item.nome}</p>
-                        <span class="text-[10px] text-slate-400 uppercase">${item.categoria || 'Geral'}</span>
+                        <div class="flex items-center gap-2 mt-0.5">
+                            <span class="text-[10px] text-slate-400 uppercase">${item.categoria || 'Geral'}</span>
+                            ${botaoLote}
+                        </div>
                     </div>
-                    <label class="flex items-center gap-1 text-[10px] text-slate-300 cursor-pointer">
-                        <input type="checkbox" class="chk-disp-forn rounded" data-item-id="${item.id}" ${disp ? 'checked' : ''}> Estoque
-                    </label>
-                    <div class="flex items-center gap-1">
-                        <span class="text-xs text-slate-400 font-bold">R$</span>
-                        <input type="number" step="0.01" min="0" data-item-id="${item.id}" value="${val}" placeholder="0.00" class="inp-preco-forn w-24 px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-xl text-xs font-bold text-right text-amber-300 outline-none">
+                    <div class="flex items-center gap-3 justify-between sm:justify-end">
+                        <label class="flex items-center gap-1 text-[10px] text-slate-300 cursor-pointer">
+                            <input type="checkbox" class="chk-disp-forn rounded" data-item-id="${item.id}" ${disp ? 'checked' : ''}> Estoque
+                        </label>
+                        <div class="flex items-center gap-1">
+                            <span class="text-xs text-slate-400 font-bold">R$</span>
+                            <input type="number" step="0.01" min="0" data-item-id="${item.id}" value="${val}" placeholder="0.00" oninput="autoMarcarEstoque(this)" class="inp-preco-forn w-24 px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-xl text-xs font-bold text-right text-amber-300 outline-none">
+                        </div>
                     </div>
                 </div>`;
             }).join('');
+        }
+
+        // Funções auxiliares de lote e auto-check para o painel do fornecedor
+        function autoMarcarEstoque(input) {
+            const itemId = input.getAttribute('data-item-id');
+            const chk = document.querySelector(`.chk-disp-forn[data-item-id="${itemId}"]`);
+            if (chk && parseFloat(input.value) > 0) {
+                chk.checked = true;
+            }
+        }
+
+        function aplicarPrecoEmLote(familia, itemIdOrigem) {
+            const linhaOrigem = document.querySelector(`.item-linha-fornecedor[data-familia="${familia}"]`);
+            if (!linhaOrigem) return;
+            
+            const inpPrecoOrigem = linhaOrigem.querySelector('.inp-preco-forn');
+            const chkOrigem = linhaOrigem.querySelector('.chk-disp-forn');
+            if (!inpPrecoOrigem) return;
+
+            const precoValor = inpPrecoOrigem.value;
+            const estoqueStatus = chkOrigem ? chkOrigem.checked : false;
+
+            const linhasFamilia = document.querySelectorAll(`.item-linha-fornecedor[data-familia="${familia}"]`);
+            linhasFamilia.forEach(linha => {
+                const inp = linha.querySelector('.inp-preco-forn');
+                const chk = linha.querySelector('.chk-disp-forn');
+                if (inp) inp.value = precoValor;
+                if (chk) chk.checked = estoqueStatus;
+            });
+
+            alert("✅ Preço e status de estoque aplicados a todas as variações desta cor!");
         }
 
         async function salvarTabelaFornecedor() {
