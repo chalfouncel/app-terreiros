@@ -1235,9 +1235,30 @@ document.addEventListener('DOMContentLoaded', async () => {
                     btnConfirmarDoacao.classList.remove('hidden');
                     btnConfirmarDoacao.classList.add('flex');
                 }
+                
+                // Valida se os itens do carrinho possuem estoque ativo em fornecedores parceiros
                 if (btnForn && abaCampanhaAtiva === 'doacao') {
-                    btnForn.classList.remove('hidden');
-                    btnForn.classList.add('flex');
+                    supabaseClient.from('fornecedores_precos_itens')
+                        .select('item_id')
+                        .eq('terreiro_id', idTerreiroGlobal)
+                        .eq('disponivel', true)
+                        .gt('preco_unitario', 0)
+                        .in('item_id', Object.keys(carrinhoDoacoes).filter(id => carrinhoDoacoes[id] > 0))
+                        .then(({ data: precosAtivos }) => {
+                            const idsComEstoque = new Set((precosAtivos || []).map(p => String(p.item_id)));
+                            const idsNoCarrinho = Object.keys(carrinhoDoacoes).filter(id => carrinhoDoacoes[id] > 0);
+                            
+                            // Só mostra o botão de fornecedor se TODOS os itens do carrinho tiverem estoque ativo
+                            const todosTemEstoque = idsNoCarrinho.length > 0 && idsNoCarrinho.every(id => idsComEstoque.has(String(id)));
+
+                            if (todosTemEstoque) {
+                                btnForn.classList.remove('hidden');
+                                btnForn.classList.add('flex');
+                            } else {
+                                btnForn.classList.add('hidden');
+                                btnForn.classList.remove('flex');
+                            }
+                        });
                 }
             } else {
                 if(btnConfirmarDoacao) {
