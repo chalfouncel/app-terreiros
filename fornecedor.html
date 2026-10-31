@@ -197,13 +197,14 @@
                 return;
             }
 
-            // Mapeia os dados combinados para aplicar ordenação por estoque (Estoque no topo)
+            // Mapeia os dados combinados para aplicar ordenação por estoque (Estoque no topo) e gerencia a flag 'jaSalvo'
             const itensProcessados = itens.map(item => {
                 const p = (precos || []).find(x => String(x.item_id) === String(item.id));
                 const val = p ? p.preco_unitario : '';
                 // REGRA 1: Se não houver registro prévio, o estoque nasce desabilitado (false)
                 const disp = p ? p.disponivel === true : false;
-                return { item, val, disp };
+                const jaSalvo = p ? true : false; // IDENTIFICA SE O ITEM JÁ EXISTE NO BANCO DE DADOS
+                return { item, val, disp, jaSalvo };
             });
 
             // REGRA 2: Ordena por estoque (true primeiro) e depois por nome
@@ -226,7 +227,7 @@
                 familiasMap[nomeBase].push(obj.item.id);
             });
 
-            container.innerHTML = itensProcessados.map(({ item, val, disp }) => {
+            container.innerHTML = itensProcessados.map(({ item, val, disp, jaSalvo }) => {
                 let nomeBase = item.nome.toLowerCase();
                 coresTermos.forEach(cor => { nomeBase = nomeBase.replace(new RegExp(`\\b${cor}\\b`, 'g'), ''); });
                 nomeBase = nomeBase.trim();
@@ -253,7 +254,8 @@
                         </label>
                         <div class="flex items-center gap-1">
                             <span class="text-xs text-slate-400 font-bold">R$</span>
-                            <input type="number" step="0.01" min="0" data-item-id="${item.id}" value="${val}" placeholder="0.00" oninput="autoMarcarEstoque(this)" class="inp-preco-forn w-24 px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-xl text-xs font-bold text-right text-amber-300 outline-none">
+                            <!-- INJEÇÃO DA TAG data-ja-salvo NO INPUT -->
+                            <input type="number" step="0.01" min="0" data-item-id="${item.id}" data-ja-salvo="${jaSalvo}" value="${val}" placeholder="0.00" oninput="autoMarcarEstoque(this)" class="inp-preco-forn w-24 px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-xl text-xs font-bold text-right text-amber-300 outline-none">
                         </div>
                     </div>
                 </div>`;
@@ -332,17 +334,21 @@
 
                 const inputs = document.querySelectorAll('.inp-preco-forn');
                 const upserts = [];
+                
                 inputs.forEach(inp => {
                     const itemId = parseInt(inp.getAttribute('data-item-id'), 10);
                     const preco = parseFloat(inp.value) || 0;
+                    const jaSalvo = inp.getAttribute('data-ja-salvo') === 'true'; // LÊ A FLAG PARA SABER SE JÁ ESTAVA NO BANCO
                     const chk = document.querySelector(`.chk-disp-forn[data-item-id="${itemId}"]`);
-                    if (preco > 0) {
+                    
+                    // Condição corrigida: Só salva se for maior que zero OU se já existia no banco (para permitir desativar)
+                    if (preco > 0 || jaSalvo) {
                         upserts.push({
                             fornecedor_id: fornecedorAtual.id,
                             terreiro_id: terreiroId,
                             item_id: itemId,
                             preco_unitario: preco,
-                            disponivel: chk ? chk.checked : true,
+                            disponivel: chk ? chk.checked : false, // Salva o status real (true/false)
                             updated_at: new Date().toISOString()
                         });
                     }
