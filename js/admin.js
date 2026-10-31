@@ -806,6 +806,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         }]);
                         if (err2) throw err2;
 
+                        window.registrarTimestampValidacaoLocal(`rifa_${item.id}`);
                         alert("✅ Pagamento da Rifa aprovado com sucesso!");
                         window.fecharModalVerComprovante();
                         carregarValidadorPagamentos();
@@ -857,6 +858,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             .eq('terreiro_id', idTerreiroGlobal);
                         if (errStatus) throw errStatus;
 
+                        window.registrarTimestampValidacaoLocal(`comp_${window.comprovanteAtualId}`);
                         alert("✅ Comprovante aprovado com sucesso! Baixas realizadas.");
                         window.fecharModalVerComprovante();
                         carregarValidadorPagamentos();
@@ -865,9 +867,55 @@ document.addEventListener('DOMContentLoaded', async () => {
                     console.error(err);
                     alert("Erro ao aprovar comprovante: " + err.message);
                 } finally {
+                    btnAprovarModal.innerHTML = btnHtml;
+                    btnAprovarModal.disabled = false;
+                    if (btnRejeitarModal) btnRejeitarModal.disabled = false;
+                }
+            });
+        }
+
+        if (btnRejeitarModal) {
+            btnRejeitarModal.addEventListener('click', async () => {
+                if (!window.comprovanteAtualId && !window.comprovanteRifaItemAtual) return;
+                if (!confirm("Rejeitar este comprovante?")) return;
+
+                const btnHtml = btnRejeitarModal.innerHTML;
+                btnRejeitarModal.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Rejeitando...';
+                btnRejeitarModal.disabled = true;
+
+                try {
+                    if (window.comprovanteRifaItemAtual) {
+                        const item = window.comprovanteRifaItemAtual;
+                        const { error: errDel } = await supabaseClient
+                            .from('rifa_numeros')
+                            .delete()
+                            .eq('id', item.id)
+                            .eq('terreiro_id', idTerreiroGlobal);
+                        if (errDel) throw errDel;
+
+                        alert("Comprovante da rifa rejeitado e número liberado.");
+                        window.fecharModalVerComprovante();
+                        carregarValidadorPagamentos();
+                    } else if (window.comprovanteAtualId) {
+                        const { error } = await supabaseClient
+                            .from('comprovantes_mensalidade')
+                            .update({ status: 'rejeitado' })
+                            .eq('id', window.comprovanteAtualId)
+                            .eq('terreiro_id', idTerreiroGlobal);
+
+                        if (error) throw error;
+                        
+                        window.registrarTimestampValidacaoLocal(`comp_${window.comprovanteAtualId}`);
+                        alert("Comprovante rejeitado.");
+                        window.fecharModalVerComprovante();
+                        carregarValidadorPagamentos();
+                    }
+                } catch (err) {
+                    console.error(err);
+                    alert("Erro ao rejeitar comprovante: " + err.message);
+                } finally {
                     btnRejeitarModal.innerHTML = btnHtml;
                     btnRejeitarModal.disabled = false;
-                    if (btnAprovarModal) btnAprovarModal.disabled = false;
                 }
             });
         }
@@ -2040,90 +2088,190 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         };
 
+        window.registrarTimestampValidacaoLocal = (chave) => {
+            try {
+                const mapa = JSON.parse(localStorage.getItem('timestamps_validacoes_terreiro') || '{}');
+                mapa[chave] = Date.now();
+                localStorage.setItem('timestamps_validacoes_terreiro', JSON.stringify(mapa));
+            } catch (e) {}
+        };
+
+        window.obterTimestampValidacaoLocal = (chave) => {
+            try {
+                const mapa = JSON.parse(localStorage.getItem('timestamps_validacoes_terreiro') || '{}');
+                return mapa[chave] || 0;
+            } catch (e) { return 0; }
+        };
+
+        window.visualizarAnexoSomenteLeitura = (url, titulo) => {
+            if (!url) return;
+            window.abrirModalVerComprovante(null, url, titulo);
+            document.getElementById('modalComprovanteAcoes')?.classList.add('hidden');
+        };
+
         async function carregarHistoricoComprovantes() {
             if (!idTerreiroGlobal) return;
             const tbody = document.getElementById('tabelaComprovantesHistorico');
             if (!tbody) return;
 
+            const nomesMesesCurto = ['', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
             try {
-                const { data: comprovantes } = await supabaseClient
-                    .from('comprovantes_mensalidade')
-                    .select('*')
-                    .eq('terreiro_id', idTerreiroGlobal)
-                    .neq('status', 'pendente')
-                    .order('data_envio', { ascending: false }) 
-                    .limit(10);
-
-                const { data: caixaResolvidos } = await supabaseClient
-                    .from('caixa_terreiro')
-                    .select('*')
-                    .eq('terreiro_id', idTerreiroGlobal)
-                    .neq('status', 'pendente')
-                    .order('data_transacao', { ascending: false })
-                    .limit(10);
-
-                const { data: mediuns } = await supabaseClient.from('mediuns').select('auth_id, nome_completo').eq('terreiro_id', idTerreiroGlobal);
+                const [
+                    { data: comprovantes },
+                    { data: caixaResolvidos },
+                    { data: mediuns },
+                    { data: rifasCasa },
+                    { data: numerosRifaCasa }
+                ] = await Promise.all([
+                    supabaseClient.from('comprovantes_mensalidade').select('*').eq('terreiro_id', idTerreiroGlobal).neq('status', 'pendente').order('id', { ascending: false }).limit(25),
+                    supabaseClient.from('caixa_terreiro').select('*').eq('terreiro_id', idTerreiroGlobal).neq('status', 'pendente').order('id', { ascending: false }).limit(25),
+                    supabaseClient.from('mediuns').select('id, auth_id, nome_completo').eq('terreiro_id', idTerreiroGlobal),
+                    supabaseClient.from('rifas').select('id, titulo, valor_numero').eq('terreiro_id', idTerreiroGlobal),
+                    supabaseClient.from('rifa_numeros').select('id, rifa_id, numero, nome_comprador, comprovante_url, status_pagamento').eq('terreiro_id', idTerreiroGlobal)
+                ]);
 
                 const historicoMisto = [];
 
+                // 1. MENSALIDADES VALIDADAS
                 (comprovantes || []).forEach(comp => {
-                    const remetente = mediuns?.find(m => m.auth_id === comp.enviado_por)?.nome_completo || 'Desconhecido';
-                    let nomesInclusos = [];
-                    let qtdMeses = 0;
+                    const remetente = mediuns?.find(m => m.auth_id === comp.enviado_por)?.nome_completo || 'Médium';
+                    let blocosDetalhe = [];
+                    let titulares = [];
+
                     if (comp.detalhes_pagamento && Array.isArray(comp.detalhes_pagamento)) {
                         comp.detalhes_pagamento.forEach(det => {
-                            if (det.medium_nome && !nomesInclusos.includes(det.medium_nome)) nomesInclusos.push(det.medium_nome);
-                            if (det.meses && Array.isArray(det.meses)) qtdMeses += det.meses.length;
+                            const nomeTit = det.medium_nome || remetente;
+                            if (!titulares.includes(nomeTit)) titulares.push(nomeTit);
+                            const listaM = (det.meses || []).sort((a,b) => a - b).map(m => `${nomesMesesCurto[m]}/${det.ano || ''}`).join(', ');
+                            blocosDetalhe.push(`<span class="font-bold text-gray-800">${nomeTit}:</span> <span class="text-emerald-700 font-semibold">${listaM || '-'}</span>`);
                         });
                     }
-                    const nomesExibicao = nomesInclusos.length > 0 ? nomesInclusos.join(', ') : remetente;
+
+                    const pagouParaOutro = titulares.length > 1 || (titulares.length === 1 && titulares[0] !== remetente);
+                    const subPagador = pagouParaOutro ? `<span class="text-[10px] bg-indigo-50 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 rounded font-bold inline-block mt-0.5"><i class="fas fa-users mr-1"></i>Enviado por: ${remetente}</span>` : '';
+
+                    const tsLocal = window.obterTimestampValidacaoLocal(`comp_${comp.id}`);
+                    const tsBanco = comp.updated_at ? new Date(comp.updated_at).getTime() : (comp.data_envio ? new Date(comp.data_envio).getTime() : 0);
+
                     historicoMisto.push({
-                        nome: nomesExibicao,
-                        ref: qtdMeses > 0 ? `${qtdMeses} mes(es)` : 'Mensalidades',
+                        tipoBadge: '<span class="bg-emerald-100 text-emerald-800 text-[9px] font-black px-2 py-0.5 rounded uppercase">Mensalidade</span>',
+                        nomePrincipal: titulares.join(', ') || remetente,
+                        subPagadorHtml: subPagador,
+                        detalheHtml: blocosDetalhe.length > 0 ? blocosDetalhe.join('<br>') : 'Mensalidade avulsa',
                         valor: comp.valor_total,
                         status: comp.status,
-                        data: comp.data_envio
+                        comprovanteUrl: comp.url_comprovante && String(comp.url_comprovante).startsWith('http') ? comp.url_comprovante : null,
+                        dataExibicao: comp.updated_at || comp.data_envio,
+                        ordemValidacao: tsLocal || tsBanco,
+                        idDesempate: Number(comp.id) || 0
                     });
                 });
 
+                // 2. RIFAS, DOAÇÕES E CANTINA VALIDADAS NO CAIXA
                 (caixaResolvidos || []).forEach(cx => {
+                    let tipoBadge = `<span class="bg-blue-100 text-blue-800 text-[9px] font-black px-2 py-0.5 rounded uppercase">${cx.tipo_transacao || 'Caixa'}</span>`;
+                    let detalheHtml = cx.descricao || cx.tipo_transacao || '-';
+                    let comprovanteUrl = null;
+                    let tsLocal = window.obterTimestampValidacaoLocal(`caixa_${cx.id}`);
+
+                    if (cx.tipo_transacao === 'RIFA') {
+                        tipoBadge = '<span class="bg-indigo-100 text-indigo-800 text-[9px] font-black px-2 py-0.5 rounded uppercase"><i class="fas fa-ticket-alt mr-1"></i>Rifa</span>';
+                        const idsRef = String(cx.referencia_id || '').split(',').map(n => parseInt(n.trim(), 10)).filter(n => !isNaN(n));
+                        const numsEncontrados = (numerosRifaCasa || []).filter(n => idsRef.includes(Number(n.id)));
+
+                        if (numsEncontrados.length > 0) {
+                            const rifaObj = (rifasCasa || []).find(r => String(r.id) === String(numsEncontrados[0].rifa_id));
+                            const nomeRifa = rifaObj ? rifaObj.titulo : 'Rifa';
+                            const listaNums = numsEncontrados.map(n => String(n.numero).padStart(2, '0')).join(', ');
+                            detalheHtml = `<span class="font-bold text-gray-800">${nomeRifa}</span> • <span class="text-indigo-700 font-black">${numsEncontrados.length} nº(s):</span> <span class="font-mono font-bold bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200">${listaNums}</span>`;
+                            comprovanteUrl = numsEncontrados.find(n => n.comprovante_url)?.comprovante_url || null;
+                            if (!tsLocal && numsEncontrados[0]) {
+                                tsLocal = window.obterTimestampValidacaoLocal(`rifa_${numsEncontrados[0].id}`);
+                            }
+                        }
+                    } else if (cx.tipo_transacao === 'CANTINA') {
+                        tipoBadge = '<span class="bg-orange-100 text-orange-800 text-[9px] font-black px-2 py-0.5 rounded uppercase"><i class="fas fa-store mr-1"></i>Cantina</span>';
+                    } else if (cx.tipo_transacao === 'DOACAO') {
+                        tipoBadge = '<span class="bg-rose-100 text-rose-800 text-[9px] font-black px-2 py-0.5 rounded uppercase"><i class="fas fa-hand-holding-heart mr-1"></i>Doação</span>';
+                    }
+
+                    const tsBanco = cx.updated_at ? new Date(cx.updated_at).getTime() : (cx.data_transacao ? new Date(cx.data_transacao).getTime() : 0);
+
                     historicoMisto.push({
-                        nome: cx.pagador_nome || 'Visitante/Médium',
-                        ref: cx.tipo_transacao,
+                        tipoBadge,
+                        nomePrincipal: cx.pagador_nome || 'Visitante / Médium',
+                        subPagadorHtml: '',
+                        detalheHtml,
                         valor: cx.valor,
-                        status: cx.status === 'pago' ? 'aprovado' : 'rejeitado',
-                        data: cx.data_transacao
+                        status: (cx.status === 'pago' || cx.status === 'aprovado') ? 'aprovado' : 'rejeitado',
+                        comprovanteUrl,
+                        dataExibicao: cx.updated_at || cx.data_transacao,
+                        ordemValidacao: tsLocal || tsBanco,
+                        idDesempate: Number(cx.id) || 0
                     });
                 });
 
+                // Ordena da validação mais recente para a mais antiga
                 historicoMisto.sort((a, b) => {
-                    const tempoA = a.data ? new Date(a.data).getTime() : 0;
-                    const tempoB = b.data ? new Date(b.data).getTime() : 0;
-                    return tempoB - tempoA;
+                    if (b.ordemValidacao !== a.ordemValidacao) return b.ordemValidacao - a.ordemValidacao;
+                    return b.idDesempate - a.idDesempate;
                 });
-                const finalHistorico = historicoMisto.slice(0, 15);
+
+                const finalHistorico = historicoMisto.slice(0, 20);
 
                 if (finalHistorico.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-gray-500 text-xs">Nenhum histórico recente de validação.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-gray-500 text-xs">Nenhum histórico recente de validação.</td></tr>';
                     return;
                 }
 
-                tbody.innerHTML = '';
-                finalHistorico.forEach(item => {
-                    const valFmt = Number(item.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                    let statusBadge = '';
-                    if(item.status === 'aprovado') statusBadge = '<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[10px] font-bold"><i class="fas fa-check mr-1"></i> Aprovado</span>';
-                    else statusBadge = '<span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-[10px] font-bold"><i class="fas fa-times mr-1"></i> Rejeitado</span>';
+                tbody.innerHTML = finalHistorico.map(item => {
+                    const valFmt = Number(item.valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    const dtObj = item.ordemValidacao ? new Date(item.ordemValidacao) : (item.dataExibicao ? new Date(item.dataExibicao) : null);
+                    const dataStr = (dtObj && !isNaN(dtObj))
+                        ? dtObj.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })
+                        : '-';
 
-                    tbody.innerHTML += `
-                        <tr class="hover:bg-gray-50">
-                            <td class="p-3 text-[11px] font-medium text-gray-800 max-w-[150px] truncate" title="${item.nome}">${item.nome}</td>
-                            <td class="p-3 text-[11px] text-gray-500">${item.ref}</td>
-                            <td class="p-3 text-[11px] font-bold text-gray-800">${valFmt}</td>
-                            <td class="p-3 text-center">${statusBadge}</td>
+                    const statusBadge = item.status === 'aprovado'
+                        ? '<span class="bg-green-100 text-green-700 px-2.5 py-1 rounded-full text-[10px] font-black inline-flex items-center gap-1"><i class="fas fa-check"></i> Aprovado</span>'
+                        : '<span class="bg-red-100 text-red-700 px-2.5 py-1 rounded-full text-[10px] font-black inline-flex items-center gap-1"><i class="fas fa-times"></i> Rejeitado</span>';
+
+                    const nomeSafe = String(item.nomePrincipal).replace(/'/g, "\\'");
+                    const btnVerAnexo = item.comprovanteUrl
+                        ? `<button type="button" onclick="window.visualizarAnexoSomenteLeitura('${item.comprovanteUrl}', '${nomeSafe} - ${valFmt}')" class="mt-1 md:mt-0 md:ml-1.5 text-[10px] bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-2.5 py-1 rounded-lg border border-gray-300 transition active:scale-95 inline-flex items-center gap-1" title="Reabrir Comprovante">
+                               <i class="fas fa-receipt text-tema-primaria"></i> Ver PIX
+                           </button>`
+                        : '';
+
+                    return `
+                        <tr class="block md:table-row p-3.5 md:p-0 hover:bg-gray-50 transition border-b border-gray-100">
+                            <td class="block md:table-cell md:p-3 text-[11px] text-gray-500 font-mono whitespace-nowrap mb-1 md:mb-0">
+                                <div class="flex items-center justify-between md:block">
+                                    <span><i class="far fa-clock mr-1 text-gray-400"></i>${dataStr}</span>
+                                    <span class="md:hidden">${statusBadge}</span>
+                                </div>
+                            </td>
+                            <td class="block md:table-cell md:p-3 text-xs font-bold text-gray-800 mb-1.5 md:mb-0">
+                                <div>${item.nomePrincipal}</div>
+                                ${item.subPagadorHtml}
+                            </td>
+                            <td class="block md:table-cell md:p-3 text-xs text-gray-600 bg-gray-50 md:bg-transparent p-2.5 rounded-xl border border-gray-100 md:border-0 mb-2 md:mb-0">
+                                <div class="mb-1">${item.tipoBadge}</div>
+                                <div class="leading-relaxed">${item.detalheHtml}</div>
+                            </td>
+                            <td class="block md:table-cell md:p-3 text-xs font-black text-green-700 whitespace-nowrap">
+                                <div class="flex items-center justify-between md:block">
+                                    <span class="text-[10px] text-gray-400 uppercase font-bold md:hidden">Valor Total:</span>
+                                    <span class="text-sm md:text-xs">${valFmt}</span>
+                                </div>
+                            </td>
+                            <td class="block md:table-cell md:p-3 text-right md:text-center whitespace-nowrap mt-1 md:mt-0">
+                                <span class="hidden md:inline-block">${statusBadge}</span>
+                                ${btnVerAnexo}
+                            </td>
                         </tr>
                     `;
-                });
+                }).join('');
 
             } catch (err) {
                 console.error(err);
@@ -2412,6 +2560,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             if(dashboard) {
                 dashboard.innerHTML = '';
+                window.dadosAuditoriaMensalCache = { anoBusca, mediuns, pgtos, valorPorGrau };
+
+            if(dashboard) {
+                dashboard.innerHTML = '';
                 const nomesMeses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
                 
                 statsMeses.forEach((stat, index) => {
@@ -2420,8 +2572,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const valFmt = stat.arrecadado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
                     
                     dashboard.innerHTML += `
-                        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-3 hover:shadow-md transition">
-                            <h4 class="text-xs font-black text-gray-700 uppercase mb-2 border-b pb-1">${nomesMeses[index]}</h4>
+                        <div onclick="window.abrirRelatorioReceitaMes(${index + 1}, ${anoBusca})" class="bg-white rounded-xl shadow-sm border border-gray-200 hover:border-tema-secundaria p-3 hover:shadow-md transition cursor-pointer active:scale-95 group relative" title="Clique para ver o relatório detalhado de ${nomesMeses[index]}/${anoBusca}">
+                            <div class="flex justify-between items-center mb-2 border-b pb-1">
+                                <h4 class="text-xs font-black text-gray-700 uppercase group-hover:text-tema-secundaria transition">${nomesMeses[index]}</h4>
+                                <i class="fas fa-search-dollar text-[11px] text-gray-300 group-hover:text-tema-secundaria transition"></i>
+                            </div>
                             <p class="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-0.5">Arrecadado</p>
                             <p class="text-lg font-black text-green-600 leading-none mb-3">${valFmt}</p>
                             
@@ -2440,6 +2595,203 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
             }
         }
+        window.abrirRelatorioReceitaMes = async (mesNumero, anoBusca) => {
+            const nomesMesesCompleto = ['', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+            const nomeMes = nomesMesesCompleto[mesNumero] || `Mês ${mesNumero}`;
+
+            let modal = document.getElementById('modalRelatorioReceitaMes');
+            if (!modal) {
+                const htmlModal = `
+                <div id="modalRelatorioReceitaMes" class="hidden fixed inset-0 bg-black/75 backdrop-blur-sm z-[95] flex items-center justify-center p-3 md:p-4">
+                    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+                        <div class="p-4 md:p-5 border-b border-gray-100 bg-gray-50 flex flex-wrap justify-between items-center gap-3">
+                            <div>
+                                <h3 class="text-base md:text-lg font-black text-gray-800 flex items-center gap-2" id="tituloModalReceitaMes">
+                                    <i class="fas fa-file-invoice-dollar text-tema-secundaria"></i> Relatório de Receita
+                                </h3>
+                                <p class="text-xs text-gray-500" id="subtituloModalReceitaMes"></p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button type="button" id="btnImprimirRelatorioReceitaMes" class="bg-gray-800 hover:bg-gray-900 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow flex items-center gap-1.5 active:scale-95 transition">
+                                    <i class="fas fa-print text-red-400"></i> Imprimir PDF
+                                </button>
+                                <button type="button" onclick="document.getElementById('modalRelatorioReceitaMes').classList.add('hidden')" class="w-9 h-9 rounded-xl bg-gray-200 hover:bg-gray-300 text-gray-600 flex items-center justify-center">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="corpoModalReceitaMes" class="flex-1 overflow-y-auto p-4 md:p-5 space-y-4"></div>
+                    </div>
+                </div>`;
+                document.body.insertAdjacentHTML('beforeend', htmlModal);
+                modal = document.getElementById('modalRelatorioReceitaMes');
+            }
+
+            const corpo = document.getElementById('corpoModalReceitaMes');
+            document.getElementById('tituloModalReceitaMes').innerHTML = `<i class="fas fa-file-invoice-dollar text-tema-secundaria"></i> Receita Mensalidade — ${nomeMes}/${anoBusca}`;
+            document.getElementById('subtituloModalReceitaMes').textContent = 'Detalhamento de médiuns pagantes, datas, valores e vínculos familiares';
+            corpo.innerHTML = '<div class="p-8 text-center text-gray-500 text-xs"><i class="fas fa-spinner fa-spin mr-2"></i> Cruzando comprovantes e baixas do mês...</div>';
+            modal.classList.remove('hidden');
+
+            try {
+                const cache = window.dadosAuditoriaMensalCache || {};
+                const mediuns = cache.mediuns || listaMediunsGlobal || [];
+                const pgtosMes = (cache.pgtos || []).filter(p => p.mes === mesNumero && (p.pago === true || p.isento === true));
+                const valorPorGrau = cache.valorPorGrau || {};
+
+                // Busca comprovantes aprovados para descobrir QUANDO pagou e QUEM enviou (se pagou só o dele ou com dependentes)
+                const { data: comprovantesAprovados } = await supabaseClient
+                    .from('comprovantes_mensalidade')
+                    .select('*')
+                    .eq('terreiro_id', idTerreiroGlobal)
+                    .eq('status', 'aprovado');
+
+                const { data: todosMedAuth } = await supabaseClient
+                    .from('mediuns')
+                    .select('id, auth_id, nome_completo')
+                    .eq('terreiro_id', idTerreiroGlobal);
+
+                const linhasDetalhadas = [];
+                let somaReceitaMes = 0;
+
+                pgtosMes.forEach(pg => {
+                    const med = mediuns.find(m => m.id === pg.medium_id);
+                    if (!med) return;
+
+                    const ehIsento = med.isento_mensalidade === true || pg.isento === true;
+                    const valorBase = ehIsento ? 0 : (valorPorGrau[med.grau] || 0);
+                    if (!ehIsento && pg.pago) somaReceitaMes += valorBase;
+
+                    // Procura se este mês/ano deste médium veio de algum comprovante aprovado
+                    let compAssociado = null;
+                    let outrosNoMesmoPix = [];
+
+                    (comprovantesAprovados || []).forEach(c => {
+                        if (Array.isArray(c.detalhes_pagamento)) {
+                            const achou = c.detalhes_pagamento.find(d => Number(d.medium_id) === Number(med.id) && Number(d.ano) === Number(anoBusca) && Array.isArray(d.meses) && d.meses.includes(mesNumero));
+                            if (achou) {
+                                compAssociado = c;
+                                outrosNoMesmoPix = c.detalhes_pagamento.map(d => d.medium_nome).filter(Boolean);
+                            }
+                        }
+                    });
+
+                    let dataPgtoStr = '-';
+                    let modalidadeDesc = ehIsento ? 'Isento' : 'Baixa Manual na Tabela';
+
+                    if (compAssociado) {
+                        const dt = compAssociado.updated_at || compAssociado.data_envio;
+                        if (dt) dataPgtoStr = new Date(dt).toLocaleDateString('pt-BR');
+                        const pagadorObj = (todosMedAuth || []).find(x => x.auth_id === compAssociado.enviado_por);
+                        const nomePagador = pagadorObj ? pagadorObj.nome_completo : med.nome_completo;
+
+                        if (outrosNoMesmoPix.length > 1) {
+                            modalidadeDesc = `PIX Conjunto (Pago por ${nomePagador} p/ ${outrosNoMesmoPix.join(', ')}) [Total PIX: R$ ${Number(compAssociado.valor_total || 0).toFixed(2).replace('.', ',')}]`;
+                        } else if (nomePagador !== med.nome_completo) {
+                            modalidadeDesc = `PIX Familiar (Pago por ${nomePagador})`;
+                        } else {
+                            modalidadeDesc = pg.origem === 'asaas' ? 'PIX Automático (Asaas) - Próprio' : 'PIX c/ Comprovante - Próprio';
+                        }
+                    } else if (pg.origem === 'asaas') {
+                        modalidadeDesc = 'PIX Automático (Asaas)';
+                    } else if (pg.origem === 'pix_sistema') {
+                        modalidadeDesc = 'PIX c/ Comprovante';
+                    }
+
+                    linhasDetalhadas.push({
+                        nome: med.nome_completo,
+                        grau: med.grau || '-',
+                        valor: valorBase,
+                        ehIsento,
+                        dataPgtoStr,
+                        modalidadeDesc
+                    });
+                });
+
+                linhasDetalhadas.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+
+                const pagantesEfetivos = linhasDetalhadas.filter(l => !l.ehIsento);
+                const isentosLista = linhasDetalhadas.filter(l => l.ehIsento);
+
+                if (linhasDetalhadas.length === 0) {
+                    corpo.innerHTML = `<div class="p-8 text-center text-gray-400 text-sm bg-gray-50 rounded-2xl border border-dashed border-gray-200">Nenhum pagamento ou isenção registrado para ${nomeMes}/${anoBusca}.</div>`;
+                } else {
+                    corpo.innerHTML = `
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div class="bg-green-50 border border-green-200 p-3.5 rounded-2xl">
+                                <span class="text-[10px] font-bold text-green-700 uppercase block">Receita Confirmada no Mês</span>
+                                <span class="text-xl font-black text-green-700">${somaReceitaMes.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                            </div>
+                            <div class="bg-blue-50 border border-blue-200 p-3.5 rounded-2xl">
+                                <span class="text-[10px] font-bold text-blue-700 uppercase block">Médiuns Pagantes</span>
+                                <span class="text-xl font-black text-blue-800">${pagantesEfetivos.length}</span>
+                            </div>
+                            <div class="bg-purple-50 border border-purple-200 p-3.5 rounded-2xl">
+                                <span class="text-[10px] font-bold text-purple-700 uppercase block">Médiuns Isentos</span>
+                                <span class="text-xl font-black text-purple-800">${isentosLista.length}</span>
+                            </div>
+                        </div>
+
+                        <div class="border border-gray-200 rounded-2xl overflow-hidden">
+                            <table class="w-full text-left border-collapse text-xs">
+                                <thead class="bg-gray-100 border-b border-gray-200 text-gray-600 uppercase text-[10px] font-bold">
+                                    <tr>
+                                        <th class="p-3">Médium</th>
+                                        <th class="p-3 text-center">Grau</th>
+                                        <th class="p-3 text-center">Data</th>
+                                        <th class="p-3">Origem / Vínculo do Pagamento</th>
+                                        <th class="p-3 text-right">Valor</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100">
+                                    ${linhasDetalhadas.map(l => `
+                                        <tr class="hover:bg-gray-50">
+                                            <td class="p-3 font-bold text-gray-800">${l.nome}</td>
+                                            <td class="p-3 text-center text-gray-600">${l.grau}</td>
+                                            <td class="p-3 text-center font-mono text-gray-500">${l.dataPgtoStr}</td>
+                                            <td class="p-3 text-gray-600">${l.modalidadeDesc}</td>
+                                            <td class="p-3 text-right font-black ${l.ehIsento ? 'text-purple-600' : 'text-green-700'}">
+                                                ${l.ehIsento ? 'Isento' : l.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                }
+
+                // Configura o botão de impressão PDF deste mês
+                const btnPdf = document.getElementById('btnImprimirRelatorioReceitaMes');
+                if (btnPdf) {
+                    btnPdf.onclick = () => {
+                        if (linhasDetalhadas.length === 0) return alert('Não há dados neste mês para imprimir.');
+                        const dadosPDF = linhasDetalhadas.map(l => [
+                            l.nome,
+                            l.grau,
+                            l.dataPgtoStr,
+                            l.modalidadeDesc,
+                            l.ehIsento ? 'Isento' : l.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+                        ]);
+                        dadosPDF.push([
+                            `TOTAL ARRECADADO (${pagantesEfetivos.length} pagantes)`,
+                            '-',
+                            '-',
+                            '-',
+                            somaReceitaMes.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+                        ]);
+                        window.gerarPDFRelatorio(
+                            `Receita de Mensalidades - ${nomeMes} ${anoBusca}`,
+                            ['Médium', 'Grau', 'Data', 'Origem / Detalhe do Pagamento', 'Valor'],
+                            dadosPDF
+                        );
+                    };
+                }
+
+            } catch (err) {
+                corpo.innerHTML = `<div class="p-4 text-center text-red-500 text-xs font-bold">Erro ao montar relatório: ${err.message}</div>`;
+            }
+        };
 
         if(document.getElementById('selectAnoFinanceiro')) document.getElementById('selectAnoFinanceiro').addEventListener('change', (e) => carregarFinanceiro(parseInt(e.target.value)));
         window.aplicarFiltrosFinanceiro = () => {
