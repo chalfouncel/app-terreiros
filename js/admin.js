@@ -2561,9 +2561,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if(dashboard) {
                 dashboard.innerHTML = '';
                 window.dadosAuditoriaMensalCache = { anoBusca, mediuns, pgtos, valorPorGrau };
-
-            if(dashboard) {
-                dashboard.innerHTML = '';
+                
                 const nomesMeses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
                 
                 statsMeses.forEach((stat, index) => {
