@@ -122,7 +122,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const { data: perfil, error: erroPerfil } = await supabaseClient
             .from('mediuns')
-            .select('nome_completo, is_admin, is_master, terreiro_id, perm_visao_geral, perm_quadro_mediuns, perm_guias, perm_agenda, perm_ata, perm_grau, perm_financeiro, perm_doacoes, perm_admin, perm_ia, perm_escalas')
+            .select('*')
             .eq('auth_id', session.user.id)
             .single();
 
