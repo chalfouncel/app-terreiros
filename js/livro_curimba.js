@@ -582,17 +582,23 @@
                 document.getElementById('listaCardsLivroCurimba')?.scrollTo({ top: 0, behavior: 'smooth' });
             };
 
+            window.abrirPrimeiraCantigaGuiaIA = (subEscolhida) => {
+                window.filtrarGuiaDaIA(subEscolhida);
+                const idAlvo = (idsFiltradosPorIA && idsFiltradosPorIA.length > 0) ? idsFiltradosPorIA[0] : null;
+                if (idAlvo) window.abrirModoFocoCantiga(idAlvo);
+            };
+
             if (banner && txtBanner) {
                 const guiasUnicos = [...new Set(avaliadas.map(x => x.c.subcategoria || 'Geral'))].slice(0, 8);
                 const chipsHtml = guiasUnicos.map(g => {
                     const gSafe = String(g).replace(/'/g, "\\'");
-                    return `<button type="button" onclick="window.filtrarGuiaDaIA('${gSafe}')" class="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500 hover:text-slate-950 text-amber-300 border border-amber-500/40 text-[11px] font-black transition active:scale-95">${g}</button>`;
+                    return `<button type="button" onclick="window.filtrarGuiaDaIA('${gSafe}')" ondblclick="window.abrirPrimeiraCantigaGuiaIA('${gSafe}')" ontouchend="window.detectarDuploToqueCurimba(event, () => window.abrirPrimeiraCantigaGuiaIA('${gSafe}'))" class="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500 hover:text-slate-950 text-amber-300 border border-amber-500/40 text-[11px] font-black transition active:scale-95 select-none" title="1 toque filtra • 2 toques abre a cantiga">${g}</button>`;
                 }).join('');
 
                 txtBanner.innerHTML = avaliadas.length > 0
-                    ? `<strong>IA Curimba encontrou ${avaliadas.length} cantiga(s) para "${consulta}". Toque para filtrar abaixo:</strong>
+                    ? `<strong>IA Curimba encontrou ${avaliadas.length} cantiga(s) para "${consulta}". (1 toque filtra • 2 toques abre):</strong>
                        <div class="flex flex-wrap gap-1.5 mt-2">
-                           <button type="button" onclick="window.filtrarGuiaDaIA(null)" class="px-2.5 py-1 rounded-lg bg-indigo-500/30 hover:bg-indigo-500 text-white border border-indigo-400/40 text-[11px] font-bold transition active:scale-95">Todas (${avaliadas.length})</button>
+                           <button type="button" onclick="window.filtrarGuiaDaIA(null)" ondblclick="window.abrirPrimeiraCantigaGuiaIA(null)" ontouchend="window.detectarDuploToqueCurimba(event, () => window.abrirPrimeiraCantigaGuiaIA(null))" class="px-2.5 py-1 rounded-lg bg-indigo-500/30 hover:bg-indigo-500 text-white border border-indigo-400/40 text-[11px] font-bold transition active:scale-95 select-none">Todas (${avaliadas.length})</button>
                            ${chipsHtml}
                        </div>`
                     : `Nenhuma cantiga combinou diretamente com "${consulta}". Tente outros termos.`;
