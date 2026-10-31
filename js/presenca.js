@@ -2934,3 +2934,88 @@ async function verificarPendenciaMensalidade(mediumId) {
         }
     };
 })();
+
+// ====================================================================
+// CONTROLO DO BOTÃO "VOLTAR" DO TELEMÓVEL (HISTÓRICO DE MODAIS PWA)
+// ====================================================================
+(function () {
+    const ORDEM_MODAIS_APP = [
+        'modalFocoCantigaImersivo',
+        'modalEditarCantigaLivro',
+        'modalEditarPontoCurimba',
+        'modalZoomCartaz',
+        'modalComparadorFornecedores',
+        'modalCheckoutFornecedor',
+        'modalSolicitarCPF',
+        'modalPermissaoGPS',
+        'modalCheckinFamiliar',
+        'modalApoioDev',
+        'modalLivroCurimba',
+        'modalCurimbaPontos',
+        'modalMensalidade',
+        'modalDoacao',
+        'modalPerfilMedium'
+    ];
+
+    let ignorarPushState = false;
+
+    function obterModalAbertoTopo() {
+        for (const id of ORDEM_MODAIS_APP) {
+            const el = document.getElementById(id);
+            if (el && !el.classList.contains('hidden')) return el;
+        }
+        return null;
+    }
+
+    function fecharModalEspecifico(el) {
+        if (!el) return;
+        const id = el.id;
+        if (id === 'modalFocoCantigaImersivo' && typeof window.fecharModoFocoCantiga === 'function') return window.fecharModoFocoCantiga();
+        if (id === 'modalLivroCurimba' && typeof window.fecharModalLivroCurimba === 'function') return window.fecharModalLivroCurimba();
+        if (id === 'modalCurimbaPontos' && typeof window.fecharModalCurimba === 'function') return window.fecharModalCurimba();
+        if (id === 'modalZoomCartaz' && typeof window.fecharZoomCartaz === 'function') return window.fecharZoomCartaz();
+        if (id === 'modalApoioDev' && typeof window.fecharModalApoioDev === 'function') return window.fecharModalApoioDev();
+        el.querySelectorAll('audio').forEach(a => a.pause());
+        el.classList.add('hidden');
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        history.replaceState({ appBase: true }, '');
+
+        const observer = new MutationObserver((mutations) => {
+            if (ignorarPushState) return;
+            for (const m of mutations) {
+                if (m.type === 'attributes' && m.attributeName === 'class') {
+                    const id = m.target.id;
+                    if (ORDEM_MODAIS_APP.includes(id) && !m.target.classList.contains('hidden')) {
+                        history.pushState({ modalAberto: id }, '');
+                        break;
+                    }
+                }
+            }
+        });
+
+        // Observa modais estáticos e os injetados dinamicamente (ex: Livro da Curimba)
+        const iniciarObservacao = () => {
+            ORDEM_MODAIS_APP.forEach(id => {
+                const el = document.getElementById(id);
+                if (el && !el.dataset.backObserved) {
+                    el.dataset.backObserved = 'true';
+                    observer.observe(el, { attributes: true, attributeFilter: ['class'] });
+                }
+            });
+        };
+
+        iniciarObservacao();
+        setInterval(iniciarObservacao, 1500);
+
+        window.addEventListener('popstate', () => {
+            const modalTopo = obterModalAbertoTopo();
+            if (modalTopo) {
+                ignorarPushState = true;
+                fecharModalEspecifico(modalTopo);
+                setTimeout(() => { ignorarPushState = false; }, 100);
+            }
+        });
+    });
+})();
