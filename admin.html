@@ -2269,13 +2269,19 @@
                     <button onclick="document.getElementById('modalEquipeVendas').classList.add('hidden')" class="text-gray-400 bg-gray-100 hover:bg-gray-200 p-2 rounded-xl transition"><i class="fas fa-times text-xl"></i></button>
                 </div>
                 
-                <div class="flex flex-col sm:flex-row gap-2 mb-4 shrink-0">
-                    <select id="selectVendedorRifa" class="w-full sm:flex-1 min-w-0 px-3 py-2.5 border border-gray-300 rounded-xl text-xs sm:text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white truncate">
-                        <option value="">Selecione um médium para adicionar...</option>
-                    </select>
-                    <button id="btnAdicionarVendedor" class="w-full sm:w-auto shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-4 rounded-xl shadow transition text-xs sm:text-sm active:scale-95 flex items-center justify-center gap-1.5">
-                        <i class="fas fa-plus"></i> Adicionar
-                    </button>
+                <div class="space-y-2 mb-4 shrink-0">
+                    <div class="relative">
+                        <i class="fas fa-search absolute left-3 top-3 text-gray-400 text-xs"></i>
+                        <input type="text" id="inputBuscaVendedorRifa" oninput="window.filtrarOpcoesVendedorRifa(this.value)" placeholder="Pesquisar médium pelo nome..." class="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-xl text-xs sm:text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50 focus:bg-white">
+                    </div>
+                    <div class="flex flex-col sm:flex-row gap-2">
+                        <select id="selectVendedorRifa" class="w-full sm:flex-1 min-w-0 px-3 py-2.5 border border-gray-300 rounded-xl text-xs sm:text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white truncate">
+                            <option value="">Selecione um médium para adicionar...</option>
+                        </select>
+                        <button id="btnAdicionarVendedor" class="w-full sm:w-auto shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-4 rounded-xl shadow transition text-xs sm:text-sm active:scale-95 flex items-center justify-center gap-1.5">
+                            <i class="fas fa-plus"></i> Adicionar
+                        </button>
+                    </div>
                 </div>
     
                 <div class="flex-1 overflow-y-auto bg-gray-50 rounded-xl border border-gray-100 p-2">
