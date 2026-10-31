@@ -567,10 +567,34 @@
                 }
             });
 
+            window.idsOriginaisIA = [...idsFiltradosPorIA];
+
+            window.filtrarGuiaDaIA = (subEscolhida) => {
+                if (!subEscolhida) {
+                    idsFiltradosPorIA = [...(window.idsOriginaisIA || [])];
+                } else {
+                    idsFiltradosPorIA = (window.idsOriginaisIA || []).filter(id => {
+                        const item = cacheCantigasLivro.find(c => c.id === id);
+                        return item && (item.subcategoria || 'Geral') === subEscolhida;
+                    });
+                }
+                window.renderizarCardsLivroCurimba();
+                document.getElementById('listaCardsLivroCurimba')?.scrollTo({ top: 0, behavior: 'smooth' });
+            };
+
             if (banner && txtBanner) {
-                const guiasUnicos = [...new Set(avaliadas.map(x => x.c.subcategoria))].slice(0, 6);
+                const guiasUnicos = [...new Set(avaliadas.map(x => x.c.subcategoria || 'Geral'))].slice(0, 8);
+                const chipsHtml = guiasUnicos.map(g => {
+                    const gSafe = String(g).replace(/'/g, "\\'");
+                    return `<button type="button" onclick="window.filtrarGuiaDaIA('${gSafe}')" class="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500 hover:text-slate-950 text-amber-300 border border-amber-500/40 text-[11px] font-black transition active:scale-95">${g}</button>`;
+                }).join('');
+
                 txtBanner.innerHTML = avaliadas.length > 0
-                    ? `<strong>IA Curimba encontrou ${avaliadas.length} possibilidade(s) para "${consulta}":</strong><br><span class="text-[11px] text-amber-300">${guiasUnicos.join(' • ')}</span>`
+                    ? `<strong>IA Curimba encontrou ${avaliadas.length} cantiga(s) para "${consulta}". Toque para filtrar abaixo:</strong>
+                       <div class="flex flex-wrap gap-1.5 mt-2">
+                           <button type="button" onclick="window.filtrarGuiaDaIA(null)" class="px-2.5 py-1 rounded-lg bg-indigo-500/30 hover:bg-indigo-500 text-white border border-indigo-400/40 text-[11px] font-bold transition active:scale-95">Todas (${avaliadas.length})</button>
+                           ${chipsHtml}
+                       </div>`
                     : `Nenhuma cantiga combinou diretamente com "${consulta}". Tente outros termos.`;
                 banner.classList.remove('hidden');
             }
