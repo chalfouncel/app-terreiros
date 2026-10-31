@@ -7145,3 +7145,125 @@ async function inicializarModuloFornecedoresAdmin() {
         });
     }
 }
+
+// ==========================================================
+// CONTROLO DO BOTÃO "VOLTAR" DO TELEMÓVEL NO PAINEL ADMIN
+// ==========================================================
+(function () {
+    const MODAIS_ADMIN = [
+        'modalFocoCantigaImersivo',
+        'modalEditarCantigaLivro',
+        'modalVerComprovante',
+        'modalEquipeVendas',
+        'modalCartelaRifa',
+        'modalNovaRifa',
+        'modalRelatorioReceitaMes',
+        'modalEditarGuiasMedium',
+        'modalLivroCurimba',
+        'modalNovoMedium',
+        'modalEditarMedium',
+        'modalPermissoes',
+        'modalEscreverAta',
+        'modalImportarCSV',
+        'modalEditarGira',
+        'modalMasterFinanceiro',
+        'modalApoioDev'
+    ];
+
+    let pilhaAbasAdmin = ['menuVisaoGeral'];
+    let ignorarPopAdmin = false;
+
+    function obterModalAdminAberto() {
+        for (const id of MODAIS_ADMIN) {
+            const el = document.getElementById(id);
+            if (el && !el.classList.contains('hidden')) return el;
+        }
+        return null;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        history.replaceState({ adminRoot: true }, '');
+        history.pushState({ adminAtivo: true }, '');
+
+        // Regista mudanças de aba no menu lateral
+        document.querySelectorAll('.menu-item').forEach(menu => {
+            menu.addEventListener('click', () => {
+                if (ignorarPopAdmin) return;
+                const ultimo = pilhaAbasAdmin[pilhaAbasAdmin.length - 1];
+                if (ultimo !== menu.id) {
+                    pilhaAbasAdmin.push(menu.id);
+                    history.pushState({ secaoAdmin: menu.id }, '');
+                }
+            });
+        });
+
+        // Regista abertura de modais
+        const observer = new MutationObserver((mutations) => {
+            if (ignorarPopAdmin) return;
+            for (const m of mutations) {
+                if (m.type === 'attributes' && m.attributeName === 'class') {
+                    const id = m.target.id;
+                    if (MODAIS_ADMIN.includes(id) && !m.target.classList.contains('hidden')) {
+                        history.pushState({ modalAdmin: id }, '');
+                        break;
+                    }
+                }
+            }
+        });
+
+        const observarModaisAdmin = () => {
+            MODAIS_ADMIN.forEach(id => {
+                const el = document.getElementById(id);
+                if (el && !el.dataset.backObserved) {
+                    el.dataset.backObserved = 'true';
+                    observer.observe(el, { attributes: true, attributeFilter: ['class'] });
+                }
+            });
+        };
+
+        observarModaisAdmin();
+        setInterval(observarModaisAdmin, 1500);
+
+        window.addEventListener('popstate', () => {
+            // 1. Se o menu lateral mobile estiver aberto, fecha-o primeiro
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('overlayMobile');
+            if (window.innerWidth < 768 && sidebar && !sidebar.classList.contains('-translate-x-full')) {
+                sidebar.classList.add('-translate-x-full');
+                overlay?.classList.add('hidden');
+                history.pushState({ adminAtivo: true }, '');
+                return;
+            }
+
+            // 2. Se houver um modal aberto, fecha apenas o modal do topo
+            const modalAberto = obterModalAdminAberto();
+            if (modalAberto) {
+                ignorarPopAdmin = true;
+                if (modalAberto.id === 'modalFocoCantigaImersivo' && typeof window.fecharModoFocoCantiga === 'function') {
+                    window.fecharModoFocoCantiga();
+                } else if (modalAberto.id === 'modalLivroCurimba' && typeof window.fecharModalLivroCurimba === 'function') {
+                    window.fecharModalLivroCurimba();
+                } else if (modalAberto.id === 'modalVerComprovante' && typeof window.fecharModalVerComprovante === 'function') {
+                    window.fecharModalVerComprovante();
+                } else {
+                    modalAberto.classList.add('hidden');
+                }
+                setTimeout(() => { ignorarPopAdmin = false; }, 100);
+                return;
+            }
+
+            // 3. Se navegou entre abas do Admin, volta para a aba anterior
+            if (pilhaAbasAdmin.length > 1) {
+                ignorarPopAdmin = true;
+                pilhaAbasAdmin.pop();
+                const abaAnteriorId = pilhaAbasAdmin[pilhaAbasAdmin.length - 1];
+                document.getElementById(abaAnteriorId)?.click();
+                setTimeout(() => { ignorarPopAdmin = false; }, 100);
+                return;
+            }
+
+            // 4. Se já estiver na primeira aba do Admin, volta para o Aplicativo de Presença em vez de fechar o telemóvel
+            window.location.replace('presenca.html');
+        });
+    });
+})();
