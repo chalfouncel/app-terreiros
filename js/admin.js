@@ -164,22 +164,31 @@ document.addEventListener('DOMContentLoaded', async () => {
             // ... (código existente) ...
         } else {
             if (!perfil.is_admin) {
-                if (!perfil.perm_quadro_mediuns && document.getElementById('menuQuadroMediuns')) document.getElementById('menuQuadroMediuns').classList.add('hidden');
-                if (!perfil.perm_guias && document.getElementById('menuGuiasMediuns')) document.getElementById('menuGuiasMediuns').classList.add('hidden');
+                if (!perfil.perm_quadro_mediuns) document.getElementById('menuQuadroMediuns')?.classList.add('hidden');
+                if (!perfil.perm_guias) document.getElementById('menuGuiasMediuns')?.classList.add('hidden');
                 if (!perfil.perm_ia) {
                     document.getElementById('menuIA')?.classList.add('hidden');
                     document.getElementById('barraRapidaIAVisaoGeral')?.classList.add('hidden');
                 }
-                if (!perfil.perm_agenda && document.getElementById('menuAgendaGiras')) document.getElementById('menuAgendaGiras').classList.add('hidden');
-                if (!perfil.perm_ata && document.getElementById('menuLivroAta')) document.getElementById('menuLivroAta').classList.add('hidden');
-                if (!perfil.perm_escalas && document.getElementById('menuEscalas')) document.getElementById('menuEscalas').classList.add('hidden');
-                if (!perfil.perm_grau && document.getElementById('menuGrau')) document.getElementById('menuGrau').classList.add('hidden');
-                if (!perfil.perm_doacoes && document.getElementById('menuDoacoes')) document.getElementById('menuDoacoes').classList.add('hidden');
-                if (!perfil.perm_admin && document.getElementById('menuAdmin')) document.getElementById('menuAdmin').classList.add('hidden');
+                if (!perfil.perm_agenda) document.getElementById('menuAgendaGiras')?.classList.add('hidden');
+                if (!perfil.perm_ata) document.getElementById('menuLivroAta')?.classList.add('hidden');
+                if (!perfil.perm_escalas) document.getElementById('menuEscalas')?.classList.add('hidden');
+                if (!perfil.perm_grau) document.getElementById('menuGrau')?.classList.add('hidden');
+                if (!perfil.perm_doacoes) document.getElementById('menuDoacoes')?.classList.add('hidden');
+                if (!perfil.perm_admin) document.getElementById('menuAdmin')?.classList.add('hidden');
                 
                 if (!perfil.perm_financeiro) {
-                    if (document.getElementById('menuFinanceiro')) document.getElementById('menuFinanceiro').classList.add('hidden');
-                    if (document.getElementById('menuComprovantes')) document.getElementById('menuComprovantes').classList.add('hidden');
+                    document.getElementById('menuFinanceiro')?.classList.add('hidden');
+                    document.getElementById('menuComprovantes')?.classList.add('hidden');
+                    // Oculta o card amarelo de "PIX p/ Validar" no topo para quem não tem permissão financeira
+                    document.getElementById('widgetQtdPendencias')?.closest('div[onclick]')?.classList.add('hidden');
+                }
+
+                // Se NÃO tem permissão de Visão Geral, oculta métricas do topo e lista de presença/PDF avulso,
+                // deixando na tela de Módulos SOMENTE os cards que o médium tem permissão!
+                if (!perfil.perm_visao_geral) {
+                    document.getElementById('totalPresentes')?.closest('.grid')?.classList.add('hidden');
+                    document.getElementById('tabelaPresencas')?.closest('.grid')?.classList.add('hidden');
                 }
             }
         }
@@ -329,12 +338,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                         if (menuAlvo && !menuAlvo.classList.contains('hidden')) {
                             menuAlvo.click();
+                        } else if (perfil.is_admin || perfil.perm_visao_geral) {
+                            document.getElementById('menuVisaoGeral')?.click();
                         } else {
-                            const primeiroMenuVisivel = Array.from(menus).find(menu => !menu.classList.contains('hidden'));
-                            if (primeiroMenuVisivel) {
-                                primeiroMenuVisivel.click();
+                            const primeiroCardPermitido = Array.from(menus).find(m => m.id !== 'menuVisaoGeral' && !m.classList.contains('hidden'));
+                            if (primeiroCardPermitido) {
+                                primeiroCardPermitido.click();
                             } else {
-                                secoes.forEach(s => s.classList.add('hidden'));
+                                document.getElementById('menuVisaoGeral')?.click();
                             }
                         }
                     }, 100);
@@ -1815,12 +1826,34 @@ document.addEventListener('DOMContentLoaded', async () => {
             carregarHistoricoComprovantes();
         };
 
+        // Converte datas vindas do Supabase (UTC sem sufixo Z) para o horário exato de Brasília
+        window.formatarDataHoraBR = (valorData, comAno = false) => {
+            if (!valorData) return '-';
+            let str = String(valorData).trim();
+            if (/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(str) && !/(Z|[+-]\d{2}:?\d{2})$/i.test(str)) {
+                str = str.replace(' ', 'T') + 'Z';
+            }
+            const dt = new Date(str);
+            if (isNaN(dt.getTime())) return '-';
+            const opcoes = {
+                timeZone: 'America/Sao_Paulo',
+                day: '2-digit',
+                month: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            };
+            if (comAno) opcoes.year = '2-digit';
+            return dt.toLocaleString('pt-BR', opcoes);
+        };
+
         async function carregarComprovantesPendentes() {
             if (!idTerreiroGlobal) return;
             const listaCards = document.getElementById('listaComprovantesPendentes');
             if (!listaCards) return;
 
             listaCards.innerHTML = '<div class="col-span-full p-8 text-center text-gray-500 bg-white rounded-2xl shadow-sm border border-gray-100"><i class="fas fa-spinner fa-spin mr-2 text-xl"></i> Buscando pendências financeiras...</div>';
+
+            const nomesMesesCurto = ['', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
             try {
                 // 1. Busca Comprovantes de Mensalidade
@@ -1858,17 +1891,48 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 const pendenciasGerais = [];
 
-                // Formata Mensalidades
+                // Formata Mensalidades com TODO O HISTÓRICO DE MÉDIUNS E MESES ANTES DE VALIDAR
                 (mensalidades || []).forEach(comp => {
                     const remetente = mediuns?.find(m => m.auth_id === comp.enviado_por)?.nome_completo || 'Médium Desconhecido';
+                    let blocosDetalhe = [];
+                    let blocosTextoPuro = [];
+                    let titulares = [];
+
+                    if (comp.detalhes_pagamento && Array.isArray(comp.detalhes_pagamento)) {
+                        comp.detalhes_pagamento.forEach(det => {
+                            const mdCad = mediuns?.find(m => Number(m.id) === Number(det.medium_id));
+                            const nomeTit = det.medium_nome || mdCad?.nome_completo || remetente;
+                            if (!titulares.includes(nomeTit)) titulares.push(nomeTit);
+
+                            const listaM = (det.meses || [])
+                                .slice()
+                                .sort((a, b) => a - b)
+                                .map(m => `${nomesMesesCurto[m] || m}/${det.ano || ''}`)
+                                .join(', ');
+
+                            blocosDetalhe.push(`<div class="leading-snug"><span class="font-bold text-gray-800">${nomeTit}:</span> <span class="text-emerald-700 font-black">${listaM || '-'}</span></div>`);
+                            blocosTextoPuro.push(`${nomeTit} (${listaM || '-'})`);
+                        });
+                    }
+
+                    const pagouParaOutro = titulares.length > 1 || (titulares.length === 1 && titulares[0] !== remetente);
+                    const badgeRemetente = pagouParaOutro
+                        ? `<div class="mt-1 pt-1 border-t border-gray-200/80 text-[10px] text-indigo-700 font-bold"><i class="fas fa-users mr-1"></i>Enviado por: ${remetente}</div>`
+                        : '';
+
+                    const descricaoHtml = blocosDetalhe.length > 0
+                        ? `<div class="mb-1"><span class="bg-emerald-100 text-emerald-800 text-[9px] font-black px-1.5 py-0.5 rounded uppercase">Mensalidade</span></div><div class="space-y-1">${blocosDetalhe.join('')}</div>${badgeRemetente}`
+                        : 'Mensalidade com Comprovante Anexo';
+
                     pendenciasGerais.push({
                         tipoObj: 'mensalidade',
                         id: comp.id,
-                        nomeExibicao: remetente,
-                        descricao: 'Mensalidade com Comprovante Anexo',
+                        nomeExibicao: titulares.length > 0 ? titulares.join(' / ') : remetente,
+                        descricao: descricaoHtml,
+                        resumoSubtituloModal: blocosTextoPuro.length > 0 ? blocosTextoPuro.join(' | ') : remetente,
                         valor: comp.valor_total,
                         data: comp.data_envio,
-                        extra: comp 
+                        extra: comp
                     });
                 });
 
@@ -1882,7 +1946,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         tipoObj: 'rifa_comprovante',
                         id: r.id,
                         nomeExibicao: r.nome_comprador || 'Comprador',
-                        descricao: `[RIFA] ${tituloRifa} - Nº ${String(r.numero).padStart(2, '0')}`,
+                        descricao: `<span class="bg-indigo-100 text-indigo-800 text-[9px] font-black px-1.5 py-0.5 rounded uppercase mr-1">Rifa</span> <span class="font-bold text-gray-800">${tituloRifa}</span> • <span class="text-indigo-700 font-black">Nº ${String(r.numero).padStart(2, '0')}</span>`,
                         valor: valorUnit,
                         data: r.locked_at || new Date().toISOString(),
                         extra: {
@@ -1904,7 +1968,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         tipoObj: 'caixa',
                         id: cx.id,
                         nomeExibicao: cx.pagador_nome || 'Visitante/Médium',
-                        descricao: `[${cx.tipo_transacao}] ${cx.descricao}`,
+                        descricao: `<span class="font-bold text-gray-700">[${cx.tipo_transacao}] ${cx.descricao}</span>`,
                         valor: cx.valor,
                         data: cx.data_transacao,
                         extra: cx
@@ -1912,6 +1976,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
 
                 pendenciasGerais.sort((a, b) => new Date(a.data) - new Date(b.data));
+
+                const badgeResumoFila = document.getElementById('resumoFilaValidacao');
+                if (badgeResumoFila) badgeResumoFila.textContent = `${pendenciasGerais.length} pendente(s)`;
 
                 if (pendenciasGerais.length === 0) {
                     listaCards.innerHTML = '<div class="col-span-full p-8 text-center text-gray-500 bg-white rounded-2xl shadow-sm border border-gray-100"><i class="fas fa-check-circle text-3xl text-green-300 mb-2 block"></i> Tudo em dia! Não há transações aguardando validação.</div>';
@@ -1922,17 +1989,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 pendenciasGerais.forEach(item => {
                     const valFmt = Number(item.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                    
-                    let dataObj = new Date(item.data);
-                    if (isNaN(dataObj)) dataObj = new Date();
-                    
-                    const dataEnvio = dataObj.toLocaleString('pt-BR', { 
-                        timeZone: 'America/Sao_Paulo',
-                        day: '2-digit', 
-                        month: '2-digit', 
-                        hour: '2-digit', 
-                        minute: '2-digit' 
-                    });
+                    const dataEnvio = window.formatarDataHoraBR(item.data);
 
                     let btnAcao = '';
                     let iconeCard = '';
@@ -1941,42 +1998,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     if (item.tipoObj === 'mensalidade') {
                         corBorda = 'border-t-yellow-400';
                         iconeCard = '<i class="fas fa-file-invoice text-yellow-500 mr-1.5"></i>';
-                        const nomeSeguro = String(item.nomeExibicao).replace(/'/g, "\\'");
-                        btnAcao = `<button onclick="abrirModalVerComprovante('${item.id}', '${item.extra.url_comprovante}', '${nomeSeguro} - ${valFmt}')" class="w-full bg-gray-800 hover:bg-gray-900 active:scale-95 text-white font-bold py-2.5 px-4 rounded-xl shadow-sm transition text-sm flex justify-center items-center gap-2">
-                            <i class="fas fa-search"></i> Analisar Comprovante
-                        </button>`;
-                    } else if (item.tipoObj === 'rifa_comprovante') {
-                        corBorda = 'border-t-indigo-500';
-                        iconeCard = '<i class="fas fa-ticket-alt text-indigo-500 mr-1.5"></i>';
-                        const jsonStr = JSON.stringify(item.extra).replace(/'/g, "\\'").replace(/"/g, "&quot;");
-                        btnAcao = `<button onclick="abrirModalComprovante(JSON.parse('${jsonStr}'))" class="w-full bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold py-2.5 px-4 rounded-xl shadow-sm transition text-sm flex justify-center items-center gap-2">
-                            <i class="fas fa-search-plus"></i> Analisar Comprovante Rifa
-                        </button>`;
-                    } else {
-                        corBorda = 'border-t-blue-500';
-                        let icn = 'fa-cash-register';
-                        if(item.extra.tipo_transacao === 'RIFA') icn = 'fa-ticket-alt';
-                        if(item.extra.tipo_transacao === 'CANTINA') icn = 'fa-hamburger';
-                        if(item.extra.tipo_transacao === 'DOACAO') icn = 'fa-hand-holding-heart';
-
-                        iconeCard = `<i class="fas ${icn} text-blue-500 mr-1.5"></i>`;
-                        btnAcao = `
-                            <div class="flex gap-2 w-full mt-1">
-                                <button onclick="rejeitarCaixaPendente('${item.id}', '${item.extra.referencia_id}', '${item.extra.tipo_transacao}')" class="flex-1 bg-red-100 text-red-700 hover:bg-red-200 font-bold py-2.5 rounded-xl shadow-sm transition text-xs active:scale-95 border border-red-200">
-                                    <i class="fas fa-times"></i> Rejeitar
-                                </button>
-                                <button onclick="aprovarCaixaPendente('${item.id}', '${item.extra.referencia_id}', '${item.extra.tipo_transacao}')" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 rounded-xl shadow-sm transition text-xs active:scale-95 flex items-center justify-center gap-1">
-                                    <i class="fas fa-check"></i> Baixar PIX
-                                </button>
-                            </div>
-                        `;
-                    }
-
-                    if (item.tipoObj === 'mensalidade') {
-                        corBorda = 'border-t-yellow-400';
-                        iconeCard = '<i class="fas fa-file-invoice text-yellow-500 mr-1.5"></i>';
-                        const nomeSeguro = String(item.nomeExibicao).replace(/'/g, "\\'");
-                        btnAcao = `<button onclick="abrirModalVerComprovante('${item.id}', '${item.extra.url_comprovante}', '${nomeSeguro} - ${valFmt}')" class="w-full bg-gray-800 hover:bg-gray-900 active:scale-95 text-white font-bold py-2 px-3 rounded-xl shadow-sm transition text-xs flex justify-center items-center gap-2">
+                        const subtituloSeguro = String(item.resumoSubtituloModal || item.nomeExibicao).replace(/'/g, "\\'");
+                        btnAcao = `<button onclick="abrirModalVerComprovante('${item.id}', '${item.extra.url_comprovante}', '${subtituloSeguro} — Total: ${valFmt}')" class="w-full bg-gray-800 hover:bg-gray-900 active:scale-95 text-white font-bold py-2 px-3 rounded-xl shadow-sm transition text-xs flex justify-center items-center gap-2">
                             <i class="fas fa-search"></i> Analisar Comprovante
                         </button>`;
                     } else if (item.tipoObj === 'rifa_comprovante') {
@@ -1989,9 +2012,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     } else {
                         corBorda = 'border-t-blue-500';
                         let icn = 'fa-cash-register';
-                        if(item.extra.tipo_transacao === 'RIFA') icn = 'fa-ticket-alt';
-                        if(item.extra.tipo_transacao === 'CANTINA') icn = 'fa-hamburger';
-                        if(item.extra.tipo_transacao === 'DOACAO') icn = 'fa-hand-holding-heart';
+                        if (item.extra.tipo_transacao === 'RIFA') icn = 'fa-ticket-alt';
+                        if (item.extra.tipo_transacao === 'CANTINA') icn = 'fa-hamburger';
+                        if (item.extra.tipo_transacao === 'DOACAO') icn = 'fa-hand-holding-heart';
 
                         iconeCard = `<i class="fas ${icn} text-blue-500 mr-1.5"></i>`;
                         btnAcao = `
@@ -2011,10 +2034,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                             <div>
                                 <div class="flex justify-between items-start mb-2">
                                     <h4 class="font-bold text-gray-800 text-xs truncate pr-2" title="${item.nomeExibicao}">${iconeCard} ${item.nomeExibicao}</h4>
-                                    <span class="bg-gray-100 text-gray-600 text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">Pendente</span>
+                                    <span class="bg-gray-100 text-gray-600 text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0">Pendente</span>
                                 </div>
-                                <div class="text-[11px] text-gray-600 mb-2 bg-gray-50 p-2 rounded-lg border border-gray-100">
-                                    <span class="font-bold text-gray-700">${item.descricao}</span>
+                                <div class="text-[11px] text-gray-600 mb-2.5 bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                                    ${item.descricao}
                                 </div>
                                 <div class="flex justify-between items-end mb-3">
                                     <div>
@@ -3710,20 +3733,8 @@ const livroCurimbaAtivo = !!t.modulo_livro_curimba_ativo;
             }
         }
 
-        const urlParams = new URLSearchParams(window.location.search);
-        const secaoParam = urlParams.get('secao');
-        const menuAlvo = secaoParam ? document.getElementById(secaoParam) : null;
-
-        if (menuAlvo && !menuAlvo.classList.contains('hidden')) {
-            menuAlvo.click();
-        } else if (emModoMasterPuro) {
+        if (emModoMasterPuro) {
             document.getElementById('menuMaster')?.click();
-        } else if (perfilAdminLogado.is_admin || perfilAdminLogado.perm_visao_geral) {
-            document.getElementById('menuVisaoGeral')?.click();
-        } else {
-            if (perfilAdminLogado.perm_agenda) document.getElementById('menuAgendaGiras')?.click();
-            else if (perfilAdminLogado.perm_ata) document.getElementById('menuLivroAta')?.click();
-            else document.getElementById('menuQuadroMediuns')?.click(); 
         }
 
     } catch (error) {
