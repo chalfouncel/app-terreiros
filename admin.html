@@ -62,161 +62,351 @@
             }
         </style>
     </head>
-    <body class="min-h-screen flex transition-colors duration-300">
+    <body class="min-h-screen flex flex-col transition-colors duration-300">
     
-        <!-- OVERLAY ESCURECIDO MOBILE -->
-        <div id="overlayMobile" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 hidden md:hidden transition-opacity duration-300"></div>
-    
-        <!-- MENU LATERAL (GAVETA MOBILE + SIDEBAR DESKTOP) -->
-        <aside id="sidebar" class="fixed md:static top-0 left-0 h-[100dvh] transform -translate-x-full md:translate-x-0 z-50 w-72 md:w-64 bg-tema-primaria text-white flex flex-col shadow-2xl transition-transform duration-300 ease-out">
-            <div class="p-6 text-center border-b border-white/10 flex flex-col items-center relative shrink-0">
-                <button id="btnFecharMenu" class="md:hidden absolute top-4 right-4 text-white/70 hover:text-white p-2 rounded-lg hover:bg-white/10 active:scale-95 transition" aria-label="Fechar menu">
-                    <i class="fas fa-times text-xl"></i>
-                </button>
-                <img id="logoSidebar" src="" class="hidden max-h-16 mb-2 rounded-lg bg-white/10 p-1.5 object-contain" alt="Ponto da Casa">
-                <h1 class="text-lg md:text-xl font-black text-white drop-shadow-sm tracking-wide">Painel Gestão</h1>
-                <p class="text-xs text-white/80 mt-0.5 truncate max-w-[200px]" id="nomeTerreiroSidebar">Carregando...</p>
-            </div>
-            
-            <!-- LISTAGEM DE LINKS -->
-            <nav class="flex-1 min-h-0 overflow-y-auto p-4 space-y-1.5">
-                <a href="#" id="menuVisaoGeral" class="menu-item py-3 px-4 bg-white/20 rounded-xl hover:bg-white/10 active:scale-[0.98] transition flex items-center text-sm font-semibold">
-                    <i class="fas fa-home w-6 mr-3 text-base"></i> Visão Geral
-                </a>
-                <a href="#" id="menuQuadroMediuns" class="menu-item py-3 px-4 rounded-xl hover:bg-white/10 active:scale-[0.98] transition flex items-center text-sm font-semibold">
-                    <i class="fas fa-users w-6 mr-3 text-base"></i> Quadro de Médiuns
-                </a>
-                <a href="#" id="menuGuiasMediuns" class="menu-item py-3 px-4 rounded-xl hover:bg-white/10 active:scale-[0.98] transition flex items-center text-sm font-semibold">
-                    <i class="fas fa-feather-alt w-6 mr-3 text-base"></i> Guias dos Médiuns
-                </a>
-                <a href="#" id="menuIA" class="menu-item py-3 px-4 rounded-xl hover:bg-white/10 active:scale-[0.98] transition flex items-center text-sm font-semibold text-blue-300">
-                    <i class="fas fa-brain w-6 mr-3 text-base text-blue-400"></i> Assistente IA (Voz/Texto)
-                </a>
-                <a href="#" id="menuAgendaGiras" class="menu-item py-3 px-4 rounded-xl hover:bg-white/10 active:scale-[0.98] transition flex items-center text-sm font-semibold">
-                    <i class="fas fa-calendar-alt w-6 mr-3 text-base"></i> Agenda de Eventos
-                </a>
-                <a href="#" id="menuLivroAta" class="menu-item py-3 px-4 rounded-xl hover:bg-white/10 active:scale-[0.98] transition flex items-center text-sm font-semibold">
-                    <i class="fas fa-book-open w-6 mr-3 text-base"></i> Livro de Presença
-                </a>
-                <a href="#" id="menuEscalas" class="menu-item py-3 px-4 rounded-xl hover:bg-white/10 active:scale-[0.98] transition flex items-center text-sm font-semibold text-emerald-300">
-                    <i class="fas fa-clipboard-list w-6 mr-3 text-base text-emerald-400"></i> Escalas e Missões
-                </a>
+        <!-- BARRA SUPERIOR FIXA (TOPBAR MODERNA SEM SIDEBAR) -->
+        <header class="bg-tema-primaria text-white shadow-lg sticky top-0 z-40 border-b border-white/10 no-print">
+            <div class="max-w-[1600px] mx-auto px-4 md:px-8 py-3 flex flex-wrap items-center justify-between gap-3">
                 
-                <hr class="border-white/10 my-3">
-                
-                <a href="#" id="menuGrau" class="menu-item py-3 px-4 rounded-xl hover:bg-white/10 active:scale-[0.98] transition flex items-center text-sm font-semibold">
-                    <i class="fas fa-graduation-cap w-6 mr-3 text-base"></i> Alteração de Grau
-                </a>
-                <a href="#" id="menuFinanceiro" class="menu-item py-3 px-4 rounded-xl hover:bg-white/10 active:scale-[0.98] transition flex items-center text-sm font-semibold">
-                    <i class="fas fa-file-invoice-dollar w-6 mr-3 text-base"></i> Financeiro
-                </a>
-                <!-- NOVO MENU: VALIDAR PAGAMENTOS -->
-                <a href="#" id="menuComprovantes" class="menu-item py-3 px-4 rounded-xl hover:bg-white/10 active:scale-[0.98] transition flex items-center text-sm font-semibold">
-                    <i class="fas fa-check-double w-6 mr-3 text-base text-yellow-300"></i> Validar Pagamentos
-                </a>
-                
-                <hr class="border-white/10 my-3">
-                
-                <a href="#" id="menuDoacoes" class="menu-item py-3 px-4 rounded-xl hover:bg-white/10 active:scale-[0.98] transition flex items-center text-sm font-semibold text-rose-200 hover:text-white">
-                    <i class="fas fa-hand-holding-heart w-6 mr-3 text-base text-rose-400"></i> Doações / Campanhas
-                </a>
-                
-                <hr class="border-white/10 my-3">
-                
-                <a href="#" id="menuAdmin" class="menu-item py-3 px-4 rounded-xl hover:bg-white/10 active:scale-[0.98] transition flex items-center text-sm font-bold text-yellow-300">
-                    <i class="fas fa-cog w-6 mr-3 text-base"></i> Config. da Casa
-                </a>
-                <a href="#" id="menuMaster" class="menu-item hidden py-3 px-4 rounded-xl bg-gray-950/60 hover:bg-gray-900 border border-gray-700/80 active:scale-[0.98] transition flex items-center text-sm font-black text-white mt-4 shadow-inner">
-                    <i class="fas fa-globe w-6 mr-3 text-base text-blue-400"></i> Gestão Plataforma
-                </a>
-            </nav>
-            
-            <div class="p-4 border-t border-white/10 shrink-0 pb-6 md:pb-4 space-y-2.5">
-                <!-- Botão Voltar ao Aplicativo Mobile -->
-                <button onclick="window.location.href='presenca.html'" class="w-full py-2.5 px-4 bg-white/10 hover:bg-white/25 active:scale-95 rounded-xl transition flex items-center justify-center font-bold text-sm shadow-md border border-white/10">
-                    <i class="fas fa-mobile-alt mr-2"></i> Voltar ao Aplicativo
-                </button>
-                
-                <button id="btnSair" class="w-full py-2.5 px-4 bg-red-600/90 hover:bg-red-700 active:scale-95 rounded-xl transition flex items-center justify-center font-bold text-sm shadow-md">
-                    <i class="fas fa-sign-out-alt mr-2"></i> Sair do Sistema
-                </button>
-    
-                <!-- Atalho Apoio Dev na Sidebar -->
-                <div class="pt-2 text-center text-[10px] text-white/50 space-y-1">
-                    <p>© 2026 Mario Chalfoun Jr</p>
-                    <button type="button" onclick="abrirModalApoioDev()" class="text-amber-300 hover:text-amber-200 underline font-semibold flex items-center justify-center gap-1 mx-auto active:scale-95 transition">
-                        <i class="fas fa-mug-hot"></i> Apoiar Desenvolvedor
+                <!-- Esquerda: Logo + Nome do Terreiro + Botão Início (Módulos) -->
+                <div class="flex items-center gap-3 min-w-0">
+                    <img id="logoSidebar" src="" class="hidden w-10 h-10 md:w-11 md:h-11 rounded-xl bg-white/10 p-1 object-contain shrink-0 border border-white/15" alt="Logo da Casa">
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-2">
+                            <span class="text-[10px] font-black uppercase tracking-widest bg-white/15 px-2 py-0.5 rounded-md text-white/90">Painel Gestão</span>
+                            <span class="text-[11px] text-white/70 hidden lg:inline" id="dataHoje"></span>
+                        </div>
+                        <h1 class="text-sm md:text-base font-black text-white truncate max-w-[200px] sm:max-w-xs md:max-w-md mt-0.5" id="nomeTerreiroSidebar">Carregando...</h1>
+                    </div>
+                </div>
+
+                <!-- Centro: Título da Ferramenta Aberta + Botão Voltar aos Módulos -->
+                <div class="flex items-center gap-2 order-3 md:order-2 w-full md:w-auto justify-between md:justify-center border-t border-white/10 md:border-0 pt-2 md:pt-0">
+                    <a href="#" id="menuVisaoGeral" class="menu-item inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white text-gray-900 hover:bg-gray-100 font-black text-xs shadow-sm transition active:scale-95">
+                        <i class="fas fa-th-large text-tema-primaria"></i>
+                        <span>Painel de Módulos</span>
+                    </a>
+                    <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-black/20 border border-white/10">
+                        <span class="text-[10px] uppercase tracking-wider text-white/60 font-bold">Seção:</span>
+                        <span class="text-xs md:text-sm font-extrabold text-white" id="tituloSecao">Visão Geral</span>
+                        <span class="hidden" id="tituloMobile">Visão Geral</span>
+                        <span class="hidden" id="dataHojeMobile"></span>
+                    </div>
+                </div>
+
+                <!-- Direita: Saudação + Voltar ao App + Sair -->
+                <div class="flex items-center gap-2 order-2 md:order-3">
+                    <div class="hidden sm:flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-xl border border-white/10">
+                        <i class="fas fa-user-circle text-emerald-300 text-sm"></i>
+                        <span class="text-xs font-bold text-white" id="nomeAdmin">Olá, Admin</span>
+                        <span class="hidden" id="nomeAdminMobile"></span>
+                    </div>
+
+                    <button onclick="window.location.href='presenca.html'" class="py-2 px-3 bg-white/10 hover:bg-white/20 active:scale-95 rounded-xl transition flex items-center gap-1.5 font-bold text-xs border border-white/15" title="Voltar ao Aplicativo de Check-in">
+                        <i class="fas fa-mobile-alt"></i>
+                        <span class="hidden sm:inline">App</span>
+                    </button>
+
+                    <button id="btnSair" class="py-2 px-3 bg-red-600 hover:bg-red-700 active:scale-95 rounded-xl transition flex items-center gap-1.5 font-bold text-xs shadow-sm" title="Sair do Sistema">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span class="hidden sm:inline">Sair</span>
                     </button>
                 </div>
+
             </div>
-        </aside>
-    
-        <div class="flex-1 flex flex-col h-screen overflow-hidden">
-            <!-- BARRA SUPERIOR MOBILE (NAVBAR REFINADA) -->
-            <header class="md:hidden bg-white border-b border-gray-200 px-4 py-3 flex justify-between items-center shadow-sm flex-shrink-0 z-10">
-                <div class="flex items-center gap-3">
-                    <button id="btnAbrirMenu" class="w-10 h-10 rounded-xl bg-gray-100 text-tema-primaria flex items-center justify-center active:scale-90 transition hover:bg-gray-200" aria-label="Abrir menu">
-                        <i class="fas fa-bars text-lg"></i>
-                    </button>
-                    <div>
-                        <h1 class="font-extrabold text-base text-gray-800 leading-tight" id="tituloMobile">Visão Geral</h1>
-                        <p class="text-[10px] text-gray-500 font-medium truncate max-w-[170px]" id="dataHojeMobile"></p>
-                    </div>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span class="text-xs font-bold text-gray-700 hidden sm:inline" id="nomeAdminMobile"></span>
-                    <div class="w-9 h-9 rounded-full bg-tema-primaria/10 text-tema-primaria flex items-center justify-center font-bold shadow-inner border border-tema-primaria/20">
-                        <i class="fas fa-user text-sm"></i>
-                    </div>
-                </div>
-            </header>
-    
-            <main class="flex-1 p-4 md:p-8 overflow-y-auto">
-                <!-- CABEÇALHO DESKTOP -->
-                <header class="hidden md:flex justify-between items-center mb-8">
-                    <div>
-                        <h2 class="text-3xl font-bold text-tema-texto" id="tituloSecao">Visão Geral</h2>
-                        <p class="text-gray-500" id="dataHoje"></p>
-                    </div>
-                    <div class="bg-white px-4 py-2 rounded-full shadow-sm border border-gray-200 flex items-center">
-                        <i class="fas fa-user-circle text-tema-secundaria text-xl mr-2"></i>
-                        <span class="text-gray-700 font-medium" id="nomeAdmin">Olá, Admin</span>
-                    </div>
-                </header>
+        </header>
+
+        <div class="flex-1 flex flex-col">
+            <main class="flex-1 p-4 md:p-8 max-w-[1600px] w-full mx-auto">
                 
-                <!-- SEÇÃO VISÃO GERAL -->
-                <div id="secVisaoGeral" class="secao-painel">
+                <!-- SEÇÃO VISÃO GERAL + CENTRAL DE CARDS POR PERMISSÃO -->
+                <div id="secVisaoGeral" class="secao-painel space-y-6">
                     
-                    <!-- Nova Barra de Busca Rápida IA -->
-                    <div class="mb-6 bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl p-1 shadow-sm">
+                    <!-- 1. Barra de Busca Rápida IA -->
+                    <div id="barraRapidaIAVisaoGeral" class="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl p-1 shadow-sm">
                         <div class="bg-white rounded-xl p-2 flex items-center gap-3">
                             <div class="bg-blue-100 w-8 h-8 rounded-lg text-blue-600 flex items-center justify-center ml-1 shrink-0"><i class="fas fa-brain"></i></div>
                             <input type="text" id="inputBuscaRapidaIA" placeholder="Pergunte à IA da Casa sobre presenças, guias, financeiro..." class="flex-1 border-none outline-none text-xs md:text-sm text-gray-700 bg-transparent min-w-0">
-                            <button type="button" id="btnBuscaRapidaIA" onclick="document.getElementById('menuIA')?.click(); setTimeout(() => document.getElementById('inputPergunta').focus(), 100);" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-bold transition active:scale-95 shrink-0 shadow-sm">Perguntar</button>
+                            <button type="button" id="btnBuscaRapidaIA" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-bold transition active:scale-95 shrink-0 shadow-sm">Perguntar</button>
                         </div>
                     </div>
-    
-                    <!-- Métricas Principais -->
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
-                        <div class="bg-white p-5 md:p-6 rounded-2xl shadow-sm border-l-4 border-tema-secundaria flex flex-col justify-center">
-                            <h3 class="text-gray-500 text-xs md:text-sm font-bold uppercase tracking-wider">Médiuns Presentes Hoje</h3>
-                            <p class="text-3xl md:text-4xl font-extrabold text-tema-texto mt-1 md:mt-2" id="totalPresentes">0</p>
+
+                    <!-- 2. Métricas Principais + Alerta de PIX Pendentes -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 border-l-4 border-l-tema-secundaria flex flex-col justify-center">
+                            <h3 class="text-gray-400 text-[11px] font-black uppercase tracking-wider">Médiuns Presentes Hoje</h3>
+                            <p class="text-3xl font-black text-tema-texto mt-1" id="totalPresentes">0</p>
                         </div>
-                        <div class="bg-white p-5 md:p-6 rounded-2xl shadow-sm border-l-4 border-tema-primaria flex flex-col justify-center">
-                            <h3 class="text-gray-500 text-xs md:text-sm font-bold uppercase tracking-wider">Total Cadastrados</h3>
-                            <p class="text-3xl md:text-4xl font-extrabold text-tema-texto mt-1 md:mt-2" id="totalMediuns">0</p>
+                        <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 border-l-4 border-l-tema-primaria flex flex-col justify-center">
+                            <h3 class="text-gray-400 text-[11px] font-black uppercase tracking-wider">Total Cadastrados</h3>
+                            <p class="text-3xl font-black text-tema-texto mt-1" id="totalMediuns">0</p>
                         </div>
-                        <div class="bg-white p-5 md:p-6 rounded-2xl shadow-sm border-l-4 border-purple-500 flex flex-col justify-center">
-                            <h3 class="text-gray-500 text-xs md:text-sm font-bold uppercase tracking-wider">Próximo Evento</h3>
-                            <p class="text-sm md:text-base font-bold text-tema-texto mt-1 md:mt-2 leading-snug" id="proximaGira">Buscando...</p>
+                        <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 border-l-4 border-l-purple-500 flex flex-col justify-center">
+                            <h3 class="text-gray-400 text-[11px] font-black uppercase tracking-wider">Próximo Evento</h3>
+                            <p class="text-xs md:text-sm font-bold text-tema-texto mt-1 leading-snug" id="proximaGira">Buscando...</p>
+                        </div>
+                        <div onclick="document.getElementById('menuComprovantes')?.click()" class="bg-gradient-to-br from-amber-50 to-orange-50 p-4 rounded-2xl shadow-sm border-2 border-amber-400 flex items-center justify-between cursor-pointer hover:shadow-md transition active:scale-[0.99]">
+                            <div>
+                                <span class="text-[10px] font-black uppercase tracking-wider text-amber-900 block">PIX p/ Validar</span>
+                                <span id="widgetQtdPendencias" class="text-3xl font-black text-red-600 leading-none">0</span>
+                                <span class="text-[11px] font-bold text-amber-800 block mt-1">Toque para conferir ➔</span>
+                            </div>
+                            <div class="w-11 h-11 rounded-2xl bg-red-600 text-white flex items-center justify-center text-lg shadow">
+                                <i class="fas fa-check-double"></i>
+                            </div>
                         </div>
                     </div>
-    
-                    <!-- Grid Inferior (Lista + Widgets) -->
+
+                    <!-- 3. CENTRAL DE MÓDULOS EM CARDS (1 CARD POR PERMISSÃO COM SUBITENS INTERNOS) -->
+                    <div>
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="text-sm md:text-base font-black text-gray-800 uppercase tracking-wider flex items-center gap-2">
+                                <i class="fas fa-th-large text-tema-primaria"></i> Módulos e Ferramentas de Gestão
+                            </h3>
+                            <span class="text-[11px] text-gray-400 font-semibold">Clique num card ou num atalho interno</span>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+
+                            <!-- Card 1: Quadro de Médiuns (perm_quadro_mediuns) -->
+                            <div id="menuQuadroMediuns" class="menu-item group bg-white rounded-2xl border border-gray-200 hover:border-tema-primaria p-5 shadow-sm hover:shadow-md transition cursor-pointer flex flex-col justify-between">
+                                <div>
+                                    <div class="flex items-center justify-between mb-3">
+                                        <div class="w-11 h-11 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg font-bold group-hover:bg-indigo-600 group-hover:text-white transition">
+                                            <i class="fas fa-users"></i>
+                                        </div>
+                                        <span class="text-[10px] font-black uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full">Corrente</span>
+                                    </div>
+                                    <h4 class="text-base font-black text-gray-800 group-hover:text-tema-primaria transition">Quadro de Médiuns</h4>
+                                    <p class="text-xs text-gray-500 mt-1">Cadastros, ficha médica SOS, permissões e aniversariantes.</p>
+                                </div>
+                                <div class="mt-4 pt-3 border-t border-gray-100 flex flex-wrap gap-1.5">
+                                    <button type="button" onclick="event.stopPropagation(); document.getElementById('menuQuadroMediuns').click(); setTimeout(()=>abrirModalNovoMedium(), 150);" class="text-[11px] font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-2.5 py-1 rounded-lg transition">
+                                        <i class="fas fa-user-plus mr-1"></i>Novo Médium
+                                    </button>
+                                    <span class="text-[11px] font-semibold bg-gray-100 text-gray-600 px-2.5 py-1 rounded-lg">SOS / Permissões</span>
+                                </div>
+                            </div>
+
+                            <!-- Card 2: Guias e Curimba (perm_guias) -->
+                            <div id="menuGuiasMediuns" class="menu-item group bg-white rounded-2xl border border-gray-200 hover:border-teal-600 p-5 shadow-sm hover:shadow-md transition cursor-pointer flex flex-col justify-between">
+                                <div>
+                                    <div class="flex items-center justify-between mb-3">
+                                        <div class="w-11 h-11 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center text-lg font-bold group-hover:bg-teal-600 group-hover:text-white transition">
+                                            <i class="fas fa-feather-alt"></i>
+                                        </div>
+                                        <span class="text-[10px] font-black uppercase tracking-wider text-teal-700 bg-teal-50 px-2.5 py-1 rounded-full">Espiritual</span>
+                                    </div>
+                                    <h4 class="text-base font-black text-gray-800 group-hover:text-teal-700 transition">Guias e Padrinhos</h4>
+                                    <p class="text-xs text-gray-500 mt-1">Linhas de trabalho, certificados A4, pontos cantados e curimba.</p>
+                                </div>
+                                <div class="mt-4 pt-3 border-t border-gray-100 flex flex-wrap gap-1.5">
+                                    <span class="text-[11px] font-semibold bg-gray-100 text-gray-600 px-2.5 py-1 rounded-lg">Guias / Certificados</span>
+                                    <button type="button" onclick="event.stopPropagation(); window.abrirModalLivroCurimba && window.abrirModalLivroCurimba();" class="text-[11px] font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-2.5 py-1 rounded-lg transition">
+                                        <i class="fas fa-drum mr-1"></i>Livro Curimba
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Card 3: Agenda de Eventos (perm_agenda) -->
+                            <div id="menuAgendaGiras" class="menu-item group bg-white rounded-2xl border border-gray-200 hover:border-purple-600 p-5 shadow-sm hover:shadow-md transition cursor-pointer flex flex-col justify-between">
+                                <div>
+                                    <div class="flex items-center justify-between mb-3">
+                                        <div class="w-11 h-11 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center text-lg font-bold group-hover:bg-purple-600 group-hover:text-white transition">
+                                            <i class="fas fa-calendar-alt"></i>
+                                        </div>
+                                        <span class="text-[10px] font-black uppercase tracking-wider text-purple-700 bg-purple-50 px-2.5 py-1 rounded-full">Calendário</span>
+                                    </div>
+                                    <h4 class="text-base font-black text-gray-800 group-hover:text-purple-700 transition">Agenda de Eventos</h4>
+                                    <p class="text-xs text-gray-500 mt-1">Agende giras, avisos informativos, giras restritas e sacramentos.</p>
+                                </div>
+                                <div class="mt-4 pt-3 border-t border-gray-100 flex flex-wrap gap-1.5">
+                                    <span class="text-[11px] font-semibold bg-purple-50 text-purple-700 px-2.5 py-1 rounded-lg">+ Nova Gira</span>
+                                    <span class="text-[11px] font-semibold bg-gray-100 text-gray-600 px-2.5 py-1 rounded-lg">Cartazes / Avisos</span>
+                                </div>
+                            </div>
+
+                            <!-- Card 4: Livro de Presença ATA (perm_ata) -->
+                            <div id="menuLivroAta" class="menu-item group bg-white rounded-2xl border border-gray-200 hover:border-violet-600 p-5 shadow-sm hover:shadow-md transition cursor-pointer flex flex-col justify-between">
+                                <div>
+                                    <div class="flex items-center justify-between mb-3">
+                                        <div class="w-11 h-11 rounded-2xl bg-violet-50 text-violet-600 flex items-center justify-center text-lg font-bold group-hover:bg-violet-600 group-hover:text-white transition">
+                                            <i class="fas fa-book-open"></i>
+                                        </div>
+                                        <span class="text-[10px] font-black uppercase tracking-wider text-violet-700 bg-violet-50 px-2.5 py-1 rounded-full">Documentos</span>
+                                    </div>
+                                    <h4 class="text-base font-black text-gray-800 group-hover:text-violet-700 transition">Livro de Presença (ATA)</h4>
+                                    <p class="text-xs text-gray-500 mt-1">Redija atas oficiais, encerre sessões e emita o Livro Anual em PDF.</p>
+                                </div>
+                                <div class="mt-4 pt-3 border-t border-gray-100 flex flex-wrap gap-1.5">
+                                    <span class="text-[11px] font-semibold bg-gray-100 text-gray-600 px-2.5 py-1 rounded-lg">Redigir / Fechar</span>
+                                    <button type="button" onclick="event.stopPropagation(); baixarLivroAnual && baixarLivroAnual();" class="text-[11px] font-bold bg-violet-50 hover:bg-violet-100 text-violet-700 px-2.5 py-1 rounded-lg transition">
+                                        <i class="fas fa-file-pdf mr-1"></i>Livro Anual
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Card 5: Escalas e Missões (perm_escalas) -->
+                            <div id="menuEscalas" class="menu-item group bg-white rounded-2xl border border-gray-200 hover:border-emerald-600 p-5 shadow-sm hover:shadow-md transition cursor-pointer flex flex-col justify-between">
+                                <div>
+                                    <div class="flex items-center justify-between mb-3">
+                                        <div class="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg font-bold group-hover:bg-emerald-600 group-hover:text-white transition">
+                                            <i class="fas fa-clipboard-list"></i>
+                                        </div>
+                                        <span class="text-[10px] font-black uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full">Liturgia</span>
+                                    </div>
+                                    <h4 class="text-base font-black text-gray-800 group-hover:text-emerald-700 transition">Escalas e Missões</h4>
+                                    <p class="text-xs text-gray-500 mt-1">Escale médiuns para Gira de Exu, Corrente de Ogum e notifique no WhatsApp.</p>
+                                </div>
+                                <div class="mt-4 pt-3 border-t border-gray-100 flex flex-wrap gap-1.5">
+                                    <span class="text-[11px] font-semibold bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-lg">Exu / Corrente</span>
+                                    <span class="text-[11px] font-semibold bg-gray-100 text-gray-600 px-2.5 py-1 rounded-lg"><i class="fab fa-whatsapp text-green-600 mr-1"></i>Avisos</span>
+                                </div>
+                            </div>
+
+                            <!-- Card 6: Alteração de Grau (perm_grau) -->
+                            <div id="menuGrau" class="menu-item group bg-white rounded-2xl border border-gray-200 hover:border-cyan-600 p-5 shadow-sm hover:shadow-md transition cursor-pointer flex flex-col justify-between">
+                                <div>
+                                    <div class="flex items-center justify-between mb-3">
+                                        <div class="w-11 h-11 rounded-2xl bg-cyan-50 text-cyan-600 flex items-center justify-center text-lg font-bold group-hover:bg-cyan-600 group-hover:text-white transition">
+                                            <i class="fas fa-graduation-cap"></i>
+                                        </div>
+                                        <span class="text-[10px] font-black uppercase tracking-wider text-cyan-700 bg-cyan-50 px-2.5 py-1 rounded-full">Hierarquia</span>
+                                    </div>
+                                    <h4 class="text-base font-black text-gray-800 group-hover:text-cyan-700 transition">Alteração de Grau</h4>
+                                    <p class="text-xs text-gray-500 mt-1">Atualize graus e funções da corrente com registo automático de auditoria.</p>
+                                </div>
+                                <div class="mt-4 pt-3 border-t border-gray-100 flex flex-wrap gap-1.5">
+                                    <span class="text-[11px] font-semibold bg-gray-100 text-gray-600 px-2.5 py-1 rounded-lg">Graus e Funções</span>
+                                    <span class="text-[11px] font-semibold bg-cyan-50 text-cyan-700 px-2.5 py-1 rounded-lg">Histórico PDF</span>
+                                </div>
+                            </div>
+
+                            <!-- Card 7: Controle Financeiro (perm_financeiro) -->
+                            <div id="menuFinanceiro" class="menu-item group bg-white rounded-2xl border border-gray-200 hover:border-green-600 p-5 shadow-sm hover:shadow-md transition cursor-pointer flex flex-col justify-between">
+                                <div>
+                                    <div class="flex items-center justify-between mb-3">
+                                        <div class="w-11 h-11 rounded-2xl bg-green-50 text-green-600 flex items-center justify-center text-lg font-bold group-hover:bg-green-600 group-hover:text-white transition">
+                                            <i class="fas fa-file-invoice-dollar"></i>
+                                        </div>
+                                        <span class="text-[10px] font-black uppercase tracking-wider text-green-700 bg-green-50 px-2.5 py-1 rounded-full">Tesouraria</span>
+                                    </div>
+                                    <h4 class="text-base font-black text-gray-800 group-hover:text-green-700 transition">Controle Financeiro</h4>
+                                    <p class="text-xs text-gray-500 mt-1">Tabela anual de mensalidades, isenções e painel detalhado de arrecadação.</p>
+                                </div>
+                                <div class="mt-4 pt-3 border-t border-gray-100 flex flex-wrap gap-1.5">
+                                    <button type="button" onclick="event.stopPropagation(); document.getElementById('menuFinanceiro').click(); setTimeout(()=>document.getElementById('btnTabFinMensalidades')?.click(), 120);" class="text-[11px] font-bold bg-green-50 hover:bg-green-100 text-green-700 px-2.5 py-1 rounded-lg transition">
+                                        Mensalidades
+                                    </button>
+                                    <button type="button" onclick="event.stopPropagation(); document.getElementById('menuFinanceiro').click(); setTimeout(()=>document.getElementById('btnTabFinArrecadacao')?.click(), 120);" class="text-[11px] font-bold bg-gray-100 hover:bg-gray-200 text-gray-700 px-2.5 py-1 rounded-lg transition">
+                                        Receita / Rifas
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Card 8: Validar Pagamentos PIX (perm_financeiro) -->
+                            <div id="menuComprovantes" class="menu-item group bg-white rounded-2xl border border-gray-200 hover:border-amber-500 p-5 shadow-sm hover:shadow-md transition cursor-pointer flex flex-col justify-between">
+                                <div>
+                                    <div class="flex items-center justify-between mb-3">
+                                        <div class="w-11 h-11 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center text-lg font-bold group-hover:bg-amber-500 group-hover:text-white transition">
+                                            <i class="fas fa-check-double"></i>
+                                        </div>
+                                        <span class="text-[10px] font-black uppercase tracking-wider text-amber-800 bg-amber-100 px-2.5 py-1 rounded-full">Conferência PIX</span>
+                                    </div>
+                                    <h4 class="text-base font-black text-gray-800 group-hover:text-amber-600 transition">Validar Pagamentos</h4>
+                                    <p class="text-xs text-gray-500 mt-1">Analise comprovantes PIX com zoom de pinça, aprove baixas e veja o histórico.</p>
+                                </div>
+                                <div class="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between">
+                                    <span class="text-[11px] font-semibold text-gray-500">Fila e Auditoria</span>
+                                    <span class="text-[11px] font-black text-amber-700 group-hover:translate-x-1 transition">Abrir Validador ➔</span>
+                                </div>
+                            </div>
+
+                            <!-- Card 9: Doações, Cantina e Rifas (perm_doacoes) -->
+                            <div id="menuDoacoes" class="menu-item group bg-white rounded-2xl border border-gray-200 hover:border-rose-500 p-5 shadow-sm hover:shadow-md transition cursor-pointer flex flex-col justify-between">
+                                <div>
+                                    <div class="flex items-center justify-between mb-3">
+                                        <div class="w-11 h-11 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center text-lg font-bold group-hover:bg-rose-600 group-hover:text-white transition">
+                                            <i class="fas fa-hand-holding-heart"></i>
+                                        </div>
+                                        <span class="text-[10px] font-black uppercase tracking-wider text-rose-700 bg-rose-50 px-2.5 py-1 rounded-full">Rifas Ativas: <strong id="widgetQtdRifas">0</strong></span>
+                                    </div>
+                                    <h4 class="text-base font-black text-gray-800 group-hover:text-rose-600 transition">Doações / Campanhas</h4>
+                                    <p class="text-xs text-gray-500 mt-1">Gira doações da casa, kits semanais, cantina e sorteios de rifas.</p>
+                                </div>
+                                <div class="mt-4 pt-3 border-t border-gray-100 flex flex-wrap gap-1.5">
+                                    <button type="button" onclick="event.stopPropagation(); document.getElementById('menuDoacoes').click(); setTimeout(()=>document.getElementById('btnTabDoacoes')?.click(), 120);" class="text-[11px] font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 px-2 py-1 rounded-lg transition">
+                                        Doações
+                                    </button>
+                                    <button type="button" onclick="event.stopPropagation(); document.getElementById('menuDoacoes').click(); setTimeout(()=>document.getElementById('btnTabCantina')?.click(), 120);" class="text-[11px] font-bold bg-orange-50 hover:bg-orange-100 text-orange-700 px-2 py-1 rounded-lg transition">
+                                        Cantina
+                                    </button>
+                                    <button type="button" onclick="event.stopPropagation(); document.getElementById('menuDoacoes').click(); setTimeout(()=>document.getElementById('btnTabRifas')?.click(), 120);" class="text-[11px] font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-2 py-1 rounded-lg transition">
+                                        Rifas
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Card 10: Assistente IA (perm_ia) -->
+                            <div id="menuIA" class="menu-item group bg-white rounded-2xl border border-gray-200 hover:border-blue-600 p-5 shadow-sm hover:shadow-md transition cursor-pointer flex flex-col justify-between">
+                                <div>
+                                    <div class="flex items-center justify-between mb-3">
+                                        <div class="w-11 h-11 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-lg font-bold group-hover:bg-blue-600 group-hover:text-white transition">
+                                            <i class="fas fa-brain"></i>
+                                        </div>
+                                        <span class="text-[10px] font-black uppercase tracking-wider text-blue-700 bg-blue-50 px-2.5 py-1 rounded-full">Voz e Texto</span>
+                                    </div>
+                                    <h4 class="text-base font-black text-gray-800 group-hover:text-blue-600 transition">Assistente IA</h4>
+                                    <p class="text-xs text-gray-500 mt-1">Consulte estatísticas de presenças, afilhados, guias e financeiro por voz ou texto.</p>
+                                </div>
+                                <div class="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between">
+                                    <span class="text-[11px] font-semibold text-gray-500"><i class="fas fa-microphone text-rose-500 mr-1"></i>Comando de Voz</span>
+                                    <span class="text-[11px] font-black text-blue-600 group-hover:translate-x-1 transition">Conversar ➔</span>
+                                </div>
+                            </div>
+
+                            <!-- Card 11: Configurações da Casa (perm_admin) -->
+                            <div id="menuAdmin" class="menu-item group bg-white rounded-2xl border border-gray-200 hover:border-gray-800 p-5 shadow-sm hover:shadow-md transition cursor-pointer flex flex-col justify-between">
+                                <div>
+                                    <div class="flex items-center justify-between mb-3">
+                                        <div class="w-11 h-11 rounded-2xl bg-gray-100 text-gray-700 flex items-center justify-center text-lg font-bold group-hover:bg-gray-800 group-hover:text-white transition">
+                                            <i class="fas fa-cog"></i>
+                                        </div>
+                                        <span class="text-[10px] font-black uppercase tracking-wider text-gray-700 bg-gray-100 px-2.5 py-1 rounded-full">Administração</span>
+                                    </div>
+                                    <h4 class="text-base font-black text-gray-800">Configurações da Casa</h4>
+                                    <p class="text-xs text-gray-500 mt-1">QR Code da assistência, GPS, dados Asaas, graus, valores, cores e certificado.</p>
+                                </div>
+                                <div class="mt-4 pt-3 border-t border-gray-100 flex flex-wrap gap-1.5">
+                                    <span class="text-[11px] font-semibold bg-gray-100 text-gray-600 px-2 py-1 rounded-lg">QR Code / GPS</span>
+                                    <span class="text-[11px] font-semibold bg-gray-100 text-gray-600 px-2 py-1 rounded-lg">Tesouraria / Visual</span>
+                                </div>
+                            </div>
+
+                            <!-- Card 12: Gestão da Plataforma SaaS (is_master) -->
+                            <div id="menuMaster" class="menu-item hidden group bg-slate-900 text-white rounded-2xl border border-slate-700 hover:border-blue-400 p-5 shadow-md hover:shadow-xl transition cursor-pointer flex flex-col justify-between">
+                                <div>
+                                    <div class="flex items-center justify-between mb-3">
+                                        <div class="w-11 h-11 rounded-2xl bg-blue-500/20 text-blue-400 flex items-center justify-center text-lg font-bold">
+                                            <i class="fas fa-globe"></i>
+                                        </div>
+                                        <span class="text-[10px] font-black uppercase tracking-wider text-blue-300 bg-blue-950 px-2.5 py-1 rounded-full border border-blue-800">Master SaaS</span>
+                                    </div>
+                                    <h4 class="text-base font-black text-white">Gestão Plataforma</h4>
+                                    <p class="text-xs text-slate-400 mt-1">Gerencie terreiros clientes, fornecedores parceiros globais, splits e importações.</p>
+                                </div>
+                                <div class="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between">
+                                    <span class="text-[11px] font-semibold text-slate-400">Clientes & Fornecedores</span>
+                                    <span class="text-[11px] font-black text-blue-400">Gerir SaaS ➔</span>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- 4. Lista de Presença (Hoje) + Relação Avulsa PDF -->
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        
-                        <!-- Esquerda: Lista de Presença (Ocupa 2 colunas no Desktop) -->
-                        <div class="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 p-5 md:p-6 flex flex-col h-[400px]">
+                        <div class="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 p-5 md:p-6 flex flex-col h-[380px]">
                             <div class="flex items-center justify-between mb-4 shrink-0 border-b border-gray-100 pb-3">
                                 <h3 class="text-base md:text-lg font-bold text-tema-texto"><i class="fas fa-list-ul mr-2 text-tema-secundaria"></i> Lista de Presença (Hoje)</h3>
                                 <span class="text-[10px] bg-green-100 text-green-700 font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Ao Vivo</span>
@@ -235,64 +425,25 @@
                                 </table>
                             </div>
                         </div>
-    
-                        <!-- Direita: Widgets de Ação -->
-                        <div class="space-y-6">
-                            
-                            <!-- Widget: Financeiro Pendente (Agressivo / Destaque) -->
-                            <div class="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl shadow-sm border-2 border-amber-400 p-5 flex flex-col items-center text-center relative overflow-hidden">
-                                <div class="absolute -right-6 -top-6 w-20 h-20 bg-amber-200/50 rounded-full pointer-events-none"></div>
-                                
-                                <div class="w-10 h-10 rounded-full bg-amber-500 text-white flex items-center justify-center text-base mb-2 shadow-sm shrink-0">
-                                    <i class="fas fa-exclamation-triangle"></i>
-                                </div>
-                                
-                                <h4 class="font-black text-amber-900 text-xs uppercase tracking-wider mb-1">Aprovações Pendentes</h4>
-                                
-                                <div class="my-1">
-                                    <span id="widgetQtdPendencias" class="text-4xl font-black text-red-600 tracking-tight drop-shadow-sm">0</span>
-                                    <span class="text-xs font-bold text-amber-900 block uppercase tracking-wider mt-0.5">PIX aguardando validação</span>
-                                </div>
 
-                                <button onclick="document.getElementById('menuComprovantes')?.click()" class="w-full mt-3 bg-red-600 hover:bg-red-700 text-white text-xs font-black uppercase tracking-wider py-3 rounded-xl shadow-md transition active:scale-95 flex items-center justify-center gap-2">
-                                    <i class="fas fa-check-double"></i> Validar Agora
-                                </button>
-                            </div>
-    
-                            <!-- Widget: Resumo de Campanhas -->
-                            <div class="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl shadow-sm border border-indigo-100 p-5">
-                                <div class="flex items-center gap-2 mb-3">
-                                    <i class="fas fa-bullhorn text-indigo-600"></i>
-                                    <h4 class="font-bold text-indigo-900 text-sm">Campanhas Ativas</h4>
+                        <div class="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between">
+                            <div>
+                                <div class="w-10 h-10 rounded-xl bg-red-50 text-red-500 flex items-center justify-center text-lg mb-3">
+                                    <i class="fas fa-file-pdf"></i>
                                 </div>
-                                <div class="flex justify-between items-end">
-                                    <div>
-                                        <p class="text-[10px] font-bold text-indigo-400 uppercase">Rifas em aberto</p>
-                                        <p class="text-2xl font-black text-indigo-700 leading-none mt-1" id="widgetQtdRifas">0</p>
-                                    </div>
-                                    <button onclick="document.getElementById('menuDoacoes')?.click()" class="text-[10px] font-bold text-indigo-600 bg-white border border-indigo-200 px-3 py-1.5 rounded-lg shadow-sm hover:bg-indigo-50 transition active:scale-95">
-                                        Ver Painel
-                                    </button>
-                                </div>
+                                <h3 class="text-base font-bold text-gray-800 mb-1">Relação Avulsa de Presentes</h3>
+                                <p class="text-xs text-gray-500 mb-4 leading-relaxed">Emita apenas a lista de presença de um evento passado (sem o formato de ATA oficial).</p>
+                                <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Selecione o Evento:</label>
+                                <select id="selectEventoRelatorio" class="w-full p-2.5 border border-gray-300 rounded-xl text-xs outline-none bg-white focus:ring-2 focus:ring-tema-primaria">
+                                    <option value="">Carregando eventos...</option>
+                                </select>
                             </div>
-    
+                            <button id="btnBaixarPdfEvento" class="w-full mt-4 bg-tema-primaria hover:opacity-90 text-white font-bold py-3 px-4 rounded-xl shadow transition flex items-center justify-center gap-2 text-xs active:scale-95">
+                                <i class="fas fa-download"></i> Baixar Relação em PDF
+                            </button>
                         </div>
                     </div>
-    
-                    <!-- Bloco movido da Visão Geral: Relação Avulsa -->
-                    <div class="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row items-center justify-between gap-4 mt-6">
-                        <div class="flex-1 w-full">
-                            <h3 class="text-sm font-bold text-gray-800 mb-1"><i class="fas fa-file-pdf text-red-500 mr-1.5"></i> Relação Avulsa de Presentes</h3>
-                            <p class="text-[11px] text-gray-500 mb-3">Emita apenas a lista de presença de um evento passado (sem o formato de ATA oficial).</p>
-                            <select id="selectEventoRelatorio" class="w-full max-w-md p-2 border border-gray-300 rounded-lg text-xs outline-none bg-white focus:ring-2 focus:ring-tema-primaria">
-                                <option value="">Carregando eventos...</option>
-                            </select>
-                        </div>
-                        <button id="btnBaixarPdfEvento" class="w-full md:w-auto whitespace-nowrap bg-tema-primaria hover:opacity-90 text-white font-bold py-2.5 px-4 rounded-xl shadow transition flex items-center justify-center gap-2 text-xs active:scale-95 self-end">
-                            <i class="fas fa-download"></i> Baixar Relação
-                        </button>
-                    </div>
-    
+
                 </div>
                 
                 <!-- SEÇÃO ASSISTENTE IA (CONSULTAS INTELIGENTES) -->
