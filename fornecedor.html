@@ -184,7 +184,7 @@
             const itens = (todosItens || []).filter(item => {
                 const ativoOk = item.ativo !== false;
                 const cat = String(item.categoria || '').toLowerCase().trim();
-                return ativoOk && cat !== 'cantina';
+                return ativoOk && cat !== 'cantina' && cat !== 'kit';
             });
 
             const { data: precos } = await supabaseClient.from('fornecedores_precos_itens')
