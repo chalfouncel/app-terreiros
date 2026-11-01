@@ -2373,6 +2373,92 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         };
 
+        window.comprovanteRifaItemAtual = null;
+
+        // NOVO: Controle inteligente de Zoom Pinch/Pan
+        window.configurarZoomComprovante = () => {
+            const container = document.querySelector('#modalVerComprovante .area-zoom');
+            const img = document.getElementById('imgComprovante');
+            if (!container || !img) return;
+
+            if (container.dataset.zoomInit === 'true') return;
+            container.dataset.zoomInit = 'true';
+
+            let scale = 1;
+            let panning = false;
+            let pointX = 0;
+            let pointY = 0;
+            let start = { x: 0, y: 0 };
+            let startDist = 0;
+            let startScale = 1;
+
+            img.style.transformOrigin = 'center center';
+            img.style.transition = 'transform 0.1s ease-out';
+
+            window.resetarZoomComprovante = () => {
+                scale = 1; pointX = 0; pointY = 0;
+                img.style.transition = 'transform 0.2s ease-out';
+                img.style.transform = `translate(0px, 0px) scale(1)`;
+            };
+
+            container.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 2) {
+                    panning = false;
+                    startDist = Math.hypot(
+                        e.touches[0].clientX - e.touches[1].clientX,
+                        e.touches[0].clientY - e.touches[1].clientY
+                    );
+                    startScale = scale;
+                } else if (e.touches.length === 1 && scale > 1) {
+                    panning = true;
+                    start = { x: e.touches[0].clientX - pointX, y: e.touches[0].clientY - pointY };
+                }
+            }, { passive: false });
+
+            container.addEventListener('touchmove', (e) => {
+                if (e.touches.length === 2) {
+                    e.preventDefault();
+                    img.style.transition = 'none';
+                    const dist = Math.hypot(
+                        e.touches[0].clientX - e.touches[1].clientX,
+                        e.touches[0].clientY - e.touches[1].clientY
+                    );
+                    scale = Math.min(Math.max(1, startScale * (dist / startDist)), 4);
+                    img.style.transform = `translate(${pointX}px, ${pointY}px) scale(${scale})`;
+                } else if (e.touches.length === 1 && panning) {
+                    e.preventDefault();
+                    img.style.transition = 'none';
+                    pointX = e.touches[0].clientX - start.x;
+                    pointY = e.touches[0].clientY - start.y;
+                    img.style.transform = `translate(${pointX}px, ${pointY}px) scale(${scale})`;
+                }
+            }, { passive: false });
+
+            container.addEventListener('touchend', (e) => {
+                if (e.touches.length < 2) startDist = 0;
+                if (e.touches.length === 0) panning = false;
+                if (scale < 1) window.resetarZoomComprovante();
+            });
+
+            // Atalho de duplo-clique (Double Tap)
+            let lastTap = 0;
+            container.addEventListener('touchend', (e) => {
+                const currentTime = new Date().getTime();
+                const tapLength = currentTime - lastTap;
+                if (tapLength < 300 && tapLength > 0) {
+                    if (scale > 1) {
+                        window.resetarZoomComprovante();
+                    } else {
+                        scale = 2.5;
+                        img.style.transition = 'transform 0.2s ease-out';
+                        img.style.transform = `translate(0px, 0px) scale(${scale})`;
+                    }
+                    e.preventDefault();
+                }
+                lastTap = currentTime;
+            });
+        };
+
         window.abrirModalVerComprovante = (id, url, subtitulo) => {
             window.comprovanteAtualId = id;
             window.comprovanteRifaItemAtual = null;
