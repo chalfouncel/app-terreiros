@@ -1022,7 +1022,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                         const mdEncontrado = mediuns?.find(m => m.auth_id === d.medium_auth_id || String(m.id) === String(d.medium_auth_id));
                         const medium = mdEncontrado ? mdEncontrado.nome_completo : 'Médium Desconhecido';
                         const itemObj = itens?.find(i => String(i.id) === String(d.item_id));
-                        const itemNome = itemObj ? itemObj.nome : 'Item Desconhecido';
+                        let itemNome = itemObj ? itemObj.nome : 'Item Desconhecido';
+                        if (itemObj && String(itemObj.categoria || '').toLowerCase() === 'kit' && itemObj.descricao) {
+                            try {
+                                const comp = JSON.parse(itemObj.descricao);
+                                if (Array.isArray(comp) && comp.length > 0) {
+                                    const subStr = comp.map(c => `${Number(c.qtd) * Number(d.quantidade || 1)}x ${c.nome}`).join(', ');
+                                    itemNome += `<br><span style="font-size: 7pt; color: #64748b;">(${subStr})</span>`;
+                                }
+                            } catch (e) {}
+                        }
                         const dataFormatada = new Date(d.data_registro).toLocaleDateString('pt-BR');
                         const status = d.entregue ? 'Entregue' : 'Pendente';
                         return [medium, itemNome, String(d.quantidade), dataFormatada, status];
@@ -3414,7 +3423,17 @@ function renderizarTagsConfiguracao() {
                     const mdEncontrado = mediuns?.find(m => m.auth_id === d.medium_auth_id || String(m.id) === String(d.medium_auth_id));
                     const medium = mdEncontrado ? mdEncontrado.nome_completo : 'Médium Desconhecido';
                     const itemObj = itens?.find(i => String(i.id) === String(d.item_id));
-                    const itemNome = itemObj ? `${itemObj.nome}` : 'Item Excluído';
+                    let itemNome = itemObj ? `<span class="font-bold text-gray-800">${itemObj.nome}</span>` : 'Item Excluído';
+
+                    if (itemObj && String(itemObj.categoria || '').toLowerCase() === 'kit' && itemObj.descricao) {
+                        try {
+                            const comp = JSON.parse(itemObj.descricao);
+                            if (Array.isArray(comp) && comp.length > 0) {
+                                const listaSub = comp.map(c => `• ${Number(c.qtd) * Number(d.quantidade || 1)}x ${c.nome}`).join('<br>');
+                                itemNome += `<div class="text-[10px] text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1 mt-1 leading-snug font-medium">${listaSub}</div>`;
+                            }
+                        } catch (e) {}
+                    }
                     
                     // Lógica para separar Doações (Terreiro) da Cantina
                     const isCantina = itemObj && itemObj.categoria && itemObj.categoria.toLowerCase().trim() === 'cantina';
@@ -5804,6 +5823,49 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // --- REESCREVENDO CATÁLOGO DE DOAÇÕES PARA SUPORTAR CATEGORIAS E NOVO LAYOUT ---
     
+    window.itensAvulsosTerreiroCache = [];
+
+    window.alternarModoKitTerreiro = () => {
+        const cat = document.getElementById('doacaoCategoriaTerreiro')?.value;
+        const boxKit = document.getElementById('boxComposicaoKitTerreiro');
+        const inputNome = document.getElementById('doacaoNomeTerreiro');
+        if (!boxKit) return;
+
+        if (cat === 'kit') {
+            boxKit.classList.remove('hidden');
+            if (inputNome && !inputNome.value.trim()) {
+                inputNome.value = 'Kit Firmeza Semanal';
+            }
+            window.renderizarSeletorItensKit();
+        } else {
+            boxKit.classList.add('hidden');
+        }
+    };
+
+    window.renderizarSeletorItensKit = () => {
+        const container = document.getElementById('listaItensParaMontarKit');
+        if (!container) return;
+
+        const avulsos = (window.itensAvulsosTerreiroCache || []).filter(i => i.ativo !== false);
+        if (avulsos.length === 0) {
+            container.innerHTML = '<p class="text-[11px] text-gray-500 py-2 text-center">Cadastre primeiro os itens individuais (ex: Velas, Charutos, Pemba) antes de montar um Kit.</p>';
+            return;
+        }
+
+        container.innerHTML = avulsos.map(item => `
+            <div class="flex items-center justify-between bg-white px-2.5 py-1.5 rounded-lg border border-amber-200/80">
+                <label class="flex items-center gap-2 text-xs font-medium text-gray-800 cursor-pointer flex-1 truncate pr-2">
+                    <input type="checkbox" class="chk-item-comp-kit w-4 h-4 rounded text-amber-600" data-id="${item.id}" data-nome="${item.nome.replace(/"/g, '&quot;')}">
+                    <span class="truncate">${item.nome}</span>
+                </label>
+                <div class="flex items-center gap-1 shrink-0">
+                    <span class="text-[10px] text-gray-400 font-bold">Qtd:</span>
+                    <input type="number" min="1" value="1" class="inp-qtd-comp-kit w-14 px-1.5 py-0.5 text-xs font-bold text-center border border-gray-300 rounded-md" data-id="${item.id}">
+                </div>
+            </div>
+        `).join('');
+    };
+
     // FORMULÁRIO DO TERREIRO
     const formNovoItemTerreiro = document.getElementById('formNovoItemTerreiro');
     if (formNovoItemTerreiro) {
@@ -5811,25 +5873,44 @@ window.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             const btn = document.getElementById('btnSalvarDoacaoTerreiro');
             const msg = document.getElementById('msgDoacaoTerreiro');
-            btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adicionando...';
             
             const cat = document.getElementById('doacaoCategoriaTerreiro').value;
             const nome = document.getElementById('doacaoNomeTerreiro').value.trim();
-            const val = document.getElementById('doacaoValorTerreiro').value;
+
+            let descricaoKitJson = null;
+            if (cat === 'kit') {
+                const chks = document.querySelectorAll('.chk-item-comp-kit:checked');
+                if (chks.length === 0) {
+                    return alert('Selecione ao menos 1 item individual para compor este Kit.');
+                }
+                const composicao = Array.from(chks).map(chk => {
+                    const idItem = parseInt(chk.getAttribute('data-id'), 10);
+                    const nomeItem = chk.getAttribute('data-nome');
+                    const inpQtd = document.querySelector(`.inp-qtd-comp-kit[data-id="${idItem}"]`);
+                    const qtdItem = Math.max(1, parseInt(inpQtd?.value || '1', 10));
+                    return { id: idItem, nome: nomeItem, qtd: qtdItem };
+                });
+                descricaoKitJson = JSON.stringify(composicao);
+            }
+
+            btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adicionando...';
 
             try {
                 const { error } = await supabaseClient.from('itens_doacao').insert([{
                     terreiro_id: idTerreiroGlobal,
                     categoria: cat,
                     nome: nome,
-                    valor_sugerido: val ? parseFloat(val) : null,
+                    descricao: descricaoKitJson,
+                    valor_sugerido: null,
                     ativo: true
                 }]);
                 if (error) throw error;
                 
                 formNovoItemTerreiro.reset();
+                window.alternarModoKitTerreiro();
                 window.carregarDoacoesCatalogo();
-                msg.textContent = "Produto adicionado!"; msg.className = "text-xs font-bold text-green-600 block mt-2";
+                msg.textContent = cat === 'kit' ? "Kit cadastrado com sucesso!" : "Produto adicionado!";
+                msg.className = "text-xs font-bold text-green-600 block mt-2";
                 msg.classList.remove('hidden'); setTimeout(()=> msg.classList.add('hidden'), 3000);
             } catch (err) {
                 msg.textContent = "Erro: " + err.message; msg.className = "text-xs font-bold text-red-600 block mt-2";
@@ -5892,29 +5973,43 @@ window.addEventListener('DOMContentLoaded', () => {
             let countTerreiro = 0;
             let countCantina = 0;
 
+            window.itensAvulsosTerreiroCache = (data || []).filter(i => {
+                const c = String(i.categoria || '').toLowerCase().trim();
+                return c !== 'cantina' && c !== 'kit';
+            });
+            window.renderizarSeletorItensKit();
+
             if (data && data.length > 0) {
                 data.forEach(item => {
-                    const isCantina = item.categoria && item.categoria.toLowerCase().trim() === 'cantina';
+                    const catLower = String(item.categoria || '').toLowerCase().trim();
+                    const isCantina = catLower === 'cantina';
 
                     const btn = item.ativo 
                         ? `<button onclick="alternarStatusCatalogo('${item.id}', false)" class="text-[10px] bg-gray-200 text-gray-700 px-2 py-1 rounded font-bold hover:bg-gray-300">Desativar</button>` 
                         : `<button onclick="alternarStatusCatalogo('${item.id}', true)" class="text-[10px] bg-green-100 text-green-700 px-2 py-1 rounded font-bold hover:bg-green-200">Ativar</button>`;
                     
                     let badgeCat = '';
-                    if (item.categoria === 'limpeza') badgeCat = '<span class="text-[9px] font-bold text-blue-500 uppercase tracking-wider mt-0.5">Limpeza</span>';
-                    if (item.categoria === 'firmeza') badgeCat = '<span class="text-[9px] font-bold text-purple-500 uppercase tracking-wider mt-0.5">Firmeza</span>';
-
-                    let valorHtml = '';
-                    const valorParsed = parseFloat(item.valor_sugerido);
-                    if (!isNaN(valorParsed) && valorParsed > 0) {
-                        valorHtml = `<span class="text-gray-400 font-normal text-[10px] mt-0.5">R$ ${valorParsed.toFixed(2)}</span>`;
+                    if (catLower === 'limpeza') badgeCat = '<span class="text-[9px] font-bold text-blue-500 uppercase tracking-wider mt-0.5">Limpeza</span>';
+                    if (catLower === 'firmeza') badgeCat = '<span class="text-[9px] font-bold text-purple-500 uppercase tracking-wider mt-0.5">Firmeza</span>';
+                    
+                    let detalheKitHtml = '';
+                    if (catLower === 'kit') {
+                        badgeCat = '<span class="text-[9px] font-black text-amber-600 uppercase tracking-wider mt-0.5"><i class="fas fa-box-open mr-1"></i>Kit / Combo</span>';
+                        if (item.descricao) {
+                            try {
+                                const comp = JSON.parse(item.descricao);
+                                if (Array.isArray(comp)) {
+                                    detalheKitHtml = `<span class="text-[10px] text-gray-500 mt-0.5">${comp.map(c => `${c.qtd}x ${c.nome}`).join(' + ')}</span>`;
+                                }
+                            } catch (e) {}
+                        }
                     }
 
                     const tr = `<tr class="border-b border-gray-100 ${item.ativo ? '' : 'opacity-40 bg-gray-50'} hover:bg-gray-50 transition-colors">
                         <td class="p-3 text-xs font-medium text-gray-800">
                             <div class="flex flex-col">
-                                <span>${item.nome}</span>
-                                ${valorHtml}
+                                <span class="font-bold">${item.nome}</span>
+                                ${detalheKitHtml}
                                 ${badgeCat}
                             </div>
                         </td>
