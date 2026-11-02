@@ -172,32 +172,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Função de GPS com Fallback Automático (Satélite -> Rede/Wi-Fi em locais cobertos)
-    function obterLocalizacaoResiliente() {
-        return new Promise((resolve, reject) => {
-            if (!navigator.geolocation) {
-                return reject({ code: 0, message: 'Seu navegador não suporta localização via GPS.' });
-            }
-            // 1ª Tentativa: Alta precisão (GPS Satélite - até 8s)
-            navigator.geolocation.getCurrentPosition(
-                resolve,
-                (errAlta) => {
-                    // Se o usuário negou explicitamente (code 1), não adianta tentar de novo
-                    if (errAlta.code === 1) return reject(errAlta);
-
-                    // 2ª Tentativa automática: Sinal de Rede/Wi-Fi (para galpões/telhados onde satélite falha)
-                    navigator.geolocation.getCurrentPosition(
-                        resolve,
-                        (errBaixa) => reject(errBaixa),
-                        { enableHighAccuracy: false, timeout: 10000, maximumAge: 30000 }
-                    );
-                },
-                { enableHighAccuracy: true, timeout: 8000, maximumAge: 10000 }
-            );
-        });
-    }
-
-    // 7. Envio com Validação de GPS Inteligente e Guia de Desbloqueio
+    // 7. Envio Direto (Sem trava de GPS — validado por QR Code local e janela de horário da gira)
     if (formAssistencia) {
         formAssistencia.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -208,35 +183,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (!nome) {
                 if (msgErro) {
-                    msgErro.innerHTML = 'Por favor, informe o seu nome completo.';
+                    msgErro.textContent = 'Por favor, informe o seu nome completo.';
                     msgErro.classList.remove('hidden');
                 }
                 return;
             }
 
             btnConfirmar.disabled = true;
-            btnConfirmar.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Validando sua localização...';
+            btnConfirmar.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Confirmando presença...';
             if (msgErro) msgErro.classList.add('hidden');
 
             try {
-                const posicao = await obterLocalizacaoResiliente();
-
-                if (coordsTerreiro && coordsTerreiro.lat && coordsTerreiro.lng) {
-                    const latUser = posicao.coords.latitude;
-                    const lonUser = posicao.coords.longitude;
-                    const distanciaBruta = calcularDistancia(latUser, lonUser, coordsTerreiro.lat, coordsTerreiro.lng);
-                    
-                    // Desconta a imprecisão da antena do celular em local fechado (até 25m de tolerância)
-                    const margemAntena = Math.min(Number(posicao.coords.accuracy) || 0, 25);
-                    const distanciaEfetiva = Math.max(0, distanciaBruta - margemAntena);
-
-                    if (distanciaEfetiva > 40) {
-                        throw new Error(`Você precisa estar no terreiro para registrar presença. Distância aproximada: ${Math.round(distanciaBruta)} metros.`);
-                    }
-                }
-
-                btnConfirmar.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Confirmando presença...';
-
                 const agoraIso = new Date().toISOString();
 
                 const { error: errInsert } = await supabaseClient
@@ -252,9 +209,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 if (errInsert) throw errInsert;
 
-                // Salva dados no aparelho
+                // Salva dados no aparelho para próximas visitas
                 localStorage.setItem('assistencia_nome', nome);
-                if (tel) localStorage.setItem('assistencia_telefone', tel);
+                if (tel) localStorage.setItem('assistencia_telefone', inputTel.value);
                 localStorage.setItem(`assistencia_checkin_${idEventoGlobal}`, agoraIso);
 
                 const horaFormatada = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
@@ -265,29 +222,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (estadoSucesso) estadoSucesso.classList.remove('hidden');
 
             } catch (err) {
-                let htmlAjuda = '';
-
-                if (err && err.code === 1) {
-                    htmlAjuda = `
-                        <div class="bg-red-50 border border-red-200 rounded-xl p-3 text-left text-[11px] text-red-800 space-y-1.5 mt-2">
-                            <p class="font-black text-red-700"><i class="fas fa-map-marker-alt mr-1"></i> Permissão de Localização Bloqueada</p>
-                            <p><strong>No Android (Chrome):</strong> Toque no ícone de cadeado/ajustes ao lado do endereço do site lá no topo ➔ <em>Permissões</em> ➔ Ative a <strong>Localização</strong>.</p>
-                            <p><strong>No iPhone (Safari):</strong> Toque em <strong>aA</strong> (ou no ícone ao lado do endereço) ➔ <em>Configurações do Site</em> ➔ <em>Localização</em> ➔ <strong>Permitir</strong> (e verifique se a Localização do celular está ativa).</p>
-                        </div>
-                    `;
-                } else if (err && (err.code === 2 || err.code === 3)) {
-                    htmlAjuda = `
-                        <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-left text-[11px] text-amber-900 space-y-1 mt-2">
-                            <p class="font-black"><i class="fas fa-satellite-dish mr-1"></i> Sinal de GPS desligado ou fraco</p>
-                            <p>Ative a <strong>Localização / GPS</strong> na barra superior do seu celular e toque em Confirmar novamente.</p>
-                        </div>
-                    `;
-                } else {
-                    htmlAjuda = `<span class="block mt-1">${err.message || 'Erro ao validar presença.'}</span>`;
-                }
-
                 if (msgErro) {
-                    msgErro.innerHTML = htmlAjuda;
+                    msgErro.textContent = err.message || 'Erro ao registrar presença. Tente novamente.';
                     msgErro.classList.remove('hidden');
                 }
             } finally {
