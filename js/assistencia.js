@@ -37,16 +37,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     localStorage.setItem('assistencia_terreiro_id', idTerreiroGlobal);
 
     try {
-        // 2. Carrega dados e coordenadas do Terreiro
+        // 2. Carrega dados do Terreiro (sem GPS)
         const { data: terreiro, error: errTerreiro } = await supabaseClient
             .from('terreiros')
-            .select('nome, logo_url, cor_primaria, cor_secundaria, cor_fundo, cor_texto, latitude, longitude')
+            .select('nome, logo_url, cor_primaria, cor_secundaria, cor_fundo, cor_texto')
             .eq('id', idTerreiroGlobal)
             .single();
 
         if (errTerreiro || !terreiro) throw new Error('Terreiro não localizado.');
-
-        coordsTerreiro = { lat: terreiro.latitude, lng: terreiro.longitude };
 
         const txtNomeTerreiro = document.getElementById('nomeTerreiro');
         if (txtNomeTerreiro) txtNomeTerreiro.textContent = terreiro.nome || 'Terreiro';
@@ -161,7 +159,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // 7. Envio Direto (Sem trava de GPS — validado por QR Code local e janela de horário da gira)
+    // 7. Envio Direto (Validado por QR Code local e janela de horário da gira)
     if (formAssistencia) {
         formAssistencia.addEventListener('submit', async (e) => {
             e.preventDefault();
