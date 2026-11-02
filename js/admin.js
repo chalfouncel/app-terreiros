@@ -184,11 +184,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                     document.getElementById('widgetQtdPendencias')?.closest('div[onclick]')?.classList.add('hidden');
                 }
 
-                // Se NÃO tem permissão de Visão Geral, oculta métricas do topo e lista de presença/PDF avulso,
-                // deixando na tela de Módulos SOMENTE os cards que o médium tem permissão!
+                // Se NÃO tem permissão de Visão Geral, oculta métricas do topo, lista de presença e o botão "Painel de Módulos"
                 if (!perfil.perm_visao_geral) {
                     document.getElementById('totalPresentes')?.closest('.grid')?.classList.add('hidden');
                     document.getElementById('tabelaPresencas')?.closest('.grid')?.classList.add('hidden');
+                    document.getElementById('menuVisaoGeral')?.classList.add('hidden');
                 }
             }
         }
@@ -923,37 +923,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                         window.fecharModalVerComprovante();
                         carregarValidadorPagamentos();
                     }
-                } catch (err) {
-                    console.error(err);
-                    alert("Erro ao rejeitar comprovante: " + err.message);
-                } finally {
-                    btnRejeitarModal.innerHTML = btnHtml;
-                    btnRejeitarModal.disabled = false;
-                }
-            });
-        }
-
-        if (btnRejeitarModal) {
-            btnRejeitarModal.addEventListener('click', async () => {
-                if (!window.comprovanteAtualId) return;
-                if (!confirm("Rejeitar este comprovante? As mensalidades continuarão pendentes.")) return;
-
-                const btnHtml = btnRejeitarModal.innerHTML;
-                btnRejeitarModal.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Rejeitando...';
-                btnRejeitarModal.disabled = true;
-
-                try {
-                    const { error } = await supabaseClient
-                        .from('comprovantes_mensalidade')
-                        .update({ status: 'rejeitado' })
-                        .eq('id', window.comprovanteAtualId)
-                        .eq('terreiro_id', idTerreiroGlobal);
-
-                    if (error) throw error;
-                    
-                    alert("Comprovante rejeitado.");
-                    window.fecharModalVerComprovante();
-                    carregarValidadorPagamentos();
                 } catch (err) {
                     console.error(err);
                     alert("Erro ao rejeitar comprovante: " + err.message);
@@ -2261,10 +2230,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 tbody.innerHTML = finalHistorico.map(item => {
                     const valFmt = Number(item.valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                    const dtObj = item.ordemValidacao ? new Date(item.ordemValidacao) : (item.dataExibicao ? new Date(item.dataExibicao) : null);
-                    const dataStr = (dtObj && !isNaN(dtObj))
-                        ? dtObj.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })
-                        : '-';
+                    const dataStr = window.formatarDataHoraBR(item.ordemValidacao || item.dataExibicao, true);
 
                     const statusBadge = item.status === 'aprovado'
                         ? '<span class="bg-green-100 text-green-700 px-2.5 py-1 rounded-full text-[10px] font-black inline-flex items-center gap-1"><i class="fas fa-check"></i> Aprovado</span>'
@@ -2402,6 +2368,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             window.comprovanteAtualId = id;
             window.comprovanteRifaItemAtual = null;
             document.getElementById('modalComprovanteSubtitulo').textContent = subtitulo;
+            document.getElementById('modalComprovanteAcoes')?.classList.remove('hidden');
             
             const frame = document.getElementById('frameComprovante');
             const img = document.getElementById('imgComprovante');
@@ -2436,6 +2403,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             window.comprovanteRifaItemAtual = item;
             const valFmt = Number(item.valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
             document.getElementById('modalComprovanteSubtitulo').textContent = `${item.nome} - ${valFmt} (${item.subtitulo || ''})`;
+            document.getElementById('modalComprovanteAcoes')?.classList.remove('hidden');
             
             const frame = document.getElementById('frameComprovante');
             const img = document.getElementById('imgComprovante');
