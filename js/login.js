@@ -11,17 +11,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // 1. Limpa a cache de sessões mortas ao abrir o login
+    // 1. Verifica sessão ativa ao abrir o login
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (session) {
         await rotearParaPainel(session.user.id);
         return;
     }
 
-    // Captura os inputs de forma blindada
     const inputs = formLogin ? Array.from(formLogin.querySelectorAll('input')).filter(i => i.type !== 'hidden' && i.type !== 'submit') : [];
     
-    // Configuração do Botão "Acesso Admin"
     const elementosTexto = Array.from(document.querySelectorAll('a, span, p, button, div'));
     const btnAcessoAdmin = elementosTexto.find(el => el.textContent.trim().toLowerCase() === 'acesso admin');
     
@@ -31,7 +29,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         const inputIdentificacao = inputs[0];
         const inputSenha = inputs[1];
 
-        // Torna o botão clicável caso não seja um button nativo
         btnAcessoAdmin.style.cursor = 'pointer';
 
         btnAcessoAdmin.addEventListener('click', (e) => {
@@ -39,31 +36,23 @@ document.addEventListener('DOMContentLoaded', async () => {
             modoAdminAtivo = !modoAdminAtivo;
 
             if (modoAdminAtivo) {
-                // Remove as amarras numéricas do HTML para permitir E-mail
                 inputIdentificacao.removeAttribute('pattern');
                 inputSenha.removeAttribute('pattern');
-
-                // Vira o teclado para Alfanumérico/E-mail
                 inputIdentificacao.type = 'email';
                 inputIdentificacao.inputMode = 'email';
                 inputIdentificacao.placeholder = 'E-mail do Administrador';
-                
                 inputSenha.type = 'password';
-                inputSenha.inputMode = 'text'; // Teclado completo para a senha
-                
+                inputSenha.inputMode = 'text';
                 btnAcessoAdmin.textContent = 'Acesso Médium';
                 btnAcessoAdmin.classList.add('text-red-600');
             } else {
-                // Volta o teclado para Numérico (Médium)
                 inputIdentificacao.setAttribute('pattern', '[0-9]*');
                 inputIdentificacao.type = 'tel';
                 inputIdentificacao.inputMode = 'numeric';
                 inputIdentificacao.placeholder = 'ID (1º Acesso) ou WhatsApp';
-                
                 inputSenha.setAttribute('pattern', '[0-9]*');
                 inputSenha.type = 'password';
                 inputSenha.inputMode = 'numeric';
-                
                 btnAcessoAdmin.textContent = 'Acesso Admin';
                 btnAcessoAdmin.classList.remove('text-red-600');
             }
@@ -71,7 +60,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (formLogin) {
-        // Desativa validações nativas (balões de erro do navegador) para controlar no JS
         formLogin.setAttribute('novalidate', 'true');
 
         formLogin.addEventListener('submit', async (e) => {
@@ -96,9 +84,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (msgErro) msgErro.classList.add('hidden');
 
             try {
-                // ==========================================
                 // FLUXO 1: ACESSO ADMIN (E-MAIL PURO)
-                // ==========================================
                 if (modoAdminAtivo || campoIdentValor.includes('@')) {
                     const { data: authData, error: authError } = await supabaseClient.auth.signInWithPassword({
                         email: campoIdentValor,
@@ -108,25 +94,19 @@ document.addEventListener('DOMContentLoaded', async () => {
                     if (authError) throw new Error("E-mail ou senha de administrador incorretos.");
                     
                     await rotearParaPainel(authData.user.id, null);
-                    return; // Interrompe a execução aqui para o Admin
+                    return;
                 }
 
-                // ==========================================
                 // FLUXO 2: ACESSO MÉDIUM (ID OU TELEFONE)
-                // ==========================================
-                let idBusca = null;
-                let emailLogin = null;
-                let telefoneAcesso = null;
-
-                const loginLimpo = campoIdentValor.replace(/\D/g, ''); // Deixa apenas os números
+                const loginLimpo = campoIdentValor.replace(/\D/g, '');
                 if (!loginLimpo) throw new Error("Identificação inválida. Digite apenas números.");
 
-                // REGRA A: Primeiro Acesso ou Senha Resetada via ID
+                // REGRA A: Primeiro Acesso (ID curto)
                 if (loginLimpo.length < 8) {
-                    idBusca = parseInt(loginLimpo, 10);
+                    const idBusca = parseInt(loginLimpo, 10);
                     
                     if (campoSenhaValor !== '123456') {
-                        throw new Error("Senha incorreta para primeiro acesso ou redefinição. Utilize a senha padrão 123456.");
+                        throw new Error("Senha incorreta para primeiro acesso. Utilize a senha padrão 123456.");
                     }
 
                     const { data: ficha, error: errFicha } = await supabaseClient
@@ -138,46 +118,21 @@ document.addEventListener('DOMContentLoaded', async () => {
                     if (errFicha || !ficha) throw new Error("ID não encontrado. Fale com a Administração.");
 
                     if (ficha.senha_cadastrada) {
-                        throw new Error("Este cadastro já foi ativado! Faça login com o seu WhatsApp e a senha de 6 números criada.");
+                        throw new Error("Este cadastro já foi ativado! Faça login com o seu telefone e a senha criada.");
                     }
 
-                    // SUCESSO NO 1º ACESSO OU RESET -> Salva o ID na memória e vai para o cadastro
                     localStorage.setItem('medium_id', ficha.id);
                     window.location.replace('cadastro.html');
                     return;
 
-                // REGRA B: Login via Telefone (Suporta login normal E também quando a senha foi resetada para 123456)
+                // REGRA B: Login com Telefone (Normal ou Senha Resetada para 123456)
                 } else {
-                    telefoneAcesso = loginLimpo;
+                    let telefoneAcesso = loginLimpo;
                     if (telefoneAcesso.startsWith('55') && telefoneAcesso.length >= 12) {
                         telefoneAcesso = telefoneAcesso.substring(2);
                     }
 
-                    // Consulta a ficha ativa do médium pelo telefone para verificar se houve Reset de Senha ou e-mail Auth atualizado
-                    const { data: listaFichasTel } = await supabaseClient
-                        .from('mediuns')
-                        .select('id, senha_cadastrada, email, status_ativo')
-                        .eq('telefone', telefoneAcesso)
-                        .order('status_ativo', { ascending: false })
-                        .limit(1);
-
-                    const fichaTel = (listaFichasTel && listaFichasTel.length > 0) ? listaFichasTel[0] : null;
-
-                    // Se a senha foi resetada pelo Admin (senha_cadastrada == false) e o médium digitou o WhatsApp + 123456:
-                    if (fichaTel && !fichaTel.senha_cadastrada) {
-                        if (campoSenhaValor === '123456') {
-                            localStorage.setItem('medium_id', fichaTel.id);
-                            window.location.replace('cadastro.html');
-                            return;
-                        } else {
-                            throw new Error("Sua senha foi resetada pela Administração. Digite 123456 no campo de senha para cadastrar uma nova.");
-                        }
-                    }
-
-                    // Usa o e-mail Auth vinculado na ficha (caso já tenha feito reset antes) ou o padrão telefone@terreiro.app
-                    emailLogin = (fichaTel && fichaTel.email && fichaTel.email.includes('@'))
-                        ? fichaTel.email
-                        : `${telefoneAcesso}@terreiro.app`;
+                    const emailLogin = `${telefoneAcesso}@terreiro.app`;
 
                     const { data, error } = await supabaseClient.auth.signInWithPassword({
                         email: emailLogin,
@@ -186,7 +141,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                     if (error) throw new Error("Identificação ou senha incorretos.");
 
-                    // Sucesso: Salva o telefone e roteia garantindo vínculo ativo (Multiterreiro SaaS)
                     localStorage.setItem('telefone_acesso', telefoneAcesso);
                     await rotearParaPainel(data.user.id, telefoneAcesso);
                 }
@@ -204,10 +158,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function rotearParaPainel(authId, telefone = null) {
         try {
-            // Prioriza ficha ativa caso o usuário já tenha pertencido a outro terreiro no SaaS
             const { data: listaAuth } = await supabaseClient
                 .from('mediuns')
-                .select('id, cadastro_completo, is_master, status_ativo')
+                .select('id, cadastro_completo, senha_cadastrada, is_master, status_ativo')
                 .eq('auth_id', authId)
                 .order('status_ativo', { ascending: false })
                 .limit(1);
@@ -217,7 +170,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (!perfil && telefone) {
                 const { data: listaTel } = await supabaseClient
                     .from('mediuns')
-                    .select('id, cadastro_completo, status_ativo')
+                    .select('id, cadastro_completo, senha_cadastrada, status_ativo')
                     .eq('telefone', telefone)
                     .order('status_ativo', { ascending: false })
                     .limit(1);
@@ -230,13 +183,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (perfil) {
                 localStorage.setItem('medium_id', perfil.id);
-                if (perfil.cadastro_completo || perfil.is_master) {
+                // Se o cadastro está completo E a senha não está pendente de reset, vai para presença
+                if ((perfil.cadastro_completo && perfil.senha_cadastrada !== false) || perfil.is_master) {
                     window.location.replace('presenca.html');
                 } else {
                     window.location.replace('cadastro.html');
                 }
             } else {
-                // Se for Master logado direto com e-mail, sem tabela de médium correspondente
                 window.location.replace('admin.html');
             }
         } catch(e) {
