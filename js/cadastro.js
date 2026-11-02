@@ -69,7 +69,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
 
-        if (document.getElementById('cadNomeCompleto')) document.getElementById('cadNomeCompleto').value = medium.nome_completo || '';
+        // Preenchimento blindado (compatível com cadNomeCompleto ou nomeCompleto)
+        const inputNomeEl = document.getElementById('cadNomeCompleto') || document.getElementById('nomeCompleto');
+        if (inputNomeEl) {
+            inputNomeEl.value = medium.nome_completo || '';
+        }
+
         if (document.getElementById('cadNomeSocial')) document.getElementById('cadNomeSocial').value = medium.nome_social || '';
         if (document.getElementById('cadNascimento') && medium.data_nascimento) document.getElementById('cadNascimento').value = medium.data_nascimento;
         if (document.getElementById('cadTelefone') && medium.telefone) document.getElementById('cadTelefone').value = medium.telefone;
@@ -86,6 +91,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (!dadosMedium) return exibirMensagem("Os dados da ficha ainda não foram carregados.");
 
+            const valNomeCompleto = (document.getElementById('cadNomeCompleto') || document.getElementById('nomeCompleto'))?.value.trim() || dadosMedium.nome_completo;
             const valNomeSocial = document.getElementById('cadNomeSocial').value.trim();
             const valGrau = document.getElementById('cadGrau').value;
             const valFuncao = document.getElementById('cadFuncao').value;
@@ -120,10 +126,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (msgErro) msgErro.classList.add('hidden');
 
             try {
-                const emailAuth = `${telefoneLimpo}@terreiro.app`;
-                let novoAuthId = dadosMedium.auth_id;
-
-                try {
                 let emailAuth = `${telefoneLimpo}@terreiro.app`;
                 let novoAuthId = dadosMedium.auth_id;
 
@@ -162,6 +164,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
 
                 const updateData = {
+                    nome_completo: valNomeCompleto,
                     nome_social: valNomeSocial,
                     telefone: telefoneLimpo,
                     email: emailAuth,
