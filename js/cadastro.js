@@ -123,7 +123,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const emailAuth = `${telefoneLimpo}@terreiro.app`;
                 let novoAuthId = dadosMedium.auth_id;
 
-                // Só tenta criar a conta Auth se ela ainda não existir (Com suporte a reaproveitamento Multiterreiro SaaS)
+                try {
+                let emailAuth = `${telefoneLimpo}@terreiro.app`;
+                let novoAuthId = dadosMedium.auth_id;
+
+                // Só tenta criar a conta Auth se ela ainda não existir (Com suporte a Reset de Senha e Multiterreiro SaaS)
                 if (!novoAuthId) {
                     const { data: authData, error: errAuth } = await supabaseClient.auth.signUp({
                         email: emailAuth,
@@ -132,14 +136,23 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                     if (errAuth) {
                         if (errAuth.message.includes('already registered')) {
+                            // Tenta logar caso o médium tenha digitado a mesma senha anterior
                             const { data: loginExistente, error: errLoginEx } = await supabaseClient.auth.signInWithPassword({
                                 email: emailAuth,
                                 password: valNovaSenha
                             });
-                            if (errLoginEx || !loginExistente?.user) {
-                                throw new Error("Este WhatsApp já possui conta na plataforma. Digite a mesma senha de 6 dígitos que você já utilizava ou peça suporte à direção.");
+                            if (!errLoginEx && loginExistente?.user) {
+                                novoAuthId = loginExistente.user.id;
+                            } else {
+                                // É um Reset de Senha: cria credencial limpa vinculada ao ID do médium
+                                emailAuth = `${telefoneLimpo}_${dadosMedium.id}_${Date.now()}@terreiro.app`;
+                                const { data: authReset, error: errReset } = await supabaseClient.auth.signUp({
+                                    email: emailAuth,
+                                    password: valNovaSenha
+                                });
+                                if (errReset) throw new Error("Erro ao redefinir acesso: " + errReset.message);
+                                novoAuthId = authReset.user.id;
                             }
-                            novoAuthId = loginExistente.user.id;
                         } else {
                             throw new Error("Erro na criação do acesso: " + errAuth.message);
                         }
