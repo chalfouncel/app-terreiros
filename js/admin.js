@@ -1363,6 +1363,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <div class="flex items-center justify-center space-x-4">
                             <button onclick="alternarStatusAtivoMedium(${m.id}, ${isAtivo})" class="${colorInativar} transition" title="${titleInativar}"><i class="fas ${iconInativar}"></i></button>
                             <button onclick="abrirModalEditarMedium(${m.id})" class="text-purple-500 hover:text-purple-700 transition" title="Editar Médium"><i class="fas fa-user-edit"></i></button>
+                            <button onclick="resetarSenhaMedium(${m.id}, '${m.nome_completo.replace(/'/g, "\\'")}')" class="text-amber-500 hover:text-amber-700 transition" title="Resetar Senha para 123456"><i class="fas fa-unlock-alt"></i></button>
                             <button onclick="abrirModalPermissoes(${m.id}, '${m.nome_completo.replace(/'/g, "\\'")}', '${perms}')" class="text-blue-500 hover:text-blue-700 transition" title="Permissões de Acesso"><i class="fas fa-key"></i></button>
                             <button onclick="excluirMedium(${m.id}, '${m.nome_completo.replace(/'/g, "\\'")}')" class="text-red-500 hover:text-red-700 transition" title="Excluir Médium"><i class="fas fa-trash"></i></button>
                         </div>
@@ -4418,6 +4419,30 @@ window.alternarStatusAtivoMedium = async (id, statusAtual) => {
     const { error } = await supabaseClient.from('mediuns').update({ status_ativo: novoStatus }).eq('id', id).eq('terreiro_id', idTerreiroGlobal);
     if (error) alert('Erro ao alterar status: ' + error.message);
     else document.getElementById('menuQuadroMediuns')?.click();
+};
+
+window.resetarSenhaMedium = async (id, nome) => {
+    const idFormatado = String(id).padStart(2, '0');
+    if (!confirm(`Deseja RESETAR a senha de ${nome} para o padrão 123456?\n\nO médium deverá fazer login usando:\n• Identificação (ID): ${idFormatado}\n• Senha Padrão: 123456`)) return;
+
+    try {
+        const { error } = await supabaseClient
+            .from('mediuns')
+            .update({
+                senha_cadastrada: false,
+                cadastro_completo: false,
+                auth_id: null
+            })
+            .eq('id', id)
+            .eq('terreiro_id', idTerreiroGlobal);
+
+        if (error) throw error;
+
+        alert(`✅ Senha de ${nome} resetada para 123456!\n\nInstrua o médium a entrar no sistema digitando o ID (${idFormatado}) e a senha 123456 para cadastrar uma nova senha.`);
+        document.getElementById('menuQuadroMediuns')?.click();
+    } catch (err) {
+        alert('Erro ao resetar senha: ' + err.message);
+    }
 };
 
 window.abrirModalPermissoes = (id, nome, permsString) => {
