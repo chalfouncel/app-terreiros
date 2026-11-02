@@ -19,8 +19,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
 
-    const idNumerico = parseInt(mediumIdLocal);
+    const idNumerico = parseInt(mediumIdLocal, 10);
     let dadosMedium = null;
+    let modoApenasResetSenha = false;
 
     try {
         const { data: medium, error: errMed } = await supabaseClient
@@ -34,13 +35,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        // Se o médium já estiver com o cadastro integralmente concluído, vai para a presença
-        if (medium.cadastro_completo) {
+        // Só redireciona para presença se o cadastro estiver completo E a senha já estiver cadastrada
+        if (medium.cadastro_completo && medium.senha_cadastrada !== false) {
             window.location.replace('presenca.html');
             return;
         }
 
         dadosMedium = medium;
+        modoApenasResetSenha = (medium.cadastro_completo === true && medium.senha_cadastrada === false);
 
         // Carrega graus e funções personalizados do terreiro
         if (medium.terreiro_id) {
@@ -69,16 +71,28 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
 
-        // Preenchimento blindado (compatível com cadNomeCompleto ou nomeCompleto)
         const inputNomeEl = document.getElementById('cadNomeCompleto') || document.getElementById('nomeCompleto');
-        if (inputNomeEl) {
-            inputNomeEl.value = medium.nome_completo || '';
-        }
-
+        if (inputNomeEl) inputNomeEl.value = medium.nome_completo || '';
         if (document.getElementById('cadNomeSocial')) document.getElementById('cadNomeSocial').value = medium.nome_social || '';
         if (document.getElementById('cadNascimento') && medium.data_nascimento) document.getElementById('cadNascimento').value = medium.data_nascimento;
         if (document.getElementById('cadTelefone') && medium.telefone) document.getElementById('cadTelefone').value = medium.telefone;
         if (document.getElementById('cadPalavra') && medium.palavra) document.getElementById('cadPalavra').value = medium.palavra;
+
+        // Se for apenas Reset de Senha de um médium já cadastrado, oculta os campos cadastrais e foca direto na Nova Senha
+        if (modoApenasResetSenha) {
+            ['cadNomeCompleto', 'nomeCompleto', 'cadNomeSocial', 'cadGrau', 'cadFuncao', 'cadPalavra', 'cadNascimento', 'cadTelefone'].forEach(idCampo => {
+                const el = document.getElementById(idCampo);
+                if (el) {
+                    el.removeAttribute('required');
+                    const blocoPai = el.closest('.grid') || el.parentElement;
+                    if (blocoPai) blocoPai.classList.add('hidden');
+                }
+            });
+
+            const tituloPag = document.querySelector('h1, h2');
+            if (tituloPag) tituloPag.textContent = `Redefinir Senha — ${medium.nome_social || medium.nome_completo.split(' ')[0]}`;
+            document.getElementById('cadNovaSenha')?.focus();
+        }
 
     } catch (err) {
         console.error('Erro ao ler ficha:', err);
@@ -91,6 +105,81 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (!dadosMedium) return exibirMensagem("Os dados da ficha ainda não foram carregados.");
 
+            const valNovaSenha = document.getElementById('cadNovaSenha').value.trim();
+            const valConfirmaSenha = document.getElementById('cadConfirmaSenha').value.trim();
+
+            const apenasNumerosSenha = valNovaSenha.replace(/\D/g, '');
+            if (apenasNumerosSenha.length !== 6 || valNovaSenha.length !== 6) {
+                return exibirMensagem("A senha deve conter exatamente 6 números.");
+            }
+
+            if (valNovaSenha === '123456') {
+                return exibirMensagem("Escolha uma senha pessoal diferente da senha padrão 123456.");
+            }
+
+            if (valNovaSenha !== valConfirmaSenha) {
+                return exibirMensagem("As senhas digitadas não são iguais. Tente novamente.");
+            }
+
+            // =================================================================
+            // FLUXO A: APENAS REDEFINIÇÃO DE SENHA (MÉDIUM JÁ CADASTRADO)
+            // =================================================================
+            if (modoApenasResetSenha) {
+                if (btnSalvar) {
+                    btnSalvar.disabled = true;
+                    btnSalvar.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Salvando nova senha...';
+                }
+                if (msgErro) msgErro.classList.add('hidden');
+
+                try {
+                    let telLimpo = String(dadosMedium.telefone || '').replace(/\D/g, '');
+                    if (telLimpo.startsWith('55') && telLimpo.length >= 12) telLimpo = telLimpo.substring(2);
+                    const emailAuth = `${telLimpo}@terreiro.app`;
+
+                    // Garante que está autenticado na sessão antes de trocar a senha
+                    const { data: { session } } = await supabaseClient.auth.getSession();
+                    if (!session) {
+                        const { error: errSign } = await supabaseClient.auth.signInWithPassword({
+                            email: emailAuth,
+                            password: '123456'
+                        });
+                        if (errSign) throw new Error("Sessão expirada. Volte ao login e entre com 123456.");
+                    }
+
+                    // Atualiza a senha diretamente no mesmo usuário do Supabase Auth
+                    const { error: errUpdAuth } = await supabaseClient.auth.updateUser({
+                        password: valNovaSenha
+                    });
+                    if (errUpdAuth) throw errUpdAuth;
+
+                    // Reativa a flag senha_cadastrada na tabela mediuns mantendo todos os dados intactos
+                    const { error: errBd } = await supabaseClient
+                        .from('mediuns')
+                        .update({ senha_cadastrada: true })
+                        .eq('id', dadosMedium.id);
+
+                    if (errBd) throw errBd;
+
+                    localStorage.setItem('telefone_acesso', telLimpo);
+                    exibirMensagem('✅ Nova senha gravada com sucesso! Entrando...', 'green');
+
+                    setTimeout(() => {
+                        window.location.replace('presenca.html');
+                    }, 1200);
+                } catch (err) {
+                    console.error(err);
+                    exibirMensagem(err.message, 'red');
+                    if (btnSalvar) {
+                        btnSalvar.disabled = false;
+                        btnSalvar.innerHTML = 'Salvar e Continuar';
+                    }
+                }
+                return;
+            }
+
+            // =================================================================
+            // FLUXO B: PRIMEIRO ACESSO COMPLETO (NOVO MÉDIUM)
+            // =================================================================
             const valNomeCompleto = (document.getElementById('cadNomeCompleto') || document.getElementById('nomeCompleto'))?.value.trim() || dadosMedium.nome_completo;
             const valNomeSocial = document.getElementById('cadNomeSocial').value.trim();
             const valGrau = document.getElementById('cadGrau').value;
@@ -98,8 +187,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             const valNasc = document.getElementById('cadNascimento').value;
             const valPalavra = document.getElementById('cadPalavra').value.trim().toUpperCase();
             const valTelBruto = document.getElementById('cadTelefone').value;
-            const valNovaSenha = document.getElementById('cadNovaSenha').value.trim();
-            const valConfirmaSenha = document.getElementById('cadConfirmaSenha').value.trim();
 
             let telefoneLimpo = valTelBruto.replace(/\D/g, '');
             if (telefoneLimpo.startsWith('55') && telefoneLimpo.length >= 12) {
@@ -110,15 +197,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return exibirMensagem("Digite o seu WhatsApp válido com DDD.");
             }
 
-            const apenasNumerosSenha = valNovaSenha.replace(/\D/g, '');
-            if (apenasNumerosSenha.length !== 6 || valNovaSenha.length !== 6) {
-                return exibirMensagem("A senha deve conter exatamente 6 números.");
-            }
-
-            if (valNovaSenha !== valConfirmaSenha) {
-                return exibirMensagem("As senhas digitadas não são iguais. Tente novamente.");
-            }
-
             if (btnSalvar) {
                 btnSalvar.disabled = true;
                 btnSalvar.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Criando acesso...';
@@ -126,10 +204,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (msgErro) msgErro.classList.add('hidden');
 
             try {
-                let emailAuth = `${telefoneLimpo}@terreiro.app`;
+                const emailAuth = `${telefoneLimpo}@terreiro.app`;
                 let novoAuthId = dadosMedium.auth_id;
 
-                // Só tenta criar a conta Auth se ela ainda não existir (Com suporte a Reset de Senha e Multiterreiro SaaS)
                 if (!novoAuthId) {
                     const { data: authData, error: errAuth } = await supabaseClient.auth.signUp({
                         email: emailAuth,
@@ -138,32 +215,26 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                     if (errAuth) {
                         if (errAuth.message.includes('already registered')) {
-                            // Tenta logar caso o médium tenha digitado a mesma senha anterior
                             const { data: loginExistente, error: errLoginEx } = await supabaseClient.auth.signInWithPassword({
                                 email: emailAuth,
                                 password: valNovaSenha
                             });
-                            if (!errLoginEx && loginExistente?.user) {
-                                novoAuthId = loginExistente.user.id;
-                            } else {
-                                // É um Reset de Senha: cria credencial limpa vinculada ao ID do médium
-                                emailAuth = `${telefoneLimpo}_${dadosMedium.id}_${Date.now()}@terreiro.app`;
-                                const { data: authReset, error: errReset } = await supabaseClient.auth.signUp({
-                                    email: emailAuth,
-                                    password: valNovaSenha
-                                });
-                                if (errReset) throw new Error("Erro ao redefinir acesso: " + errReset.message);
-                                novoAuthId = authReset.user.id;
+                            if (errLoginEx || !loginExistente?.user) {
+                                throw new Error("Este WhatsApp já possui conta na plataforma. Digite a mesma senha de 6 dígitos que você já utilizava ou peça para a direção resetar sua senha.");
                             }
+                            novoAuthId = loginExistente.user.id;
                         } else {
                             throw new Error("Erro na criação do acesso: " + errAuth.message);
                         }
                     } else {
                         novoAuthId = authData.user.id;
                     }
+                } else {
+                    // Caso já possua auth_id mas estava em 1º acesso com senha 123456
+                    await supabaseClient.auth.signInWithPassword({ email: emailAuth, password: '123456' });
+                    await supabaseClient.auth.updateUser({ password: valNovaSenha });
                 }
 
-                // OBJETO DE ATUALIZAÇÃO SEM A COLUNA 'email' (EXATAMENTE COMO A TABELA MEDIUNS EXIGE)
                 const updateData = {
                     nome_completo: valNomeCompleto,
                     nome_social: valNomeSocial,
@@ -173,7 +244,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     funcao: valFuncao,
                     palavra: valPalavra,
                     senha_cadastrada: true,
-                    cadastro_completo: true, 
+                    cadastro_completo: true,
                     auth_id: novoAuthId
                 };
 
