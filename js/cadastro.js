@@ -163,11 +163,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                 }
 
+                // OBJETO DE ATUALIZAÇÃO SEM A COLUNA 'email' (EXATAMENTE COMO A TABELA MEDIUNS EXIGE)
                 const updateData = {
                     nome_completo: valNomeCompleto,
                     nome_social: valNomeSocial,
                     telefone: telefoneLimpo,
-                    email: emailAuth,
                     data_nascimento: valNasc,
                     grau: valGrau,
                     funcao: valFuncao,
