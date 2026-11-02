@@ -4422,23 +4422,17 @@ window.alternarStatusAtivoMedium = async (id, statusAtual) => {
 };
 
 window.resetarSenhaMedium = async (id, nome) => {
-    const idFormatado = String(id).padStart(2, '0');
-    if (!confirm(`Deseja RESETAR a senha de ${nome} para o padrão 123456?\n\nO médium deverá fazer login usando:\n• Identificação (ID): ${idFormatado}\n• Senha Padrão: 123456`)) return;
+    if (!confirm(`Deseja RESETAR a senha de ${nome} para o padrão 123456?\n\nO médium continuará entrando com o número de telefone dele + senha 123456 e será solicitado a criar a nova senha.`)) return;
 
     try {
-        const { error } = await supabaseClient
-            .from('mediuns')
-            .update({
-                senha_cadastrada: false,
-                cadastro_completo: false,
-                auth_id: null
-            })
-            .eq('id', id)
-            .eq('terreiro_id', idTerreiroGlobal);
+        const { error } = await supabaseClient.rpc('admin_resetar_senha_medium', {
+            p_medium_id: id,
+            p_terreiro_id: idTerreiroGlobal
+        });
 
         if (error) throw error;
 
-        alert(`✅ Senha de ${nome} resetada para 123456!\n\nInstrua o médium a entrar no sistema digitando o ID (${idFormatado}) e a senha 123456 para cadastrar uma nova senha.`);
+        alert(`✅ Senha de ${nome} resetada para 123456!\n\nBasta o médium entrar com o WhatsApp dele e a senha 123456 para definir a nova senha.`);
         document.getElementById('menuQuadroMediuns')?.click();
     } catch (err) {
         alert('Erro ao resetar senha: ' + err.message);
