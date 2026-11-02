@@ -164,6 +164,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const updateData = {
                     nome_social: valNomeSocial,
                     telefone: telefoneLimpo,
+                    email: emailAuth,
                     data_nascimento: valNasc,
                     grau: valGrau,
                     funcao: valFuncao,
