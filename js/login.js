@@ -121,12 +121,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const loginLimpo = campoIdentValor.replace(/\D/g, ''); // Deixa apenas os números
                 if (!loginLimpo) throw new Error("Identificação inválida. Digite apenas números.");
 
-                // REGRA A: Primeiro Acesso (ID)
+                // REGRA A: Primeiro Acesso ou Senha Resetada via ID
                 if (loginLimpo.length < 8) {
-                    idBusca = parseInt(loginLimpo);
+                    idBusca = parseInt(loginLimpo, 10);
                     
                     if (campoSenhaValor !== '123456') {
-                        throw new Error("Senha incorreta para primeiro acesso. Utilize a senha padrão 123456.");
+                        throw new Error("Senha incorreta para primeiro acesso ou redefinição. Utilize a senha padrão 123456.");
                     }
 
                     const { data: ficha, error: errFicha } = await supabaseClient
@@ -138,22 +138,46 @@ document.addEventListener('DOMContentLoaded', async () => {
                     if (errFicha || !ficha) throw new Error("ID não encontrado. Fale com a Administração.");
 
                     if (ficha.senha_cadastrada) {
-                        throw new Error("Este cadastro já foi ativado! Faça login com o seu telefone e a senha (Palavra) criada.");
+                        throw new Error("Este cadastro já foi ativado! Faça login com o seu WhatsApp e a senha de 6 números criada.");
                     }
 
-                    // SUCESSO NO 1º ACESSO -> Salva o ID na memória e vai para o cadastro
+                    // SUCESSO NO 1º ACESSO OU RESET -> Salva o ID na memória e vai para o cadastro
                     localStorage.setItem('medium_id', ficha.id);
                     window.location.replace('cadastro.html');
                     return;
 
-                // REGRA B: Login Normal (Telefone + Nova Senha)
+                // REGRA B: Login via Telefone (Suporta login normal E também quando a senha foi resetada para 123456)
                 } else {
                     telefoneAcesso = loginLimpo;
                     if (telefoneAcesso.startsWith('55') && telefoneAcesso.length >= 12) {
                         telefoneAcesso = telefoneAcesso.substring(2);
                     }
 
-                    emailLogin = `${telefoneAcesso}@terreiro.app`;
+                    // Consulta a ficha ativa do médium pelo telefone para verificar se houve Reset de Senha ou e-mail Auth atualizado
+                    const { data: listaFichasTel } = await supabaseClient
+                        .from('mediuns')
+                        .select('id, senha_cadastrada, email, status_ativo')
+                        .eq('telefone', telefoneAcesso)
+                        .order('status_ativo', { ascending: false })
+                        .limit(1);
+
+                    const fichaTel = (listaFichasTel && listaFichasTel.length > 0) ? listaFichasTel[0] : null;
+
+                    // Se a senha foi resetada pelo Admin (senha_cadastrada == false) e o médium digitou o WhatsApp + 123456:
+                    if (fichaTel && !fichaTel.senha_cadastrada) {
+                        if (campoSenhaValor === '123456') {
+                            localStorage.setItem('medium_id', fichaTel.id);
+                            window.location.replace('cadastro.html');
+                            return;
+                        } else {
+                            throw new Error("Sua senha foi resetada pela Administração. Digite 123456 no campo de senha para cadastrar uma nova.");
+                        }
+                    }
+
+                    // Usa o e-mail Auth vinculado na ficha (caso já tenha feito reset antes) ou o padrão telefone@terreiro.app
+                    emailLogin = (fichaTel && fichaTel.email && fichaTel.email.includes('@'))
+                        ? fichaTel.email
+                        : `${telefoneAcesso}@terreiro.app`;
 
                     const { data, error } = await supabaseClient.auth.signInWithPassword({
                         email: emailLogin,
