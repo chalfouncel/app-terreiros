@@ -2,7 +2,7 @@
 // CONFIGURAÇÃO INICIAL E SEGURANÇA
 // ==========================================
 // Substitua pelas suas credenciais reais
-const SUPABASE_URL = 'SUA_URL_AQUI'; 
+const SUPABASE_URL = 'https://pbjwqhfzsvdougeksztq.supabase.co'; 
 const SUPABASE_KEY = 'SUA_KEY_AQUI'; 
 const supabaseCantina = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
