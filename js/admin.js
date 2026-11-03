@@ -5078,6 +5078,13 @@ window.gerarPDF_ATA = async (eventoId) => {
                     if (evento.escalas.img_padilha === idMed) frasesAta.push(`"${nomeFinal}" Entrou com a imagem da Maria Padilha`);
                     if (evento.escalas.flores_padilha === idMed) frasesAta.push(`"${nomeFinal}" Entrou com as flores da Maria Padilha`);
                     
+                    // Condições Corrente Especial (Ex: Corrente de Ogum / Exu)
+                    if (evento.escalas.corrente_1 === idMed || 
+                        evento.escalas.corrente_2 === idMed || 
+                        evento.escalas.corrente_3 === idMed) {
+                        frasesAta.push(`"${nomeFinal}" Participou da Corrente Especial (Escala)`);
+                    }
+                    
                     // Condições Sacramentos
                     if (evento.escalas.batizados && evento.escalas.batizados.includes(idMed)) frasesAta.push(`"${nomeFinal}" foi Batizado (a) nesta gira`);
                     if (evento.escalas.consagrados && evento.escalas.consagrados.includes(idMed)) frasesAta.push(`"${nomeFinal}" foi Consagrado (a) nesta gira`);
