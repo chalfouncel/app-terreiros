@@ -1280,7 +1280,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             if(secAbaRifas) { secAbaRifas.classList.add('hidden'); secAbaRifas.classList.remove('flex'); }
             if(rodapeDoacao) rodapeDoacao.classList.remove('hidden');
             
+            const boxFinCantina = document.getElementById('boxDoacaoFinanceiraCantina');
+            const btnPainelCantinaApp = document.getElementById('btnAcessarPainelCantinaApp');
+
             if (aba === 'doacao') {
+                if (boxFinCantina) boxFinCantina.classList.add('hidden');
                 if(tabDoacaoGeral) { 
                     tabDoacaoGeral.className = baseClasses + " font-black shadow-md bg-tema-primaria text-white border-b-4 border-black/20";
                     const icone = tabDoacaoGeral.querySelector('i');
@@ -1291,6 +1295,19 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (boxPixElement) boxPixElement.classList.add('hidden');
                 document.getElementById('btnCopiarPix')?.classList.add('hidden');
             } else if (aba === 'cantina') {
+                if (boxFinCantina) boxFinCantina.classList.remove('hidden');
+                if (btnPainelCantinaApp && perfilMediumLogado && terreiroConfigMensalidade) {
+                    const souGestor = String(perfilMediumLogado.id) === String(terreiroConfigMensalidade.cantina_gestor_id);
+                    const souValidador = String(perfilMediumLogado.id) === String(terreiroConfigMensalidade.cantina_validador_id);
+                    const souAdmin = perfilMediumLogado.is_admin === true || perfilMediumLogado.is_master === true || perfilMediumLogado.perm_financeiro === true;
+                    if (souGestor || souValidador || souAdmin) {
+                        btnPainelCantinaApp.classList.remove('hidden');
+                        btnPainelCantinaApp.classList.add('flex');
+                    } else {
+                        btnPainelCantinaApp.classList.add('hidden');
+                        btnPainelCantinaApp.classList.remove('flex');
+                    }
+                }
                 if(tabDoacaoCantina) { 
                     tabDoacaoCantina.className = baseClasses + " font-black shadow-md bg-tema-primaria text-white border-b-4 border-black/20";
                     const icone = tabDoacaoCantina.querySelector('i');
@@ -3142,3 +3159,142 @@ async function verificarPendenciaMensalidade(mediumId) {
         });
     });
 })();
+
+// ====================================================================
+// DOAÇÃO EM DINHEIRO PARA A CANTINA (COMPROVANTE MANUAL OU ASAAS)
+// ====================================================================
+window.enviarDoacaoManualCantina = async () => {
+    const inpValor = document.getElementById('inputValorDoacaoCantina');
+    const inpObs = document.getElementById('inputObsDoacaoCantina');
+    const inpFile = document.getElementById('arquivoComprovanteCantinaApp');
+    const btn = document.getElementById('btnEnviarComprovanteCantinaApp');
+
+    const valor = parseFloat(inpValor?.value || '0');
+    if (!valor || valor <= 0) return alert("Digite o valor da doação realizada.");
+    if (!inpFile || !inpFile.files || inpFile.files.length === 0) {
+        return alert("Anexe a foto ou PDF do comprovante do PIX antes de enviar.");
+    }
+
+    const origHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Enviando comprovante...';
+
+    try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        const arquivo = inpFile.files[0];
+        const ext = arquivo.name.split('.').pop();
+        const fileName = `${idTerreiroGlobal}/cantina_doacao_${perfilMediumLogado.id}_${Date.now()}.${ext}`;
+
+        const { error: errUp } = await supabaseClient.storage.from('comprovantes').upload(fileName, arquivo);
+        if (errUp) throw errUp;
+
+        const { data: { publicUrl } } = supabaseClient.storage.from('comprovantes').getPublicUrl(fileName);
+        const obs = (inpObs?.value || '').trim();
+        const descricaoFinal = obs
+            ? `Doação de ${perfilMediumLogado.nome_completo} (${obs})`
+            : `Doação de ${perfilMediumLogado.nome_completo}`;
+
+        const { error: errIns } = await supabaseClient.from('caixa_cantina').insert([{
+            terreiro_id: idTerreiroGlobal,
+            tipo: 'entrada',
+            valor: valor,
+            descricao: descricaoFinal,
+            comprovante_url: publicUrl,
+            status: 'pendente',
+            metodo_pagamento: 'manual',
+            solicitado_por: session.user.id,
+            solicitante_nome: perfilMediumLogado.nome_completo
+        }]);
+
+        if (errIns) throw errIns;
+
+        alert("✅ Comprovante enviado com sucesso! Assim que a Gestora da Cantina confirmar o recebimento, o valor entrará no saldo oficial.");
+        inpValor.value = '';
+        if (inpObs) inpObs.value = '';
+        inpFile.value = '';
+        document.getElementById('btnFecharDoacao')?.click();
+
+    } catch (err) {
+        alert("Erro ao enviar comprovante: " + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = origHtml;
+    }
+};
+
+window.pagarDoacaoCantinaViaAsaas = async () => {
+    const inpValor = document.getElementById('inputValorDoacaoCantina');
+    const inpObs = document.getElementById('inputObsDoacaoCantina');
+    const btn = document.getElementById('btnPagarCantinaAsaasApp');
+
+    const valorLiquido = parseFloat(inpValor?.value || '0');
+    if (!valorLiquido || valorLiquido < 5) {
+        return alert("Para pagamento automático via Asaas, o valor mínimo da doação é R$ 5,00.");
+    }
+
+    if (!perfilMediumLogado.cpf || String(perfilMediumLogado.cpf).replace(/\D/g, '').length !== 11) {
+        const modalSolicitarCPF = document.getElementById('modalSolicitarCPF');
+        const formSalvarCPF = document.getElementById('formSalvarCPF');
+        const inputCpfAsaas = document.getElementById('inputCpfAsaas');
+        if (modalSolicitarCPF && formSalvarCPF) {
+            modalSolicitarCPF.classList.remove('hidden');
+            setTimeout(() => modalSolicitarCPF.querySelector('div')?.classList.replace('scale-95', 'scale-100'), 10);
+            formSalvarCPF.onsubmit = async (e) => {
+                e.preventDefault();
+                const cpfDig = inputCpfAsaas.value.replace(/\D/g, '');
+                if (cpfDig.length !== 11) return alert("CPF inválido.");
+                await supabaseClient.from('mediuns').update({ cpf: cpfDig }).eq('id', perfilMediumLogado.id);
+                perfilMediumLogado.cpf = cpfDig;
+                modalSolicitarCPF.classList.add('hidden');
+                window.pagarDoacaoCantinaViaAsaas();
+            };
+            return;
+        }
+    }
+
+    const origHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-circle-notch fa-spin mr-1"></i> Gerando link seguro Asaas...';
+
+    try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        const obs = (inpObs?.value || '').trim();
+        const descricaoFinal = obs
+            ? `Doação de ${perfilMediumLogado.nome_completo} (${obs})`
+            : `Doação de ${perfilMediumLogado.nome_completo}`;
+
+        const response = await fetch(`${supabaseClient.supabaseUrl}/functions/v1/asaas-gerar-cobranca-cantina`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'apikey': supabaseClient.supabaseKey
+            },
+            body: JSON.stringify({
+                terreiro_id: idTerreiroGlobal,
+                solicitado_por: session.user.id,
+                doador_nome: perfilMediumLogado.nome_completo,
+                doador_telefone: perfilMediumLogado.telefone || '21999999999',
+                doador_cpf: perfilMediumLogado.cpf,
+                valor_doacao: valorLiquido,
+                descricao: descricaoFinal
+            })
+        });
+
+        const resultado = await response.json();
+        if (!response.ok || resultado.error) {
+            throw new Error(resultado.error || 'Não foi possível gerar a cobrança no Asaas.');
+        }
+
+        const urlFatura = resultado.invoice_url || resultado.invoiceUrl;
+        if (urlFatura) {
+            window.location.href = urlFatura;
+        } else {
+            alert("Cobrança gerada com sucesso!");
+        }
+    } catch (err) {
+        alert("Atenção: " + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = origHtml;
+    }
+};
