@@ -5147,6 +5147,15 @@ window.gerarPDF_ATA = async (eventoId) => {
         const totalMediunsPres = presencas ? presencas.length : 0;
         const totalAssistPres = assistencias ? assistencias.length : 0;
 
+        // MACETE: Separa a 1ª linha das tabelas para criar blocos inquebráveis com os títulos
+        const idxMed = trsMediuns.indexOf('</tr>') + 5;
+        const linha1Med = trsMediuns.substring(0, idxMed);
+        const restoMed = trsMediuns.substring(idxMed);
+
+        const idxAss = trsAssist.indexOf('</tr>') + 5;
+        const linha1Ass = trsAssist.substring(0, idxAss);
+        const restoAss = trsAssist.substring(idxAss);
+
         const div = document.createElement('div');
         div.style.padding = '40px';
         div.style.fontFamily = 'Arial, sans-serif';
@@ -5173,51 +5182,65 @@ window.gerarPDF_ATA = async (eventoId) => {
                 
                <!-- BLOCO 1: CORRENTE MEDIÚNICA -->
                 <div style="margin-bottom: 25px;">
+                    <!-- CAIXA INQUEBRÁVEL: Título + Cabeçalho + 1ª Linha -->
+                    <div style="page-break-inside: avoid;">
+                        <div style="border-bottom: 2px solid #000; padding-bottom: 4px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: baseline;">
+                            <span style="font-size: 13px; font-weight: bold; text-transform: uppercase;">1. Corrente Mediúnica</span>
+                            <span style="font-size: 11px; font-weight: bold; color: #475569;">Total Presentes: ${totalMediunsPres}</span>
+                        </div>
+                        <table style="width: 100%; border-collapse: collapse; font-size: 11.5px; background-color: rgba(255, 255, 255, 0.6);">
+                            <colgroup><col style="width: 60%;"><col style="width: 18%;"><col style="width: 22%;"></colgroup>
+                            <thead>
+                                <tr>
+                                    <th style="border-bottom: 1px solid #000; padding: 6px 4px; text-align: left;">NOME DO MÉDIUM</th>
+                                    <th style="border-bottom: 1px solid #000; padding: 6px 4px; text-align: center;">GRAU</th>
+                                    <th style="border-bottom: 1px solid #000; padding: 6px 4px; text-align: right;">HORA CHECK-IN</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${linha1Med}
+                            </tbody>
+                        </table>
+                    </div>
+                    <!-- RESTANTE DOS MÉDIUNS -->
+                    ${restoMed.trim() ? `
                     <table style="width: 100%; border-collapse: collapse; font-size: 11.5px; margin-bottom: 15px; background-color: rgba(255, 255, 255, 0.6);">
-                        <thead style="display: table-header-group;">
-                            <!-- Título embutido no cabeçalho da tabela para não quebrar a página errado -->
-                            <tr>
-                                <th colspan="3" style="padding: 0; border: none; background: transparent;">
-                                    <div style="border-bottom: 2px solid #000; padding-bottom: 4px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: baseline;">
-                                        <span style="font-size: 13px; font-weight: bold; text-transform: uppercase; color: #000;">1. Corrente Mediúnica</span>
-                                        <span style="font-size: 11px; font-weight: bold; color: #475569;">Total Presentes: ${totalMediunsPres}</span>
-                                    </div>
-                                </th>
-                            </tr>
-                            <tr>
-                                <th style="border-bottom: 1px solid #000; padding: 6px 4px; text-align: left;">NOME DO MÉDIUM</th>
-                                <th style="border-bottom: 1px solid #000; padding: 6px 4px; text-align: center; width: 18%;">GRAU</th>
-                                <th style="border-bottom: 1px solid #000; padding: 6px 4px; text-align: right; width: 22%;">HORA CHECK-IN</th>
-                            </tr>
-                        </thead>
+                        <colgroup><col style="width: 60%;"><col style="width: 18%;"><col style="width: 22%;"></colgroup>
                         <tbody>
-                            ${trsMediuns}
+                            ${restoMed}
                         </tbody>
-                    </table>
+                    </table>` : ''}
                 </div>
 
                 <!-- BLOCO 2: ASSISTÊNCIA / VISITANTES -->
                 <div style="margin-bottom: 35px;">
+                    <!-- CAIXA INQUEBRÁVEL: Título + Cabeçalho + 1ª Linha -->
+                    <div style="page-break-inside: avoid;">
+                        <div style="border-bottom: 2px solid #000; padding-bottom: 4px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: baseline;">
+                            <span style="font-size: 13px; font-weight: bold; text-transform: uppercase;">2. Assistência / Visitantes</span>
+                            <span style="font-size: 11px; font-weight: bold; color: #475569;">Total Presentes: ${totalAssistPres}</span>
+                        </div>
+                        <table style="width: 100%; border-collapse: collapse; font-size: 11.5px; background-color: rgba(255, 255, 255, 0.6);">
+                            <colgroup><col style="width: 78%;"><col style="width: 22%;"></colgroup>
+                            <thead>
+                                <tr>
+                                    <th style="border-bottom: 1px solid #000; padding: 6px 4px; text-align: left;">NOME DO VISITANTE</th>
+                                    <th style="border-bottom: 1px solid #000; padding: 6px 4px; text-align: right;">HORA CHECK-IN</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${linha1Ass}
+                            </tbody>
+                        </table>
+                    </div>
+                    <!-- RESTANTE DA ASSISTÊNCIA -->
+                    ${restoAss.trim() ? `
                     <table style="width: 100%; border-collapse: collapse; font-size: 11.5px; margin-bottom: 15px; background-color: rgba(255, 255, 255, 0.6);">
-                        <thead style="display: table-header-group;">
-                            <!-- Título embutido no cabeçalho da tabela para não quebrar a página errado -->
-                            <tr>
-                                <th colspan="2" style="padding: 0; border: none; background: transparent;">
-                                    <div style="border-bottom: 2px solid #000; padding-bottom: 4px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: baseline;">
-                                        <span style="font-size: 13px; font-weight: bold; text-transform: uppercase; color: #000;">2. Assistência / Visitantes</span>
-                                        <span style="font-size: 11px; font-weight: bold; color: #475569;">Total Presentes: ${totalAssistPres}</span>
-                                    </div>
-                                </th>
-                            </tr>
-                            <tr>
-                                <th style="border-bottom: 1px solid #000; padding: 6px 4px; text-align: left;">NOME DO VISITANTE</th>
-                                <th style="border-bottom: 1px solid #000; padding: 6px 4px; text-align: right; width: 22%;">HORA CHECK-IN</th>
-                            </tr>
-                        </thead>
+                        <colgroup><col style="width: 78%;"><col style="width: 22%;"></colgroup>
                         <tbody>
-                            ${trsAssist}
+                            ${restoAss}
                         </tbody>
-                    </table>
+                    </table>` : ''}
                 </div>
                 
                 <div style="margin-top: 40px; text-align: center; page-break-inside: avoid;">
