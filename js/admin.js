@@ -6756,7 +6756,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
             const { data: numeros } = await supabaseClient.from('rifa_numeros').select('*').eq('rifa_id', idRifa).order('numero', {ascending: true});
             const totalRifaSelecionada = (numeros || [])
-                .filter(n => n.status_pagamento === 'aprovado')
+                .filter(n => n.status_pagamento === 'aprovado' || n.status_pagamento === 'pago')
                 .length * valorUnitarioRifa;
 
             const elTotalRifa = document.getElementById('totalArrecadadoRifaSelecionada');
@@ -6808,7 +6808,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 }
 
                 const numsStr = comp.numeros.map(n => String(n).padStart(2,'0')).join(', ');
-                const badgePendente = comp.status !== 'aprovado' ? `<span class="bg-yellow-100 text-yellow-800 text-[9px] px-1 rounded font-bold ml-1">Pendente</span>` : '';
+                const badgePendente = (comp.status !== 'aprovado' && comp.status !== 'pago') ? `<span class="bg-yellow-100 text-yellow-800 text-[9px] px-1 rounded font-bold ml-1">Pendente</span>` : '';
 
                 tbody.innerHTML += `
                     <tr class="border-b border-gray-100 hover:bg-gray-50">
