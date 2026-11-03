@@ -5171,14 +5171,19 @@ window.gerarPDF_ATA = async (eventoId) => {
                 
                 ${corpoTextoAta}
                 
-                <!-- BLOCO 1: CORRENTE MEDIÚNICA -->
+               <!-- BLOCO 1: CORRENTE MEDIÚNICA -->
                 <div style="margin-bottom: 25px;">
-                    <div style="border-bottom: 2px solid #000; padding-bottom: 4px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: baseline;">
-                        <span style="font-size: 13px; font-weight: bold; text-transform: uppercase;">1. Corrente Mediúnica</span>
-                        <span style="font-size: 11px; font-weight: bold; color: #475569;">Total Presentes: ${totalMediunsPres}</span>
-                    </div>
                     <table style="width: 100%; border-collapse: collapse; font-size: 11.5px; margin-bottom: 15px; background-color: rgba(255, 255, 255, 0.6);">
-                        <thead>
+                        <thead style="display: table-header-group;">
+                            <!-- Título embutido no cabeçalho da tabela para não quebrar a página errado -->
+                            <tr>
+                                <th colspan="3" style="padding: 0; border: none; background: transparent;">
+                                    <div style="border-bottom: 2px solid #000; padding-bottom: 4px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: baseline;">
+                                        <span style="font-size: 13px; font-weight: bold; text-transform: uppercase; color: #000;">1. Corrente Mediúnica</span>
+                                        <span style="font-size: 11px; font-weight: bold; color: #475569;">Total Presentes: ${totalMediunsPres}</span>
+                                    </div>
+                                </th>
+                            </tr>
                             <tr>
                                 <th style="border-bottom: 1px solid #000; padding: 6px 4px; text-align: left;">NOME DO MÉDIUM</th>
                                 <th style="border-bottom: 1px solid #000; padding: 6px 4px; text-align: center; width: 18%;">GRAU</th>
@@ -5192,13 +5197,18 @@ window.gerarPDF_ATA = async (eventoId) => {
                 </div>
 
                 <!-- BLOCO 2: ASSISTÊNCIA / VISITANTES -->
-                <div style="margin-bottom: 35px; page-break-inside: auto;">
-                    <div style="border-bottom: 2px solid #000; padding-bottom: 4px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: baseline;">
-                        <span style="font-size: 13px; font-weight: bold; text-transform: uppercase;">2. Assistência / Visitantes</span>
-                        <span style="font-size: 11px; font-weight: bold; color: #475569;">Total Presentes: ${totalAssistPres}</span>
-                    </div>
+                <div style="margin-bottom: 35px;">
                     <table style="width: 100%; border-collapse: collapse; font-size: 11.5px; margin-bottom: 15px; background-color: rgba(255, 255, 255, 0.6);">
-                        <thead>
+                        <thead style="display: table-header-group;">
+                            <!-- Título embutido no cabeçalho da tabela para não quebrar a página errado -->
+                            <tr>
+                                <th colspan="2" style="padding: 0; border: none; background: transparent;">
+                                    <div style="border-bottom: 2px solid #000; padding-bottom: 4px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: baseline;">
+                                        <span style="font-size: 13px; font-weight: bold; text-transform: uppercase; color: #000;">2. Assistência / Visitantes</span>
+                                        <span style="font-size: 11px; font-weight: bold; color: #475569;">Total Presentes: ${totalAssistPres}</span>
+                                    </div>
+                                </th>
+                            </tr>
                             <tr>
                                 <th style="border-bottom: 1px solid #000; padding: 6px 4px; text-align: left;">NOME DO VISITANTE</th>
                                 <th style="border-bottom: 1px solid #000; padding: 6px 4px; text-align: right; width: 22%;">HORA CHECK-IN</th>
