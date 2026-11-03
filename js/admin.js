@@ -5082,7 +5082,7 @@ window.gerarPDF_ATA = async (eventoId) => {
                     if (evento.escalas.corrente_1 === idMed || 
                         evento.escalas.corrente_2 === idMed || 
                         evento.escalas.corrente_3 === idMed) {
-                        frasesAta.push(`"${nomeFinal}" Participou da Corrente Especial (Escala)`);
+                        frasesAta.push(`Participou da Corrente de espada de Ogum`);
                     }
                     
                     // Condições Sacramentos
