@@ -5920,21 +5920,24 @@ window.addEventListener('DOMContentLoaded', () => {
     async function carregarConfigCantina() {
         if (!idTerreiroGlobal) return;
         const select = document.getElementById('cantinaGestor');
+        const selectValidador = document.getElementById('cantinaValidador');
         
-        // Carrega lista de médiuns para o select de gestor
-        if (select && select.options.length <= 1) {
+        // Carrega lista de médiuns para os selects de gestor e validador
+        if ((select && select.options.length <= 1) || (selectValidador && selectValidador.options.length <= 1)) {
             const { data: mediuns } = await supabaseClient.from('mediuns').select('id, nome_completo').eq('terreiro_id', idTerreiroGlobal).neq('nome_completo', 'Administrador Sistema').order('nome_completo');
             if (mediuns) {
-                mediuns.forEach(m => {
-                    select.innerHTML += `<option value="${m.id}">${m.nome_completo}</option>`;
-                });
+                const opcoes = mediuns.map(m => `<option value="${m.id}">${m.nome_completo}</option>`).join('');
+                if (select) select.innerHTML = '<option value="">Selecione o médium...</option>' + opcoes;
+                if (selectValidador) selectValidador.innerHTML = '<option value="">Selecione o validador...</option>' + opcoes;
             }
         }
         // Carrega Configuração Atual do Terreiro
-        const { data } = await supabaseClient.from('terreiros').select('cantina_chave_pix, cantina_gestor_id').eq('id', idTerreiroGlobal).single();
+        const { data } = await supabaseClient.from('terreiros').select('cantina_chave_pix, cantina_tipo_chave_pix, cantina_gestor_id, cantina_validador_id').eq('id', idTerreiroGlobal).single();
         if (data) {
+            if (document.getElementById('cantinaTipoChavePix')) document.getElementById('cantinaTipoChavePix').value = data.cantina_tipo_chave_pix || 'EMAIL';
             document.getElementById('cantinaChavePix').value = data.cantina_chave_pix || '';
             document.getElementById('cantinaGestor').value = data.cantina_gestor_id || '';
+            if (selectValidador) selectValidador.value = data.cantina_validador_id || '';
         }
     }
 
@@ -5943,12 +5946,17 @@ window.addEventListener('DOMContentLoaded', () => {
         btnSalvarCantina.addEventListener('click', async () => {
             const btnHtml = btnSalvarCantina.innerHTML;
             btnSalvarCantina.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-            const pix = document.getElementById('cantinaChavePix').value.trim();
+            const tipoPix = document.getElementById('cantinaTipoChavePix')?.value || 'EMAIL';
+            const pixBruto = document.getElementById('cantinaChavePix').value.trim();
+            const pix = (tipoPix === 'CPF' || tipoPix === 'CNPJ' || tipoPix === 'PHONE') ? pixBruto.replace(/\D/g, '') : pixBruto;
             const gestor = document.getElementById('cantinaGestor').value;
+            const validador = document.getElementById('cantinaValidador')?.value;
             
             const { error } = await supabaseClient.from('terreiros').update({
+                cantina_tipo_chave_pix: tipoPix,
                 cantina_chave_pix: pix,
-                cantina_gestor_id: gestor ? parseInt(gestor) : null
+                cantina_gestor_id: gestor ? parseInt(gestor) : null,
+                cantina_validador_id: validador ? parseInt(validador) : null
             }).eq('id', idTerreiroGlobal);
             
             btnSalvarCantina.innerHTML = btnHtml;
@@ -5962,7 +5970,6 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-
     // --- REESCREVENDO CATÁLOGO DE DOAÇÕES PARA SUPORTAR CATEGORIAS E NOVO LAYOUT ---
     
     window.itensAvulsosTerreiroCache = [];
