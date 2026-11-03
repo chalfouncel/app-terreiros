@@ -2238,7 +2238,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     // CORREÇÃO FINAL: Formata a data garantindo que passe um valor válido
                     let dataStr = '-';
                     if (item.ordemValidacao > 0) {
-                        dataStr = window.formatarDataHoraBR(item.ordemValidacao, true);
+                        // Pegamos o número e convertemos para o formato ISO (texto) que sua função aceita perfeitamente
+                        dataStr = window.formatarDataHoraBR(new Date(item.ordemValidacao).toISOString(), true);
                     } else if (item.dataExibicao) {
                         dataStr = window.formatarDataHoraBR(item.dataExibicao, true);
                     }
