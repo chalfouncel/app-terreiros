@@ -3,7 +3,7 @@
 // ==========================================
 // Substitua pelas suas credenciais reais
 const SUPABASE_URL = 'https://pbjwqhfzsvdougeksztq.supabase.co'; 
-const SUPABASE_KEY = 'SUA_KEY_AQUI'; 
+const SUPABASE_KEY = 'sb_publishable_Ri0hesG16fjM1mxdk2LoLQ_zLFbAmLT'; 
 const supabaseCantina = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let usuarioLogadoId = null;
