@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gestão da Cantina</title>
+    
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#1e3a8a">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --cor-primaria: #1e3a8a;   
+            --cor-secundaria: #16a34a; 
+            --cor-fundo: #f3f4f6;      
+            --cor-texto: #1f2937;      
+        }
+        
+        .bg-tema-primaria { background-color: var(--cor-primaria) !important; }
+        .text-tema-primaria { color: var(--cor-primaria) !important; }
+        body { background-color: var(--cor-fundo); color: var(--cor-texto); -webkit-tap-highlight-color: transparent; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col transition-colors duration-300 pb-20">
+
+    <!-- BARRA SUPERIOR -->
+    <header class="bg-tema-primaria text-white shadow-lg sticky top-0 z-40 border-b border-white/10">
+        <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center border border-white/15">
+                    <i class="fas fa-hamburger text-orange-300 text-lg"></i>
+                </div>
+                <div>
+                    <span class="text-[10px] font-black uppercase tracking-widest bg-white/15 px-2 py-0.5 rounded-md text-white/90">Módulo Isolado</span>
+                    <h1 class="text-sm md:text-base font-black text-white mt-0.5">Gestão da Cantina</h1>
+                </div>
+            </div>
+            <button onclick="window.history.back()" class="py-2 px-3 bg-white/10 hover:bg-white/20 active:scale-95 rounded-xl transition flex items-center gap-1.5 font-bold text-xs border border-white/15">
+                <i class="fas fa-arrow-left"></i> Voltar
+            </button>
+        </div>
+    </header>
+
+    <!-- CONTEÚDO PRINCIPAL -->
+    <main class="flex-1 p-4 md:p-8 max-w-5xl w-full mx-auto space-y-6">
+        
+        <!-- DASHBOARD SALDO -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 border-l-4 border-l-blue-500 relative overflow-hidden">
+                <h3 class="text-gray-400 text-[10px] font-black uppercase tracking-wider">Saldo Atual Disponível</h3>
+                <p class="text-3xl font-black text-blue-700 mt-1" id="cantinaSaldo">R$ 0,00</p>
+                <i class="fas fa-wallet absolute -bottom-2 -right-2 text-6xl text-blue-50 opacity-50"></i>
+            </div>
+            <div class="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 border-l-4 border-l-green-500 relative overflow-hidden">
+                <h3 class="text-gray-400 text-[10px] font-black uppercase tracking-wider">Total de Entradas (Aprovadas)</h3>
+                <p class="text-2xl font-black text-green-600 mt-1" id="cantinaEntradas">R$ 0,00</p>
+            </div>
+            <div class="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 border-l-4 border-l-red-500 relative overflow-hidden">
+                <h3 class="text-gray-400 text-[10px] font-black uppercase tracking-wider">Despesas Validadas</h3>
+                <p class="text-2xl font-black text-red-600 mt-1" id="cantinaSaidas">R$ 0,00</p>
+            </div>
+        </div>
+
+        <!-- AÇÕES -->
+        <div class="flex gap-3">
+            <button onclick="abrirModalNovaTransacao('entrada')" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3.5 rounded-2xl shadow-sm transition active:scale-95 text-xs md:text-sm flex items-center justify-center gap-2">
+                <i class="fas fa-arrow-down"></i> Lançar Entrada
+            </button>
+            <button onclick="abrirModalNovaTransacao('saida')" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-3.5 rounded-2xl shadow-sm transition active:scale-95 text-xs md:text-sm flex items-center justify-center gap-2">
+                <i class="fas fa-arrow-up"></i> Lançar Despesa
+            </button>
+        </div>
+
+        <!-- EXTRATO -->
+        <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="p-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
+                <h2 class="text-sm font-black text-gray-800 uppercase tracking-wider"><i class="fas fa-list text-gray-400 mr-2"></i>Extrato de Transações</h2>
+            </div>
+            <div class="p-0 overflow-x-auto">
+                <table class="w-full text-left text-sm border-collapse">
+                    <tbody id="tabelaExtratoCantina" class="divide-y divide-gray-100">
+                        <tr><td class="p-6 text-center text-gray-500 text-xs"><i class="fas fa-spinner fa-spin mr-2"></i> Carregando extrato...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- MODAL NOVA TRANSAÇÃO -->
+    <div id="modalTransacao" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                <h3 class="font-black text-gray-800 text-lg" id="tituloModalTransacao">Nova Transação</h3>
+                <button onclick="fecharModalTransacao()" class="text-gray-400 hover:text-gray-700 w-8 h-8 flex items-center justify-center rounded-full bg-gray-200"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-5 space-y-4">
+                <input type="hidden" id="formTipoTransacao">
+                
+                <div>
+                    <label class="block text-[11px] font-black text-gray-500 uppercase mb-1">Valor (R$)</label>
+                    <input type="number" id="formValorTransacao" step="0.01" class="w-full bg-gray-50 border border-gray-200 text-gray-800 text-lg font-bold rounded-xl px-4 py-3 outline-none focus:border-tema-primaria transition" placeholder="0.00">
+                </div>
+                
+                <div>
+                    <label class="block text-[11px] font-black text-gray-500 uppercase mb-1">Descrição</label>
+                    <input type="text" id="formDescricaoTransacao" class="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm font-medium rounded-xl px-4 py-3 outline-none focus:border-tema-primaria transition" placeholder="Ex: Compra de Café, Doação Maria...">
+                </div>
+
+                <div id="areaUploadComprovante" class="hidden">
+                    <label class="block text-[11px] font-black text-gray-500 uppercase mb-1">Nota Fiscal / Comprovante</label>
+                    <input type="file" id="formArquivoTransacao" accept="image/*,.pdf" class="w-full text-xs text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 transition">
+                </div>
+
+                <div class="pt-2">
+                    <button id="btnSalvarTransacao" onclick="salvarTransacao()" class="w-full bg-tema-primaria hover:bg-blue-900 text-white font-black py-3.5 rounded-xl shadow-md transition active:scale-95 text-sm flex justify-center items-center gap-2">
+                        <i class="fas fa-save"></i> Registrar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="cantina.js"></script>
+</body>
+</html>
