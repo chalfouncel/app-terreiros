@@ -2156,7 +2156,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const subPagador = pagouParaOutro ? `<span class="text-[10px] bg-indigo-50 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 rounded font-bold inline-block mt-0.5"><i class="fas fa-users mr-1"></i>Enviado por: ${remetente}</span>` : '';
 
                     const tsLocal = window.obterTimestampValidacaoLocal(`comp_${comp.id}`);
-                    const tsBanco = comp.updated_at ? new Date(comp.updated_at).getTime() : (comp.data_envio ? new Date(comp.data_envio).getTime() : 0);
+                    
+                    // CORREÇÃO AQUI: Busca 'data_analise' primeiro, depois 'data_envio'
+                    const tsBanco = comp.data_analise ? new Date(comp.data_analise).getTime() : (comp.data_envio ? new Date(comp.data_envio).getTime() : 0);
 
                     historicoMisto.push({
                         tipoBadge: '<span class="bg-emerald-100 text-emerald-800 text-[9px] font-black px-2 py-0.5 rounded uppercase">Mensalidade</span>',
@@ -2166,7 +2168,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         valor: comp.valor_total,
                         status: comp.status,
                         comprovanteUrl: comp.url_comprovante && String(comp.url_comprovante).startsWith('http') ? comp.url_comprovante : null,
-                        dataExibicao: comp.updated_at || comp.data_envio,
+                        dataExibicao: comp.data_analise || comp.data_envio,
                         ordemValidacao: tsLocal || tsBanco,
                         idDesempate: Number(comp.id) || 0
                     });
@@ -2200,7 +2202,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                         tipoBadge = '<span class="bg-rose-100 text-rose-800 text-[9px] font-black px-2 py-0.5 rounded uppercase"><i class="fas fa-hand-holding-heart mr-1"></i>Doação</span>';
                     }
 
-                    const tsBanco = cx.updated_at ? new Date(cx.updated_at).getTime() : (cx.data_transacao ? new Date(cx.data_transacao).getTime() : 0);
+                    // CORREÇÃO AQUI: Troquei 'updated_at' por 'data_analise' (ou equivalente no caixa, mantive a lógica base para garantir)
+                    const tsBanco = cx.data_analise ? new Date(cx.data_analise).getTime() : (cx.data_transacao ? new Date(cx.data_transacao).getTime() : 0);
 
                     historicoMisto.push({
                         tipoBadge,
@@ -2210,7 +2213,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         valor: cx.valor,
                         status: (cx.status === 'pago' || cx.status === 'aprovado') ? 'aprovado' : 'rejeitado',
                         comprovanteUrl,
-                        dataExibicao: cx.updated_at || cx.data_transacao,
+                        dataExibicao: cx.data_analise || cx.data_transacao,
                         ordemValidacao: tsLocal || tsBanco,
                         idDesempate: Number(cx.id) || 0
                     });
@@ -2231,7 +2234,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 tbody.innerHTML = finalHistorico.map(item => {
                     const valFmt = Number(item.valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                    const dataStr = window.formatarDataHoraBR(item.ordemValidacao || item.dataExibicao, true);
+                    
+                    // CORREÇÃO FINAL: Formata a data garantindo que passe um valor válido
+                    let dataStr = '-';
+                    if (item.ordemValidacao > 0) {
+                        dataStr = window.formatarDataHoraBR(item.ordemValidacao, true);
+                    } else if (item.dataExibicao) {
+                        dataStr = window.formatarDataHoraBR(item.dataExibicao, true);
+                    }
 
                     const statusBadge = item.status === 'aprovado'
                         ? '<span class="bg-green-100 text-green-700 px-2.5 py-1 rounded-full text-[10px] font-black inline-flex items-center gap-1"><i class="fas fa-check"></i> Aprovado</span>'
