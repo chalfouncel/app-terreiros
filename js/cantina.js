@@ -409,7 +409,18 @@ window.salvarTransacao = async () => {
             const ext = arquivoOtimizado.name.split('.').pop();
             const fileName = `${idTerreiroGlobal}/cantina_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${ext}`;
 
-            const { error: uploadError } = await dbCantina.storage.from('comprovantes').upload(fileName, arquivoOtimizado);
+            // CORREÇÃO PARA iOS/SAFARI: Converter para ArrayBuffer antes do upload
+            const arrayBuffer = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = () => reject(new Error("Erro ao ler arquivo para upload"));
+                reader.readAsArrayBuffer(arquivoOtimizado);
+            });
+
+            const { error: uploadError } = await dbCantina.storage.from('comprovantes').upload(fileName, arrayBuffer, {
+                contentType: arquivoOtimizado.type || 'application/octet-stream'
+            });
+
             if (uploadError) throw uploadError;
 
             const { data: publicUrlData } = dbCantina.storage.from('comprovantes').getPublicUrl(fileName);
