@@ -128,6 +128,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                                   perfil.perm_grau === true || 
                                   perfil.perm_financeiro === true || 
                                   perfil.perm_doacoes === true || 
+                                  perfil.perm_cantina === true ||
                                   perfil.perm_admin === true ||
                                   perfil.is_master === true;
 
@@ -137,17 +138,18 @@ document.addEventListener('DOMContentLoaded', async () => {
                 areaAdmin.classList.remove('hidden');
 
                 const permissoesMapeadas = [
-                    { chave: 'perm_visao_geral', menu: 'menuVisaoGeral', label: 'Visão Geral', icone: 'fa-home' },
-                    { chave: 'perm_quadro_mediuns', menu: 'menuQuadroMediuns', label: 'Quadro de Médiuns', icone: 'fa-users' },
-                    { chave: 'perm_guias', menu: 'menuGuiasMediuns', label: 'Guias dos Médiuns', icone: 'fa-feather-alt' },
-                    { chave: 'perm_ia', menu: 'menuIA', label: 'Assistente IA', icone: 'fa-brain' },
-                    { chave: 'perm_agenda', menu: 'menuAgendaGiras', label: 'Agenda de Eventos', icone: 'fa-calendar-alt' },
-                    { chave: 'perm_ata', menu: 'menuLivroAta', label: 'Livro de Presença (ATA)', icone: 'fa-book-open' },
-                    { chave: 'perm_escalas', menu: 'menuEscalas', label: 'Escalas e Missões', icone: 'fa-clipboard-list' },
-                    { chave: 'perm_grau', menu: 'menuGrau', label: 'Alteração de Grau', icone: 'fa-graduation-cap' },
-                    { chave: 'perm_financeiro', menu: 'menuFinanceiro', label: 'Controle Financeiro', icone: 'fa-file-invoice-dollar' },
-                    { chave: 'perm_doacoes', menu: 'menuDoacoes', label: 'Doações / Campanhas', icone: 'fa-hand-holding-heart' },
-                    { chave: 'perm_admin', menu: 'menuAdmin', label: 'Configurações da Casa', icone: 'fa-cog' }
+                    { chave: 'perm_visao_geral', url: 'admin.html?secao=menuVisaoGeral', label: 'Visão Geral', icone: 'fa-home' },
+                    { chave: 'perm_quadro_mediuns', url: 'admin.html?secao=menuQuadroMediuns', label: 'Quadro de Médiuns', icone: 'fa-users' },
+                    { chave: 'perm_guias', url: 'admin.html?secao=menuGuiasMediuns', label: 'Guias dos Médiuns', icone: 'fa-feather-alt' },
+                    { chave: 'perm_ia', url: 'admin.html?secao=menuIA', label: 'Assistente IA', icone: 'fa-brain' },
+                    { chave: 'perm_agenda', url: 'admin.html?secao=menuAgendaGiras', label: 'Agenda de Eventos', icone: 'fa-calendar-alt' },
+                    { chave: 'perm_ata', url: 'admin.html?secao=menuLivroAta', label: 'Livro de Presença (ATA)', icone: 'fa-book-open' },
+                    { chave: 'perm_escalas', url: 'admin.html?secao=menuEscalas', label: 'Escalas e Missões', icone: 'fa-clipboard-list' },
+                    { chave: 'perm_grau', url: 'admin.html?secao=menuGrau', label: 'Alteração de Grau', icone: 'fa-graduation-cap' },
+                    { chave: 'perm_financeiro', url: 'admin.html?secao=menuFinanceiro', label: 'Controle Financeiro', icone: 'fa-file-invoice-dollar' },
+                    { chave: 'perm_doacoes', url: 'admin.html?secao=menuDoacoes', label: 'Doações / Campanhas', icone: 'fa-hand-holding-heart' },
+                    { chave: 'perm_cantina', url: 'cantina.html', label: 'Gestão da Cantina', icone: 'fa-store' },
+                    { chave: 'perm_admin', url: 'admin.html?secao=menuAdmin', label: 'Configurações da Casa', icone: 'fa-cog' }
                 ];
 
                 const permsAtivas = permissoesMapeadas.filter(p => perfil[p.chave] === true);
@@ -159,7 +161,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     areaAdmin.innerHTML = `
                         <div class="grid ${gridCols} gap-2 w-full">
                             ${permsAtivas.map(p => `
-                                <button type="button" onclick="window.location.href='admin.html?secao=${p.menu}'" class="flex flex-col items-center justify-center py-3 px-2 rounded-xl bg-gray-800 hover:bg-gray-700 active:scale-95 text-white shadow-md transition-all text-center">
+                                <button type="button" onclick="window.location.href='${p.url}'" class="flex flex-col items-center justify-center py-3 px-2 rounded-xl bg-gray-800 hover:bg-gray-700 active:scale-95 text-white shadow-md transition-all text-center">
                                     <i class="fas ${p.icone} text-2xl mb-1 text-gray-200"></i>
                                     <span class="text-[11px] md:text-xs font-bold leading-tight">${p.label}</span>
                                 </button>
@@ -1281,7 +1283,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             if(rodapeDoacao) rodapeDoacao.classList.remove('hidden');
             
             const boxFinCantina = document.getElementById('boxDoacaoFinanceiraCantina');
-            const btnPainelCantinaApp = document.getElementById('btnAcessarPainelCantinaApp');
 
             if (aba === 'doacao') {
                 if (boxFinCantina) boxFinCantina.classList.add('hidden');
@@ -1296,18 +1297,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 document.getElementById('btnCopiarPix')?.classList.add('hidden');
             } else if (aba === 'cantina') {
                 if (boxFinCantina) boxFinCantina.classList.remove('hidden');
-                if (btnPainelCantinaApp && perfilMediumLogado && terreiroConfigMensalidade) {
-                    const souGestor = String(perfilMediumLogado.id) === String(terreiroConfigMensalidade.cantina_gestor_id);
-                    const souValidador = String(perfilMediumLogado.id) === String(terreiroConfigMensalidade.cantina_validador_id);
-                    const souAdmin = perfilMediumLogado.is_admin === true || perfilMediumLogado.is_master === true || perfilMediumLogado.perm_financeiro === true;
-                    if (souGestor || souValidador || souAdmin) {
-                        btnPainelCantinaApp.classList.remove('hidden');
-                        btnPainelCantinaApp.classList.add('flex');
-                    } else {
-                        btnPainelCantinaApp.classList.add('hidden');
-                        btnPainelCantinaApp.classList.remove('flex');
-                    }
-                }
                 if(tabDoacaoCantina) { 
                     tabDoacaoCantina.className = baseClasses + " font-black shadow-md bg-tema-primaria text-white border-b-4 border-black/20";
                     const icone = tabDoacaoCantina.querySelector('i');
