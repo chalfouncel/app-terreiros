@@ -5071,19 +5071,22 @@ window.gerarPDF_ATA = async (eventoId) => {
                 if (evento.escalas) {
                     const idMed = String(medium.id);
                     
-                    // Condições Exu
-                    if (evento.escalas.img_tr === idMed) frasesAta.push(`"${nomeFinal}" Entrou com a imagem de Tranca Rua das Almas`);
-                    if (evento.escalas.flores_tr === idMed) frasesAta.push(`"${nomeFinal}" Entrou com as flores de Tranca Rua das Almas`);
-                    if (evento.escalas.img_cigana === idMed) frasesAta.push(`"${nomeFinal}" Entrou com a imagem da Pombagira Cigana`);
-                    if (evento.escalas.flores_cigana === idMed) frasesAta.push(`"${nomeFinal}" Entrou com as flores da Pombagira Cigana`);
-                    if (evento.escalas.img_padilha === idMed) frasesAta.push(`"${nomeFinal}" Entrou com a imagem da Maria Padilha`);
-                    if (evento.escalas.flores_padilha === idMed) frasesAta.push(`"${nomeFinal}" Entrou com as flores da Maria Padilha`);
+                    const nomeEnt1 = evento.escalas.nome_entidade_1 || 'Tranca Rua das Almas';
+                    const nomeEnt2 = evento.escalas.nome_entidade_2 || 'Pombagira Cigana';
+                    const nomeEnt3 = evento.escalas.nome_entidade_3 || 'Maria Padilha';
+                    const nomeCorr = evento.escalas.nome_corrente || 'Corrente de espada de Ogum';
+
+                    if (evento.escalas.img_tr === idMed) frasesAta.push(`"${nomeFinal}" Entrou com a imagem de ${nomeEnt1}`);
+                    if (evento.escalas.flores_tr === idMed) frasesAta.push(`"${nomeFinal}" Entrou com as flores de ${nomeEnt1}`);
+                    if (evento.escalas.img_cigana === idMed) frasesAta.push(`"${nomeFinal}" Entrou com a imagem de ${nomeEnt2}`);
+                    if (evento.escalas.flores_cigana === idMed) frasesAta.push(`"${nomeFinal}" Entrou com as flores de ${nomeEnt2}`);
+                    if (evento.escalas.img_padilha === idMed) frasesAta.push(`"${nomeFinal}" Entrou com a imagem de ${nomeEnt3}`);
+                    if (evento.escalas.flores_padilha === idMed) frasesAta.push(`"${nomeFinal}" Entrou com as flores de ${nomeEnt3}`);
                     
-                    // Condições Corrente Especial (Ex: Corrente de Ogum / Exu)
                     if (evento.escalas.corrente_1 === idMed || 
                         evento.escalas.corrente_2 === idMed || 
                         evento.escalas.corrente_3 === idMed) {
-                        frasesAta.push(`Participou da Corrente de espada de Ogum`);
+                        frasesAta.push(`Participou da ${nomeCorr}`);
                     }
                     
                     // Condições Sacramentos
@@ -6655,25 +6658,28 @@ window.addEventListener('DOMContentLoaded', () => {
         tbody.innerHTML = '<tr><td colspan="4" class="text-center p-6 text-gray-500"><i class="fas fa-spinner fa-spin mr-1"></i> Buscando lançamentos da cantina...</td></tr>';
 
         try {
-            const { data: lancamentos, error } = await supabaseClient.from('caixa_terreiro')
+            const { data: lancamentos, error } = await supabaseClient.from('caixa_cantina')
                 .select('*')
                 .eq('terreiro_id', idTerreiroGlobal)
-                .eq('tipo_transacao', 'CANTINA')
-                .order('data_transacao', { ascending: false });
+                .order('created_at', { ascending: false });
 
             if (error) throw error;
 
-            let somaPago = 0;
+            let saldoLiquido = 0;
             let somaPend = 0;
 
             (lancamentos || []).forEach(l => {
                 const v = parseFloat(l.valor) || 0;
-                if (l.status === 'pago' || l.status === 'aprovado') somaPago += v;
-                else if (l.status === 'pendente') somaPend += v;
+                const ehEntrada = l.tipo === 'entrada';
+                if (l.status === 'aprovado') {
+                    saldoLiquido += ehEntrada ? v : -v;
+                } else if (l.status === 'pendente' || l.status === 'aguardando_auditoria') {
+                    somaPend += v;
+                }
             });
 
-            if (elTotalPago) elTotalPago.textContent = `Confirmado: ${somaPago.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`;
-            if (elTotalPend) elTotalPend.textContent = `Pendente: ${somaPend.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`;
+            if (elTotalPago) elTotalPago.textContent = `Saldo Auditado: ${saldoLiquido.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`;
+            if (elTotalPend) elTotalPend.textContent = `Em Validação: ${somaPend.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`;
 
             if (!lancamentos || lancamentos.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="4" class="text-center p-6 text-gray-400">Nenhuma movimentação financeira na Cantina ainda.</td></tr>';
@@ -6681,18 +6687,21 @@ window.addEventListener('DOMContentLoaded', () => {
             }
 
             tbody.innerHTML = lancamentos.map(l => {
-                const dt = l.data_transacao ? new Date(l.data_transacao).toLocaleDateString('pt-BR') : '-';
+                const dt = l.created_at ? new Date(l.created_at).toLocaleDateString('pt-BR') : '-';
+                const ehEntrada = l.tipo === 'entrada';
                 const val = (parseFloat(l.valor) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                const pago = (l.status === 'pago' || l.status === 'aprovado');
-                const badge = pago
-                    ? '<span class="bg-green-100 text-green-700 text-[10px] font-bold px-2 py-0.5 rounded">Pago</span>'
-                    : '<span class="bg-yellow-100 text-yellow-800 text-[10px] font-bold px-2 py-0.5 rounded">Pendente</span>';
+                const corVal = ehEntrada ? 'text-green-600' : 'text-red-600';
+                const sinal = ehEntrada ? '+' : '-';
+
+                let badge = '<span class="bg-yellow-100 text-yellow-800 text-[10px] font-bold px-2 py-0.5 rounded">Pendente</span>';
+                if (l.status === 'aprovado') badge = '<span class="bg-green-100 text-green-700 text-[10px] font-bold px-2 py-0.5 rounded">Aprovado</span>';
+                else if (l.status === 'rejeitado') badge = '<span class="bg-red-100 text-red-700 text-[10px] font-bold px-2 py-0.5 rounded">Rejeitado</span>';
 
                 return `
                     <tr class="border-b border-gray-100 hover:bg-gray-50">
-                        <td class="p-2.5 font-bold text-gray-800">${l.pagador_nome || 'Médium'}</td>
+                        <td class="p-2.5 font-bold text-gray-800">${l.descricao || l.solicitante_nome || 'Cantina'}</td>
                         <td class="p-2.5 text-gray-500">${dt}</td>
-                        <td class="p-2.5 font-black text-orange-600">${val}</td>
+                        <td class="p-2.5 font-black ${corVal}">${sinal} ${val}</td>
                         <td class="p-2.5 text-center">${badge}</td>
                     </tr>
                 `;
