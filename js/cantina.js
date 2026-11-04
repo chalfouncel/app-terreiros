@@ -1,10 +1,7 @@
 // =========================================================================
 // MÓDULO CANTINA: PADRÃO ADMIN + PERMISSÃO DO QUADRO DE MÉDIUNS (perm_cantina)
 // =========================================================================
-const dbCantina = window.supabaseClient || supabase.createClient(
-    'https://pbjwqhfzsvdougeksztq.supabase.co',
-    'sb_publishable_Ri0hesG16fjM1mxdk2LoLQ_zLFbAmLT'
-);
+const dbCantina = typeof supabaseClient !== 'undefined' ? supabaseClient : window.supabaseClient;
 
 let usuarioLogadoAuthId = null;
 let mediumLogado = null;
