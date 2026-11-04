@@ -803,12 +803,29 @@ document.addEventListener('DOMContentLoaded', async () => {
                 try {
                     if (w.comprovanteRifaItemAtual) {
                         const item = w.comprovanteRifaItemAtual;
+                        
+                        // NOVO: Verifica se é um agrupamento de números ou um número só
+                        let idsParaBaixa = [];
+                        let idReferenciaCaixa = '';
+                        
+                        if (item.tipo === 'rifa_agrupada' && item.idsOriginais && item.idsOriginais.length > 0) {
+                            idsParaBaixa = item.idsOriginais;
+                            idReferenciaCaixa = item.idsOriginais.join(','); // Salva 1,2,3,4 no banco
+                        } else {
+                            // Legado (caso tenha sobrado algum no cache antigo)
+                            idsParaBaixa = [item.id];
+                            idReferenciaCaixa = String(item.id);
+                        }
+
+                        // Faz o update em massa de todos os números desse comprovante (IN array)
                         const { error: err1 } = await supabaseClient
                             .from('rifa_numeros')
                             .update({ status_pagamento: 'aprovado' })
-                            .eq('id', item.id);
+                            .in('id', idsParaBaixa)
+                            .eq('terreiro_id', idTerreiroGlobal);
                         if (err1) throw err1;
 
+                        // Lança o total no caixa
                         const { error: err2 } = await supabaseClient.from('caixa_terreiro').insert([{
                             terreiro_id: idTerreiroGlobal,
                             tipo_transacao: 'RIFA',
@@ -817,12 +834,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                             metodo_pagamento: 'pix',
                             pagador_nome: item.nome,
                             status: 'pago',
-                            referencia_id: item.id
+                            referencia_id: idReferenciaCaixa
                         }]);
                         if (err2) throw err2;
 
-                        window.registrarTimestampValidacaoLocal(`rifa_${item.id}`);
-                        alert("✅ Pagamento da Rifa aprovado com sucesso!");
+                        // Registra o timestamp local usando o primeiro ID
+                        window.registrarTimestampValidacaoLocal(`rifa_${idsParaBaixa[0]}`);
+                        alert(`✅ Pagamento da Rifa aprovado com sucesso! (${idsParaBaixa.length} número(s) processado(s))`);
                         window.fecharModalVerComprovante();
                         carregarValidadorPagamentos();
 
@@ -901,14 +919,23 @@ document.addEventListener('DOMContentLoaded', async () => {
                 try {
                     if (window.comprovanteRifaItemAtual) {
                         const item = window.comprovanteRifaItemAtual;
+                        
+                        let idsParaExcluir = [];
+                        if (item.tipo === 'rifa_agrupada' && item.idsOriginais && item.idsOriginais.length > 0) {
+                            idsParaExcluir = item.idsOriginais;
+                        } else {
+                            idsParaExcluir = [item.id];
+                        }
+
+                        // Exclui todos os registros agrupados de uma vez (libera os números)
                         const { error: errDel } = await supabaseClient
                             .from('rifa_numeros')
                             .delete()
-                            .eq('id', item.id)
+                            .in('id', idsParaExcluir)
                             .eq('terreiro_id', idTerreiroGlobal);
                         if (errDel) throw errDel;
 
-                        alert("Comprovante da rifa rejeitado e número liberado.");
+                        alert(`Comprovante rejeitado! ${idsParaExcluir.length} número(s) liberado(s) na cartela.`);
                         window.fecharModalVerComprovante();
                         carregarValidadorPagamentos();
                     } else if (window.comprovanteAtualId) {
@@ -1909,28 +1936,57 @@ document.addEventListener('DOMContentLoaded', async () => {
                     });
                 });
 
-                // Formata Rifas com Comprovante Anexo
+                // Formata Rifas com Comprovante Anexo (AGRUPADAS POR COMPROVANTE)
                 const rifasComAnexo = (rifasPendentesRaw || []).filter(r => r.comprovante_url && r.comprovante_url.trim() !== '');
+                const rifasAgrupadas = {};
+
                 rifasComAnexo.forEach(r => {
-                    const dadosRifa = (todasRifasCasa || []).find(rf => String(rf.id) === String(r.rifa_id));
-                    const valorUnit = dadosRifa ? (parseFloat(dadosRifa.valor_numero) || 0) : 0;
-                    const tituloRifa = dadosRifa?.titulo || 'Rifa';
+                    // Usa a URL do comprovante como chave de agrupamento
+                    const chave = r.comprovante_url;
+                    
+                    if (!rifasAgrupadas[chave]) {
+                        const dadosRifa = (todasRifasCasa || []).find(rf => String(rf.id) === String(r.rifa_id));
+                        const tituloRifa = dadosRifa?.titulo || 'Rifa';
+                        const valorUnit = dadosRifa ? (parseFloat(dadosRifa.valor_numero) || 0) : 0;
+                        
+                        rifasAgrupadas[chave] = {
+                            idsOriginais: [],
+                            numeros: [],
+                            valorTotal: 0,
+                            dataLocked: r.locked_at || new Date().toISOString(),
+                            nomeComprador: r.nome_comprador || 'Comprador',
+                            tituloRifa: tituloRifa,
+                            valorUnit: valorUnit,
+                            idRifa: r.rifa_id
+                        };
+                    }
+                    
+                    rifasAgrupadas[chave].idsOriginais.push(r.id);
+                    rifasAgrupadas[chave].numeros.push(String(r.numero).padStart(2, '0'));
+                    rifasAgrupadas[chave].valorTotal += rifasAgrupadas[chave].valorUnit;
+                });
+
+                // Converte o objeto agrupado de volta para array visual
+                Object.keys(rifasAgrupadas).forEach(urlKey => {
+                    const grupo = rifasAgrupadas[urlKey];
+                    grupo.numeros.sort(); // Ordena os números para exibição (ex: 03, 12, 16)
+                    
                     pendenciasGerais.push({
                         tipoObj: 'rifa_comprovante',
-                        id: r.id,
-                        nomeExibicao: r.nome_comprador || 'Comprador',
-                        descricao: `<span class="bg-indigo-100 text-indigo-800 text-[9px] font-black px-1.5 py-0.5 rounded uppercase mr-1">Rifa</span> <span class="font-bold text-gray-800">${tituloRifa}</span> • <span class="text-indigo-700 font-black">Nº ${String(r.numero).padStart(2, '0')}</span>`,
-                        valor: valorUnit,
-                        data: r.locked_at || new Date().toISOString(),
+                        id: grupo.idsOriginais[0], 
+                        nomeExibicao: grupo.nomeComprador,
+                        descricao: `<span class="bg-indigo-100 text-indigo-800 text-[9px] font-black px-1.5 py-0.5 rounded uppercase mr-1">Rifa</span> <span class="font-bold text-gray-800">${grupo.tituloRifa}</span> • <span class="text-indigo-700 font-black">${grupo.numeros.length} Nº(s): ${grupo.numeros.join(', ')}</span>`,
+                        valor: grupo.valorTotal,
+                        data: grupo.dataLocked,
                         extra: {
-                            tipo: 'rifa',
-                            id: r.id,
-                            referencia_id: r.rifa_id,
-                            titulo: tituloRifa,
-                            subtitulo: `Número: ${String(r.numero).padStart(2, '0')}`,
-                            nome: r.nome_comprador || 'Comprador',
-                            valor: valorUnit,
-                            url: r.comprovante_url
+                            tipo: 'rifa_agrupada', // Flag indicando que é um grupo
+                            idsOriginais: grupo.idsOriginais, // Lista de todos os IDs a serem aprovados de uma vez
+                            referencia_id: grupo.idRifa,
+                            titulo: grupo.tituloRifa,
+                            subtitulo: `Números: ${grupo.numeros.join(', ')}`,
+                            nome: grupo.nomeComprador,
+                            valor: grupo.valorTotal,
+                            url: urlKey
                         }
                     });
                 });
