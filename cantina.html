@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Gestão da Cantina</title>
+    <title>Painel da Cantina - Templo</title>
     
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#1e3a8a">
-    
+    <link rel="apple-touch-icon" href="https://pbjwqhfzsvdougeksztq.supabase.co/storage/v1/object/public/public-img/icone-192.png">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -22,108 +23,235 @@
         
         .bg-tema-primaria { background-color: var(--cor-primaria) !important; }
         .text-tema-primaria { color: var(--cor-primaria) !important; }
-        body { background-color: var(--cor-fundo); color: var(--cor-texto); -webkit-tap-highlight-color: transparent; }
+        .border-tema-primaria { border-color: var(--cor-primaria) !important; }
+        
+        .bg-tema-secundaria { background-color: var(--cor-secundaria) !important; }
+        .text-tema-secundaria { color: var(--cor-secundaria) !important; }
+        .border-tema-secundaria { border-color: var(--cor-secundaria) !important; }
+        
+        .bg-tema-fundo { background-color: var(--cor-fundo) !important; }
+        .text-tema-texto { color: var(--cor-texto) !important; }
+
+        body {
+            background-color: var(--cor-fundo);
+            color: var(--cor-texto);
+            transition: background-color 0.3s ease;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        #modalVerAnexoCantina .area-zoom {
+            touch-action: pan-x pan-y pinch-zoom;
+            overflow: auto;
+        }
     </style>
 </head>
-<body class="min-h-screen flex flex-col transition-colors duration-300 pb-20">
+<body class="min-h-screen flex flex-col transition-colors duration-300">
 
-    <!-- BARRA SUPERIOR -->
+    <!-- BARRA SUPERIOR FIXA (MESMO PADRÃO DO ADMIN.HTML) -->
     <header class="bg-tema-primaria text-white shadow-lg sticky top-0 z-40 border-b border-white/10">
-        <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center border border-white/15">
-                    <i class="fas fa-hamburger text-orange-300 text-lg"></i>
-                </div>
-                <div>
-                    <span class="text-[10px] font-black uppercase tracking-widest bg-white/15 px-2 py-0.5 rounded-md text-white/90">Módulo Isolado</span>
-                    <h1 class="text-sm md:text-base font-black text-white mt-0.5">Gestão da Cantina</h1>
+        <div class="max-w-[1600px] mx-auto px-4 md:px-8 py-3 flex flex-wrap items-center justify-between gap-3">
+            
+            <!-- Esquerda: Logo + Nome do Terreiro -->
+            <div class="flex items-center gap-3 min-w-0">
+                <img id="logoSidebar" src="" class="hidden w-10 h-10 md:w-11 md:h-11 rounded-xl bg-white/10 p-1 object-contain shrink-0 border border-white/15" alt="Logo da Casa">
+                <div class="min-w-0">
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] font-black uppercase tracking-widest bg-white/15 px-2 py-0.5 rounded-md text-white/90">Painel Gestão</span>
+                        <span class="text-[11px] text-white/70 hidden lg:inline" id="dataHoje"></span>
+                    </div>
+                    <h1 class="text-sm md:text-base font-black text-white truncate max-w-[200px] sm:max-w-xs md:max-w-md mt-0.5" id="nomeTerreiroSidebar">Carregando...</h1>
                 </div>
             </div>
-            <button onclick="window.history.back()" class="py-2 px-3 bg-white/10 hover:bg-white/20 active:scale-95 rounded-xl transition flex items-center gap-1.5 font-bold text-xs border border-white/15">
-                <i class="fas fa-arrow-left"></i> Voltar
-            </button>
+
+            <!-- Centro: Botão Painel de Módulos + Seção Atual -->
+            <div class="flex items-center gap-2 order-3 md:order-2 w-full md:w-auto justify-between md:justify-center border-t border-white/10 md:border-0 pt-2 md:pt-0">
+                <a href="admin.html" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white text-gray-900 hover:bg-gray-100 font-black text-xs shadow-sm transition active:scale-95">
+                    <i class="fas fa-th-large text-tema-primaria"></i>
+                    <span>Painel de Módulos</span>
+                </a>
+                <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-black/20 border border-white/10">
+                    <span class="text-[10px] uppercase tracking-wider text-white/60 font-bold">Seção:</span>
+                    <span class="text-xs md:text-sm font-extrabold text-white">Cantina & Auditoria</span>
+                    <span id="badgePapelUsuario" class="text-[10px] font-black bg-orange-500 text-white px-2 py-0.5 rounded-md">...</span>
+                </div>
+            </div>
+
+            <!-- Direita: Saudação + Voltar ao App + Sair -->
+            <div class="flex items-center gap-2 order-2 md:order-3">
+                <div class="hidden sm:flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-xl border border-white/10">
+                    <i class="fas fa-user-circle text-emerald-300 text-sm"></i>
+                    <span class="text-xs font-bold text-white" id="nomeAdmin">Olá, Médium</span>
+                </div>
+
+                <button onclick="window.location.href='presenca.html'" class="py-2 px-3 bg-white/10 hover:bg-white/20 active:scale-95 rounded-xl transition flex items-center gap-1.5 font-bold text-xs border border-white/15" title="Voltar ao Aplicativo de Check-in">
+                    <i class="fas fa-mobile-alt"></i>
+                    <span class="hidden sm:inline">App</span>
+                </button>
+
+                <button id="btnSair" class="py-2 px-3 bg-red-600 hover:bg-red-700 active:scale-95 rounded-xl transition flex items-center gap-1.5 font-bold text-xs shadow-sm" title="Sair do Sistema">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span class="hidden sm:inline">Sair</span>
+                </button>
+            </div>
+
         </div>
     </header>
 
     <!-- CONTEÚDO PRINCIPAL -->
-    <main class="flex-1 p-4 md:p-8 max-w-5xl w-full mx-auto space-y-6">
-        
-        <!-- DASHBOARD SALDO -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div class="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 border-l-4 border-l-blue-500 relative overflow-hidden">
-                <h3 class="text-gray-400 text-[10px] font-black uppercase tracking-wider">Saldo Atual Disponível</h3>
-                <p class="text-3xl font-black text-blue-700 mt-1" id="cantinaSaldo">R$ 0,00</p>
-                <i class="fas fa-wallet absolute -bottom-2 -right-2 text-6xl text-blue-50 opacity-50"></i>
-            </div>
-            <div class="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 border-l-4 border-l-green-500 relative overflow-hidden">
-                <h3 class="text-gray-400 text-[10px] font-black uppercase tracking-wider">Total de Entradas (Aprovadas)</h3>
-                <p class="text-2xl font-black text-green-600 mt-1" id="cantinaEntradas">R$ 0,00</p>
-            </div>
-            <div class="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 border-l-4 border-l-red-500 relative overflow-hidden">
-                <h3 class="text-gray-400 text-[10px] font-black uppercase tracking-wider">Despesas Validadas</h3>
-                <p class="text-2xl font-black text-red-600 mt-1" id="cantinaSaidas">R$ 0,00</p>
-            </div>
-        </div>
+    <div class="flex-1 flex flex-col">
+        <main class="flex-1 p-4 md:p-8 max-w-[1600px] w-full mx-auto space-y-6">
 
-        <!-- AÇÕES -->
-        <div class="flex gap-3">
-            <button onclick="abrirModalNovaTransacao('entrada')" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3.5 rounded-2xl shadow-sm transition active:scale-95 text-xs md:text-sm flex items-center justify-center gap-2">
-                <i class="fas fa-arrow-down"></i> Lançar Entrada
-            </button>
-            <button onclick="abrirModalNovaTransacao('saida')" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-3.5 rounded-2xl shadow-sm transition active:scale-95 text-xs md:text-sm flex items-center justify-center gap-2">
-                <i class="fas fa-arrow-up"></i> Lançar Despesa
-            </button>
-        </div>
+            <!-- Cabeçalho da Seção + Botões de Lançamento -->
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+                <div>
+                    <h2 class="text-xl md:text-2xl font-bold text-gray-800 flex items-center gap-2">
+                        <i class="fas fa-store text-orange-500"></i> Centro de Custos e Auditoria da Cantina
+                    </h2>
+                    <p class="text-gray-500 text-xs md:text-sm mt-1">Prestação de contas independente com dupla validação (Entradas PIX e Notas Fiscais de Saída).</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
+                    <button id="btnLancarEntrada" onclick="abrirModalNovaTransacao('entrada')" class="flex-1 sm:flex-none bg-tema-secundaria hover:bg-green-700 text-white px-5 py-2.5 rounded-xl font-bold shadow-md transition flex items-center justify-center gap-2 text-xs md:text-sm active:scale-95">
+                        <i class="fas fa-arrow-down"></i> Registrar Entrada
+                    </button>
+                    <button id="btnLancarSaida" onclick="abrirModalNovaTransacao('saida')" class="flex-1 sm:flex-none bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-xl font-bold shadow-md transition flex items-center justify-center gap-2 text-xs md:text-sm active:scale-95">
+                        <i class="fas fa-arrow-up"></i> Registrar Despesa (c/ Nota)
+                    </button>
+                </div>
+            </div>
 
-        <!-- EXTRATO -->
-        <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-            <div class="p-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
-                <h2 class="text-sm font-black text-gray-800 uppercase tracking-wider"><i class="fas fa-list text-gray-400 mr-2"></i>Extrato de Transações</h2>
+            <!-- 4 Cards de Métricas no Padrão do Admin -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 border-l-4 border-l-tema-primaria flex flex-col justify-center">
+                    <h3 class="text-gray-400 text-[11px] font-black uppercase tracking-wider">Saldo Atual Auditado</h3>
+                    <p class="text-3xl font-black text-tema-primaria mt-1" id="cantinaSaldo">R$ 0,00</p>
+                </div>
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 border-l-4 border-l-tema-secundaria flex flex-col justify-center">
+                    <h3 class="text-gray-400 text-[11px] font-black uppercase tracking-wider">Total de Entradas (Aprovadas)</h3>
+                    <p class="text-3xl font-black text-green-600 mt-1" id="cantinaEntradas">R$ 0,00</p>
+                </div>
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 border-l-4 border-l-red-500 flex flex-col justify-center">
+                    <h3 class="text-gray-400 text-[11px] font-black uppercase tracking-wider">Saídas / Compras (Validadas)</h3>
+                    <p class="text-3xl font-black text-red-600 mt-1" id="cantinaSaidas">R$ 0,00</p>
+                </div>
+                <div onclick="alternarFiltroAbaCantina('pendentes')" class="bg-gradient-to-br from-amber-50 to-orange-50 p-4 rounded-2xl shadow-sm border-2 border-amber-400 flex items-center justify-between cursor-pointer hover:shadow-md transition active:scale-[0.99]">
+                    <div>
+                        <span class="text-[10px] font-black uppercase tracking-wider text-amber-900 block">Pendentes / Auditoria</span>
+                        <span id="widgetQtdPendenciasCantina" class="text-3xl font-black text-red-600 leading-none">0</span>
+                        <span class="text-[11px] font-bold text-amber-800 block mt-1" id="resumoPendenciasTexto">Toque para conferir ➔</span>
+                    </div>
+                    <div class="w-11 h-11 rounded-2xl bg-orange-500 text-white flex items-center justify-center text-lg shadow">
+                        <i class="fas fa-check-double"></i>
+                    </div>
+                </div>
             </div>
-            <div class="p-0 overflow-x-auto">
-                <table class="w-full text-left text-sm border-collapse">
-                    <tbody id="tabelaExtratoCantina" class="divide-y divide-gray-100">
-                        <tr><td class="p-6 text-center text-gray-500 text-xs"><i class="fas fa-spinner fa-spin mr-2"></i> Carregando extrato...</td></tr>
-                    </tbody>
-                </table>
+
+            <!-- Menu Interno de Abas (Mesmo Padrão da Seção Campanhas do Admin) -->
+            <div class="grid grid-cols-3 gap-2 md:gap-4">
+                <button type="button" id="tabCantinaExtrato" onclick="alternarFiltroAbaCantina('todos')" class="py-3 px-4 rounded-2xl font-black text-xs md:text-sm transition-all shadow-md bg-tema-secundaria text-white active:scale-95 flex items-center justify-center gap-2 border-b-4 border-black/20">
+                    <i class="fas fa-list-ul"></i> <span>Extrato Completo</span>
+                </button>
+                <button type="button" id="tabCantinaEntradasPend" onclick="alternarFiltroAbaCantina('entradas_pendentes')" class="py-3 px-4 rounded-2xl font-bold text-xs md:text-sm transition-all shadow-sm bg-white text-gray-600 hover:text-gray-900 border border-gray-200 active:scale-95 flex items-center justify-center gap-2">
+                    <i class="fas fa-arrow-down text-green-600"></i> <span>Validação de PIX (Entradas)</span>
+                    <span id="badgeQtdEntradasPend" class="hidden bg-amber-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">0</span>
+                </button>
+                <button type="button" id="tabCantinaSaidasAudit" onclick="alternarFiltroAbaCantina('saidas_auditoria')" class="py-3 px-4 rounded-2xl font-bold text-xs md:text-sm transition-all shadow-sm bg-white text-gray-600 hover:text-gray-900 border border-gray-200 active:scale-95 flex items-center justify-center gap-2">
+                    <i class="fas fa-file-invoice-dollar text-red-500"></i> <span>Auditoria da Cantina (Saídas)</span>
+                    <span id="badgeQtdSaidasAudit" class="hidden bg-red-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full">0</span>
+                </button>
             </div>
-        </div>
-    </main>
+
+            <!-- Bloco do Extrato Financeiro -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 border-t-4 border-t-orange-500 overflow-hidden">
+                <div class="p-4 border-b border-gray-100 bg-gray-50 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                        <h3 class="font-black text-gray-800 text-sm flex items-center gap-2">
+                            <i class="fas fa-exchange-alt text-orange-500"></i> Extrato Financeiro da Cantina
+                        </h3>
+                        <p class="text-[11px] text-gray-500">Histórico detalhado de entradas, saídas e comprovantes auditados.</p>
+                    </div>
+                </div>
+                <div class="divide-y divide-gray-100" id="listaExtratoCantina">
+                    <div class="p-8 text-center text-gray-400 text-xs">
+                        <i class="fas fa-spinner fa-spin mr-2 text-lg"></i> Carregando movimentações da cantina...
+                    </div>
+                </div>
+            </div>
+
+            <!-- Rodapé Padrão -->
+            <footer class="mt-12 mb-6 text-center text-xs text-gray-400 space-y-2">
+                <p>© 2026 Desenvolvido por <strong class="text-gray-600 font-bold">Mario Chalfoun Jr</strong> · Todos os direitos reservados</p>
+            </footer>
+
+        </main>
+    </div>
 
     <!-- MODAL NOVA TRANSAÇÃO -->
-    <div id="modalTransacao" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden">
-            <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                <h3 class="font-black text-gray-800 text-lg" id="tituloModalTransacao">Nova Transação</h3>
-                <button onclick="fecharModalTransacao()" class="text-gray-400 hover:text-gray-700 w-8 h-8 flex items-center justify-center rounded-full bg-gray-200"><i class="fas fa-times"></i></button>
+    <div id="modalTransacao" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-xl w-full max-w-md p-6 transform transition-all">
+            <div class="flex justify-between items-center mb-4 border-b pb-2">
+                <h3 class="text-lg font-bold text-gray-800" id="tituloModalTransacao">Nova Transação</h3>
+                <button onclick="fecharModalTransacao()" class="text-gray-400 hover:text-gray-600 p-1"><i class="fas fa-times text-xl"></i></button>
             </div>
-            <div class="p-5 space-y-4">
+            <div class="space-y-4">
                 <input type="hidden" id="formTipoTransacao">
                 
                 <div>
-                    <label class="block text-[11px] font-black text-gray-500 uppercase mb-1">Valor (R$)</label>
-                    <input type="number" id="formValorTransacao" step="0.01" class="w-full bg-gray-50 border border-gray-200 text-gray-800 text-lg font-bold rounded-xl px-4 py-3 outline-none focus:border-tema-primaria transition" placeholder="0.00">
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Valor (R$) *</label>
+                    <input type="number" id="formValorTransacao" step="0.01" min="0.01" class="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-lg font-black text-gray-800 outline-none focus:ring-2 focus:ring-tema-primaria bg-white" placeholder="0,00">
                 </div>
                 
                 <div>
-                    <label class="block text-[11px] font-black text-gray-500 uppercase mb-1">Descrição</label>
-                    <input type="text" id="formDescricaoTransacao" class="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm font-medium rounded-xl px-4 py-3 outline-none focus:border-tema-primaria transition" placeholder="Ex: Compra de Café, Doação Maria...">
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Descrição *</label>
+                    <input type="text" id="formDescricaoTransacao" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-tema-primaria bg-white" placeholder="Ex: Compra de Café e Açúcar no Atacadão">
                 </div>
 
-                <div id="areaUploadComprovante" class="hidden">
-                    <label class="block text-[11px] font-black text-gray-500 uppercase mb-1">Nota Fiscal / Comprovante</label>
-                    <input type="file" id="formArquivoTransacao" accept="image/*,.pdf" class="w-full text-xs text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 transition">
+                <div id="areaUploadComprovante">
+                    <label class="block text-xs font-bold text-gray-700 mb-1" id="labelUploadTransacao">Nota Fiscal / Comprovante *</label>
+                    <input type="file" id="formArquivoTransacao" accept="image/*,.pdf" class="block w-full text-xs text-gray-500 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100 border border-gray-200 rounded-xl p-1 bg-white cursor-pointer">
+                    <p class="text-[10px] text-gray-400 mt-1" id="dicaUploadTransacao">Formatos aceitos: Imagens (JPG, PNG) ou PDF.</p>
                 </div>
 
-                <div class="pt-2">
-                    <button id="btnSalvarTransacao" onclick="salvarTransacao()" class="w-full bg-tema-primaria hover:bg-blue-900 text-white font-black py-3.5 rounded-xl shadow-md transition active:scale-95 text-sm flex justify-center items-center gap-2">
-                        <i class="fas fa-save"></i> Registrar
-                    </button>
-                </div>
+                <button id="btnSalvarTransacao" onclick="salvarTransacao()" class="w-full bg-tema-primaria hover:opacity-90 active:scale-95 text-white font-bold py-3 px-4 rounded-xl shadow transition text-sm flex justify-center items-center gap-2">
+                    <i class="fas fa-save"></i> Registrar
+                </button>
             </div>
         </div>
     </div>
 
-    <script src="cantina.js"></script>
+    <!-- MODAL VISUALIZAR COMPROVANTE / NOTA FISCAL (IDÊNTICO AO DO ADMIN.HTML) -->
+    <div id="modalVerAnexoCantina" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[90] transition-opacity">
+        <div class="bg-white rounded-3xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col h-[85vh] md:h-[90vh]">
+            <div class="flex justify-between items-center p-4 border-b shrink-0 bg-gray-50">
+                <div>
+                    <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2" id="modalAnexoTitulo">
+                        <i class="fas fa-file-invoice text-tema-secundaria"></i> Comprovante
+                    </h3>
+                    <p id="modalAnexoSubtitulo" class="text-xs text-gray-500 mt-1">Carregando...</p>
+                </div>
+                <button onclick="fecharModalAnexoCantina()" class="text-gray-400 hover:text-gray-600 p-2 rounded-lg hover:bg-gray-200 transition"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            
+            <div class="flex-1 area-zoom p-4 flex justify-center items-center bg-gray-100 relative">
+                <div id="loaderAnexoCantina" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <i class="fas fa-spinner fa-spin text-4xl text-gray-400 mb-2"></i>
+                    <span class="text-sm text-gray-500 font-bold">Carregando documento...</span>
+                </div>
+                <iframe id="frameAnexoCantina" class="hidden w-full h-full border-0 relative z-10" onload="document.getElementById('loaderAnexoCantina').classList.add('hidden')" src=""></iframe>
+                <img id="imgAnexoCantina" class="hidden max-w-full max-h-full object-contain relative z-10 rounded shadow-md" src="" onload="document.getElementById('loaderAnexoCantina').classList.add('hidden')">
+            </div>
+            
+            <div class="p-4 border-t flex flex-col sm:flex-row gap-3 shrink-0 bg-white" id="boxBotoesAcaoModalAnexo">
+                <button id="btnRejeitarModalCantina" class="flex-1 bg-red-100 text-red-700 hover:bg-red-200 font-bold py-3.5 px-4 rounded-xl shadow-sm transition active:scale-95 flex justify-center items-center gap-2 border border-red-200">
+                    <i class="fas fa-times"></i> Rejeitar
+                </button>
+                <button id="btnAprovarModalCantina" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-md transition active:scale-95 flex justify-center items-center gap-2">
+                    <i class="fas fa-check"></i> Aprovar Baixa
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/supabase.js"></script>
+    <script src="js/cantina.js"></script>
 </body>
 </html>
