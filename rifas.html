@@ -705,6 +705,9 @@
             });
         });
 
+        // =========================================================
+        // FIX BUG DO IPHONE (No content provided) APLICADO ABAIXO
+        // =========================================================
         document.getElementById('btnEnviarComprovante').addEventListener('click', async () => {
             const fileInput = document.getElementById('arquivoComprovante');
             const msg = document.getElementById('msgUpload');
@@ -722,10 +725,24 @@
                 clearInterval(timerInterval); 
 
                 const file = fileInput.files[0];
-                const fileExt = file.name.split('.').pop();
+                const fileExt = file.name.split('.').pop() || 'png';
                 const fileName = `rifa_${idTerreiro}_${Date.now()}.${fileExt}`;
                 
-                const { error: uploadError } = await supabaseClient.storage.from('comprovantes').upload(`rifas/${fileName}`, file);
+                // Conversão para ArrayBuffer forçada para evitar o erro do Safari/iOS
+                const arrayBuffer = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = error => reject(error);
+                    reader.readAsArrayBuffer(file);
+                });
+
+                const contentType = file.type || (fileExt.toLowerCase() === 'pdf' ? 'application/pdf' : 'image/jpeg');
+
+                const { error: uploadError } = await supabaseClient.storage.from('comprovantes').upload(`rifas/${fileName}`, arrayBuffer, {
+                    contentType: contentType,
+                    upsert: false
+                });
+
                 if (uploadError) throw new Error("Falha no upload do arquivo. Tente novamente.");
 
                 const { data: publicUrlData } = supabaseClient.storage.from('comprovantes').getPublicUrl(`rifas/${fileName}`);
