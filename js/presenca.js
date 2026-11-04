@@ -3211,10 +3211,30 @@ window.enviarDoacaoManualCantina = async () => {
     }
 };
 
+let intervaloVerificacaoCantinaAsaas = null;
+
+window.copiarPixCantinaInApp = () => {
+    const inp = document.getElementById('inputPixCopiaColaCantinaApp');
+    const btn = document.getElementById('btnCopiarPixCantinaInApp');
+    if (!inp || !inp.value) return;
+    navigator.clipboard.writeText(inp.value).then(() => {
+        if (btn) {
+            const orig = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-check"></i> Código PIX Copiado! Pague no app do seu banco';
+            btn.classList.replace('bg-emerald-600', 'bg-blue-600');
+            setTimeout(() => {
+                btn.innerHTML = orig;
+                btn.classList.replace('bg-blue-600', 'bg-emerald-600');
+            }, 3500);
+        }
+    });
+};
+
 window.pagarDoacaoCantinaViaAsaas = async () => {
     const inpValor = document.getElementById('inputValorDoacaoCantina');
     const inpObs = document.getElementById('inputObsDoacaoCantina');
     const btn = document.getElementById('btnPagarCantinaAsaasApp');
+    const boxFinCantina = document.getElementById('boxDoacaoFinanceiraCantina');
 
     const valorLiquido = parseFloat(inpValor?.value || '0');
     if (!valorLiquido || valorLiquido < 5) {
@@ -3241,48 +3261,122 @@ window.pagarDoacaoCantinaViaAsaas = async () => {
         }
     }
 
+    const TAXA_ASAAS_PIX = 1.99;
+    const valorTotalCobrado = Number((valorLiquido + TAXA_ASAAS_PIX).toFixed(2));
+
     const origHtml = btn.innerHTML;
     btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-circle-notch fa-spin mr-1"></i> Gerando link seguro Asaas...';
+    btn.innerHTML = '<i class="fas fa-circle-notch fa-spin mr-1"></i> Gerando QR Code PIX...';
 
     try {
+        if (intervaloVerificacaoCantinaAsaas) {
+            clearInterval(intervaloVerificacaoCantinaAsaas);
+            intervaloVerificacaoCantinaAsaas = null;
+        }
+
         const { data: { session } } = await supabaseClient.auth.getSession();
         const obs = (inpObs?.value || '').trim();
         const descricaoFinal = obs
             ? `Doação de ${perfilMediumLogado.nome_completo} (${obs})`
             : `Doação de ${perfilMediumLogado.nome_completo}`;
 
-        const response = await fetch(`${supabaseClient.supabaseUrl}/functions/v1/asaas-gerar-cobranca-cantina`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'apikey': supabaseClient.supabaseKey
-            },
-            body: JSON.stringify({
+        // 1. Cria o registro pendente na tabela caixa_cantina com o valor líquido exato da doação
+        const { data: regCantina, error: errIns } = await supabaseClient
+            .from('caixa_cantina')
+            .insert([{
                 terreiro_id: idTerreiroGlobal,
+                tipo: 'entrada',
+                valor: valorLiquido,
+                descricao: descricaoFinal,
+                status: 'pendente',
+                metodo_pagamento: 'asaas',
                 solicitado_por: session.user.id,
-                doador_nome: perfilMediumLogado.nome_completo,
-                doador_telefone: perfilMediumLogado.telefone || '21999999999',
-                doador_cpf: perfilMediumLogado.cpf,
-                valor_doacao: valorLiquido,
-                descricao: descricaoFinal
-            })
+                solicitante_nome: perfilMediumLogado.nome_completo
+            }])
+            .select('*')
+            .single();
+
+        if (errIns) throw errIns;
+
+        // 2. Reaproveita a Edge Function existente (asaas-gerar-cobranca)
+        const { data: cobrancaAsaas, error: errAsaas } = await supabaseClient.functions.invoke('asaas-gerar-cobranca', {
+            body: {
+                tipoOperacao: 'DOACAO_CANTINA',
+                cantinaId: regCantina.id,
+                externalReference: `cantina_doacao_${regCantina.id}`,
+                mediumId: perfilMediumLogado.id,
+                terreiroId: idTerreiroGlobal,
+                metodoPagamento: 'PIX',
+                valorTotal: valorTotalCobrado,
+                valorLiquidoCantina: valorLiquido,
+                taxaBancaria: TAXA_ASAAS_PIX,
+                descricao: `Doacao Cantina #${regCantina.id} - ${perfilMediumLogado.nome_completo}`
+            }
         });
 
-        const resultado = await response.json();
-        if (!response.ok || resultado.error) {
-            throw new Error(resultado.error || 'Não foi possível gerar a cobrança no Asaas.');
-        }
+        if (errAsaas) throw new Error(errAsaas.message || 'Não foi possível gerar o PIX no Asaas.');
 
-        const urlFatura = resultado.invoice_url || resultado.invoiceUrl;
-        if (urlFatura) {
-            window.location.href = urlFatura;
-        } else {
-            alert("Cobrança gerada com sucesso!");
+        const pixQrBase64 = cobrancaAsaas?.pixEncodedImage || null;
+        const pixCopiaCola = cobrancaAsaas?.pixPayload || null;
+        const linkPagamento = cobrancaAsaas?.invoiceUrl || null;
+
+        if (pixCopiaCola && boxFinCantina) {
+            boxFinCantina.innerHTML = `
+                <div class="bg-emerald-50/90 border-2 border-emerald-400 rounded-2xl p-4 text-center space-y-3">
+                    <div class="flex items-center justify-center gap-2 text-amber-800 font-black text-xs bg-amber-100 py-1.5 px-3 rounded-full">
+                        <i class="fas fa-circle-notch fa-spin"></i>
+                        <span>AGUARDANDO PAGAMENTO PIX (DOAÇÃO #${regCantina.id})</span>
+                    </div>
+                    <p class="text-xs font-bold text-gray-800">
+                        Doação Cantina: R$ ${valorLiquido.toFixed(2).replace('.', ',')} <span class="text-gray-400">(+ R$ 1,99 taxa PIX)</span> = <span class="text-emerald-700 font-black">R$ ${valorTotalCobrado.toFixed(2).replace('.', ',')}</span>
+                    </p>
+                    ${pixQrBase64 ? `
+                    <div class="bg-white p-2.5 rounded-2xl border border-gray-200 inline-block shadow-sm">
+                        <img src="data:image/png;base64,${pixQrBase64}" alt="QR Code PIX Cantina" class="w-40 h-40 mx-auto object-contain">
+                    </div>` : ''}
+                    <div class="space-y-1.5 text-left">
+                        <label class="block text-[10px] font-black text-gray-500 uppercase text-center">PIX Copia e Cola:</label>
+                        <input type="text" id="inputPixCopiaColaCantinaApp" readonly value="${pixCopiaCola}" class="w-full px-3 py-2 bg-white border border-gray-300 rounded-xl text-[10px] font-mono text-gray-600 outline-none select-all">
+                        <button type="button" id="btnCopiarPixCantinaInApp" onclick="window.copiarPixCantinaInApp()" class="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 active:scale-95 transition text-white font-black text-xs rounded-xl flex items-center justify-center gap-2 shadow-md">
+                            <i class="fas fa-copy text-sm"></i> Copiar Código PIX
+                        </button>
+                    </div>
+                    <p class="text-[10px] text-gray-500 leading-snug">
+                        Assim que o pagamento for concluído no seu banco, o saldo da Cantina será creditado e repassado automaticamente!
+                    </p>
+                </div>
+            `;
+
+            intervaloVerificacaoCantinaAsaas = setInterval(async () => {
+                try {
+                    const { data: checkCant } = await supabaseClient
+                        .from('caixa_cantina')
+                        .select('status')
+                        .eq('id', regCantina.id)
+                        .single();
+
+                    if (checkCant && checkCant.status === 'aprovado') {
+                        clearInterval(intervaloVerificacaoCantinaAsaas);
+                        intervaloVerificacaoCantinaAsaas = null;
+                        boxFinCantina.innerHTML = `
+                            <div class="bg-emerald-50 border-2 border-emerald-500 rounded-2xl p-5 text-center space-y-2 shadow-md">
+                                <div class="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto text-xl">
+                                    <i class="fas fa-check-double"></i>
+                                </div>
+                                <h4 class="text-sm font-black text-emerald-900 uppercase">✅ Doação Confirmada!</h4>
+                                <p class="text-xs font-bold text-emerald-700">
+                                    O valor de R$ ${valorLiquido.toFixed(2).replace('.', ',')} já foi aprovado no extrato da Cantina e enviado via PIX!
+                                </p>
+                            </div>
+                        `;
+                    }
+                } catch (e) {}
+            }, 3000);
+        } else if (linkPagamento) {
+            window.open(linkPagamento, '_blank');
         }
     } catch (err) {
         alert("Atenção: " + err.message);
-    } finally {
         btn.disabled = false;
         btn.innerHTML = origHtml;
     }
