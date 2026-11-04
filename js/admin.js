@@ -129,7 +129,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (erroPerfil) throw erroPerfil;
         perfilAdminLogado = perfil;
 
-        const temAcessoPainel = perfil.is_admin || perfil.perm_visao_geral || perfil.perm_quadro_mediuns || perfil.perm_guias || perfil.perm_agenda || perfil.perm_grau || perfil.perm_financeiro || perfil.perm_doacoes || perfil.perm_admin || perfil.perm_ata || perfil.perm_ia || perfil.perm_escalas || perfil.is_master;
+        const temAcessoPainel = perfil.is_admin || perfil.perm_visao_geral || perfil.perm_quadro_mediuns || perfil.perm_guias || perfil.perm_agenda || perfil.perm_grau || perfil.perm_financeiro || perfil.perm_doacoes || perfil.perm_cantina || perfil.perm_admin || perfil.perm_ata || perfil.perm_ia || perfil.perm_escalas || perfil.is_master;
 
         if (!temAcessoPainel) {
             alert('Acesso negado. Você não possui permissão para acessar o Painel de Gestão.');
@@ -146,7 +146,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 idTerreiroGlobal = terreiroSaaSForcado;
                 perfil.is_admin = true; perfil.perm_visao_geral = true; perfil.perm_agenda = true;
                 perfil.perm_ata = true; perfil.perm_grau = true; perfil.perm_financeiro = true;
-                perfil.perm_doacoes = true; perfil.perm_admin = true; perfil.perm_quadro_mediuns = true; 
+                perfil.perm_doacoes = true; perfil.perm_cantina = true; perfil.perm_admin = true; perfil.perm_quadro_mediuns = true; 
                 perfil.perm_guias = true; perfil.perm_ia = true; perfil.perm_escalas = true;
             } else {
                 emModoMasterPuro = true;
@@ -157,7 +157,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         if (emModoMasterPuro) {
-            ['menuVisaoGeral', 'menuQuadroMediuns', 'menuGuiasMediuns', 'menuIA', 'menuAgendaGiras', 'menuLivroAta', 'menuEscalas', 'menuGrau', 'menuFinanceiro', 'menuComprovantes', 'menuDoacoes', 'menuAdmin'].forEach(id => {
+            ['menuVisaoGeral', 'menuQuadroMediuns', 'menuGuiasMediuns', 'menuIA', 'menuAgendaGiras', 'menuLivroAta', 'menuEscalas', 'menuGrau', 'menuFinanceiro', 'menuComprovantes', 'menuDoacoes', 'menuCantinaModulo', 'menuAdmin'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.classList.add('hidden');
             });
@@ -175,6 +175,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (!perfil.perm_escalas) document.getElementById('menuEscalas')?.classList.add('hidden');
                 if (!perfil.perm_grau) document.getElementById('menuGrau')?.classList.add('hidden');
                 if (!perfil.perm_doacoes) document.getElementById('menuDoacoes')?.classList.add('hidden');
+                if (!perfil.perm_cantina) document.getElementById('menuCantinaModulo')?.classList.add('hidden');
                 if (!perfil.perm_admin) document.getElementById('menuAdmin')?.classList.add('hidden');
                 
                 if (!perfil.perm_financeiro) {
@@ -754,7 +755,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     perm_financeiro: document.getElementById('chkPermFinanceiro')?.checked || false,
                     perm_doacoes: document.getElementById('chkPermDoacoes')?.checked || false,
                     perm_admin: document.getElementById('chkPermAdmin')?.checked || false,
-                    perm_escalas: document.getElementById('chkPermEscalas')?.checked || false // <-- LINHA ADICIONADA
+                    perm_escalas: document.getElementById('chkPermEscalas')?.checked || false,
+                    perm_cantina: document.getElementById('chkPermCantina')?.checked || false
                 };
                 try {
                     const { error } = await supabaseClient
@@ -1289,7 +1291,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             try {
                 const { data, error } = await supabaseClient
                 .from('mediuns')
-                .select('id, nome_completo, nome_social, data_nascimento, grau, funcao, telefone, palavra, cadastro_completo, is_admin, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_admin, perm_visao_geral, perm_ata, perm_quadro_mediuns, perm_guias, perm_ia, status_ativo, isento_mensalidade, perm_escalas, cpf, estado_civil, profissao, emergencia_nome, emergencia_telefone, tipo_sanguineo, possui_plano_saude, qual_plano_saude, comorbidades_alergias')
+                .select('id, nome_completo, nome_social, data_nascimento, grau, funcao, telefone, palavra, cadastro_completo, is_admin, perm_agenda, perm_grau, perm_financeiro, perm_doacoes, perm_cantina, perm_admin, perm_visao_geral, perm_ata, perm_quadro_mediuns, perm_guias, perm_ia, status_ativo, isento_mensalidade, perm_escalas, cpf, estado_civil, profissao, emergencia_nome, emergencia_telefone, tipo_sanguineo, possui_plano_saude, qual_plano_saude, comorbidades_alergias')
                 .eq('terreiro_id', idTerreiroGlobal)
                 .neq('nome_completo', 'Administrador Sistema')
                 .order('nome_completo');
@@ -1352,7 +1354,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 let acoesHtml = '<span class="text-gray-400 text-xs">Sem acesso</span>';
                 
                 if (perfilAdminLogado && perfilAdminLogado.is_admin) {
-                    const perms = `${m.perm_agenda || false},${m.perm_grau || false},${m.perm_financeiro || false},${m.perm_doacoes || false},${m.perm_admin || false},${m.perm_visao_geral || false},${m.perm_ata || false},${m.perm_quadro_mediuns || false},${m.perm_guias || false},${m.perm_ia || false},${m.perm_escalas || false}`;
+                    const perms = `${m.perm_agenda || false},${m.perm_grau || false},${m.perm_financeiro || false},${m.perm_doacoes || false},${m.perm_admin || false},${m.perm_visao_geral || false},${m.perm_ata || false},${m.perm_quadro_mediuns || false},${m.perm_guias || false},${m.perm_ia || false},${m.perm_escalas || false},${m.perm_cantina || false}`;
                     
                     const isAtivo = m.status_ativo !== false;
                     const iconInativar = isAtivo ? 'fa-user-times' : 'fa-user-check';
@@ -1402,12 +1404,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                     if (m.perm_visao_geral) b.push('<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200">Visão Geral</span>');
                     if (m.perm_quadro_mediuns) b.push('<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">Quadro</span>');
                     if (m.perm_guias) b.push('<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-teal-50 text-teal-700 border border-teal-200">Guias</span>');
-                    if (m.perm_ia) b.push('<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-sky-50 text-sky-700 border border-sky-200"><i class="fas fa-brain mr-1"></i> IA</span>'); // NOVA LINHA AQUI
+                    if (m.perm_ia) b.push('<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-sky-50 text-sky-700 border border-sky-200"><i class="fas fa-brain mr-1"></i> IA</span>');
                     if (m.perm_agenda) b.push('<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-50 text-purple-700 border border-purple-200">Agenda</span>');
                     if (m.perm_ata) b.push('<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-violet-50 text-violet-700 border border-violet-200">Livro Ata</span>');
                     if (m.perm_grau) b.push('<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-cyan-50 text-cyan-700 border border-cyan-200">Graus</span>');
                     if (m.perm_financeiro) b.push('<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Financeiro</span>');
                     if (m.perm_doacoes) b.push('<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-50 text-rose-700 border border-rose-200">Campanhas</span>');
+                    if (m.perm_cantina) b.push('<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-orange-50 text-orange-700 border border-orange-200">Cantina</span>');
                     if (m.perm_admin) b.push('<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-200">Config Casa</span>');
                     if (m.perm_escalas) b.push('<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-green-50 text-green-700 border border-green-200">Escalas</span>');
 
@@ -1570,7 +1573,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 m.perm_visao_geral === true || m.perm_quadro_mediuns === true ||
                 m.perm_guias === true || m.perm_ia === true || m.perm_agenda === true ||
                 m.perm_ata === true || m.perm_escalas === true || m.perm_grau === true ||
-                m.perm_financeiro === true || m.perm_doacoes === true || m.perm_admin === true;
+                m.perm_financeiro === true || m.perm_doacoes === true || m.perm_cantina === true || m.perm_admin === true;
 
             if (permFiltro === 'com_acesso') {
                 if (!temAlgumaPerm) return false;
@@ -4454,8 +4457,7 @@ window.abrirModalPermissoes = (id, nome, permsString) => {
     document.getElementById('idMediumPermissao').value = id;
     document.getElementById('nomeMediumPermissao').textContent = nome;
     
-    // Agora desestrutura também o pEscalas no final
-    const [pAgenda, pGrau, pFin, pDoa, pAdmin, pVisao, pAta, pQuadro, pGuias, pIA, pEscalas] = permsString.split(','); 
+    const [pAgenda, pGrau, pFin, pDoa, pAdmin, pVisao, pAta, pQuadro, pGuias, pIA, pEscalas, pCantina] = permsString.split(','); 
     
     document.getElementById('chkPermAgenda').checked = pAgenda === 'true';
     document.getElementById('chkPermGrau').checked = pGrau === 'true';
@@ -4467,9 +4469,8 @@ window.abrirModalPermissoes = (id, nome, permsString) => {
     if (document.getElementById('chkPermQuadro')) document.getElementById('chkPermQuadro').checked = pQuadro === 'true';
     if (document.getElementById('chkPermGuias')) document.getElementById('chkPermGuias').checked = pGuias === 'true';
     if (document.getElementById('chkPermIA')) document.getElementById('chkPermIA').checked = pIA === 'true';
-    
-    // NOVA LINHA QUE LÊ A VARIÁVEL pEscalas E MARCA NA TELA
     if (document.getElementById('chkPermEscalas')) document.getElementById('chkPermEscalas').checked = pEscalas === 'true'; 
+    if (document.getElementById('chkPermCantina')) document.getElementById('chkPermCantina').checked = pCantina === 'true';
     
     document.getElementById('modalPermissoes').classList.remove('hidden');
 };
