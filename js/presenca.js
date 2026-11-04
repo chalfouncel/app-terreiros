@@ -823,6 +823,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const { data: vinculos, error } = await supabaseClient
                 .from('vinculos_familiares')
                 .select('*')
+                .eq('terreiro_id', idTerreiroGlobal)
                 .or(`solicitante_id.eq.${perfilMediumLogado.id},familiar_id.eq.${perfilMediumLogado.id}`);
 
             if (error) throw error;
@@ -1209,7 +1210,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const valorFormatado = Number(r.valor_numero).toFixed(2).replace('.', ',');
                     
                     return `
-                        <div onclick="window.location.href='rifas.html?t=${idTerreiroGlobal}&r=${r.id}'" class="group relative bg-white rounded-2xl border-2 border-indigo-100 hover:border-indigo-500 overflow-hidden shadow-sm hover:shadow-md cursor-pointer transition-all transform hover:-translate-y-0.5 active:scale-95 text-left">
+                        <div onclick="window.location.href='rifas.html?t=${idTerreiroGlobal}&r=${r.id}&v=${perfilMediumLogado?.id || ''}'" class="group relative bg-white rounded-2xl border-2 border-indigo-100 hover:border-indigo-500 overflow-hidden shadow-sm hover:shadow-md cursor-pointer transition-all transform hover:-translate-y-0.5 active:scale-95 text-left">
                             <div class="h-48 w-full overflow-hidden bg-gray-50 relative flex items-center justify-center p-2 border-b border-gray-100">
                                 <img src="${imgSrc}" class="w-full h-full object-contain group-hover:scale-105 transition duration-500" alt="${r.titulo}">
                                 <div class="absolute bottom-2 left-2.5">
