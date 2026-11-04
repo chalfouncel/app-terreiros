@@ -1976,10 +1976,30 @@ document.addEventListener('DOMContentLoaded', async () => {
             try {
                 const arquivo = arquivoComprovanteMensalidade.files[0];
                 const anoRef = parseInt(selectAnoMensalidade.value);
+                const extensao = arquivo.name.split('.').pop() || 'png';
+                const fileName = `${idTerreiroGlobal}/comprovante_${perfilMediumLogado.id}_${Date.now()}.${extensao}`;
 
-                const fileName = `${idTerreiroGlobal}/comprovante_${perfilMediumLogado.id}_${Date.now()}.${arquivo.name.split('.').pop()}`;
-                const { error: errUpload } = await supabaseClient.storage.from('comprovantes').upload(fileName, arquivo);
+                // ==========================================
+                // FIX PARA O BUG DO IPHONE (No content provided)
+                // Lemos o arquivo como um Array de Bits antes de enviar
+                // ==========================================
+                const arrayBuffer = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = error => reject(error);
+                    reader.readAsArrayBuffer(arquivo);
+                });
+
+                // Criamos o envio garantindo o MIME Type correto
+                const contentType = arquivo.type || (extensao.toLowerCase() === 'pdf' ? 'application/pdf' : 'image/jpeg');
+
+                const { error: errUpload } = await supabaseClient.storage.from('comprovantes').upload(fileName, arrayBuffer, {
+                    contentType: contentType,
+                    upsert: false
+                });
+
                 if (errUpload) throw errUpload;
+                // ==========================================
 
                 const { data: { publicUrl } } = supabaseClient.storage.from('comprovantes').getPublicUrl(fileName);
 
@@ -2014,13 +2034,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (errIns) throw errIns;
 
                 alert("✅ Comprovante enviado com sucesso para a Tesouraria! A administração fará a validação em breve.");
+                
+                // Limpar input de arquivo após o envio
+                arquivoComprovanteMensalidade.value = '';
+                
                 fecharModalMensalidade();
                 verificarPendenciaMensalidade(perfilMediumLogado.id);
 
             } catch (error) {
                 console.error(error);
                 if (msgErroMensalidade) {
-                    msgErroMensalidade.textContent = "Erro ao enviar: " + error.message;
+                    msgErroMensalidade.textContent = "Erro ao enviar: " + (error.message || "Tente novamente.");
                     msgErroMensalidade.classList.remove('hidden');
                 }
             } finally {
