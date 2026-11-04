@@ -1,191 +1,391 @@
-// ==========================================
-// CONFIGURAÇÃO INICIAL E SEGURANÇA
-// ==========================================
-// Substitua pelas suas credenciais reais
-const SUPABASE_URL = 'https://pbjwqhfzsvdougeksztq.supabase.co'; 
-const SUPABASE_KEY = 'sb_publishable_Ri0hesG16fjM1mxdk2LoLQ_zLFbAmLT'; 
-const supabaseCantina = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+// =========================================================================
+// MÓDULO CANTINA: PADRÃO ADMIN + PERMISSÃO DO QUADRO DE MÉDIUNS (perm_cantina)
+// =========================================================================
+const dbCantina = window.supabaseClient || supabase.createClient(
+    'https://pbjwqhfzsvdougeksztq.supabase.co',
+    'sb_publishable_Ri0hesG16fjM1mxdk2LoLQ_zLFbAmLT'
+);
 
-let usuarioLogadoId = null;
-let mediumLogadoInfo = null;
+let usuarioLogadoAuthId = null;
+let mediumLogado = null;
 let idTerreiroGlobal = null;
-let informacoesTerreiro = null;
+let infoTerreiro = null;
+
 let ehAdmin = false;
-let ehGestor = false;
+let ehGestorCantina = false;
+let ehValidadorCantina = false;
+
+let transacoesCache = [];
+let filtroAbaAtual = 'todos';
+
+function comprimirImagemCantina(file, maxWidth = 1200, maxHeight = 1200, quality = 0.82) {
+    return new Promise((resolve) => {
+        if (!file || !file.type || !file.type.match(/image.*/)) return resolve(file);
+        const reader = new FileReader();
+        reader.onload = (readerEvent) => {
+            const image = new Image();
+            image.onload = () => {
+                let width = image.width;
+                let height = image.height;
+                if (width > height) {
+                    if (width > maxWidth) { height = Math.round((height * maxWidth) / width); width = maxWidth; }
+                } else {
+                    if (height > maxHeight) { width = Math.round((width * maxHeight) / height); height = maxHeight; }
+                }
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(image, 0, 0, width, height);
+                canvas.toBlob((blob) => {
+                    if (!blob) return resolve(file);
+                    const ext = file.name.split('.').pop() || 'jpg';
+                    resolve(new File([blob], file.name.replace(/\.[^/.]+$/, `.${ext}`), {
+                        type: file.type.includes('png') ? 'image/png' : 'image/jpeg',
+                        lastModified: Date.now()
+                    }));
+                }, file.type.includes('png') ? 'image/png' : 'image/jpeg', quality);
+            };
+            image.onerror = () => resolve(file);
+            image.src = readerEvent.target.result;
+        };
+        reader.onerror = () => resolve(file);
+        reader.readAsDataURL(file);
+    });
+}
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // 1. Verifica se tem alguém logado no Auth do Supabase
-    const { data: { session } } = await supabaseCantina.auth.getSession();
-    
-    if (!session) {
-        alert("Sessão expirada. Faça login novamente.");
-        window.location.href = 'index.html'; // Redireciona pro login
-        return;
+    const dataOpcoes = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    const elDataHoje = document.getElementById('dataHoje');
+    if (elDataHoje) elDataHoje.textContent = new Date().toLocaleDateString('pt-BR', dataOpcoes);
+
+    const { data: { session } } = await dbCantina.auth.getSession();
+    if (!session) return window.location.replace('index.html');
+
+    const btnSair = document.getElementById('btnSair');
+    if (btnSair) {
+        btnSair.addEventListener('click', async () => {
+            btnSair.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Saindo...';
+            await dbCantina.auth.signOut();
+            localStorage.clear();
+            window.location.replace('index.html');
+        });
     }
 
-    usuarioLogadoId = session.user.id;
+    usuarioLogadoAuthId = session.user.id;
 
-    // 2. Busca os dados do Médium Logado
-    const { data: medium } = await supabaseCantina
+    const { data: perfil, error: errPerfil } = await dbCantina
         .from('mediuns')
-        .select('id, nome_completo, is_admin, is_master, terreiro_id')
-        .eq('auth_id', usuarioLogadoId)
+        .select('*')
+        .eq('auth_id', usuarioLogadoAuthId)
         .single();
 
-    if (!medium) {
+    if (errPerfil || !perfil) {
         alert("Usuário não encontrado.");
-        window.location.href = 'index.html';
-        return;
+        return window.location.replace('index.html');
     }
 
-    mediumLogadoInfo = medium;
-    idTerreiroGlobal = medium.terreiro_id;
-    ehAdmin = (medium.is_admin === true || medium.is_master === true);
+    mediumLogado = perfil;
+    idTerreiroGlobal = perfil.terreiro_id;
+    ehAdmin = (perfil.is_admin === true || perfil.is_master === true);
 
-    // 3. Busca os dados do Terreiro para descobrir quem é o Gestor da Cantina
-    const { data: terreiro } = await supabaseCantina
+    if (perfil.is_master && localStorage.getItem('terreiroAtivoSaaS')) {
+        idTerreiroGlobal = localStorage.getItem('terreiroAtivoSaaS');
+    }
+
+    // TRAVA EXCLUSIVA PELO QUADRO OFICIAL DE MÉDIUNS (perm_cantina ou Admin Geral/Master)
+    const temPermissaoCantinaQuadro = (perfil.perm_cantina === true || ehAdmin);
+    if (!temPermissaoCantinaQuadro) {
+        alert("Acesso negado! O acesso ao Painel Financeiro e Auditoria da Cantina deve ser liberado nas Permissões de Acesso do Quadro Oficial de Médiuns.");
+        return window.location.replace('presenca.html');
+    }
+
+    const primeiroNome = perfil.nome_completo ? perfil.nome_completo.split(' ')[0] : 'Médium';
+    const elNomeAdmin = document.getElementById('nomeAdmin');
+    if (elNomeAdmin) elNomeAdmin.textContent = 'Olá, ' + primeiroNome;
+
+    const { data: terreiro } = await dbCantina
         .from('terreiros')
-        .select('cantina_gestor_id')
+        .select('nome, logo_url, cor_primaria, cor_secundaria, cor_fundo, cor_texto, cantina_gestor_id, cantina_validador_id, status_bloqueado')
         .eq('id', idTerreiroGlobal)
         .single();
 
     if (terreiro) {
-        informacoesTerreiro = terreiro;
-        // Verifica se o ID do médium bate com o id do gestor da cantina
-        ehGestor = (String(medium.id) === String(terreiro.cantina_gestor_id));
+        if (terreiro.status_bloqueado === true && !perfil.is_master) {
+            alert('Acesso Suspenso.');
+            await dbCantina.auth.signOut();
+            localStorage.clear();
+            return window.location.replace('index.html');
+        }
+
+        infoTerreiro = terreiro;
+        const elSide = document.getElementById('nomeTerreiroSidebar');
+        if (elSide) elSide.textContent = terreiro.nome;
+
+        const root = document.documentElement;
+        if (terreiro.cor_primaria) root.style.setProperty('--cor-primaria', terreiro.cor_primaria);
+        if (terreiro.cor_secundaria) root.style.setProperty('--cor-secundaria', terreiro.cor_secundaria);
+        if (terreiro.cor_fundo) root.style.setProperty('--cor-fundo', terreiro.cor_fundo);
+        if (terreiro.cor_texto) root.style.setProperty('--cor-texto', terreiro.cor_texto);
+
+        if (terreiro.logo_url) {
+            const img = document.getElementById('logoSidebar');
+            if (img) {
+                img.src = terreiro.logo_url;
+                img.classList.remove('hidden');
+            }
+        }
+
+        ehGestorCantina = String(perfil.id) === String(terreiro.cantina_gestor_id);
+        ehValidadorCantina = String(perfil.id) === String(terreiro.cantina_validador_id);
     }
 
-    // 4. REGRA DE SEGURANÇA (A Mágica acontece aqui)
-    if (!ehAdmin && !ehGestor) {
-        alert("Acesso Negado! Apenas o gestor da cantina ou a diretoria podem acessar este módulo.");
-        window.history.back(); // Joga o enxerido de volta pra onde veio
-        return;
+    const badgePapel = document.getElementById('badgePapelUsuario');
+    if (badgePapel) {
+        const papeis = [];
+        if (ehGestorCantina) papeis.push('Gestor(a)');
+        if (ehValidadorCantina) papeis.push('Validador(a)');
+        if (papeis.length === 0) papeis.push(ehAdmin ? 'Admin' : 'Autorizado');
+        badgePapel.textContent = papeis.join(' / ');
     }
 
-    // Se chegou até aqui, tem permissão! Carrega a tela.
-    carregarExtratoCantina();
+    configurarZoomPinchCantina();
+    await carregarExtratoCantina();
 });
 
-
-// ==========================================
-// FUNÇÕES DE DADOS E TELA
-// ==========================================
-
 async function carregarExtratoCantina() {
-    const tbody = document.getElementById('tabelaExtratoCantina');
-    
-    const { data: transacoes, error } = await supabaseCantina
-        .from('caixa_cantina')
-        .select('*')
-        .eq('terreiro_id', idTerreiroGlobal)
-        .order('created_at', { ascending: false });
+    const container = document.getElementById('listaExtratoCantina');
+    if (!container) return;
+
+    const [
+        { data: transacoes, error },
+        { data: mediunsCasa }
+    ] = await Promise.all([
+        dbCantina.from('caixa_cantina').select('*').eq('terreiro_id', idTerreiroGlobal).order('created_at', { ascending: false }),
+        dbCantina.from('mediuns').select('id, auth_id, nome_completo').eq('terreiro_id', idTerreiroGlobal)
+    ]);
 
     if (error) {
-        console.error(error);
-        tbody.innerHTML = `<tr><td class="p-6 text-center text-red-500">Erro ao carregar transações.</td></tr>`;
+        container.innerHTML = `<div class="p-6 text-center text-red-500 text-xs font-bold">Erro ao carregar extrato: ${error.message}</div>`;
         return;
     }
+
+    const mapaMediuns = {};
+    (mediunsCasa || []).forEach(m => {
+        if (m.auth_id) mapaMediuns[m.auth_id] = m.nome_completo;
+        mapaMediuns[String(m.id)] = m.nome_completo;
+    });
+
+    transacoesCache = (transacoes || []).map(t => ({
+        ...t,
+        nomeSolicitanteResolvido: t.solicitante_nome || mapaMediuns[t.solicitado_por] || 'Médium',
+        nomeValidadorResolvido: t.validador_nome || mapaMediuns[t.validado_por] || null
+    }));
 
     let saldo = 0;
     let totalEntradas = 0;
     let totalSaidas = 0;
+    let qtdEntradasPendentes = 0;
+    let qtdSaidasAuditoria = 0;
 
-    tbody.innerHTML = '';
+    transacoesCache.forEach(t => {
+        const valor = parseFloat(t.valor) || 0;
+        const ehEntrada = t.tipo === 'entrada';
 
-    if (!transacoes || transacoes.length === 0) {
-        tbody.innerHTML = `<tr><td class="p-6 text-center text-gray-500 text-xs">Nenhuma movimentação na cantina ainda.</td></tr>`;
-    } else {
-        transacoes.forEach(t => {
-            const valor = parseFloat(t.valor) || 0;
-            const ehEntrada = t.tipo === 'entrada';
-
-            // Cálculos financeiros (Só soma o que está validado/aprovado)
-            if (t.status === 'aprovado') {
-                if (ehEntrada) {
-                    totalEntradas += valor;
-                    saldo += valor;
-                } else {
-                    totalSaidas += valor;
-                    saldo -= valor;
-                }
+        if (t.status === 'aprovado') {
+            if (ehEntrada) {
+                totalEntradas += valor;
+                saldo += valor;
+            } else {
+                totalSaidas += valor;
+                saldo -= valor;
             }
+        } else if (t.status === 'pendente' && ehEntrada) {
+            qtdEntradasPendentes++;
+        } else if ((t.status === 'aguardando_auditoria' || t.status === 'pendente') && !ehEntrada) {
+            qtdSaidasAuditoria++;
+        }
+    });
 
-            // Renderização da Linha
-            const dataFmt = new Date(t.created_at).toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit', hour: '2-digit', minute:'2-digit'});
-            const valFmt = valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-            
-            const icone = ehEntrada ? '<i class="fas fa-arrow-down text-green-500"></i>' : '<i class="fas fa-arrow-up text-red-500"></i>';
-            const corValor = ehEntrada ? 'text-green-600' : 'text-red-600';
-            const sinal = ehEntrada ? '+' : '-';
-
-            // Status Badge
-            let badge = '';
-            if (t.status === 'aprovado') badge = '<span class="bg-green-100 text-green-700 text-[9px] px-2 py-0.5 rounded-full font-bold">Aprovado</span>';
-            else if (t.status === 'rejeitado') badge = '<span class="bg-red-100 text-red-700 text-[9px] px-2 py-0.5 rounded-full font-bold">Rejeitado</span>';
-            else badge = '<span class="bg-yellow-100 text-yellow-700 text-[9px] px-2 py-0.5 rounded-full font-bold">Em Auditoria</span>';
-
-            // Botões de Ação (Visualizar Nota e Auditar)
-            let botoes = '';
-            if (t.comprovante_url) {
-                botoes += `<a href="${t.comprovante_url}" target="_blank" class="text-[10px] bg-gray-100 text-gray-600 px-2 py-1 rounded font-bold mr-1 hover:bg-gray-200 transition">Ver Recibo</a>`;
-            }
-
-            // Admin aprova as Saídas que estão pendentes
-            if (ehAdmin && !ehEntrada && t.status === 'aguardando_auditoria') {
-                botoes += `<button onclick="auditarDespesa(${t.id}, 'aprovado')" class="text-[10px] bg-green-600 text-white px-2 py-1 rounded font-bold mr-1">Validar</button>`;
-                botoes += `<button onclick="auditarDespesa(${t.id}, 'rejeitado')" class="text-[10px] bg-red-100 text-red-600 px-2 py-1 rounded font-bold border border-red-200">Rejeitar</button>`;
-            }
-
-            tbody.innerHTML += `
-                <tr class="hover:bg-gray-50 transition border-b border-gray-100 last:border-0">
-                    <td class="p-3 w-10 text-center">${icone}</td>
-                    <td class="p-3">
-                        <div class="text-xs font-bold text-gray-800">${t.descricao}</div>
-                        <div class="text-[10px] text-gray-400 font-mono mt-0.5">${dataFmt} ${badge}</div>
-                    </td>
-                    <td class="p-3 text-right">
-                        <div class="font-black text-sm ${corValor}">${sinal} ${valFmt}</div>
-                        <div class="mt-1 flex justify-end">${botoes}</div>
-                    </td>
-                </tr>
-            `;
-        });
-    }
-
-    // Atualiza os Totais na Tela
     document.getElementById('cantinaSaldo').textContent = saldo.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     document.getElementById('cantinaEntradas').textContent = totalEntradas.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     document.getElementById('cantinaSaidas').textContent = totalSaidas.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+    const totalPendencias = qtdEntradasPendentes + qtdSaidasAuditoria;
+    const widgetPend = document.getElementById('widgetQtdPendenciasCantina');
+    if (widgetPend) widgetPend.textContent = totalPendencias;
+
+    const bEnt = document.getElementById('badgeQtdEntradasPend');
+    if (bEnt) {
+        bEnt.textContent = qtdEntradasPendentes;
+        bEnt.classList.toggle('hidden', qtdEntradasPendentes === 0);
+    }
+
+    const bSai = document.getElementById('badgeQtdSaidasAudit');
+    if (bSai) {
+        bSai.textContent = qtdSaidasAuditoria;
+        bSai.classList.toggle('hidden', qtdSaidasAuditoria === 0);
+    }
+
+    renderizarListaFiltradaCantina();
 }
 
-// ==========================================
-// REGISTRO DE TRANSAÇÕES
-// ==========================================
+window.alternarFiltroAbaCantina = (aba) => {
+    filtroAbaAtual = aba;
 
-function abrirModalNovaTransacao(tipo) {
+    const botoes = {
+        todos: document.getElementById('tabCantinaExtrato'),
+        entradas_pendentes: document.getElementById('tabCantinaEntradasPend'),
+        saidas_auditoria: document.getElementById('tabCantinaSaidasAudit')
+    };
+
+    Object.keys(botoes).forEach(k => {
+        if (!botoes[k]) return;
+        if (k === aba) {
+            botoes[k].className = "py-3 px-4 rounded-2xl font-black text-xs md:text-sm transition-all shadow-md bg-tema-secundaria text-white active:scale-95 flex items-center justify-center gap-2 border-b-4 border-black/20";
+        } else {
+            botoes[k].className = "py-3 px-4 rounded-2xl font-bold text-xs md:text-sm transition-all shadow-sm bg-white text-gray-600 hover:text-gray-900 border border-gray-200 active:scale-95 flex items-center justify-center gap-2";
+        }
+    });
+
+    renderizarListaFiltradaCantina();
+};
+
+function renderizarListaFiltradaCantina() {
+    const container = document.getElementById('listaExtratoCantina');
+    if (!container) return;
+
+    const lista = transacoesCache.filter(t => {
+        if (filtroAbaAtual === 'entradas_pendentes') return t.tipo === 'entrada' && t.status === 'pendente';
+        if (filtroAbaAtual === 'saidas_auditoria') return t.tipo === 'saida' && (t.status === 'aguardando_auditoria' || t.status === 'pendente');
+        if (filtroAbaAtual === 'pendentes') return t.status !== 'aprovado' && t.status !== 'rejeitado';
+        return true;
+    });
+
+    if (lista.length === 0) {
+        container.innerHTML = `<div class="p-8 text-center text-gray-400 text-xs font-medium">Nenhuma movimentação encontrada para este filtro.</div>`;
+        return;
+    }
+
+    container.innerHTML = lista.map(t => {
+        const valor = parseFloat(t.valor) || 0;
+        const valFmt = valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        const ehEntrada = t.tipo === 'entrada';
+        const dataFmt = new Date(t.created_at).toLocaleString('pt-BR', {
+            day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit'
+        });
+
+        let bolinhaStatus = '🟢';
+        let corValor = ehEntrada ? 'text-green-600' : 'text-red-600';
+        let sinal = ehEntrada ? '+' : '-';
+        let textoStatus = '';
+
+        const primeiroNomeValidador = t.nomeValidadorResolvido ? t.nomeValidadorResolvido.split(' ')[0] : 'Diretoria';
+        const primeiroNomeSolicitante = t.nomeSolicitanteResolvido ? t.nomeSolicitanteResolvido.split(' ')[0] : 'Médium';
+
+        if (t.status === 'aprovado') {
+            bolinhaStatus = ehEntrada ? '🟢' : '🔴';
+            if (t.metodo_pagamento === 'asaas') {
+                textoStatus = `<span class="bg-green-100 text-green-800 text-[10px] font-black px-2 py-0.5 rounded-full">⚡ Aprovado via Asaas PIX</span>`;
+            } else {
+                const labelAcao = ehEntrada ? 'Aprovado por' : 'Validado por';
+                textoStatus = `<span class="bg-green-100 text-green-800 text-[10px] font-bold px-2 py-0.5 rounded-full">${labelAcao} ${primeiroNomeValidador}</span>`;
+            }
+        } else if (t.status === 'rejeitado') {
+            bolinhaStatus = '⚪';
+            corValor = 'text-gray-400 line-through';
+            textoStatus = `<span class="bg-red-100 text-red-700 text-[10px] font-bold px-2 py-0.5 rounded-full">Rejeitado por ${primeiroNomeValidador}</span>`;
+        } else {
+            bolinhaStatus = '🟡';
+            corValor = 'text-amber-600';
+            textoStatus = ehEntrada
+                ? `<span class="bg-yellow-100 text-yellow-800 text-[10px] font-black px-2 py-0.5 rounded-full">Pendente (Aguardando Gestor)</span>`
+                : `<span class="bg-yellow-100 text-yellow-800 text-[10px] font-black px-2 py-0.5 rounded-full">Aguardando Auditoria</span>`;
+        }
+
+        // Regra Dual-Approval:
+        // Gestor (ou Admin) aprova Entradas PIX; Validador (ou Admin) audita Saídas com Nota Fiscal
+        const podeAprovarEntrada = (ehGestorCantina || ehAdmin) && ehEntrada && t.status === 'pendente';
+        const podeAuditarSaida = (ehValidadorCantina || ehAdmin) && !ehEntrada && (t.status === 'aguardando_auditoria' || t.status === 'pendente');
+        const podeAgir = podeAprovarEntrada || podeAuditarSaida;
+
+        const labelBotaoAnexo = ehEntrada ? 'Ver Recibo' : 'Ver Nota Fiscal';
+        let botoesHtml = '';
+
+        if (t.comprovante_url) {
+            botoesHtml += `
+                <button type="button" onclick="abrirModalAnexoCantina(${t.id})" class="text-[11px] bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-3 py-1.5 rounded-xl border border-gray-300 transition active:scale-95 inline-flex items-center gap-1">
+                    <i class="fas fa-receipt text-tema-primaria"></i> ${labelBotaoAnexo}
+                </button>
+            `;
+        }
+
+        if (podeAgir) {
+            const labelBtnAprovar = ehEntrada ? 'Aprovar PIX' : 'Validar Despesa';
+            botoesHtml += `
+                <button type="button" onclick="processarDecisaoCantina(${t.id}, 'aprovado')" class="text-[11px] bg-green-600 hover:bg-green-700 text-white font-black px-3 py-1.5 rounded-xl shadow-sm transition active:scale-95 inline-flex items-center gap-1">
+                    <i class="fas fa-check"></i> ${labelBtnAprovar}
+                </button>
+                <button type="button" onclick="processarDecisaoCantina(${t.id}, 'rejeitado')" class="text-[11px] bg-red-100 hover:bg-red-200 text-red-700 font-bold px-2.5 py-1.5 rounded-xl border border-red-200 transition active:scale-95">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+        }
+
+        return `
+            <div class="p-4 hover:bg-gray-50 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div class="flex items-start gap-3 min-w-0">
+                    <div class="text-lg leading-none mt-0.5 select-none">${bolinhaStatus}</div>
+                    <div class="min-w-0">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="font-black text-sm ${corValor}">${sinal} ${valFmt}</span>
+                            <span class="text-gray-300">|</span>
+                            <span class="font-bold text-xs md:text-sm text-gray-800">${t.descricao}</span>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2 mt-1 text-[11px] text-gray-500">
+                            <span><i class="far fa-clock mr-1"></i>${dataFmt}</span>
+                            <span>•</span>
+                            <span>Enviado por: <strong>${primeiroNomeSolicitante}</strong></span>
+                            ${textoStatus}
+                        </div>
+                    </div>
+                </div>
+                <div class="flex flex-wrap items-center gap-2 self-end sm:self-center shrink-0">
+                    ${botoesHtml}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+window.abrirModalNovaTransacao = (tipo) => {
     document.getElementById('formTipoTransacao').value = tipo;
     document.getElementById('formValorTransacao').value = '';
     document.getElementById('formDescricaoTransacao').value = '';
     document.getElementById('formArquivoTransacao').value = '';
-    
-    const titulo = tipo === 'entrada' ? '<i class="fas fa-arrow-down text-green-500 mr-2"></i> Registrar Entrada' : '<i class="fas fa-arrow-up text-red-500 mr-2"></i> Registrar Despesa';
-    document.getElementById('tituloModalTransacao').innerHTML = titulo;
-    
-    // Se for Saída (Despesa), obriga a subir comprovante. Se for entrada (Doação direta), é opcional.
-    if(tipo === 'saida') {
-        document.getElementById('areaUploadComprovante').classList.remove('hidden');
+
+    document.getElementById('tituloModalTransacao').innerHTML = tipo === 'entrada'
+        ? '<i class="fas fa-arrow-down text-green-600 mr-2"></i> Registrar Entrada'
+        : '<i class="fas fa-arrow-up text-red-600 mr-2"></i> Registrar Despesa (Saída)';
+
+    const lblUp = document.getElementById('labelUploadTransacao');
+    const dicaUp = document.getElementById('dicaUploadTransacao');
+    if (tipo === 'saida') {
+        lblUp.textContent = 'Foto da Nota Fiscal do Mercado (Obrigatório) *';
+        dicaUp.textContent = 'Ficará com status "Aguardando Auditoria" até validação.';
     } else {
-        document.getElementById('areaUploadComprovante').classList.add('hidden');
+        lblUp.textContent = 'Comprovante PIX (Opcional p/ Gestor)';
+        dicaUp.textContent = 'Entradas lançadas pelo gestor já entram aprovadas no saldo.';
     }
 
     document.getElementById('modalTransacao').classList.remove('hidden');
-}
+};
 
-function fecharModalTransacao() {
+window.fecharModalTransacao = () => {
     document.getElementById('modalTransacao').classList.add('hidden');
-}
+};
 
-async function salvarTransacao() {
+window.salvarTransacao = async () => {
     const tipo = document.getElementById('formTipoTransacao').value;
     const valor = parseFloat(document.getElementById('formValorTransacao').value);
     const descricao = document.getElementById('formDescricaoTransacao').value.trim();
@@ -193,8 +393,10 @@ async function salvarTransacao() {
     const btn = document.getElementById('btnSalvarTransacao');
 
     if (!valor || isNaN(valor) || valor <= 0) return alert("Digite um valor válido.");
-    if (!descricao) return alert("Digite a descrição (Ex: Compra de Gelo).");
-    if (tipo === 'saida' && arquivoInput.files.length === 0) return alert("Para registrar uma despesa, é obrigatório anexar a foto da Nota Fiscal/Recibo.");
+    if (!descricao) return alert("Digite a descrição.");
+    if (tipo === 'saida' && (!arquivoInput.files || arquivoInput.files.length === 0)) {
+        return alert("Para registrar uma despesa, é obrigatório anexar a foto da Nota Fiscal.");
+    }
 
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
@@ -202,77 +404,193 @@ async function salvarTransacao() {
     try {
         let urlComprovante = null;
 
-        // Faz o Upload do Arquivo no bucket "comprovantes"
-        if (arquivoInput.files.length > 0) {
-            const file = arquivoInput.files[0];
-            const fileExt = file.name.split('.').pop();
-            const fileName = `cantina_${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
+        if (arquivoInput.files && arquivoInput.files.length > 0) {
+            const arquivoOtimizado = await comprimirImagemCantina(arquivoInput.files[0], 1200, 1200, 0.82);
+            const ext = arquivoOtimizado.name.split('.').pop();
+            const fileName = `${idTerreiroGlobal}/cantina_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${ext}`;
 
-            const { data: uploadData, error: uploadError } = await supabaseCantina.storage
-                .from('comprovantes')
-                .upload(fileName, file);
-
+            const { error: uploadError } = await dbCantina.storage.from('comprovantes').upload(fileName, arquivoOtimizado);
             if (uploadError) throw uploadError;
 
-            const { data: publicUrlData } = supabaseCantina.storage.from('comprovantes').getPublicUrl(fileName);
+            const { data: publicUrlData } = dbCantina.storage.from('comprovantes').getPublicUrl(fileName);
             urlComprovante = publicUrlData.publicUrl;
         }
 
-        // Regra de Status: 
-        // Entrada lançada pelo gestor já entra Aprovada (pois o dinheiro tá com ele).
-        // Saída (Despesa) entra como 'aguardando_auditoria' para o Admin avaliar.
-        const statusTransacao = tipo === 'entrada' ? 'aprovado' : 'aguardando_auditoria';
+        const statusInicial = tipo === 'entrada' ? 'aprovado' : 'aguardando_auditoria';
 
-        // Salva no Banco de Dados
-        const { error: dbError } = await supabaseCantina
-            .from('caixa_cantina')
-            .insert([{
-                terreiro_id: idTerreiroGlobal,
-                tipo: tipo,
-                valor: valor,
-                descricao: descricao,
-                comprovante_url: urlComprovante,
-                status: statusTransacao,
-                solicitado_por: usuarioLogadoId
-            }]);
+        const { error: dbError } = await dbCantina.from('caixa_cantina').insert([{
+            terreiro_id: idTerreiroGlobal,
+            tipo: tipo,
+            valor: valor,
+            descricao: descricao,
+            comprovante_url: urlComprovante,
+            status: statusInicial,
+            metodo_pagamento: 'manual',
+            solicitado_por: usuarioLogadoAuthId,
+            solicitante_nome: mediumLogado?.nome_completo || 'Gestão Cantina',
+            validado_por: tipo === 'entrada' ? usuarioLogadoAuthId : null,
+            validador_nome: tipo === 'entrada' ? (mediumLogado?.nome_completo || 'Gestão') : null,
+            data_validacao: tipo === 'entrada' ? new Date().toISOString() : null
+        }]);
 
         if (dbError) throw dbError;
 
-        alert(tipo === 'entrada' ? 'Entrada registrada com sucesso!' : 'Despesa enviada para auditoria com sucesso!');
+        alert(tipo === 'entrada' ? '✅ Entrada registrada com sucesso!' : '✅ Despesa enviada para auditoria!');
         fecharModalTransacao();
-        carregarExtratoCantina(); // Atualiza a tela
+        await carregarExtratoCantina();
 
     } catch (e) {
-        alert("Erro ao registrar: " + e.message);
+        alert("Erro ao salvar: " + e.message);
     } finally {
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-save"></i> Registrar';
     }
-}
+};
 
-// Admin Audita a Despesa
-async function auditarDespesa(id, novoStatus) {
-    if (!ehAdmin) return alert("Você não tem permissão para auditar.");
-    
-    const acao = novoStatus === 'aprovado' ? 'VALIDAR e descontar o saldo' : 'REJEITAR';
-    if (!confirm(`Tem certeza que deseja ${acao} esta despesa?`)) return;
+window.abrirModalAnexoCantina = (idTransacao) => {
+    const t = transacoesCache.find(x => Number(x.id) === Number(idTransacao));
+    if (!t || !t.comprovante_url) return;
+
+    const valFmt = Number(t.valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    const ehEntrada = t.tipo === 'entrada';
+
+    document.getElementById('modalAnexoSubtitulo').textContent = `${t.descricao} — ${valFmt} (Enviado por ${t.nomeSolicitanteResolvido})`;
+
+    const frame = document.getElementById('frameAnexoCantina');
+    const img = document.getElementById('imgAnexoCantina');
+    const loader = document.getElementById('loaderAnexoCantina');
+
+    loader.classList.remove('hidden');
+    frame.classList.add('hidden');
+    img.classList.add('hidden');
+
+    if (t.comprovante_url.toLowerCase().includes('.pdf')) {
+        frame.src = `https://docs.google.com/viewer?url=${encodeURIComponent(t.comprovante_url)}&embedded=true`;
+        frame.classList.remove('hidden');
+    } else {
+        img.src = t.comprovante_url;
+        img.classList.remove('hidden');
+        if (typeof window.resetarZoomAnexoCantina === 'function') window.resetarZoomAnexoCantina();
+    }
+
+    const podeAprovarEntrada = (ehGestorCantina || ehAdmin) && ehEntrada && t.status === 'pendente';
+    const podeAuditarSaida = (ehValidadorCantina || ehAdmin) && !ehEntrada && (t.status === 'aguardando_auditoria' || t.status === 'pendente');
+    const boxAcoes = document.getElementById('boxBotoesAcaoModalAnexo');
+
+    if (podeAprovarEntrada || podeAuditarSaida) {
+        boxAcoes.classList.remove('hidden');
+        const btnAprovar = document.getElementById('btnAprovarModalCantina');
+        const btnRejeitar = document.getElementById('btnRejeitarModalCantina');
+
+        btnAprovar.innerHTML = ehEntrada
+            ? `<i class="fas fa-check"></i> Aprovar PIX (${valFmt})`
+            : `<i class="fas fa-check"></i> Validar Despesa (${valFmt})`;
+
+        btnAprovar.onclick = () => processarDecisaoCantina(t.id, 'aprovado');
+        btnRejeitar.onclick = () => processarDecisaoCantina(t.id, 'rejeitado');
+    } else {
+        boxAcoes.classList.add('hidden');
+    }
+
+    document.getElementById('modalVerAnexoCantina').classList.remove('hidden');
+};
+
+window.fecharModalAnexoCantina = () => {
+    document.getElementById('modalVerAnexoCantina').classList.add('hidden');
+    document.getElementById('frameAnexoCantina').src = '';
+    document.getElementById('imgAnexoCantina').src = '';
+};
+
+window.processarDecisaoCantina = async (idTransacao, novoStatus) => {
+    const t = transacoesCache.find(x => Number(x.id) === Number(idTransacao));
+    if (!t) return;
+
+    const ehEntrada = t.tipo === 'entrada';
+    if (ehEntrada && !ehGestorCantina && !ehAdmin) {
+        return alert("Apenas o(a) Gestor(a) da Cantina ou Admin podem aprovar entradas de PIX.");
+    }
+    if (!ehEntrada && !ehValidadorCantina && !ehAdmin) {
+        return alert("Apenas o(a) Validador(a) de Compras ou Admin podem validar notas fiscais de saída.");
+    }
+
+    const valFmt = Number(t.valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    const msgConfirm = novoStatus === 'aprovado'
+        ? (ehEntrada ? `Confirmar recebimento do PIX de ${valFmt} e somar ao saldo da Cantina?` : `Validar esta Nota Fiscal de ${valFmt} e deduzir do saldo da Cantina?`)
+        : `Tem certeza que deseja REJEITAR este lançamento de ${valFmt}?`;
+
+    if (!confirm(msgConfirm)) return;
 
     try {
-        const { error } = await supabaseCantina
+        const { error } = await dbCantina
             .from('caixa_cantina')
-            .update({ 
+            .update({
                 status: novoStatus,
-                validado_por: usuarioLogadoId,
+                validado_por: usuarioLogadoAuthId,
+                validador_nome: mediumLogado?.nome_completo || 'Validador',
                 data_validacao: new Date().toISOString()
             })
-            .eq('id', id)
+            .eq('id', idTransacao)
             .eq('terreiro_id', idTerreiroGlobal);
 
         if (error) throw error;
-        
-        alert("Auditado com sucesso!");
-        carregarExtratoCantina();
-    } catch(e) {
-        alert("Erro ao auditar: " + e.message);
+
+        fecharModalAnexoCantina();
+        await carregarExtratoCantina();
+    } catch (e) {
+        alert("Erro ao processar: " + e.message);
     }
+};
+
+function configurarZoomPinchCantina() {
+    const container = document.querySelector('#modalVerAnexoCantina .area-zoom');
+    const img = document.getElementById('imgAnexoCantina');
+    if (!container || !img) return;
+
+    let scale = 1, panning = false, pointX = 0, pointY = 0, start = { x: 0, y: 0 }, startDist = 0, startScale = 1, lastTap = 0;
+
+    window.resetarZoomAnexoCantina = () => {
+        scale = 1; pointX = 0; pointY = 0;
+        img.style.transition = 'transform 0.2s ease-out';
+        img.style.transform = `translate(0px, 0px) scale(1)`;
+    };
+
+    container.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 2) {
+            panning = false;
+            startDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+            startScale = scale;
+        } else if (e.touches.length === 1 && scale > 1) {
+            panning = true;
+            start = { x: e.touches[0].clientX - pointX, y: e.touches[0].clientY - pointY };
+        }
+    }, { passive: false });
+
+    container.addEventListener('touchmove', (e) => {
+        if (e.touches.length === 2) {
+            e.preventDefault();
+            img.style.transition = 'none';
+            const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+            scale = Math.min(Math.max(1, startScale * (dist / startDist)), 4);
+            img.style.transform = `translate(${pointX}px, ${pointY}px) scale(${scale})`;
+        } else if (e.touches.length === 1 && panning) {
+            e.preventDefault();
+            img.style.transition = 'none';
+            pointX = e.touches[0].clientX - start.x;
+            pointY = e.touches[0].clientY - start.y;
+            img.style.transform = `translate(${pointX}px, ${pointY}px) scale(${scale})`;
+        }
+    }, { passive: false });
+
+    container.addEventListener('touchend', (e) => {
+        const now = Date.now();
+        if (now - lastTap < 300 && now - lastTap > 0) {
+            scale = scale > 1 ? 1 : 2.5;
+            pointX = 0; pointY = 0;
+            img.style.transition = 'transform 0.2s ease-out';
+            img.style.transform = `translate(0px, 0px) scale(${scale})`;
+            e.preventDefault();
+        }
+        lastTap = now;
+        if (scale <= 1) window.resetarZoomAnexoCantina();
+    });
 }
