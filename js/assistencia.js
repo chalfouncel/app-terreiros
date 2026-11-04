@@ -40,11 +40,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         // 2. Carrega dados do Terreiro (sem GPS)
         const { data: terreiro, error: errTerreiro } = await supabaseClient
             .from('terreiros')
-            .select('nome, logo_url, cor_primaria, cor_secundaria, cor_fundo, cor_texto')
+            .select('nome, logo_url, cor_primaria, cor_secundaria, cor_fundo, cor_texto, status_bloqueado')
             .eq('id', idTerreiroGlobal)
             .single();
 
         if (errTerreiro || !terreiro) throw new Error('Terreiro não localizado.');
+        if (terreiro.status_bloqueado === true) throw new Error('Recepção temporariamente indisponível para este Templo.');
 
         const txtNomeTerreiro = document.getElementById('nomeTerreiro');
         if (txtNomeTerreiro) txtNomeTerreiro.textContent = terreiro.nome || 'Terreiro';
