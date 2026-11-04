@@ -347,6 +347,24 @@
                                 </div>
                             </div>
 
+                            <!-- Card 9.1: Caixa e Auditoria da Cantina (perm_cantina) -->
+                            <div id="menuCantinaModulo" onclick="window.location.href='cantina.html'" class="group bg-white rounded-2xl border border-gray-200 hover:border-orange-500 p-5 shadow-sm hover:shadow-md transition cursor-pointer flex flex-col justify-between">
+                                <div>
+                                    <div class="flex items-center justify-between mb-3">
+                                        <div class="w-11 h-11 rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center text-lg font-bold group-hover:bg-orange-500 group-hover:text-white transition">
+                                            <i class="fas fa-store"></i>
+                                        </div>
+                                        <span class="text-[10px] font-black uppercase tracking-wider text-orange-700 bg-orange-50 px-2.5 py-1 rounded-full">Centro de Custos</span>
+                                    </div>
+                                    <h4 class="text-base font-black text-gray-800 group-hover:text-orange-600 transition">Financeiro da Cantina</h4>
+                                    <p class="text-xs text-gray-500 mt-1">Extrato isolado, validação de PIX de doações e auditoria de notas fiscais.</p>
+                                </div>
+                                <div class="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between">
+                                    <span class="text-[11px] font-semibold text-gray-500">Extrato & Auditoria</span>
+                                    <span class="text-[11px] font-black text-orange-600 group-hover:translate-x-1 transition">Abrir Painel ➔</span>
+                                </div>
+                            </div>
+
                             <!-- Card 10: Assistente IA (perm_ia) -->
                             <div id="menuIA" class="menu-item group bg-white rounded-2xl border border-gray-200 hover:border-blue-600 p-5 shadow-sm hover:shadow-md transition cursor-pointer flex flex-col justify-between">
                                 <div>
@@ -580,6 +598,7 @@
                                 <option value="perm_grau">Alteração de Grau</option>
                                 <option value="perm_financeiro">Financeiro</option>
                                 <option value="perm_doacoes">Doações / Campanhas</option>
+                                <option value="perm_cantina">Gestão da Cantina</option>
                                 <option value="perm_admin">Config. da Casa</option>
                             </select>
                         </div>
@@ -2136,6 +2155,10 @@
                     <label class="flex items-center space-x-3 cursor-pointer p-2 hover:bg-emerald-50 rounded-xl">
                         <input type="checkbox" id="chkPermEscalas" class="w-4 h-4 text-emerald-600 rounded">
                         <span class="font-bold text-emerald-700">Gestão de Escalas e Missões</span>
+                    </label>
+                    <label class="flex items-center space-x-3 cursor-pointer p-2 hover:bg-orange-50 rounded-xl">
+                        <input type="checkbox" id="chkPermCantina" class="w-4 h-4 text-orange-600 rounded">
+                        <span class="font-bold text-orange-700">Painel Financeiro e Auditoria da Cantina</span>
                     </label>
                 </div>
                 
