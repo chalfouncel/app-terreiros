@@ -298,16 +298,19 @@ function renderizarListaFiltradaCantina() {
         } else {
             bolinhaStatus = '🟡';
             corValor = 'text-amber-600';
-            textoStatus = ehEntrada
-                ? `<span class="bg-yellow-100 text-yellow-800 text-[10px] font-black px-2 py-0.5 rounded-full">Pendente (Aguardando Gestor)</span>`
-                : `<span class="bg-yellow-100 text-yellow-800 text-[10px] font-black px-2 py-0.5 rounded-full">Aguardando Auditoria</span>`;
+            const lancadoPeloProprio = String(t.solicitado_por) === String(usuarioLogadoAuthId);
+            textoStatus = lancadoPeloProprio
+                ? `<span class="bg-amber-100 text-amber-800 text-[10px] font-black px-2 py-0.5 rounded-full"><i class="fas fa-user-clock mr-1"></i>Aguardando Validação Cruzada</span>`
+                : (ehEntrada
+                    ? `<span class="bg-yellow-100 text-yellow-800 text-[10px] font-black px-2 py-0.5 rounded-full">Pendente (Validar Entrada)</span>`
+                    : `<span class="bg-yellow-100 text-yellow-800 text-[10px] font-black px-2 py-0.5 rounded-full">Aguardando Auditoria (Saída)</span>`);
         }
 
-        // Regra Dual-Approval:
-        // Gestor (ou Admin) aprova Entradas PIX; Validador (ou Admin) audita Saídas com Nota Fiscal
-        const podeAprovarEntrada = (ehGestorCantina || ehAdmin) && ehEntrada && t.status === 'pendente';
-        const podeAuditarSaida = (ehValidadorCantina || ehAdmin) && !ehEntrada && (t.status === 'aguardando_auditoria' || t.status === 'pendente');
-        const podeAgir = podeAprovarEntrada || podeAuditarSaida;
+        // Regra de Validação Cruzada (Ninguém valida o próprio lançamento):
+        const naoFuiEuQueLancei = String(t.solicitado_por) !== String(usuarioLogadoAuthId);
+        const temPapelValidador = (ehGestorCantina || ehValidadorCantina || ehAdmin);
+        const estaPendente = (t.status === 'pendente' || t.status === 'aguardando_auditoria');
+        const podeAgir = naoFuiEuQueLancei && temPapelValidador && estaPendente;
 
         const labelBotaoAnexo = ehEntrada ? 'Ver Recibo' : 'Ver Nota Fiscal';
         let botoesHtml = '';
@@ -372,10 +375,10 @@ window.abrirModalNovaTransacao = (tipo) => {
     const dicaUp = document.getElementById('dicaUploadTransacao');
     if (tipo === 'saida') {
         lblUp.textContent = 'Foto da Nota Fiscal do Mercado (Obrigatório) *';
-        dicaUp.textContent = 'Ficará com status "Aguardando Auditoria" até validação.';
+        dicaUp.textContent = 'Ficará aguardando validação cruzada do outro responsável.';
     } else {
-        lblUp.textContent = 'Comprovante PIX (Opcional p/ Gestor)';
-        dicaUp.textContent = 'Entradas lançadas pelo gestor já entram aprovadas no saldo.';
+        lblUp.textContent = 'Comprovante / Recibo da Entrada (Opcional)';
+        dicaUp.textContent = 'Ficará pendente para validação cruzada do outro responsável.';
     }
 
     document.getElementById('modalTransacao').classList.remove('hidden');
@@ -416,7 +419,7 @@ window.salvarTransacao = async () => {
             urlComprovante = publicUrlData.publicUrl;
         }
 
-        const statusInicial = tipo === 'entrada' ? 'aprovado' : 'aguardando_auditoria';
+        const statusInicial = tipo === 'entrada' ? 'pendente' : 'aguardando_auditoria';
 
         const { error: dbError } = await dbCantina.from('caixa_cantina').insert([{
             terreiro_id: idTerreiroGlobal,
@@ -428,14 +431,16 @@ window.salvarTransacao = async () => {
             metodo_pagamento: 'manual',
             solicitado_por: usuarioLogadoAuthId,
             solicitante_nome: mediumLogado?.nome_completo || 'Gestão Cantina',
-            validado_por: tipo === 'entrada' ? usuarioLogadoAuthId : null,
-            validador_nome: tipo === 'entrada' ? (mediumLogado?.nome_completo || 'Gestão') : null,
-            data_validacao: tipo === 'entrada' ? new Date().toISOString() : null
+            validado_por: null,
+            validador_nome: null,
+            data_validacao: null
         }]);
 
         if (dbError) throw dbError;
 
-        alert(tipo === 'entrada' ? '✅ Entrada registrada com sucesso!' : '✅ Despesa enviada para auditoria!');
+        alert(tipo === 'entrada'
+            ? '✅ Entrada registrada! Aguardando validação cruzada do outro responsável.'
+            : '✅ Despesa registrada! Aguardando validação cruzada do outro responsável.');
         fecharModalTransacao();
         await carregarExtratoCantina();
 
@@ -473,11 +478,12 @@ window.abrirModalAnexoCantina = (idTransacao) => {
         if (typeof window.resetarZoomAnexoCantina === 'function') window.resetarZoomAnexoCantina();
     }
 
-    const podeAprovarEntrada = (ehGestorCantina || ehAdmin) && ehEntrada && t.status === 'pendente';
-    const podeAuditarSaida = (ehValidadorCantina || ehAdmin) && !ehEntrada && (t.status === 'aguardando_auditoria' || t.status === 'pendente');
+    const naoFuiEuQueLancei = String(t.solicitado_por) !== String(usuarioLogadoAuthId);
+    const temPapelValidador = (ehGestorCantina || ehValidadorCantina || ehAdmin);
+    const estaPendente = (t.status === 'pendente' || t.status === 'aguardando_auditoria');
     const boxAcoes = document.getElementById('boxBotoesAcaoModalAnexo');
 
-    if (podeAprovarEntrada || podeAuditarSaida) {
+    if (naoFuiEuQueLancei && temPapelValidador && estaPendente) {
         boxAcoes.classList.remove('hidden');
         const btnAprovar = document.getElementById('btnAprovarModalCantina');
         const btnRejeitar = document.getElementById('btnRejeitarModalCantina');
@@ -506,11 +512,11 @@ window.processarDecisaoCantina = async (idTransacao, novoStatus) => {
     if (!t) return;
 
     const ehEntrada = t.tipo === 'entrada';
-    if (ehEntrada && !ehGestorCantina && !ehAdmin) {
-        return alert("Apenas o(a) Gestor(a) da Cantina ou Admin podem aprovar entradas de PIX.");
+    if (String(t.solicitado_por) === String(usuarioLogadoAuthId)) {
+        return alert("Bloqueio de Auditoria Cruzada: Você não pode aprovar ou validar um lançamento feito por você mesmo. O outro responsável deve validar.");
     }
-    if (!ehEntrada && !ehValidadorCantina && !ehAdmin) {
-        return alert("Apenas o(a) Validador(a) de Compras ou Admin podem validar notas fiscais de saída.");
+    if (!ehGestorCantina && !ehValidadorCantina && !ehAdmin) {
+        return alert("Apenas o(a) Gestor(a) ou o(a) Validador(a) da Cantina podem validar lançamentos.");
     }
 
     const valFmt = Number(t.valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
