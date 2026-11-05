@@ -6822,7 +6822,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
                 const elTotalRifa = document.getElementById('totalArrecadadoRifaSelecionada');
                 if (elTotalRifa) {
-                    elTotalRifa.textContent = `Total da Rifa: ${Number(0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`;
+                    elTotalRifa.innerHTML = `Total da Rifa: ${Number(0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`;
                 }
 
                 return;
@@ -6840,7 +6840,13 @@ window.addEventListener('DOMContentLoaded', () => {
 
             const elTotalRifa = document.getElementById('totalArrecadadoRifaSelecionada');
             if (elTotalRifa) {
-                elTotalRifa.textContent = `Total da Rifa: ${totalRifaSelecionada.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`;
+                const tituloRifaSeguro = (rifaInfo.titulo || 'Rifa').replace(/'/g, "\\'");
+                elTotalRifa.innerHTML = `
+                    Total da Rifa: ${totalRifaSelecionada.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    <button onclick="imprimirRelatorioRifa()" class="ml-3 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-3 py-1 rounded-lg text-[11px] font-black transition active:scale-95 border border-indigo-200" title="Baixar PDF de Controle">
+                        <i class="fas fa-print mr-1"></i> PDF
+                    </button>
+                `;
             }
             
             if (!numeros || numeros.length === 0) {
@@ -6905,8 +6911,61 @@ window.addEventListener('DOMContentLoaded', () => {
                     </tr>
                 `;
             });
+
+            // Armazena os dados processados para a impressão do PDF
+            window.dadosRelatorioRifaAtual = {
+                titulo: selectRifaFin.options[selectRifaFin.selectedIndex].text.split(' (R$')[0],
+                total: totalRifaSelecionada,
+                dadosObj: agrupado
+            };
         });
     }
+
+    // Função que chama o gerador de PDF genérico
+    window.imprimirRelatorioRifa = () => {
+        if (!window.dadosRelatorioRifaAtual || !window.dadosRelatorioRifaAtual.dadosObj) {
+            alert('Não há dados carregados para impressão.');
+            return;
+        }
+
+        const titulo = window.dadosRelatorioRifaAtual.titulo;
+        const total = window.dadosRelatorioRifaAtual.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        const dadosBase = Object.values(window.dadosRelatorioRifaAtual.dadosObj);
+
+        // Prepara as linhas no formato esperado pela função gerarPDFRelatorio
+        const linhasPDF = dadosBase.map(comp => {
+            const ehMedium = listaMediunsGlobal.find(m => m.telefone && m.telefone.replace(/\D/g, '') === comp.telefoneLimpo);
+            const nomeComprador = comp.nome + (ehMedium ? ' (Médium)' : '');
+            const telefoneFmt = comp.telefoneOriginal;
+            
+            const numsStr = comp.numeros.map(n => String(n).padStart(2,'0')).join(', ');
+            const statusFmt = (comp.status === 'aprovado' || comp.status === 'pago') ? 'PAGO' : 'PENDENTE';
+            
+            let vendedorNome = 'Link Externo';
+            if (comp.vendedor_id) {
+                const v = listaMediunsGlobal.find(m => m.id === comp.vendedor_id);
+                if (v) vendedorNome = v.nome_social || v.nome_completo;
+            }
+
+            const valorTotalStr = (comp.numeros.length * window.dadosRelatorioRifaAtual.total / Object.keys(window.dadosRelatorioRifaAtual.dadosObj).reduce((acc, curr) => acc + window.dadosRelatorioRifaAtual.dadosObj[curr].numeros.length, 0) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            
+            // Calculando valor unitario para multiplicar pela quantidade
+            const totalGeralNumeros = Object.values(window.dadosRelatorioRifaAtual.dadosObj).reduce((acc, curr) => acc + curr.numeros.length, 0);
+            const valorUnitarioCalculado = totalGeralNumeros > 0 ? (window.dadosRelatorioRifaAtual.total / totalGeralNumeros) : 0;
+            const valorCalculadoFmt = (comp.numeros.length * valorUnitarioCalculado).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+            return [nomeComprador, telefoneFmt, numsStr, statusFmt, vendedorNome, valorCalculadoFmt];
+        });
+
+        // Adiciona a linha de total
+        linhasPDF.push([
+            `TOTAL ARRECADADO NA RIFA`, '-', '-', '-', '-', total
+        ]);
+
+        const colunas = ['Comprador', 'WhatsApp', 'Números', 'Status', 'Passou a Rifa (Vendedor)', 'Valor Total'];
+        
+        window.gerarPDFRelatorio(`Relatório Financeiro de Rifa - ${titulo}`, colunas, linhasPDF, 'portrait');
+    };
 
     // ============================================================================
     // NOVO MÓDULO: GESTÃO DE ESCALAS E MISSÕES (EXU E CORRENTE) E WHATSAPP
