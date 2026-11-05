@@ -6916,6 +6916,7 @@ window.addEventListener('DOMContentLoaded', () => {
             window.dadosRelatorioRifaAtual = {
                 titulo: selectRifaFin.options[selectRifaFin.selectedIndex].text.split(' (R$')[0],
                 total: totalRifaSelecionada,
+                valorUnitario: valorUnitarioRifa,
                 dadosObj: agrupado
             };
         });
@@ -6930,6 +6931,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
         const titulo = window.dadosRelatorioRifaAtual.titulo;
         const total = window.dadosRelatorioRifaAtual.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        const valorUnit = window.dadosRelatorioRifaAtual.valorUnitario || 0;
         const dadosBase = Object.values(window.dadosRelatorioRifaAtual.dadosObj);
 
         // Prepara as linhas no formato esperado pela função gerarPDFRelatorio
@@ -6947,12 +6949,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 if (v) vendedorNome = v.nome_social || v.nome_completo;
             }
 
-            const valorTotalStr = (comp.numeros.length * window.dadosRelatorioRifaAtual.total / Object.keys(window.dadosRelatorioRifaAtual.dadosObj).reduce((acc, curr) => acc + window.dadosRelatorioRifaAtual.dadosObj[curr].numeros.length, 0) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-            
-            // Calculando valor unitario para multiplicar pela quantidade
-            const totalGeralNumeros = Object.values(window.dadosRelatorioRifaAtual.dadosObj).reduce((acc, curr) => acc + curr.numeros.length, 0);
-            const valorUnitarioCalculado = totalGeralNumeros > 0 ? (window.dadosRelatorioRifaAtual.total / totalGeralNumeros) : 0;
-            const valorCalculadoFmt = (comp.numeros.length * valorUnitarioCalculado).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            const valorCalculadoFmt = (comp.numeros.length * valorUnit).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
             return [nomeComprador, telefoneFmt, numsStr, statusFmt, vendedorNome, valorCalculadoFmt];
         });
