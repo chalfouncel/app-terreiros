@@ -34,6 +34,14 @@ async function iniciarApp() {
 
     await carregarDadosRifa();
     configurarRealtime();
+
+    // Timer oculto em background: limpa reservas expiradas (> 5 min) a cada 30s
+    setInterval(async () => {
+        try {
+            await window.supabaseClient.rpc('limpar_reservas_expiradas');
+            await carregarNumerosCartela();
+        } catch (e) {}
+    }, 30000);
 }
 
 if (document.readyState === 'loading') {
@@ -127,6 +135,8 @@ function preencherDadosCabecalho() {
 // 6. Carregar números já vendidos ou reservados
 async function carregarNumerosCartela() {
     try {
+        try { await window.supabaseClient.rpc('limpar_reservas_expiradas'); } catch (e) {}
+
         const { data: registros, error } = await window.supabaseClient
             .from('rifa_numeros')
             .select('numero, status_pagamento, nome_comprador')
