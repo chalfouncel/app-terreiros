@@ -2643,10 +2643,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const isIsento = m.isento_mensalidade === true || (pgto ? pgto.isento : false);
                     const pago = pgto ? pgto.pago : false;
                     const origem = pgto ? pgto.origem : null;
-                    const passou = (anoBusca < anoAtual) || (anoBusca === anoAtual && i <= mesAtual);
+                    // Define o mês corrente e os anteriores como vencidos/cobráveis
+                    const venceu = (anoBusca < anoAtual) || (anoBusca === anoAtual && i <= mesAtual);
                     
-                    // Se o médium está inativo, preserva todos os pagamentos/isenções já feitos, mas não gera cobrança nova
-                    if (!ehInativo && passou && !pago && !isIsento && !isAntesDoIngresso) emDia = false; 
+                    // Se está ativo, o mês venceu (ou é o atual), não pagou, não isentou e já era do terreiro -> PENDENTE
+                    if (!ehInativo && venceu && !pago && !isIsento && !isAntesDoIngresso) {
+                        emDia = false;
+                    }
 
                     if (!isAntesDoIngresso) {
                         if (pago) {
@@ -2656,7 +2659,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             statsMeses[i-1].totalMediuns++;
                             if (isIsento || pago) {
                                 statsMeses[i-1].adimplentes++;
-                            } else if (passou) {
+                            } else if (venceu) {
                                 statsMeses[i-1].inadimplentes++;
                             }
                         }
@@ -4318,9 +4321,11 @@ setTimeout(() => {
                     const isAntesDoIngresso = (anoBusca < anoIngresso) || (anoBusca === anoIngresso && i < mesIngresso);
                     const isIsento = m.isento_mensalidade === true || (pgto ? pgto.isento : false);
                     const pago = pgto ? pgto.pago : false;
-                    const passou = (anoBusca < anoAtual) || (anoBusca === anoAtual && i <= mesAtual);
+                    const venceu = (anoBusca < anoAtual) || (anoBusca === anoAtual && i <= mesAtual);
 
-                    if (!ehInativo && passou && !pago && !isIsento && !isAntesDoIngresso) emDia = false;
+                    if (!ehInativo && venceu && !pago && !isIsento && !isAntesDoIngresso) {
+                        emDia = false;
+                    }
 
                     if (isAntesDoIngresso) {
                         linha.push('<span style="color: #cbd5e1;">-</span>');
@@ -4331,7 +4336,7 @@ setTimeout(() => {
                     } else if (ehInativo) {
                         linha.push('<span style="color: #94a3b8;">-</span>');
                     } else {
-                        linha.push(passou ? '<span style="color: #dc2626; font-weight: bold;">Pend.</span>' : '<span style="color: #94a3b8;">Aber.</span>');
+                        linha.push(venceu ? '<span style="color: #dc2626; font-weight: bold;">Pend.</span>' : '<span style="color: #94a3b8;">Aber.</span>');
                     }
                 }
 
