@@ -6402,6 +6402,7 @@ window.addEventListener('DOMContentLoaded', () => {
         const grid = document.getElementById('gridNumerosRifa');
         if (!grid) return;
 
+        try { await supabaseClient.rpc('limpar_reservas_expiradas'); } catch (e) {}
         const { data: comprados } = await supabaseClient.from('rifa_numeros').select('*').eq('rifa_id', idRifa);
         
         let qtdLivre = qtdNumeros;
