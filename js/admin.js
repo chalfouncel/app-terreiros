@@ -4113,6 +4113,12 @@ window.gerarPDFRelatorio = (titulo, colunas, dados, orientacao = 'portrait') => 
     });
 
     containerPDF.innerHTML = htmlFinal;
+    
+    // ANEXA TEMPORARIAMENTE AO DOM PARA O HTML2CANVAS CONSEGUIR RENDERIZAR
+    containerPDF.style.position = 'absolute';
+    containerPDF.style.left = '-9999px';
+    containerPDF.style.top = '0';
+    document.body.appendChild(containerPDF);
 
     const opt = {
         margin:       [10, 10, 15, 10], // Deixa uma margem maior embaixo para o rodapé
@@ -4142,7 +4148,16 @@ window.gerarPDFRelatorio = (titulo, colunas, dados, orientacao = 'portrait') => 
             // Opcional: Nome da instituição ou data à esquerda no rodapé
             pdf.text(`${nomeTerreiroGlobal || 'Templo'} — Documento Oficial`, 15, pageHeight - 8, { align: 'left' });
         }
-    }).save();
+    }).save().then(() => {
+        // REMOVE O ELEMENTO DO DOM APÓS GERAR O PDF
+        if (containerPDF.parentNode) {
+            containerPDF.parentNode.removeChild(containerPDF);
+        }
+    }).catch(() => {
+        if (containerPDF.parentNode) {
+            containerPDF.parentNode.removeChild(containerPDF);
+        }
+    });
 };
 setTimeout(() => {
     const elNome = document.getElementById('filtroNomeMedium');
