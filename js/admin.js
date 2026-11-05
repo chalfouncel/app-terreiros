@@ -2643,7 +2643,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const isIsento = m.isento_mensalidade === true || (pgto ? pgto.isento : false);
                     const pago = pgto ? pgto.pago : false;
                     const origem = pgto ? pgto.origem : null;
-                    const passou = (anoBusca < anoAtual) || (anoBusca === anoAtual && i < mesAtual);
+                    const passou = (anoBusca < anoAtual) || (anoBusca === anoAtual && i <= mesAtual);
                     
                     // Se o médium está inativo, preserva todos os pagamentos/isenções já feitos, mas não gera cobrança nova
                     if (!ehInativo && passou && !pago && !isIsento && !isAntesDoIngresso) emDia = false; 
@@ -4318,7 +4318,7 @@ setTimeout(() => {
                     const isAntesDoIngresso = (anoBusca < anoIngresso) || (anoBusca === anoIngresso && i < mesIngresso);
                     const isIsento = m.isento_mensalidade === true || (pgto ? pgto.isento : false);
                     const pago = pgto ? pgto.pago : false;
-                    const passou = (anoBusca < anoAtual) || (anoBusca === anoAtual && i < mesAtual);
+                    const passou = (anoBusca < anoAtual) || (anoBusca === anoAtual && i <= mesAtual);
 
                     if (!ehInativo && passou && !pago && !isIsento && !isAntesDoIngresso) emDia = false;
 
