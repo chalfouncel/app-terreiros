@@ -6917,8 +6917,8 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Função que gera o PDF de Controle da Rifa direto via motor nativo jsPDF (sem risco de página em branco)
-    window.imprimirRelatorioRifa = () => {
+    // Função que gera o PDF de Controle da Rifa direto via motor nativo jsPDF (com Logo da Casa à esquerda)
+    window.imprimirRelatorioRifa = async () => {
         if (!window.dadosRelatorioRifaAtual || !window.dadosRelatorioRifaAtual.dadosObj) {
             alert('Não há dados carregados para impressão.');
             return;
@@ -6934,6 +6934,29 @@ window.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // Carrega a logo da Casa em Base64 mantendo a proporção
+        let logoBase64 = null;
+        if (logoTerreiroGlobal) {
+            try {
+                logoBase64 = await new Promise((resolve) => {
+                    const img = new Image();
+                    img.crossOrigin = 'Anonymous';
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = img.naturalWidth || img.width;
+                        canvas.height = img.naturalHeight || img.height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0);
+                        resolve(canvas.toDataURL('image/png'));
+                    };
+                    img.onerror = () => resolve(null);
+                    img.src = logoTerreiroGlobal + (logoTerreiroGlobal.includes('?') ? '&' : '?') + 't=' + Date.now();
+                });
+            } catch (e) {
+                logoBase64 = null;
+            }
+        }
+
         const dummy = document.createElement('div');
         const opt = {
             margin: 10,
@@ -6947,6 +6970,13 @@ window.addEventListener('DOMContentLoaded', () => {
             const mLeft = 12;
             const tableWidth = 186;
             const dataEmissao = `${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+
+            // Insere a Logo da Casa no canto superior esquerdo (ao lado do título)
+            if (logoBase64) {
+                try {
+                    pdf.addImage(logoBase64, 'PNG', mLeft, 11, 16, 16);
+                } catch (e) {}
+            }
 
             // Definição das colunas (Soma = 186mm)
             const cols = [
