@@ -12,18 +12,13 @@
         return permitidos.includes(g);
     };
 
-    // Função para copiar padrinhos de uma aba para outra
+    // Função para copiar padrinhos do Batismo para Consagração
     window.copiarPadrinhos = (origem, destino) => {
         if (origem === 'batismo' && destino === 'consagracao') {
             document.getElementById('perfilConsagracaoPadrinhoGuia').value = document.getElementById('perfilBatismoPadrinhoNome').value;
             document.getElementById('perfilConsagracaoPadrinhoMedium').value = document.getElementById('perfilBatismoPadrinhoMedium').value;
             document.getElementById('perfilConsagracaoMadrinhaGuia').value = document.getElementById('perfilBatismoMadrinhaNome').value;
             document.getElementById('perfilConsagracaoMadrinhaMedium').value = document.getElementById('perfilBatismoMadrinhaMedium').value;
-        } else if (origem === 'consagracao' && destino === 'coroacao') {
-            document.getElementById('perfilCoroacaoPadrinhoGuia').value = document.getElementById('perfilConsagracaoPadrinhoGuia').value;
-            document.getElementById('perfilCoroacaoPadrinhoMedium').value = document.getElementById('perfilConsagracaoPadrinhoMedium').value;
-            document.getElementById('perfilCoroacaoMadrinhaGuia').value = document.getElementById('perfilConsagracaoMadrinhaGuia').value;
-            document.getElementById('perfilCoroacaoMadrinhaMedium').value = document.getElementById('perfilConsagracaoMadrinhaMedium').value;
         }
     };
 
@@ -188,10 +183,6 @@
                         padrinho: { tipo: 'guia', nome: document.getElementById('perfilConsagracaoPadrinhoGuia')?.value.trim() || '', medium: document.getElementById('perfilConsagracaoPadrinhoMedium')?.value.trim() || '' },
                         madrinha: { tipo: 'guia', nome: document.getElementById('perfilConsagracaoMadrinhaGuia')?.value.trim() || '', medium: document.getElementById('perfilConsagracaoMadrinhaMedium')?.value.trim() || '' }
                     }) : null,
-                    padrinhos_coroacao: permiteCT ? JSON.stringify({
-                        padrinho: { tipo: 'guia', nome: document.getElementById('perfilCoroacaoPadrinhoGuia')?.value.trim() || '', medium: document.getElementById('perfilCoroacaoPadrinhoMedium')?.value.trim() || '' },
-                        madrinha: { tipo: 'guia', nome: document.getElementById('perfilCoroacaoMadrinhaGuia')?.value.trim() || '', medium: document.getElementById('perfilCoroacaoMadrinhaMedium')?.value.trim() || '' }
-                    }) : null,
                     guia_caboclo: document.getElementById('perfilGuiaCaboclo')?.value.trim() || null,
                     guia_preto_velho: document.getElementById('perfilGuiaPretoVelho')?.value.trim() || null,
                     guia_exu_pombagira: document.getElementById('perfilGuiaExuPombagira')?.value.trim() || null,
@@ -236,7 +227,7 @@
         try {
             const { data, error } = await supabaseClient
                 .from('mediuns')
-                .select('grau, padrinhos_batismo, padrinhos_consagracao, padrinhos_coroacao, data_batismo, data_consagracao, data_coroacao, guia_caboclo, guia_preto_velho, guia_exu_pombagira, guia_crianca, guia_oriental, guia_cigano, pontos_cantados')
+                .select('grau, padrinhos_batismo, padrinhos_consagracao, data_batismo, data_consagracao, data_coroacao, guia_caboclo, guia_preto_velho, guia_exu_pombagira, guia_crianca, guia_oriental, guia_cigano, pontos_cantados')
                 .eq('id', perfilMediumLogado.id)
                 .eq('terreiro_id', idTerreiroGlobal)
                 .single();
@@ -313,7 +304,7 @@
                 alternarTipoPadrinhoBatismo('perfil', 'Padrinho');
                 alternarTipoPadrinhoBatismo('perfil', 'Madrinha');
 
-                // Consagração e Coroação
+                // Consagração
                 if (permite) {
                     try {
                         const cons = JSON.parse(data.padrinhos_consagracao || '{}');
@@ -324,18 +315,6 @@
                         if (cons.madrinha) {
                             document.getElementById('perfilConsagracaoMadrinhaGuia').value = cons.madrinha.nome || '';
                             document.getElementById('perfilConsagracaoMadrinhaMedium').value = cons.madrinha.medium || '';
-                        }
-                    } catch (e) {}
-
-                    try {
-                        const coro = JSON.parse(data.padrinhos_coroacao || '{}');
-                        if (coro.padrinho) {
-                            document.getElementById('perfilCoroacaoPadrinhoGuia').value = coro.padrinho.nome || '';
-                            document.getElementById('perfilCoroacaoPadrinhoMedium').value = coro.padrinho.medium || '';
-                        }
-                        if (coro.madrinha) {
-                            document.getElementById('perfilCoroacaoMadrinhaGuia').value = coro.madrinha.nome || '';
-                            document.getElementById('perfilCoroacaoMadrinhaMedium').value = coro.madrinha.medium || '';
                         }
                     } catch (e) {}
                 }
@@ -375,7 +354,7 @@
 
             const { data, error } = await supabaseClient
                     .from('mediuns')
-                    .select('id, nome_completo, nome_social, grau, funcao, status_ativo, cpf, estado_civil, profissao, lgpd_aceite, padrinhos_batismo, padrinhos_consagracao, padrinhos_coroacao, data_batismo, data_consagracao, data_coroacao, guia_caboclo, guia_preto_velho, guia_exu_pombagira, guia_crianca, guia_oriental, guia_cigano, pontos_cantados')
+                    .select('id, nome_completo, nome_social, grau, funcao, status_ativo, cpf, estado_civil, profissao, lgpd_aceite, padrinhos_batismo, padrinhos_consagracao, data_batismo, data_consagracao, data_coroacao, guia_caboclo, guia_preto_velho, guia_exu_pombagira, guia_crianca, guia_oriental, guia_cigano, pontos_cantados')
                     .eq('terreiro_id', idTerreiroGlobal)
                 .neq('nome_completo', 'Administrador Sistema')
                 .neq('status_ativo', false)
@@ -412,7 +391,7 @@
             if (termoGuia) {
                 const textoUnificado = [
                     m.guia_caboclo, m.guia_preto_velho, m.guia_exu_pombagira, m.guia_crianca, m.guia_oriental, m.guia_cigano,
-                    m.padrinhos_batismo, m.padrinhos_consagracao, m.padrinhos_coroacao
+                    m.padrinhos_batismo, m.padrinhos_consagracao
                 ].filter(Boolean).join(' ').toLowerCase();
 
                 if (!textoUnificado.includes(termoGuia)) return false;
@@ -466,21 +445,10 @@
                 consagracaoDisplay = m.padrinhos_consagracao || '-';
             }
 
-            let coroacaoDisplay = '-';
-            try {
-                const coro = JSON.parse(m.padrinhos_coroacao || '{}');
-                const pad = coro.padrinho?.nome ? `${coro.padrinho.nome}${coro.padrinho.medium ? ` (${coro.padrinho.medium})` : ''}` : '-';
-                const mad = coro.madrinha?.nome ? `${coro.madrinha.nome}${coro.madrinha.medium ? ` (${coro.madrinha.medium})` : ''}` : '-';
-                coroacaoDisplay = `P.: ${pad} | M.: ${mad}`;
-            } catch (e) {
-                coroacaoDisplay = m.padrinhos_coroacao || '-';
-            }
-
             const padrinhosHtml = `
                 <div class="space-y-1 text-xs">
                     <div><strong class="text-sky-700 uppercase text-[9px]">Batismo:</strong> <span class="text-gray-800">${batismoDisplay}</span></div>
                     <div><strong class="text-amber-700 uppercase text-[9px]">Consagração:</strong> <span class="text-gray-800">${consagracaoDisplay}</span></div>
-                    <div><strong class="text-yellow-600 uppercase text-[9px]">Coroação:</strong> <span class="text-gray-800">${coroacaoDisplay}</span></div>
                 </div>
             `;
 
@@ -623,7 +591,7 @@
         alternarTipoPadrinhoBatismo('edit', 'Padrinho');
         alternarTipoPadrinhoBatismo('edit', 'Madrinha');
 
-        // Consagração e Coroação
+        // Consagração
         if (permite) {
             try {
                 const cons = JSON.parse(m.padrinhos_consagracao || '{}');
@@ -634,18 +602,6 @@
                 if (cons.madrinha) {
                     document.getElementById('editConsagracaoMadrinhaGuia').value = cons.madrinha.nome || '';
                     document.getElementById('editConsagracaoMadrinhaMedium').value = cons.madrinha.medium || '';
-                }
-            } catch (e) {}
-
-            try {
-                const coro = JSON.parse(m.padrinhos_coroacao || '{}');
-                if (coro.padrinho) {
-                    document.getElementById('editCoroacaoPadrinhoGuia').value = coro.padrinho.nome || '';
-                    document.getElementById('editCoroacaoPadrinhoMedium').value = coro.padrinho.medium || '';
-                }
-                if (coro.madrinha) {
-                    document.getElementById('editCoroacaoMadrinhaGuia').value = coro.madrinha.nome || '';
-                    document.getElementById('editCoroacaoMadrinhaMedium').value = coro.madrinha.medium || '';
                 }
             } catch (e) {}
         }
@@ -778,7 +734,7 @@
 
         const colunas = [
             'MÉDIUM / GRAU',
-            '🕊️ PADRINHOS (BATISMO / CONSAGRAÇÃO / COROAÇÃO)',
+            '🕊️ PADRINHOS (BATISMO / CONSAGRAÇÃO)',
             '🌿 CABOCLOS / BOIADEIROS',
             '☕ PRETOS VELHOS',
             '🔱 EXUS E POMBAGIRAS',
@@ -814,19 +770,10 @@
                 conStr = `P.: ${p} | M.: ${md}`;
             } catch(e) { conStr = m.padrinhos_consagracao || '-'; }
 
-            let corStr = '-';
-            try {
-                const cor = JSON.parse(m.padrinhos_coroacao || '{}');
-                const p = cor.padrinho?.nome ? `${cor.padrinho.nome}${cor.padrinho.medium ? ` (${cor.padrinho.medium})` : ''}` : '-';
-                const md = cor.madrinha?.nome ? `${cor.madrinha.nome}${cor.madrinha.medium ? ` (${cor.madrinha.medium})` : ''}` : '-';
-                corStr = `P.: ${p} | M.: ${md}`;
-            } catch(e) { corStr = m.padrinhos_coroacao || '-'; }
-
             const colPadrinhos = `
                 <div style="font-size: 7pt; line-height: 1.4; text-align: left;">
                     <div><span style="color:#0284c7; font-weight:bold;">Bat.:</span> <span style="color:#334155;">${batStr}</span></div>
                     <div><span style="color:#d97706; font-weight:bold;">Cons.:</span> <span style="color:#334155;">${conStr}</span></div>
-                    <div><span style="color:#ca8a04; font-weight:bold;">Cor.:</span> <span style="color:#334155;">${corStr}</span></div>
                 </div>
             `;
 
@@ -1035,10 +982,6 @@
                         padrinhos_consagracao: permiteCT ? JSON.stringify({
                         padrinho: { tipo: 'guia', nome: document.getElementById('editConsagracaoPadrinhoGuia')?.value.trim() || '', medium: document.getElementById('editConsagracaoPadrinhoMedium')?.value.trim() || '' },
                         madrinha: { tipo: 'guia', nome: document.getElementById('editConsagracaoMadrinhaGuia')?.value.trim() || '', medium: document.getElementById('editConsagracaoMadrinhaMedium')?.value.trim() || '' }
-                    }) : null,
-                    padrinhos_coroacao: permiteCT ? JSON.stringify({
-                        padrinho: { tipo: 'guia', nome: document.getElementById('editCoroacaoPadrinhoGuia')?.value.trim() || '', medium: document.getElementById('editCoroacaoPadrinhoMedium')?.value.trim() || '' },
-                        madrinha: { tipo: 'guia', nome: document.getElementById('editCoroacaoMadrinhaGuia')?.value.trim() || '', medium: document.getElementById('editCoroacaoMadrinhaMedium')?.value.trim() || '' }
                     }) : null,
                     guia_caboclo: document.getElementById('editGuiaCaboclo').value.trim() || null,
                     guia_preto_velho: document.getElementById('editGuiaPretoVelho').value.trim() || null,
@@ -1327,7 +1270,7 @@
                 madrinhaObj = c.madrinha;
             } else if (tipoSacramento === 'Coroação') {
                 dataSacramento = medium.data_coroacao;
-                const c = JSON.parse(medium.padrinhos_coroacao || '{}');
+                const c = JSON.parse(medium.padrinhos_consagracao || '{}');
                 padrinhoObj = c.padrinho;
                 madrinhaObj = c.madrinha;
             }
@@ -1348,11 +1291,12 @@
                 const estCivilTxt = estadoCivilMedium || '____________________';
                 const profissaoTxt = profissaoMedium || '____________________';
                 const cpfTxt = formatarCPF(cpfMedium);
+                const rodapePadrinhosCCT = `PADRINHOS ESPIRITUAIS (CONSAGRAÇÃO): ${formatarPadrinho(padrinhoObj)} E ${formatarPadrinho(madrinhaObj)}`;
 
                 elementoPdf.innerHTML = `
                     <img src="${fundoBase64}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1;" />
                     
-                    <div style="position: absolute; top: 7%; height: 72%; width: 100%; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; padding: 0 95px; box-sizing: border-box; z-index: 2;">
+                    <div style="position: absolute; top: 7%; height: 74%; width: 100%; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; padding: 0 95px; box-sizing: border-box; z-index: 2;">
                         
                         <div style="text-align: center;">
                             <h1 style="font-family: 'Cinzel', serif; font-size: 38px; font-weight: 700; margin: 0; color: #ffffff; letter-spacing: 8px; text-shadow: 2px 2px 6px rgba(0,0,0,0.75);">
@@ -1369,17 +1313,21 @@
                             </h3>
                         </div>
 
-                        <div style="padding: 6px 30px; width: 100%; box-sizing: border-box; margin-top: 60px;">
-                            <p style="font-family: 'Playfair Display', serif; font-size: 13.5px; line-height: 1.65; text-align: justify; color: #111827; margin: 0 0 14px 0; font-weight: 600; ${legibilidadeCSS}">
+                        <div style="padding: 6px 30px; width: 100%; box-sizing: border-box; margin-top: 50px;">
+                            <p style="font-family: 'Playfair Display', serif; font-size: 13.5px; line-height: 1.65; text-align: justify; color: #111827; margin: 0 0 12px 0; font-weight: 600; ${legibilidadeCSS}">
                                 <strong>${nomeDirigente}</strong>, ${estCivilDirigente}, ${profissaoDirigente}, portador(a) inscrito(a) no Cadastro de Pessoas Físicas sob nº <strong>${cpfDirigente}</strong>, Sacerdote do <strong>${nomeTemploFormatado}</strong>, com sede na ${enderecoTemplo}, com fundamento no art. 5º, inciso VI, da Constituição Federal e art. VI, alínea “g”, da Declaração sobre a Eliminação de Todas as Formas de Intolerância e Discriminação Fundadas na Religião ou nas Convicções, <strong>DECLARA PARA OS DEVIDOS FINS</strong> que em <strong>${dataCoroacaoFmt}</strong> certificou a habilitação religiosa, nomeou e designou como <strong>Comandante Chefe de Terreiro (CCT) – Linha de Morubixaba</strong> o(a) Sr.(a) <strong>${nomeMediumUpper}</strong>, brasileiro(a), <strong>${estCivilTxt}</strong>, <strong>${profissaoTxt}</strong>, inscrito(a) no CPF sob o nº <strong>${cpfTxt}</strong> razão pela qual o(a) nomeado(a) adquire o direito de exercer todos os direitos e prerrogativas religiosas que a presente habilitação lhe assegura.
                             </p>
-                            <p style="font-family: 'Playfair Display', serif; font-size: 12.5px; line-height: 1.6; text-align: justify; color: #111827; margin: 0; font-weight: 600; ${legibilidadeCSS}">
+                            <p style="font-family: 'Playfair Display', serif; font-size: 12.5px; line-height: 1.6; text-align: justify; color: #111827; margin: 0 0 14px 0; font-weight: 600; ${legibilidadeCSS}">
                                 Consigna ainda que o presente ato se assenta na Declaração sobre a Eliminação de Todas as Formas de Intolerância e Discriminação Fundadas na Religião ou nas Convicções, Resolução nº 36/55, proclamada pela Assembleia Geral das Nações Unidas em 25 de novembro de 1981, a qual assegura às organizações religiosas o direito de “Capacitar, nomear, e eleger por sucessão os dirigentes que correspondam segundo as necessidades e normas de qualquer religião ou convicção” (Art. VI, alínea “g”).
                             </p>
+                            <div style="font-family: 'Playfair Display', serif; font-size: 11px; color: #111827; font-weight: 700; text-align: center; line-height: 1.5; text-transform: uppercase; ${legibilidadeCSS}">
+                                ${rodapePadrinhosCCT}
+                            </div>
                         </div>
 
                     </div>
                 `;
+            }
             } else {
                 let textoCorpo = '';
                 let rodapePadrinhos = '';
