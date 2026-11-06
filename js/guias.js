@@ -1307,14 +1307,19 @@
                 const estCivilTxt = estadoCivilMedium || '____________________';
                 const profissaoTxt = profissaoMedium || '____________________';
                 const cpfTxt = formatarCPF(cpfMedium);
+                const nomeDirigenteFormatado = formatarNomeProprioPT(nomeDirigente);
+                const nomeMediumFormatado = formatarNomeProprioPT(medium.nome_completo);
+                const nomeTemploGramatical = formatarNomeProprioPT(nomeTemploFormatado);
                 const rodapePadrinhosCCT = `<strong>Padrinhos espirituais:</strong> ${formatarPadrinho(padrinhoObj, false)} e ${formatarPadrinho(madrinhaObj, false)}.`;
+
+                const estiloParagrafoCCT = `font-family: 'Playfair Display', serif; font-size: 13px; line-height: 1.58; text-align: justify; color: #111827; font-weight: 600; ${legibilidadeCSS}`;
 
                 elementoPdf.innerHTML = `
                     <img src="${fundoBase64}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1;" />
                     
-                    <div style="position: absolute; top: 7%; height: 74%; width: 100%; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; padding: 0 95px; box-sizing: border-box; z-index: 2;">
+                    <div style="position: absolute; top: 6.5%; bottom: 23%; left: 0; width: 100%; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 0 95px; box-sizing: border-box; z-index: 2;">
                         
-                        <div style="text-align: center;">
+                        <div style="text-align: center; flex-shrink: 0;">
                             <h1 style="font-family: 'Cinzel', serif; font-size: 38px; font-weight: 700; margin: 0; color: #ffffff; letter-spacing: 8px; text-shadow: 2px 2px 6px rgba(0,0,0,0.75);">
                                 DECLARAÇÃO
                             </h1>
@@ -1329,14 +1334,14 @@
                             </h3>
                         </div>
 
-                        <div style="padding: 6px 30px; width: 100%; box-sizing: border-box; margin-top: 50px;">
-                            <p style="font-family: 'Playfair Display', serif; font-size: 13.5px; line-height: 1.65; text-align: justify; color: #111827; margin: 0 0 12px 0; font-weight: 600; ${legibilidadeCSS}">
-                                <strong>${nomeDirigente}</strong>, ${estCivilDirigente}, ${profissaoDirigente}, portador(a) inscrito(a) no Cadastro de Pessoas Físicas sob nº <strong>${cpfDirigente}</strong>, Sacerdote do <strong>${nomeTemploFormatado}</strong>, com sede na ${enderecoTemplo}, com fundamento no art. 5º, inciso VI, da Constituição Federal e art. VI, alínea “g”, da Declaração sobre a Eliminação de Todas as Formas de Intolerância e Discriminação Fundadas na Religião ou nas Convicções, <strong>DECLARA PARA OS DEVIDOS FINS</strong> que em <strong>${dataCoroacaoFmt}</strong> certificou a habilitação religiosa, nomeou e designou como <strong>Comandante Chefe de Terreiro (CCT) – Linha de Morubixaba</strong> o(a) Sr.(a) <strong>${nomeMediumUpper}</strong>, brasileiro(a), <strong>${estCivilTxt}</strong>, <strong>${profissaoTxt}</strong>, inscrito(a) no CPF sob o nº <strong>${cpfTxt}</strong> razão pela qual o(a) nomeado(a) adquire o direito de exercer todos os direitos e prerrogativas religiosas que a presente habilitação lhe assegura.
+                        <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 0 30px; width: 100%; box-sizing: border-box;">
+                            <p style="${estiloParagrafoCCT} margin: 0 0 10px 0;">
+                                <strong>${nomeDirigenteFormatado}</strong>, ${estCivilDirigente}, ${profissaoDirigente}, portador(a) inscrito(a) no Cadastro de Pessoas Físicas sob o nº <strong>${ formatarCPF(cpfDirigente) }</strong>, Sacerdote do <strong>${nomeTemploGramatical}</strong>, com sede na ${enderecoTemplo}, com fundamento no art. 5º, inciso VI, da Constituição Federal e art. VI, alínea “g”, da Declaração sobre a Eliminação de Todas as Formas de Intolerância e Discriminação Fundadas na Religião ou nas Convicções, <strong>DECLARA PARA OS DEVIDOS FINS</strong> que em <strong>${dataCoroacaoFmt}</strong> certificou a habilitação religiosa, nomeou e designou como <strong>Comandante Chefe de Terreiro (CCT) – Linha de Morubixaba</strong> o(a) Sr.(a) <strong>${nomeMediumFormatado}</strong>, brasileiro(a), <strong>${estCivilTxt}</strong>, <strong>${profissaoTxt}</strong>, inscrito(a) no CPF sob o nº <strong>${cpfTxt}</strong>, razão pela qual o(a) nomeado(a) adquire o direito de exercer todos os direitos e prerrogativas religiosas que a presente habilitação lhe assegura.
                             </p>
-                            <p style="font-family: 'Playfair Display', serif; font-size: 12.5px; line-height: 1.6; text-align: justify; color: #111827; margin: 0 0 14px 0; font-weight: 600; ${legibilidadeCSS}">
+                            <p style="${estiloParagrafoCCT} margin: 0 0 10px 0;">
                                 Consigna ainda que o presente ato se assenta na Declaração sobre a Eliminação de Todas as Formas de Intolerância e Discriminação Fundadas na Religião ou nas Convicções, Resolução nº 36/55, proclamada pela Assembleia Geral das Nações Unidas em 25 de novembro de 1981, a qual assegura às organizações religiosas o direito de “Capacitar, nomear, e eleger por sucessão os dirigentes que correspondam segundo as necessidades e normas de qualquer religião ou convicção” (Art. VI, alínea “g”).
                             </p>
-                            <p style="font-family: 'Playfair Display', serif; font-size: 12.5px; line-height: 1.6; text-align: justify; color: #111827; margin: 0; font-weight: 600; ${legibilidadeCSS}">
+                            <p style="${estiloParagrafoCCT} margin: 0;">
                                 ${rodapePadrinhosCCT}
                             </p>
                         </div>
@@ -1346,44 +1351,48 @@
             } else {
                 let textoCorpo = '';
                 let rodapePadrinhos = '';
+                const nomeMediumFormatado = formatarNomeProprioPT(medium.nome_completo);
+                const nomeTemploGramatical = formatarNomeProprioPT(nomeTemploFormatado);
 
                 if (tipoSacramento === 'Batismo') {
-                    textoCorpo = `CERTIFICAMOS, PARA OS DEVIDOS FINS DE FÉ E DIREITO RELIGIOSO, QUE FOI REALIZADO NO <strong>${nomeTemplo}</strong>, O SAGRADO SACRAMENTO DO BATISMO DE <strong>${nomeMediumUpper}</strong>, NASCIDO(A) EM <strong>${dataNascFmt}</strong>. RECEBEU AS BÊNÇÃOS DAS ÁGUAS SAGRADAS E A CONSAGRAÇÃO DIVINA, SENDO APRESENTADO(A) À ESPIRITUALIDADE MAIOR E À EGRÉGORA DESTA CASA SANTA, SOB A PROTEÇÃO DOS SEUS GUIAS E ORIXÁS. ESTE ATO DE FÉ FOI TESTEMUNHADO E APADRINHADO POR:`;
-                    rodapePadrinhos = `PADRINHOS DE BATISMO: ${formatarPadrinho(padrinhoObj, true)} E ${formatarPadrinho(madrinhaObj, true)}`;
+                    textoCorpo = `Certificamos, para os devidos fins de fé e direito religioso, que foi realizado no <strong>${nomeTemploGramatical}</strong> o sagrado sacramento do Batismo de <strong>${nomeMediumFormatado}</strong>, nascido(a) em <strong>${dataNascFmt}</strong>. Recebeu as bênçãos das águas sagradas e a consagração divina, sendo apresentado(a) à espiritualidade maior e à egrégora desta Casa Santa, sob a proteção dos seus Guias e Orixás.`;
+                    rodapePadrinhos = `<strong>Padrinhos de Batismo:</strong> ${formatarPadrinho(padrinhoObj, false)} e ${formatarPadrinho(madrinhaObj, false)}.`;
                 } else if (tipoSacramento === 'Consagração') {
-                    textoCorpo = `CERTIFICAMOS, PARA OS DEVIDOS FINS DE FÉ E DIREITO RELIGIOSO, QUE FOI REALIZADO NO <strong>${nomeTemplo}</strong>, O SAGRADO SACRAMENTO DA CONSAGRAÇÃO MEDIÚNICA DE <strong>${nomeMediumUpper}</strong>, NASCIDO(A) EM <strong>${dataNascFmt}</strong>. REAFIRMOU SEU COMPROMISSO ESPIRITUAL E RECEBEU A CONSAGRAÇÃO DIVINA JUNTO À ESPIRITUALIDADE MAIOR E À EGRÉGORA DESTA CASA SANTA, SOB A PROTEÇÃO DOS SEUS GUIAS E ORIXÁS. ESTE ATO DE FÉ FOI TESTEMUNHADO E APADRINHADO POR:`;
-                    rodapePadrinhos = `PADRINHOS DE CONSAGRAÇÃO: ${formatarPadrinho(padrinhoObj, true)} E ${formatarPadrinho(madrinhaObj, true)}`;
+                    textoCorpo = `Certificamos, para os devidos fins de fé e direito religioso, que foi realizado no <strong>${nomeTemploGramatical}</strong> o sagrado sacramento da Consagração Mediúnica de <strong>${nomeMediumFormatado}</strong>, nascido(a) em <strong>${dataNascFmt}</strong>. Reafirmou seu compromisso espiritual e recebeu a consagração divina junto à espiritualidade maior e à egrégora desta Casa Santa, sob a proteção dos seus Guias e Orixás.`;
+                    rodapePadrinhos = `<strong>Padrinhos espirituais:</strong> ${formatarPadrinho(padrinhoObj, false)} e ${formatarPadrinho(madrinhaObj, false)}.`;
                 }
+
+                const estiloParagrafoCert = `font-family: 'Playfair Display', serif; font-size: 14.5px; line-height: 1.7; text-align: justify; color: #111827; font-weight: 600; ${legibilidadeCSS}`;
 
                 elementoPdf.innerHTML = `
                     <img src="${fundoBase64}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1;" />
                     
-                    <div style="position: absolute; top: 8%; height: 68%; width: 100%; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 0 110px; box-sizing: border-box; z-index: 2;">
+                    <div style="position: absolute; top: 7%; bottom: 23%; left: 0; width: 100%; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 0 105px; box-sizing: border-box; z-index: 2;">
                         
-                        <div style="text-align: center;">
-                            <h1 style="font-family: 'Cinzel', serif; font-size: 52px; font-weight: 700; margin: 0; color: #ffffff; letter-spacing: 12px; text-shadow: 2px 2px 6px rgba(0,0,0,0.7);">
+                        <div style="text-align: center; flex-shrink: 0;">
+                            <h1 style="font-family: 'Cinzel', serif; font-size: 48px; font-weight: 700; margin: 0; color: #ffffff; letter-spacing: 10px; text-shadow: 2px 2px 6px rgba(0,0,0,0.7);">
                                 CERTIDÃO
                             </h1>
-                            <h2 style="font-family: 'Great Vibes', cursive; font-size: 50px; margin: -5px 0 5px 0; color: #fbbf24; font-weight: normal; text-shadow: 1px 1px 4px rgba(0,0,0,0.8);">
+                            <h2 style="font-family: 'Great Vibes', cursive; font-size: 46px; margin: -5px 0 4px 0; color: #fbbf24; font-weight: normal; text-shadow: 1px 1px 4px rgba(0,0,0,0.8);">
                                 ${tipoSacramento}
                             </h2>
-                            <h3 style="font-family: 'Great Vibes', cursive; font-size: 56px; margin: 0; color: #0f172a; font-weight: normal; text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff, 3px 3px 6px rgba(0,0,0,0.5);">
+                            <h3 style="font-family: 'Great Vibes', cursive; font-size: 52px; margin: 0; color: #0f172a; font-weight: normal; text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff, 3px 3px 6px rgba(0,0,0,0.5);">
                                 ${nomeLindoCursive}
                             </h3>
                         </div>
 
-                        <div style="padding: 10px 40px; width: 100%; box-sizing: border-box;">
-                            <p style="font-family: 'Playfair Display', serif; font-size: 15.5px; line-height: 1.8; text-align: justify; color: #111827; margin: 0 0 25px 0; font-weight: 600; ${legibilidadeCSS}">
+                        <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 0 35px; width: 100%; box-sizing: border-box;">
+                            <p style="${estiloParagrafoCert} margin: 0 0 14px 0;">
                                 ${textoCorpo}
                             </p>
                             
-                            <div style="font-family: 'Playfair Display', serif; font-size: 11.5px; color: #111827; font-weight: 700; text-align: center; margin-bottom: 25px; line-height: 1.6; text-transform: uppercase; ${legibilidadeCSS}">
+                            <p style="${estiloParagrafoCert} margin: 0 0 18px 0;">
                                 ${rodapePadrinhos}
-                            </div>
+                            </p>
 
-                            <div style="font-family: 'Playfair Display', serif; font-size: 18px; color: #111827; text-align: center; font-style: italic; font-weight: 700; ${legibilidadeCSS}">
-                                Realizado no dia <strong style="font-style: normal;">${formatarData(dataSacramento)}</strong>
-                            </div>
+                            <p style="${estiloParagrafoCert} text-align: center; margin: 0;">
+                                Realizado no dia <strong>${formatarData(dataSacramento)}</strong>.
+                            </p>
                         </div>
 
                     </div>
