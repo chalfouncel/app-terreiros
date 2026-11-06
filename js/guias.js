@@ -1320,9 +1320,9 @@
                             <p style="font-family: 'Playfair Display', serif; font-size: 12.5px; line-height: 1.6; text-align: justify; color: #111827; margin: 0 0 14px 0; font-weight: 600; ${legibilidadeCSS}">
                                 Consigna ainda que o presente ato se assenta na Declaração sobre a Eliminação de Todas as Formas de Intolerância e Discriminação Fundadas na Religião ou nas Convicções, Resolução nº 36/55, proclamada pela Assembleia Geral das Nações Unidas em 25 de novembro de 1981, a qual assegura às organizações religiosas o direito de “Capacitar, nomear, e eleger por sucessão os dirigentes que correspondam segundo as necessidades e normas de qualquer religião ou convicção” (Art. VI, alínea “g”).
                             </p>
-                            <div style="font-family: 'Playfair Display', serif; font-size: 11px; color: #111827; font-weight: 700; text-align: center; line-height: 1.5; text-transform: uppercase; ${legibilidadeCSS}">
-                                ${rodapePadrinhosCCT}
-                            </div>
+                            <p style="font-family: 'Playfair Display', serif; font-size: 12.5px; line-height: 1.6; text-align: justify; color: #111827; margin: 0; font-weight: 600; text-transform: uppercase; ${legibilidadeCSS}">
+                                <strong>${rodapePadrinhosCCT}</strong>
+                            </p>
                         </div>
 
                     </div>
