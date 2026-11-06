@@ -4113,23 +4113,16 @@ window.gerarPDFRelatorio = (titulo, colunas, dados, orientacao = 'portrait') => 
     });
 
     containerPDF.innerHTML = htmlFinal;
-    
-    // ANEXA TEMPORARIAMENTE AO DOM PARA O HTML2CANVAS CONSEGUIR RENDERIZAR
-    containerPDF.style.position = 'absolute';
-    containerPDF.style.left = '-9999px';
-    containerPDF.style.top = '0';
-    document.body.appendChild(containerPDF);
 
     const opt = {
-        margin:       [10, 10, 15, 10], // Deixa uma margem maior embaixo para o rodapé
+        margin:       [10, 10, 15, 10],
         filename:     `${titulo.replace(/\s+/g, '_')}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true },
+        html2canvas:  { scale: 2, useCORS: true, scrollY: 0, scrollX: 0 },
         jsPDF:        { unit: 'mm', format: 'a4', orientation: orientacao },
         pagebreak:    { mode: ['css', 'legacy'] }
     };
 
-    // Adiciona o rodapé automático com o total de páginas (Pág. X de Y) em cada página gerada
     html2pdf().set(opt).from(containerPDF).toPdf().get('pdf').then((pdf) => {
         const totalPages = pdf.internal.getNumberOfPages();
         for (let i = 1; i <= totalPages; i++) {
@@ -4138,26 +4131,13 @@ window.gerarPDFRelatorio = (titulo, colunas, dados, orientacao = 'portrait') => 
             pdf.setFontSize(8);
             pdf.setTextColor(100, 100, 100);
             
-            // Texto centralizado ou à direita no rodapé
             const pageWidth = pdf.internal.pageSize.getWidth();
             const pageHeight = pdf.internal.pageSize.getHeight();
             
-            const textoRodapé = `Página ${i} de ${totalPages}`;
-            pdf.text(textoRodapé, pageWidth - 15, pageHeight - 8, { align: 'right' });
-            
-            // Opcional: Nome da instituição ou data à esquerda no rodapé
+            pdf.text(`Página ${i} de ${totalPages}`, pageWidth - 15, pageHeight - 8, { align: 'right' });
             pdf.text(`${nomeTerreiroGlobal || 'Templo'} — Documento Oficial`, 15, pageHeight - 8, { align: 'left' });
         }
-    }).save().then(() => {
-        // REMOVE O ELEMENTO DO DOM APÓS GERAR O PDF
-        if (containerPDF.parentNode) {
-            containerPDF.parentNode.removeChild(containerPDF);
-        }
-    }).catch(() => {
-        if (containerPDF.parentNode) {
-            containerPDF.parentNode.removeChild(containerPDF);
-        }
-    });
+    }).save();
 };
 setTimeout(() => {
     const elNome = document.getElementById('filtroNomeMedium');
@@ -6937,46 +6917,189 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Função que chama o gerador de PDF genérico
+    // Função que gera o PDF de Controle da Rifa direto via motor nativo jsPDF (sem risco de página em branco)
     window.imprimirRelatorioRifa = () => {
         if (!window.dadosRelatorioRifaAtual || !window.dadosRelatorioRifaAtual.dadosObj) {
             alert('Não há dados carregados para impressão.');
             return;
         }
 
-        const titulo = window.dadosRelatorioRifaAtual.titulo;
+        const titulo = window.dadosRelatorioRifaAtual.titulo || 'Rifa';
         const total = window.dadosRelatorioRifaAtual.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
         const valorUnit = window.dadosRelatorioRifaAtual.valorUnitario || 0;
         const dadosBase = Object.values(window.dadosRelatorioRifaAtual.dadosObj);
 
-        // Prepara as linhas no formato esperado pela função gerarPDFRelatorio
-        const linhasPDF = dadosBase.map(comp => {
-            const ehMedium = listaMediunsGlobal.find(m => m.telefone && m.telefone.replace(/\D/g, '') === comp.telefoneLimpo);
-            const nomeComprador = comp.nome + (ehMedium ? ' (Médium)' : '');
-            const telefoneFmt = comp.telefoneOriginal;
-            
-            const numsStr = comp.numeros.map(n => String(n).padStart(2,'0')).join(', ');
-            const statusFmt = (comp.status === 'aprovado' || comp.status === 'pago') ? 'PAGO' : 'PENDENTE';
-            
-            let vendedorNome = 'Link Externo';
-            if (comp.vendedor_id) {
-                const v = listaMediunsGlobal.find(m => m.id === comp.vendedor_id);
-                if (v) vendedorNome = v.nome_social || v.nome_completo;
+        if (dadosBase.length === 0) {
+            alert('Não há compradores registrados nesta rifa.');
+            return;
+        }
+
+        const dummy = document.createElement('div');
+        const opt = {
+            margin: 10,
+            filename: `Relatorio_Rifa_${titulo.replace(/\s+/g, '_')}.pdf`,
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+
+        html2pdf().set(opt).from(dummy).toPdf().get('pdf').then((pdf) => {
+            const pageWidth = pdf.internal.pageSize.getWidth();   // 210mm
+            const pageHeight = pdf.internal.pageSize.getHeight(); // 297mm
+            const mLeft = 12;
+            const tableWidth = 186;
+            const dataEmissao = `${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+
+            // Definição das colunas (Soma = 186mm)
+            const cols = [
+                { header: 'Comprador',      x: 12,  w: 50, align: 'left' },
+                { header: 'WhatsApp',       x: 62,  w: 28, align: 'center' },
+                { header: 'Números',        x: 90,  w: 44, align: 'center' },
+                { header: 'Status',         x: 134, w: 20, align: 'center' },
+                { header: 'Passou a Rifa',  x: 154, w: 22, align: 'center' },
+                { header: 'Valor',          x: 176, w: 22, align: 'right' }
+            ];
+
+            const desenharCabecalhoTabela = (posY) => {
+                pdf.setFillColor(241, 245, 249);
+                pdf.setDrawColor(203, 213, 225);
+                pdf.setLineWidth(0.2);
+                pdf.rect(mLeft, posY, tableWidth, 8, 'FD');
+
+                pdf.setFont('helvetica', 'bold');
+                pdf.setFontSize(8.5);
+                pdf.setTextColor(30, 41, 59);
+
+                cols.forEach(c => {
+                    pdf.line(c.x, posY, c.x, posY + 8);
+                    const tx = c.align === 'left' ? c.x + 2 : (c.align === 'right' ? c.x + c.w - 2 : c.x + c.w / 2);
+                    pdf.text(c.header, tx, posY + 5.3, { align: c.align });
+                });
+                pdf.line(mLeft + tableWidth, posY, mLeft + tableWidth, posY + 8);
+                return posY + 8;
+            };
+
+            // Cabeçalho Principal na Página 1
+            pdf.setFont('helvetica', 'bold');
+            pdf.setFontSize(13);
+            pdf.setTextColor(30, 58, 138);
+            pdf.text((nomeTerreiroGlobal || 'Templo').toUpperCase(), pageWidth / 2, 16, { align: 'center' });
+
+            pdf.setFontSize(10.5);
+            pdf.setTextColor(51, 65, 85);
+            pdf.text(`Relatório de Controle de Rifa — ${titulo}`, pageWidth / 2, 22, { align: 'center' });
+
+            pdf.setFont('helvetica', 'normal');
+            pdf.setFontSize(8);
+            pdf.setTextColor(100, 116, 139);
+            pdf.text(`Emitido em: ${dataEmissao}  |  Compradores: ${dadosBase.length}`, pageWidth / 2, 27, { align: 'center' });
+
+            pdf.setDrawColor(37, 99, 235);
+            pdf.setLineWidth(0.6);
+            pdf.line(mLeft, 30, mLeft + tableWidth, 30);
+
+            let y = desenharCabecalhoTabela(34);
+
+            // Linhas dos Compradores
+            dadosBase.forEach((comp, idx) => {
+                const ehMedium = listaMediunsGlobal.find(m => m.telefone && m.telefone.replace(/\D/g, '') === comp.telefoneLimpo);
+                const nomeComprador = (comp.nome || '-') + (ehMedium ? ' (Médium)' : '');
+                const telefoneFmt = comp.telefoneOriginal || '-';
+                const numsStr = comp.numeros.map(n => String(n).padStart(2, '0')).join(', ');
+                const pago = (comp.status === 'aprovado' || comp.status === 'pago');
+                const statusFmt = pago ? 'PAGO' : 'PENDENTE';
+
+                let vendedorNome = 'Link Externo';
+                if (comp.vendedor_id) {
+                    const v = listaMediunsGlobal.find(m => m.id === comp.vendedor_id);
+                    if (v) vendedorNome = v.nome_social || v.nome_completo.split(' ')[0];
+                }
+
+                const valorCalculadoFmt = (comp.numeros.length * valorUnit).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+                pdf.setFontSize(8);
+                const lNome = pdf.splitTextToSize(nomeComprador, cols[0].w - 4);
+                const lNums = pdf.splitTextToSize(numsStr, cols[2].w - 4);
+                const lVend = pdf.splitTextToSize(vendedorNome, cols[4].w - 4);
+
+                const maxLinhas = Math.max(lNome.length, lNums.length, lVend.length, 1);
+                const altLinha = Math.max(7.5, maxLinhas * 4 + 3);
+
+                if (y + altLinha > 272) {
+                    pdf.addPage();
+                    y = desenharCabecalhoTabela(15);
+                }
+
+                // Fundo zebrado e borda
+                if (idx % 2 === 1) {
+                    pdf.setFillColor(248, 250, 252);
+                    pdf.rect(mLeft, y, tableWidth, altLinha, 'F');
+                }
+                pdf.setDrawColor(203, 213, 225);
+                pdf.setLineWidth(0.2);
+                pdf.rect(mLeft, y, tableWidth, altLinha, 'S');
+                cols.forEach(c => pdf.line(c.x, y, c.x, y + altLinha));
+
+                const yTextoBase = y + 4.8;
+
+                // 1. Comprador
+                pdf.setFont('helvetica', 'bold');
+                pdf.setTextColor(30, 41, 59);
+                pdf.text(lNome, cols[0].x + 2, yTextoBase);
+
+                // 2. WhatsApp
+                pdf.setFont('helvetica', 'normal');
+                pdf.setTextColor(71, 85, 105);
+                pdf.text(String(telefoneFmt), cols[1].x + cols[1].w / 2, yTextoBase, { align: 'center' });
+
+                // 3. Números
+                pdf.setFont('helvetica', 'bold');
+                pdf.setTextColor(67, 56, 202);
+                pdf.text(lNums, cols[2].x + cols[2].w / 2, yTextoBase, { align: 'center' });
+
+                // 4. Status
+                pdf.setFont('helvetica', 'bold');
+                if (pago) pdf.setTextColor(22, 163, 74);
+                else pdf.setTextColor(217, 119, 6);
+                pdf.text(statusFmt, cols[3].x + cols[3].w / 2, yTextoBase, { align: 'center' });
+
+                // 5. Vendedor
+                pdf.setFont('helvetica', 'normal');
+                pdf.setTextColor(51, 65, 85);
+                pdf.text(lVend, cols[4].x + cols[4].w / 2, yTextoBase, { align: 'center' });
+
+                // 6. Valor
+                pdf.setFont('helvetica', 'bold');
+                pdf.setTextColor(22, 163, 74);
+                pdf.text(valorCalculadoFmt, cols[5].x + cols[5].w - 2, yTextoBase, { align: 'right' });
+
+                y += altLinha;
+            });
+
+            // Linha Final de Total Arrecadado
+            if (y + 10 > 272) {
+                pdf.addPage();
+                y = 15;
             }
+            pdf.setFillColor(240, 253, 244);
+            pdf.setDrawColor(187, 247, 208);
+            pdf.rect(mLeft, y, tableWidth, 9, 'FD');
 
-            const valorCalculadoFmt = (comp.numeros.length * valorUnit).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            pdf.setFont('helvetica', 'bold');
+            pdf.setFontSize(9.5);
+            pdf.setTextColor(22, 101, 52);
+            pdf.text('TOTAL ARRECADADO NA RIFA (PAGOS):', mLeft + 3, y + 6);
+            pdf.text(total, mLeft + tableWidth - 2, y + 6, { align: 'right' });
 
-            return [nomeComprador, telefoneFmt, numsStr, statusFmt, vendedorNome, valorCalculadoFmt];
-        });
-
-        // Adiciona a linha de total
-        linhasPDF.push([
-            `TOTAL ARRECADADO NA RIFA`, '-', '-', '-', '-', total
-        ]);
-
-        const colunas = ['Comprador', 'WhatsApp', 'Números', 'Status', 'Passou a Rifa (Vendedor)', 'Valor Total'];
-        
-        window.gerarPDFRelatorio(`Relatório Financeiro de Rifa - ${titulo}`, colunas, linhasPDF, 'portrait');
+            // Rodapé em todas as páginas
+            const totalPages = pdf.internal.getNumberOfPages();
+            for (let i = 1; i <= totalPages; i++) {
+                pdf.setPage(i);
+                pdf.setFont('helvetica', 'normal');
+                pdf.setFontSize(8);
+                pdf.setTextColor(100, 100, 100);
+                pdf.text(`Página ${i} de ${totalPages}`, pageWidth - 12, pageHeight - 8, { align: 'right' });
+                pdf.text(`${nomeTerreiroGlobal || 'Templo'} — Documento Oficial`, 12, pageHeight - 8, { align: 'left' });
+            }
+        }).save();
     };
 
     // ============================================================================
