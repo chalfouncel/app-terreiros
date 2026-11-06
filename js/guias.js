@@ -1291,7 +1291,7 @@
                 const estCivilTxt = estadoCivilMedium || '____________________';
                 const profissaoTxt = profissaoMedium || '____________________';
                 const cpfTxt = formatarCPF(cpfMedium);
-                const rodapePadrinhosCCT = `PADRINHOS ESPIRITUAIS (CONSAGRAÇÃO): ${formatarPadrinho(padrinhoObj)} E ${formatarPadrinho(madrinhaObj)}`;
+                const rodapePadrinhosCCT = `Padrinhos espirituais: ${formatarPadrinho(padrinhoObj)} e ${formatarPadrinho(madrinhaObj)}`;
 
                 elementoPdf.innerHTML = `
                     <img src="${fundoBase64}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1;" />
