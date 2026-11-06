@@ -1360,9 +1360,9 @@
                                 ${textoCorpo}
                             </p>
                             
-                            <div style="font-family: 'Playfair Display', serif; font-size: 11.5px; color: #111827; font-weight: 700; text-align: center; margin-bottom: 25px; line-height: 1.6; text-transform: uppercase; ${legibilidadeCSS}">
-                                ${rodapePadrinhos}
-                            </div>
+                            <div style="font-family: 'Playfair Display', serif; font-size: 12.5px; line-height: 1.6; text-align: justify; color: #111827; margin: 0; font-weight: 600; ${legibilidadeCSS}">
+                               <strong>${rodapePadrinhosCCT}</strong>
+                           </div>
 
                             <div style="font-family: 'Playfair Display', serif; font-size: 18px; color: #111827; text-align: center; font-style: italic; font-weight: 700; ${legibilidadeCSS}">
                                 Realizado no dia <strong style="font-style: normal;">${formatarData(dataSacramento)}</strong>
