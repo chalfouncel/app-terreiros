@@ -1239,12 +1239,11 @@
 
             const formatarPadrinho = (obj) => {
                 if (!obj || !obj.nome) return '_______________________';
-                const nomeUpper = obj.nome.toUpperCase();
-                if (obj.tipo === 'medium' || !obj.medium) return nomeUpper;
+                const nomeNormal = obj.nome;
+                if (obj.tipo === 'medium' || !obj.medium) return nomeNormal;
                 const nomeMediumCompleto = buscarNomeCompleto(obj.medium, obj.nome);
-                return `${nomeUpper} (ATRAVÉS DA MEDIUNIDADE DE ${nomeMediumCompleto.toUpperCase()})`;
+                return `${nomeNormal} (através da mediunidade de ${nomeMediumCompleto})`;
             };
-
             const formatarNomeCursive = (nome) => {
                 if (!nome) return '';
                 return nome.toLowerCase().split(' ').map(word => {
