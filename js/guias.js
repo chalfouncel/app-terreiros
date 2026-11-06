@@ -1237,13 +1237,30 @@
                 return candidatos[0].nome_completo;
             };
 
-            const formatarPadrinho = (obj) => {
-                if (!obj || !obj.nome) return '_______________________';
-                const nomeNormal = obj.nome;
-                if (obj.tipo === 'medium' || !obj.medium) return nomeNormal;
-                const nomeMediumCompleto = buscarNomeCompleto(obj.medium, obj.nome);
-                return `${nomeNormal} (através da mediunidade de ${nomeMediumCompleto})`;
+            const formatarNomeProprioPT = (str) => {
+                if (!str) return '';
+                const minusculas = ['da', 'de', 'do', 'dos', 'das', 'e', 'em', 'na', 'no', 'nas', 'nos'];
+                return String(str).trim().toLowerCase().split(/\s+/).map((palavra, idx) => {
+                    if (idx > 0 && minusculas.includes(palavra)) return palavra;
+                    return palavra.charAt(0).toUpperCase() + palavra.slice(1);
+                }).join(' ');
             };
+
+            const formatarPadrinho = (obj, emCaixaAlta = true) => {
+                if (!obj || !obj.nome) return '_______________________';
+                if (emCaixaAlta) {
+                    const nomeUpper = obj.nome.toUpperCase();
+                    if (obj.tipo === 'medium' || !obj.medium) return nomeUpper;
+                    const nomeMediumCompleto = buscarNomeCompleto(obj.medium, obj.nome);
+                    return `${nomeUpper} (ATRAVÉS DA MEDIUNIDADE DE ${nomeMediumCompleto.toUpperCase()})`;
+                } else {
+                    const nomeGramatical = formatarNomeProprioPT(obj.nome);
+                    if (obj.tipo === 'medium' || !obj.medium) return nomeGramatical;
+                    const nomeMediumCompleto = formatarNomeProprioPT(buscarNomeCompleto(obj.medium, obj.nome));
+                    return `${nomeGramatical} (através da mediunidade de ${nomeMediumCompleto})`;
+                }
+            };
+
             const formatarNomeCursive = (nome) => {
                 if (!nome) return '';
                 return nome.toLowerCase().split(' ').map(word => {
@@ -1290,7 +1307,7 @@
                 const estCivilTxt = estadoCivilMedium || '____________________';
                 const profissaoTxt = profissaoMedium || '____________________';
                 const cpfTxt = formatarCPF(cpfMedium);
-                const rodapePadrinhosCCT = `Padrinhos espirituais: ${formatarPadrinho(padrinhoObj)} e ${formatarPadrinho(madrinhaObj)}`;
+                const rodapePadrinhosCCT = `<strong>Padrinhos espirituais:</strong> ${formatarPadrinho(padrinhoObj, false)} e ${formatarPadrinho(madrinhaObj, false)}.`;
 
                 elementoPdf.innerHTML = `
                     <img src="${fundoBase64}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1;" />
@@ -1319,8 +1336,8 @@
                             <p style="font-family: 'Playfair Display', serif; font-size: 12.5px; line-height: 1.6; text-align: justify; color: #111827; margin: 0 0 14px 0; font-weight: 600; ${legibilidadeCSS}">
                                 Consigna ainda que o presente ato se assenta na Declaração sobre a Eliminação de Todas as Formas de Intolerância e Discriminação Fundadas na Religião ou nas Convicções, Resolução nº 36/55, proclamada pela Assembleia Geral das Nações Unidas em 25 de novembro de 1981, a qual assegura às organizações religiosas o direito de “Capacitar, nomear, e eleger por sucessão os dirigentes que correspondam segundo as necessidades e normas de qualquer religião ou convicção” (Art. VI, alínea “g”).
                             </p>
-                            <p style="font-family: 'Playfair Display', serif; font-size: 12.5px; line-height: 1.6; text-align: justify; color: #111827; margin: 0; font-weight: 600; text-transform: uppercase; ${legibilidadeCSS}">
-                                <strong>${rodapePadrinhosCCT}</strong>
+                            <p style="font-family: 'Playfair Display', serif; font-size: 12.5px; line-height: 1.6; text-align: justify; color: #111827; margin: 0; font-weight: 600; ${legibilidadeCSS}">
+                                ${rodapePadrinhosCCT}
                             </p>
                         </div>
 
@@ -1332,10 +1349,10 @@
 
                 if (tipoSacramento === 'Batismo') {
                     textoCorpo = `CERTIFICAMOS, PARA OS DEVIDOS FINS DE FÉ E DIREITO RELIGIOSO, QUE FOI REALIZADO NO <strong>${nomeTemplo}</strong>, O SAGRADO SACRAMENTO DO BATISMO DE <strong>${nomeMediumUpper}</strong>, NASCIDO(A) EM <strong>${dataNascFmt}</strong>. RECEBEU AS BÊNÇÃOS DAS ÁGUAS SAGRADAS E A CONSAGRAÇÃO DIVINA, SENDO APRESENTADO(A) À ESPIRITUALIDADE MAIOR E À EGRÉGORA DESTA CASA SANTA, SOB A PROTEÇÃO DOS SEUS GUIAS E ORIXÁS. ESTE ATO DE FÉ FOI TESTEMUNHADO E APADRINHADO POR:`;
-                    rodapePadrinhos = `PADRINHOS DE BATISMO: ${formatarPadrinho(padrinhoObj)} E ${formatarPadrinho(madrinhaObj)}`;
+                    rodapePadrinhos = `PADRINHOS DE BATISMO: ${formatarPadrinho(padrinhoObj, true)} E ${formatarPadrinho(madrinhaObj, true)}`;
                 } else if (tipoSacramento === 'Consagração') {
                     textoCorpo = `CERTIFICAMOS, PARA OS DEVIDOS FINS DE FÉ E DIREITO RELIGIOSO, QUE FOI REALIZADO NO <strong>${nomeTemplo}</strong>, O SAGRADO SACRAMENTO DA CONSAGRAÇÃO MEDIÚNICA DE <strong>${nomeMediumUpper}</strong>, NASCIDO(A) EM <strong>${dataNascFmt}</strong>. REAFIRMOU SEU COMPROMISSO ESPIRITUAL E RECEBEU A CONSAGRAÇÃO DIVINA JUNTO À ESPIRITUALIDADE MAIOR E À EGRÉGORA DESTA CASA SANTA, SOB A PROTEÇÃO DOS SEUS GUIAS E ORIXÁS. ESTE ATO DE FÉ FOI TESTEMUNHADO E APADRINHADO POR:`;
-                    rodapePadrinhos = `PADRINHOS DE CONSAGRAÇÃO: ${formatarPadrinho(padrinhoObj)} E ${formatarPadrinho(madrinhaObj)}`;
+                    rodapePadrinhos = `PADRINHOS DE CONSAGRAÇÃO: ${formatarPadrinho(padrinhoObj, true)} E ${formatarPadrinho(madrinhaObj, true)}`;
                 }
 
                 elementoPdf.innerHTML = `
@@ -1360,9 +1377,9 @@
                                 ${textoCorpo}
                             </p>
                             
-                            <div style="font-family: 'Playfair Display', serif; font-size: 12.5px; line-height: 1.6; text-align: justify; color: #111827; margin: 0; font-weight: 600; ${legibilidadeCSS}">
-                               <strong>${rodapePadrinhosCCT}</strong>
-                           </div>
+                            <div style="font-family: 'Playfair Display', serif; font-size: 11.5px; color: #111827; font-weight: 700; text-align: center; margin-bottom: 25px; line-height: 1.6; text-transform: uppercase; ${legibilidadeCSS}">
+                                ${rodapePadrinhos}
+                            </div>
 
                             <div style="font-family: 'Playfair Display', serif; font-size: 18px; color: #111827; text-align: center; font-style: italic; font-weight: 700; ${legibilidadeCSS}">
                                 Realizado no dia <strong style="font-style: normal;">${formatarData(dataSacramento)}</strong>
