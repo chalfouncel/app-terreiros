@@ -1911,6 +1911,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             valorTotal: 0,
                             dataLocked: r.locked_at || new Date().toISOString(),
                             nomeComprador: r.nome_comprador || 'Comprador',
+                            telefoneComprador: r.telefone_comprador || '',
                             tituloRifa: tituloRifa,
                             valorUnit: valorUnit,
                             idRifa: r.rifa_id
@@ -1941,6 +1942,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             titulo: grupo.tituloRifa,
                             subtitulo: `Números: ${grupo.numeros.join(', ')}`,
                             nome: grupo.nomeComprador,
+                            telefone: grupo.telefoneComprador,
                             valor: grupo.valorTotal,
                             url: urlKey
                         }
@@ -2086,24 +2088,211 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         };
 
-        window.rejeitarCaixaPendente = async (caixaId, referenciaId, tipoTransacao) => {
-            if(!confirm("Tem certeza que deseja CANCELAR/REJEITAR esta reserva de pagamento? O registro de pendência será excluído.")) return;
+        window.rejeitarCaixaPendente = (caixaId, referenciaId, tipoTransacao) => {
+            window.abrirModalMotivoRejeicao({
+                origem: 'caixa',
+                caixaId,
+                referenciaId,
+                tipoTransacao
+            });
+        };
+
+        window.contextoRejeicaoAtual = null;
+
+        window.abrirModalMotivoRejeicao = async (ctx) => {
+            window.contextoRejeicaoAtual = ctx;
+
+            let modal = document.getElementById('modalMotivoRejeicaoPix');
+            if (!modal) {
+                const html = `
+                <div id="modalMotivoRejeicaoPix" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-[99999] flex items-center justify-center p-4">
+                    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 space-y-4">
+                        <div class="flex justify-between items-center border-b border-gray-100 pb-3">
+                            <h3 class="text-base font-black text-gray-800 flex items-center gap-2">
+                                <i class="fas fa-exclamation-triangle text-red-500"></i> Motivo da Rejeição
+                            </h3>
+                            <button type="button" onclick="document.getElementById('modalMotivoRejeicaoPix').classList.add('hidden')" class="w-8 h-8 rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 flex items-center justify-center">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+
+                        <p class="text-xs text-gray-600">Selecione o motivo abaixo para rejeitar o comprovante e avisar a pessoa no WhatsApp:</p>
+
+                        <div class="space-y-2 text-xs font-bold text-gray-700">
+                            <label class="flex items-center gap-2.5 p-3 rounded-xl border border-gray-200 hover:bg-red-50/40 cursor-pointer transition">
+                                <input type="radio" name="radioMotivoRejeicao" value="Valor do comprovante é menor que o valor total" checked onchange="document.getElementById('boxOutroMotivoRejeicao').classList.add('hidden')" class="w-4 h-4 text-red-600">
+                                <span>Valor do comprovante é menor que o valor total</span>
+                            </label>
+
+                            <label class="flex items-center gap-2.5 p-3 rounded-xl border border-gray-200 hover:bg-red-50/40 cursor-pointer transition">
+                                <input type="radio" name="radioMotivoRejeicao" value="Comprovante não identificado" onchange="document.getElementById('boxOutroMotivoRejeicao').classList.add('hidden')" class="w-4 h-4 text-red-600">
+                                <span>Comprovante não identificado</span>
+                            </label>
+
+                            <label class="flex items-center gap-2.5 p-3 rounded-xl border border-gray-200 hover:bg-red-50/40 cursor-pointer transition">
+                                <input type="radio" name="radioMotivoRejeicao" value="outro" onchange="document.getElementById('boxOutroMotivoRejeicao').classList.remove('hidden'); document.getElementById('inputOutroMotivoRejeicao').focus();" class="w-4 h-4 text-red-600">
+                                <span>Outro motivo (digitar abaixo)</span>
+                            </label>
+                        </div>
+
+                        <div id="boxOutroMotivoRejeicao" class="hidden">
+                            <textarea id="inputOutroMotivoRejeicao" rows="2" placeholder="Digite o motivo da rejeição..." class="w-full p-3 border border-gray-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-red-500"></textarea>
+                        </div>
+
+                        <div class="flex flex-col gap-2 pt-2">
+                            <button type="button" id="btnConfirmarRejeicaoComWhats" onclick="window.confirmarRejeicaoPix(true)" class="w-full bg-green-600 hover:bg-green-700 active:scale-95 text-white font-black py-3.5 px-4 rounded-xl shadow-md transition text-xs flex items-center justify-center gap-2">
+                                <i class="fab fa-whatsapp text-base"></i> Confirmar Rejeição e Avisar no WhatsApp
+                            </button>
+                            <button type="button" id="btnConfirmarRejeicaoSemWhats" onclick="window.confirmarRejeicaoPix(false)" class="w-full bg-red-100 hover:bg-red-200 active:scale-95 text-red-700 font-bold py-2.5 px-4 rounded-xl transition text-xs border border-red-200">
+                                Apenas Rejeitar (Sem WhatsApp)
+                            </button>
+                        </div>
+                    </div>
+                </div>`;
+                document.body.insertAdjacentHTML('beforeend', html);
+                modal = document.getElementById('modalMotivoRejeicaoPix');
+            }
+
+            // Reseta estado padrão
+            const radios = document.getElementsByName('radioMotivoRejeicao');
+            if (radios.length > 0) radios[0].checked = true;
+            document.getElementById('boxOutroMotivoRejeicao')?.classList.add('hidden');
+            if (document.getElementById('inputOutroMotivoRejeicao')) document.getElementById('inputOutroMotivoRejeicao').value = '';
+
+            modal.classList.remove('hidden');
+        };
+
+        window.confirmarRejeicaoPix = async (enviarWhats) => {
+            const ctx = window.contextoRejeicaoAtual;
+            if (!ctx) return;
+
+            let motivoEscolhido = 'Comprovante não identificado';
+            const radioMarcado = Array.from(document.getElementsByName('radioMotivoRejeicao')).find(r => r.checked);
+            if (radioMarcado) {
+                if (radioMarcado.value === 'outro') {
+                    const digitado = (document.getElementById('inputOutroMotivoRejeicao')?.value || '').trim();
+                    if (!digitado) return alert('Por favor, digite o motivo da rejeição.');
+                    motivoEscolhido = digitado;
+                } else {
+                    motivoEscolhido = radioMarcado.value;
+                }
+            }
+
+            const btnW = document.getElementById('btnConfirmarRejeicaoComWhats');
+            const btnS = document.getElementById('btnConfirmarRejeicaoSemWhats');
+            if (btnW) btnW.disabled = true;
+            if (btnS) btnS.disabled = true;
+
+            let nomePessoa = 'Médium / Colaborador';
+            let telefonePessoa = '';
+            let descricaoTipo = 'pagamento';
 
             try {
-                const { error: err1 } = await supabaseClient.from('caixa_terreiro').delete().eq('id', caixaId).eq('terreiro_id', idTerreiroGlobal);
-                if (err1) throw err1;
+                if (ctx.origem === 'rifa' && ctx.rifaItem) {
+                    const item = ctx.rifaItem;
+                    nomePessoa = item.nome || 'Comprador';
+                    telefonePessoa = item.telefone || '';
+                    descricaoTipo = `Rifa (${item.titulo || 'Sorteio'} - ${item.subtitulo || ''})`;
 
-                if (tipoTransacao === 'RIFA' && referenciaId && referenciaId !== 'null') {
-                    const arrayIds = String(referenciaId).split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n));
-                    if (arrayIds.length > 0) {
-                        await supabaseClient.from('rifa_numeros').delete().in('id', arrayIds).eq('terreiro_id', idTerreiroGlobal);
+                    let idsParaExcluir = (item.tipo === 'rifa_agrupada' && item.idsOriginais?.length > 0) ? item.idsOriginais : [item.id];
+
+                    if (!telefonePessoa && idsParaExcluir.length > 0) {
+                        const { data: rRow } = await supabaseClient.from('rifa_numeros').select('telefone_comprador').eq('id', idsParaExcluir[0]).maybeSingle();
+                        if (rRow?.telefone_comprador) telefonePessoa = rRow.telefone_comprador;
                     }
+
+                    const { error: errDel } = await supabaseClient
+                        .from('rifa_numeros')
+                        .delete()
+                        .in('id', idsParaExcluir)
+                        .eq('terreiro_id', idTerreiroGlobal);
+                    if (errDel) throw errDel;
+
+                    window.fecharModalVerComprovante();
+                } else if (ctx.origem === 'mensalidade' && ctx.comprovanteId) {
+                    const { data: comp } = await supabaseClient
+                        .from('comprovantes_mensalidade')
+                        .select('*')
+                        .eq('id', ctx.comprovanteId)
+                        .eq('terreiro_id', idTerreiroGlobal)
+                        .maybeSingle();
+
+                    if (comp) {
+                        const mdRemetente = (listaMediunsGlobal || []).find(m => m.auth_id === comp.enviado_por)
+                            || (listaMediunsGlobal || []).find(m => Number(m.id) === Number(comp.detalhes_pagamento?.[0]?.medium_id));
+                        if (mdRemetente) {
+                            nomePessoa = mdRemetente.nome_completo;
+                            telefonePessoa = mdRemetente.telefone || '';
+                        }
+                        const valFmt = Number(comp.valor_total || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                        descricaoTipo = `Mensalidade (${valFmt})`;
+                    }
+
+                    const { error } = await supabaseClient
+                        .from('comprovantes_mensalidade')
+                        .update({ status: 'rejeitado' })
+                        .eq('id', ctx.comprovanteId)
+                        .eq('terreiro_id', idTerreiroGlobal);
+                    if (error) throw error;
+
+                    window.registrarTimestampValidacaoLocal(`comp_${ctx.comprovanteId}`);
+                    window.fecharModalVerComprovante();
+                } else if (ctx.origem === 'caixa' && ctx.caixaId) {
+                    const { data: cx } = await supabaseClient
+                        .from('caixa_terreiro')
+                        .select('*')
+                        .eq('id', ctx.caixaId)
+                        .eq('terreiro_id', idTerreiroGlobal)
+                        .maybeSingle();
+
+                    if (cx) {
+                        nomePessoa = cx.pagador_nome || 'Médium';
+                        descricaoTipo = `${cx.tipo_transacao || 'Pagamento'} (${cx.descricao || ''})`;
+                        const md = (listaMediunsGlobal || []).find(m => m.id === cx.medium_responsavel_id || m.nome_completo === cx.pagador_nome);
+                        if (md?.telefone) telefonePessoa = md.telefone;
+                    }
+
+                    if (ctx.tipoTransacao === 'RIFA' && ctx.referenciaId && ctx.referenciaId !== 'null') {
+                        const arrayIds = String(ctx.referenciaId).split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n));
+                        if (arrayIds.length > 0) {
+                            if (!telefonePessoa) {
+                                const { data: rRow } = await supabaseClient.from('rifa_numeros').select('telefone_comprador').eq('id', arrayIds[0]).maybeSingle();
+                                if (rRow?.telefone_comprador) telefonePessoa = rRow.telefone_comprador;
+                            }
+                            await supabaseClient.from('rifa_numeros').delete().in('id', arrayIds).eq('terreiro_id', idTerreiroGlobal);
+                        }
+                    }
+
+                    const { error: err1 } = await supabaseClient.from('caixa_terreiro').delete().eq('id', ctx.caixaId).eq('terreiro_id', idTerreiroGlobal);
+                    if (err1) throw err1;
                 }
 
-                alert("Transação pendente cancelada e removida com sucesso.");
+                document.getElementById('modalMotivoRejeicaoPix')?.classList.add('hidden');
                 carregarValidadorPagamentos();
-            } catch(e) {
-                alert("Erro ao rejeitar: " + e.message);
+
+                if (enviarWhats) {
+                    const foneLimpo = String(telefonePessoa || '').replace(/\D/g, '');
+                    const ddi = foneLimpo.startsWith('55') ? '' : '55';
+                    const msgWhats =
+                        `⚠️ *AVISO DA TESOURARIA — ${nomeTerreiroGlobal || 'Templo'}*\n\n` +
+                        `Olá, *${nomePessoa}*!\n` +
+                        `O comprovante enviado referente a *${descricaoTipo}* não pôde ser validado pelo seguinte motivo:\n\n` +
+                        `❌ *Motivo:* ${motivoEscolhido}\n\n` +
+                        `Por favor, verifique e envie novamente pelo aplicativo ou entre em contato com a Administração.`;
+
+                    if (foneLimpo.length >= 10) {
+                        window.open(`https://wa.me/${ddi}${foneLimpo}?text=${encodeURIComponent(msgWhats)}`, '_blank');
+                    } else {
+                        alert('Comprovante rejeitado! (Observação: Esta pessoa não possui telefone cadastrado na ficha para abrir o WhatsApp direto).');
+                    }
+                } else {
+                    alert('Comprovante rejeitado com sucesso.');
+                }
+            } catch (err) {
+                alert('Erro ao rejeitar comprovante: ' + err.message);
+            } finally {
+                if (btnW) btnW.disabled = false;
+                if (btnS) btnS.disabled = false;
             }
         };
 
@@ -6387,6 +6576,7 @@ window.addEventListener('DOMContentLoaded', () => {
                             titulo: titulo,
                             subtitulo: `Número: ${String(i).padStart(2,'0')}`,
                             nome: comprado.nome_comprador,
+                            telefone: comprado.telefone_comprador || '',
                             valor: valorNum,
                             url: comprado.comprovante_url
                         };
