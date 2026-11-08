@@ -1428,6 +1428,9 @@
                 return pdf.output('blob');
             });
 
+            document.body.removeChild(wrapperInvisivel);
+            const nomeArquivo = `Certificado_${tipoSacramento}_${medium.nome_completo.replace(/\s+/g, '_')}.pdf`;
+
             // 1. Dispara sempre o download direto do PDF no dispositivo (PC e Telemóvel)
             const url = URL.createObjectURL(pdfBlob);
             const link = document.createElement('a');
