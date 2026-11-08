@@ -282,13 +282,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
 
-        // Busca todas as presenças do médium para os slides ativos
+        // Busca todas as presenças do médium para os slides ativos (checa auth_id e id numérico caso um familiar tenha feito por ele)
         window.mapaPresencasUsuario = {};
         if (slidesEventos.length > 0) {
             const idsSlides = slidesEventos.map(s => s.id);
             const { data: presList } = await supabaseClient.from('presencas')
                 .select('*')
-                .eq('usuario_id', authId)
+                .in('usuario_id', [authId, String(perfil.id)])
                 .in('evento_id', idsSlides);
             (presList || []).forEach(p => { window.mapaPresencasUsuario[p.evento_id] = p; });
         }
@@ -512,6 +512,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (slidesEventos.length > 1) {
                 timerCarrossel = setInterval(() => window.mudarSlideEvento(1, false), 5500);
+            }
+
+            // Se houver gira aberta agora e o médium ainda não tiver presença, tenta o Auto-Check-in por proximidade (25m)
+            const primeiroSlide = slidesEventos[0];
+            if (primeiroSlide && primeiroSlide.tipo !== 'informativo' && !window.mapaPresencasUsuario[primeiroSlide.id]) {
+                const agoraInit = new Date();
+                if (hrInicioPermitidoGlobal && hrFimGiraGlobal && agoraInit >= hrInicioPermitidoGlobal && agoraInit <= hrFimGiraGlobal) {
+                    executarAutoCheckinSilencioso();
+                }
             }
         } else {
             if (divComGira) divComGira.classList.add('hidden');
@@ -2312,6 +2321,214 @@ function mostrarModalGPS(estado) {
     }
 }
 
+function mostrarTelaSucessoCheckin(isoHora) {
+    const areaPonto = document.getElementById('areaBaterPonto');
+    const areaSucesso = document.getElementById('areaSucesso');
+    const horaFeito = document.getElementById('horaCheckinFeito');
+    if (areaPonto) areaPonto.classList.add('hidden');
+    if (areaSucesso) areaSucesso.classList.remove('hidden');
+    if (horaFeito) {
+        const dt = isoHora ? new Date(isoHora) : new Date();
+        horaFeito.textContent = dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    }
+}
+
+async function abrirFluxoCheckinFamiliar(distanciaMetros) {
+    // 1. Considera TODOS os familiares aprovados (qualquer grau)
+    const familiares = familiaresAprovadosCache || [];
+    if (familiares.length === 0) {
+        mostrarTelaSucessoCheckin();
+        return;
+    }
+
+    // 2. Verifica no banco quais familiares JÁ possuem presença registrada nesta gira
+    const possiveisIds = [];
+    familiares.forEach(f => {
+        if (f.auth_id) possiveisIds.push(String(f.auth_id));
+        possiveisIds.push(String(f.id));
+    });
+
+    const { data: presExistentes } = await supabaseClient
+        .from('presencas')
+        .select('usuario_id')
+        .eq('evento_id', idGiraGlobal)
+        .in('usuario_id', possiveisIds);
+
+    const setJaPresentes = new Set((presExistentes || []).map(p => String(p.usuario_id)));
+
+    // Se todos os familiares já tiverem presença confirmada, vai direto para a tela de sucesso
+    const pendentes = familiares.filter(f => !setJaPresentes.has(String(f.auth_id)) && !setJaPresentes.has(String(f.id)));
+    if (pendentes.length === 0) {
+        mostrarTelaSucessoCheckin();
+        return;
+    }
+
+    const modalFam = document.getElementById('modalCheckinFamiliar');
+    const listaFam = document.getElementById('listaFamiliaresCheckin');
+    const btnConfirmarFam = document.getElementById('btnConfirmarCheckinFamiliar');
+    const btnPularFam = document.getElementById('btnPularCheckinFamiliar');
+
+    if (!modalFam || !listaFam) {
+        mostrarTelaSucessoCheckin();
+        return;
+    }
+
+    // IMPORTANTE: Checkboxes vêm DESMARCADOS por padrão para obrigar confirmação manual de quem realmente foi
+    listaFam.innerHTML = familiares.map(m => {
+        const jaTem = setJaPresentes.has(String(m.auth_id)) || setJaPresentes.has(String(m.id));
+        if (jaTem) {
+            return `
+                <div class="flex items-center justify-between gap-3 p-2.5 bg-green-50 border border-green-200 rounded-xl opacity-80">
+                    <div>
+                        <p class="text-sm font-bold text-gray-800 leading-tight">${m.nome_completo}</p>
+                        <p class="text-[10px] text-gray-500 uppercase">Grau: ${m.grau || '-'}</p>
+                    </div>
+                    <span class="text-[10px] font-black text-green-700 bg-green-100 px-2 py-0.5 rounded-full shrink-0"><i class="fas fa-check mr-1"></i>Já presente</span>
+                </div>
+            `;
+        }
+        return `
+            <label class="flex items-center gap-3 p-2.5 bg-white hover:bg-blue-50/50 border border-gray-200 rounded-xl cursor-pointer transition select-none">
+                <input type="checkbox" value="${m.id}" class="chk-menor-checkin w-5 h-5 text-tema-primaria rounded focus:ring-tema-primaria">
+                <div class="flex-1">
+                    <p class="text-sm font-bold text-gray-800 leading-tight">${m.nome_completo}</p>
+                    <p class="text-[10px] text-gray-500 uppercase">Grau: ${m.grau || '-'}</p>
+                </div>
+            </label>
+        `;
+    }).join('');
+
+    btnConfirmarFam.disabled = false;
+    btnConfirmarFam.innerHTML = '<i class="fas fa-check mr-2"></i> Confirmar Familiares Marcados';
+
+    const finalizarModal = () => {
+        modalFam.classList.add('hidden');
+        mostrarTelaSucessoCheckin();
+    };
+
+    btnPularFam.onclick = () => finalizarModal();
+
+    btnConfirmarFam.onclick = async () => {
+        const checkboxes = document.querySelectorAll('.chk-menor-checkin:checked');
+        const idsMarcados = Array.from(checkboxes).map(cb => cb.value);
+
+        if (idsMarcados.length === 0) {
+            finalizarModal();
+            return;
+        }
+
+        btnConfirmarFam.disabled = true;
+        btnConfirmarFam.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Registrando...';
+
+        try {
+            // Revalida no banco antes de inserir para impedir qualquer duplicidade simultânea
+            const { data: recheck } = await supabaseClient
+                .from('presencas')
+                .select('usuario_id')
+                .eq('evento_id', idGiraGlobal)
+                .in('usuario_id', possiveisIds);
+
+            const setRecheck = new Set((recheck || []).map(p => String(p.usuario_id)));
+            const dataCheckin = new Date().toISOString();
+
+            const insercoes = idsMarcados.map(idFam => {
+                const famObj = familiares.find(f => String(f.id) === String(idFam));
+                if (!famObj) return null;
+                if (setRecheck.has(String(famObj.auth_id)) || setRecheck.has(String(famObj.id))) return null;
+
+                return {
+                    evento_id: idGiraGlobal,
+                    usuario_id: famObj.auth_id || String(famObj.id),
+                    data_hora_checkin: dataCheckin,
+                    localizacao_valida: true,
+                    distancia_metros: Math.round(distanciaMetros)
+                };
+            }).filter(Boolean);
+
+            if (insercoes.length > 0) {
+                await supabaseClient.from('presencas').insert(insercoes);
+            }
+        } catch (e) {
+            console.error('Erro ao registrar familiares:', e);
+        }
+
+        finalizarModal();
+    };
+
+    modalFam.classList.remove('hidden');
+    setTimeout(() => modalFam.querySelector('div')?.classList.replace('scale-95', 'scale-100'), 10);
+}
+
+async function registrarMinhaPresencaEChecarFamilia(distanciaMetros, silencioso = false) {
+    const msg = document.getElementById('msgCheckin');
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session || !idGiraGlobal) return;
+
+    // 1. Checa no banco se o próprio médium já teve a presença confirmada (individualmente ou por outro familiar)
+    const { data: jaFeito } = await supabaseClient
+        .from('presencas')
+        .select('*')
+        .eq('evento_id', idGiraGlobal)
+        .in('usuario_id', [session.user.id, String(perfilMediumLogado.id)])
+        .limit(1);
+
+    let dataHoraRegistro = new Date().toISOString();
+
+    if (jaFeito && jaFeito.length > 0) {
+        dataHoraRegistro = jaFeito[0].data_hora_checkin;
+    } else {
+        if (!silencioso && btnCheckin) {
+            btnCheckin.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Registrando...';
+        }
+        const { error } = await supabaseClient.from('presencas').insert([{
+            evento_id: idGiraGlobal,
+            usuario_id: session.user.id,
+            data_hora_checkin: dataHoraRegistro,
+            localizacao_valida: true,
+            distancia_metros: Math.round(distanciaMetros)
+        }]);
+
+        if (error) {
+            if (!silencioso && msg) {
+                msg.textContent = "Erro ao registrar: " + error.message;
+                msg.className = "mt-3 text-sm font-bold text-red-500 block";
+                msg.classList.remove('hidden');
+            }
+            restaurarBotao(btnCheckin);
+            return;
+        }
+    }
+
+    if (window.mapaPresencasUsuario) {
+        window.mapaPresencasUsuario[idGiraGlobal] = { data_hora_checkin: dataHoraRegistro };
+    }
+
+    if (silencioso && typeof window.mostrarToastSistema === 'function') {
+        window.mostrarToastSistema('📍 Presença confirmada automaticamente por proximidade!', 'sucesso');
+    }
+
+    await abrirFluxoCheckinFamiliar(distanciaMetros);
+}
+
+function executarAutoCheckinSilencioso() {
+    if (!navigator.geolocation || !coordsTerreiro || !coordsTerreiro.lat || !idGiraGlobal) return;
+
+    navigator.geolocation.getCurrentPosition(async (posicao) => {
+        const distanciaMetros = calcularDistancia(
+            posicao.coords.latitude,
+            posicao.coords.longitude,
+            coordsTerreiro.lat,
+            coordsTerreiro.lng
+        );
+
+        if (distanciaMetros <= 25) {
+            await registrarMinhaPresencaEChecarFamilia(distanciaMetros, true);
+        }
+    }, () => {
+        // Silencioso: se o GPS estiver desativado ou sem permissão, mantém o botão manual na tela
+    }, { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 });
+}
+
 function executarCheckinGPS() {
     const msg = document.getElementById('msgCheckin');
     btnCheckin.disabled = true;
@@ -2329,108 +2546,7 @@ function executarCheckinGPS() {
             restaurarBotao(btnCheckin); return;
         }
 
-        const { data: { session } } = await supabaseClient.auth.getSession();
-        btnCheckin.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Registrando...';
-
-        const { error } = await supabaseClient.from('presencas').insert([{ 
-            evento_id: idGiraGlobal, 
-            usuario_id: session.user.id, 
-            data_hora_checkin: new Date().toISOString(),
-            localizacao_valida: true,
-            distancia_metros: Math.round(distanciaMetros)
-        }]);
-
-        if (error) {
-            if (msg) { msg.textContent = "Erro ao registrar: " + error.message; msg.className = "mt-3 text-sm font-bold text-red-500 block"; msg.classList.remove('hidden'); }
-            restaurarBotao(btnCheckin);
-        } else {
-            if (window.mapaPresencasUsuario) {
-                window.mapaPresencasUsuario[idGiraGlobal] = { data_hora_checkin: new Date().toISOString() };
-            }
-            // Check-in do responsável feito com sucesso! Agora verifica menores
-            const menores = familiaresAprovadosCache.filter(fam => fam.grau && fam.grau.toUpperCase().includes('J'));
-
-            if (menores.length > 0) {
-                // Abre o modal familiar
-                const modalFam = document.getElementById('modalCheckinFamiliar');
-                const listaFam = document.getElementById('listaFamiliaresCheckin');
-                const btnConfirmarFam = document.getElementById('btnConfirmarCheckinFamiliar');
-                const btnPularFam = document.getElementById('btnPularCheckinFamiliar');
-
-                if (modalFam && listaFam) {
-                    listaFam.innerHTML = menores.map(m => `
-                        <label class="flex items-center gap-3 p-2 hover:bg-gray-100 rounded-lg cursor-pointer transition">
-                            <input type="checkbox" value="${m.id}" class="chk-menor-checkin w-4 h-4 text-tema-primaria rounded focus:ring-tema-primaria" checked>
-                            <div>
-                                <p class="text-sm font-bold text-gray-800 leading-tight">${m.nome_completo}</p>
-                                <p class="text-[10px] text-gray-500 uppercase">${m.grau}</p>
-                            </div>
-                        </label>
-                    `).join('');
-
-                    // Função para mostrar tela de sucesso final
-                    const mostrarSucessoFinal = () => {
-                        modalFam.classList.add('hidden');
-                        const areaPonto = document.getElementById('areaBaterPonto');
-                        const areaSucesso = document.getElementById('areaSucesso');
-                        const horaFeito = document.getElementById('horaCheckinFeito');
-                        if (areaPonto) areaPonto.classList.add('hidden');
-                        if (areaSucesso) areaSucesso.classList.remove('hidden');
-                        if (horaFeito) horaFeito.textContent = new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
-                    };
-
-                    // Pular (não fazer check-in dos menores)
-                    btnPularFam.onclick = () => mostrarSucessoFinal();
-
-                    // Confirmar presença dos selecionados
-                    btnConfirmarFam.onclick = async () => {
-                        btnConfirmarFam.disabled = true;
-                        btnConfirmarFam.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Registrando...';
-                        
-                        const checkboxes = document.querySelectorAll('.chk-menor-checkin:checked');
-                        const idsMenores = Array.from(checkboxes).map(cb => cb.value);
-
-                        if (idsMenores.length > 0) {
-                            const dataCheckin = new Date().toISOString();
-                            const insercoes = idsMenores.map(idMenor => {
-                                const famObj = familiaresAprovadosCache.find(f => String(f.id) === String(idMenor));
-                                return {
-                                    evento_id: idGiraGlobal,
-                                    usuario_id: famObj ? (famObj.auth_id || String(famObj.id)) : null, 
-                                    data_hora_checkin: dataCheckin,
-                                    localizacao_valida: true,
-                                    distancia_metros: Math.round(distanciaMetros)
-                                };
-                            }).filter(ins => ins.usuario_id);
-
-                            if(insercoes.length > 0) {
-                                await supabaseClient.from('presencas').insert(insercoes);
-                            }
-                        }
-                        mostrarSucessoFinal();
-                    };
-
-                    modalFam.classList.remove('hidden');
-                    setTimeout(() => modalFam.querySelector('div').classList.replace('scale-95', 'scale-100'), 10);
-                } else {
-                    // Fallback se o modal não existir
-                    const areaPonto = document.getElementById('areaBaterPonto');
-                    const areaSucesso = document.getElementById('areaSucesso');
-                    const horaFeito = document.getElementById('horaCheckinFeito');
-                    if (areaPonto) areaPonto.classList.add('hidden');
-                    if (areaSucesso) areaSucesso.classList.remove('hidden');
-                    if (horaFeito) horaFeito.textContent = new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
-                }
-            } else {
-                // Se não tem menores, vai direto pra tela de sucesso normal
-                const areaPonto = document.getElementById('areaBaterPonto');
-                const areaSucesso = document.getElementById('areaSucesso');
-                const horaFeito = document.getElementById('horaCheckinFeito');
-                if (areaPonto) areaPonto.classList.add('hidden');
-                if (areaSucesso) areaSucesso.classList.remove('hidden');
-                if (horaFeito) horaFeito.textContent = new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
-            }
-        }
+        await registrarMinhaPresencaEChecarFamilia(distanciaMetros, false);
     }, (err) => {
         if (msg) { msg.textContent = "Erro ao acessar localização. Verifique o acesso ao GPS do celular."; msg.className = "mt-3 text-sm font-bold text-red-500 block"; msg.classList.remove('hidden'); }
         restaurarBotao(btnCheckin);
