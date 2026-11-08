@@ -5885,24 +5885,139 @@ window.aprovarComprovante = async (comprovanteId) => {
 };
 
 window.rejeitarComprovante = async (comprovanteId) => {
-    if (!confirm("Rejeitar este comprovante? As mensalidades continuarão pendentes.")) return;
-
-    try {
-        const { error } = await supabaseClient
-            .from('comprovantes_mensalidade')
-            .update({ status: 'rejeitado' })
-            .eq('id', comprovanteId)
-            .eq('terreiro_id', idTerreiroGlobal);
-
-        if (error) throw error;
-        
-        alert("Comprovante rejeitado.");
-        if(typeof window.carregarValidadorPagamentos === 'function') window.carregarValidadorPagamentos();
-    } catch (err) {
-        console.error(err);
-        alert("Erro ao rejeitar comprovante: " + err.message);
+    // 1. Tenta usar o modal da Parte 1 para unificar a inteligência do sistema
+    if (typeof window.abrirModalMotivoRejeicao === 'function') {
+        return window.abrirModalMotivoRejeicao(comprovanteId, 'mensalidade');
     }
+
+    // 2. FALLBACK SEGURO: Cria o modal dinamicamente garantindo que o fluxo do WhatsApp não seja ignorado
+    let telefone = '';
+    let nomeMedium = '';
+    
+    try {
+        const { data: comp } = await supabaseClient
+            .from('comprovantes_mensalidade')
+            .select('detalhes_pagamento')
+            .eq('id', comprovanteId)
+            .single();
+
+        if (comp && comp.detalhes_pagamento && comp.detalhes_pagamento.length > 0) {
+            const mediumId = comp.detalhes_pagamento[0].medium_id;
+            const medium = listaMediunsGlobal.find(m => m.id === mediumId);
+            if (medium) {
+                telefone = medium.telefone ? medium.telefone.replace(/\D/g, '') : '';
+                nomeMedium = medium.nome_social || medium.nome_completo.split(' ')[0];
+            }
+        }
+    } catch(e) {}
+
+    const modalExistente = document.getElementById('modalMotivoRejeicaoFallback');
+    if (modalExistente) modalExistente.remove();
+
+    const modalHtml = `
+        <div id="modalMotivoRejeicaoFallback" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+            <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden flex flex-col">
+                <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-red-50">
+                    <h3 class="font-black text-red-700 text-lg flex items-center gap-2"><i class="fas fa-times-circle"></i> Motivo da Rejeição</h3>
+                    <button onclick="document.getElementById('modalMotivoRejeicaoFallback').remove()" class="text-gray-400 hover:text-gray-700 transition"><i class="fas fa-times text-lg"></i></button>
+                </div>
+                <div class="p-5 flex-1">
+                    <p class="text-sm text-gray-600 mb-4">Selecione o motivo para rejeitar o comprovante${nomeMedium ? ` de <strong>${nomeMedium}</strong>` : ''}:</p>
+                    
+                    <div class="space-y-3 mb-4">
+                        <label class="flex items-start gap-3 p-3 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition">
+                            <input type="radio" name="motivoRejFb" value="Valor do comprovante é menor que o valor total" class="mt-0.5 w-4 h-4 text-red-600" checked>
+                            <span class="text-sm font-medium text-gray-700">Valor menor que o total</span>
+                        </label>
+                        <label class="flex items-start gap-3 p-3 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition">
+                            <input type="radio" name="motivoRejFb" value="Comprovante não identificado" class="mt-0.5 w-4 h-4 text-red-600">
+                            <span class="text-sm font-medium text-gray-700">Comprovante não identificado</span>
+                        </label>
+                        <label class="flex items-start gap-3 p-3 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition">
+                            <input type="radio" name="motivoRejFb" value="custom" class="mt-0.5 w-4 h-4 text-red-600">
+                            <span class="text-sm font-medium text-gray-700">Outro motivo...</span>
+                        </label>
+                    </div>
+                    
+                    <div id="boxMotivoCustomRejFb" class="hidden mb-4">
+                        <textarea id="txtMotivoCustomRejFb" rows="2" class="w-full p-3 text-sm border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-red-500" placeholder="Digite o motivo detalhado..."></textarea>
+                    </div>
+
+                    <label class="flex items-center gap-2 mt-2 cursor-pointer">
+                        <input type="checkbox" id="chkAvisarWhatsRejFb" class="w-4 h-4 text-green-600 rounded" ${telefone ? 'checked' : ''} ${!telefone ? 'disabled' : ''}>
+                        <span class="text-sm font-bold text-gray-700">Avisar no WhatsApp <i class="fab fa-whatsapp text-green-500"></i></span>
+                    </label>
+                    ${!telefone ? '<p class="text-[10px] text-red-500 mt-1">Médium sem telefone cadastrado.</p>' : ''}
+                </div>
+                <div class="p-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
+                    <button onclick="document.getElementById('modalMotivoRejeicaoFallback').remove()" class="px-4 py-2 font-bold text-gray-600 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition text-sm">Cancelar</button>
+                    <button id="btnConfirmarRejFb" class="px-4 py-2 font-bold text-white bg-red-600 rounded-xl hover:bg-red-700 transition shadow-sm text-sm flex items-center gap-2">Confirmar Rejeição</button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    const radios = document.getElementsByName('motivoRejFb');
+    const boxCustom = document.getElementById('boxMotivoCustomRejFb');
+    radios.forEach(r => {
+        r.addEventListener('change', () => {
+            if (r.value === 'custom') boxCustom.classList.remove('hidden');
+            else boxCustom.classList.add('hidden');
+        });
+    });
+
+    document.getElementById('btnConfirmarRejFb').onclick = async () => {
+        const btn = document.getElementById('btnConfirmarRejFb');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Rejeitando...';
+
+        let motivo = document.querySelector('input[name="motivoRejFb"]:checked').value;
+        if (motivo === 'custom') {
+            motivo = document.getElementById('txtMotivoCustomRejFb').value.trim();
+            if (!motivo) {
+                alert("Digite o motivo da rejeição.");
+                btn.disabled = false;
+                btn.innerHTML = 'Confirmar Rejeição';
+                return;
+            }
+        }
+
+        const enviarWhats = document.getElementById('chkAvisarWhatsRejFb').checked;
+
+        try {
+            const { error } = await supabaseClient
+                .from('comprovantes_mensalidade')
+                .update({ status: 'rejeitado' })
+                .eq('id', comprovanteId)
+                .eq('terreiro_id', idTerreiroGlobal);
+
+            if (error) throw error;
+            
+            alert("Comprovante rejeitado com sucesso!");
+            if(typeof window.carregarValidadorPagamentos === 'function') window.carregarValidadorPagamentos();
+            
+            document.getElementById('modalMotivoRejeicaoFallback').remove();
+
+            // Abre o WhatsApp caso marcado e possua telefone
+            if (enviarWhats && telefone) {
+                const nomeTerreiro = nomeTerreiroGlobal || 'Templo';
+                const ddi = telefone.startsWith('55') ? '' : '55';
+                const msgWhats = `Olá, ${nomeMedium}! 🙏\n\nInformamos que o seu comprovante enviado para o terreiro *${nomeTerreiro}* foi *rejeitado*.\n\n*Motivo:* ${motivo}\n\nPor favor, verifique e envie novamente pelo sistema. Axé!`;
+                const linkWa = `https://wa.me/${ddi}${telefone}?text=${encodeURIComponent(msgWhats)}`;
+                window.open(linkWa, '_blank');
+            }
+
+        } catch (err) {
+            console.error(err);
+            alert("Erro ao rejeitar comprovante: " + err.message);
+            btn.disabled = false;
+            btn.innerHTML = 'Confirmar Rejeição';
+        }
+    };
 };
+
 
 window.marcarDoacao = async (id, status) => {
     const payload = { entregue: status, data_entrega: status ? new Date().toISOString() : null };
