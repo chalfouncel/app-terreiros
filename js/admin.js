@@ -2453,11 +2453,24 @@ document.addEventListener('DOMContentLoaded', async () => {
                         : '<span class="bg-red-100 text-red-700 px-2.5 py-1 rounded-full text-[10px] font-black inline-flex items-center gap-1"><i class="fas fa-times"></i> Rejeitado</span>';
 
                     const nomeSafe = String(item.nomePrincipal).replace(/'/g, "\\'");
-                    const btnVerAnexo = item.comprovanteUrl
-                        ? `<button type="button" onclick="window.visualizarAnexoSomenteLeitura('${item.comprovanteUrl}', '${nomeSafe} - ${valFmt}')" class="mt-1 md:mt-0 md:ml-1.5 text-[10px] bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-2.5 py-1 rounded-lg border border-gray-300 transition active:scale-95 inline-flex items-center gap-1" title="Reabrir Comprovante">
+                    
+                    let btnAcoesExtras = '';
+
+                    // Se estiver REJEITADO, exibe o botão do WhatsApp DENTRO DA CAIXINHA
+                    if (item.status === 'rejeitado') {
+                        const telDestino = item.telefoneComprador || item.telefoneMedium || '';
+                        const msgWhatsRejeicao = encodeURIComponent(`⚠️ *AVISO DA TESOURARIA — ${nomeTerreiroGlobal || 'Templo'}*\n\nOlá, *${item.nomePrincipal}*!\nO comprovante enviado referente a ${item.detalheHtml} (${valFmt}) não pôde ser validado.\n\nPor favor, verifique e envie novamente pelo aplicativo.`);
+                        
+                        btnAcoesExtras += `<a href="https://wa.me/55${telDestino.replace(/\D/g, '')}?text=${msgWhatsRejeicao}" target="_blank" class="mt-1 md:mt-0 md:ml-1.5 text-[10px] bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold px-2.5 py-1 rounded-lg border border-emerald-300 transition active:scale-95 inline-flex items-center gap-1 shadow-sm" title="Avisar no WhatsApp">
+                            <i class="fab fa-whatsapp text-emerald-600 text-xs"></i> WhatsApp
+                        </a>`;
+                    }
+
+                    if (item.comprovanteUrl) {
+                        btnAcoesExtras += `<button type="button" onclick="window.visualizarAnexoSomenteLeitura('${item.comprovanteUrl}', '${nomeSafe} - ${valFmt}')" class="mt-1 md:mt-0 md:ml-1.5 text-[10px] bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-2.5 py-1 rounded-lg border border-gray-300 transition active:scale-95 inline-flex items-center gap-1 shadow-sm" title="Reabrir Comprovante">
                                <i class="fas fa-receipt text-tema-primaria"></i> Ver PIX
-                           </button>`
-                        : '';
+                           </button>`;
+                    }
 
                     return `
                         <tr class="block md:table-row p-3.5 md:p-0 hover:bg-gray-50 transition border-b border-gray-100">
@@ -2483,7 +2496,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             </td>
                             <td class="block md:table-cell md:p-3 text-right md:text-center whitespace-nowrap mt-1 md:mt-0">
                                 <span class="hidden md:inline-block">${statusBadge}</span>
-                                ${btnVerAnexo}
+                                ${btnAcoesExtras}
                             </td>
                         </tr>
                     `;
