@@ -5302,6 +5302,14 @@ window.gerarPDF_ATA = async (eventoId) => {
                     if (evento.escalas.batizados && evento.escalas.batizados.includes(idMed)) frasesAta.push(`"${nomeFinal}" foi Batizado (a) nesta gira`);
                     if (evento.escalas.consagrados && evento.escalas.consagrados.includes(idMed)) frasesAta.push(`"${nomeFinal}" foi Consagrado (a) nesta gira`);
                     if (evento.escalas.coroados && evento.escalas.coroados.includes(idMed)) frasesAta.push(`"${nomeFinal}" foi Coroado (a) nesta gira`);
+
+                    // Condições Limpeza do Terreiro (Presentes na Gira)
+                    if (Array.isArray(evento.escalas.limpeza_pre) && evento.escalas.limpeza_pre.map(String).includes(idMed)) {
+                        frasesAta.push(`Limpeza e firmeza pré gira`);
+                    }
+                    if (Array.isArray(evento.escalas.limpeza_pos) && evento.escalas.limpeza_pos.map(String).includes(idMed)) {
+                        frasesAta.push(`Limpeza pós gira`);
+                    }
                 }
 
                 let discretasHtml = '';
@@ -5322,6 +5330,33 @@ window.gerarPDF_ATA = async (eventoId) => {
             trsMediuns = `<tr><td colspan="3" style="text-align: center; padding: 15px; font-style: italic; color: #64748b;">Nenhum médium presente nesta sessão.</td></tr>`;
         }
 
+        // Médiuns que fizeram a Limpeza pré-gira, mas NÃO registraram presença na gira
+        if (evento.escalas && Array.isArray(evento.escalas.limpeza_pre) && evento.escalas.limpeza_pre.length > 0) {
+            const idsPresentesSet = new Set((presencas || []).map(p => {
+                const m = mapaMediuns[p.usuario_id];
+                return m ? String(m.id) : String(p.usuario_id);
+            }));
+
+            evento.escalas.limpeza_pre.map(String).forEach(idMedLimpeza => {
+                if (!idsPresentesSet.has(idMedLimpeza)) {
+                    const medAusente = mapaMediuns[idMedLimpeza] || { nome_completo: 'Médium', grau: '-', funcao: '-' };
+                    const gStr = medAusente.grau && medAusente.grau !== '-' ? medAusente.grau : '';
+                    const fStr = medAusente.funcao && medAusente.funcao !== '-' ? medAusente.funcao : '';
+                    const grauExib = (gStr && fStr) ? `${gStr}/${fStr}` : (gStr || fStr || '-');
+
+                    trsMediuns += `
+                        <tr style="page-break-inside: avoid; background-color: #fffbeb;">
+                            <td style="border-bottom: 1px solid #ddd; padding: 6px 4px; overflow-wrap: break-word;">
+                                ${medAusente.nome_completo}
+                                <br><span style="font-size: 8px; color: #b45309; font-style: italic; font-weight: bold;">↳ Efetuou a limpeza e firmeza pré gira porém não compareceu à gira</span>
+                            </td>
+                            <td style="border-bottom: 1px solid #ddd; padding: 6px 4px; text-align: center;">${grauExib}</td>
+                            <td style="border-bottom: 1px solid #ddd; padding: 6px 4px; text-align: right; font-size: 9px; color: #b45309;">Ausente na Gira</td>
+                        </tr>
+                    `;
+                }
+            });
+        }
         // Linhas da Assistência / Visitantes
         let trsAssist = '';
         if (assistencias && assistencias.length > 0) {
@@ -8071,6 +8106,168 @@ async function inicializarModuloFornecedoresAdmin() {
 
             // 4. Se já estiver na primeira aba do Admin, volta para o Aplicativo de Presença em vez de fechar o telemóvel
             window.location.replace('presenca.html');
+        // ==========================================================
+// MÓDULO INDEPENDENTE: LIMPEZA DO TERREIRO (PRÉ E PÓS GIRA)
+// ==========================================================
+(function () {
+    let giraAlvoLimpeza = null;
+    let tipoLimpezaAtivo = null; // 'pre' ou 'pos'
+    let selecionadosLimpezaSet = new Set();
+
+    window.carregarGiraAbertaParaLimpeza = async () => {
+        if (!idTerreiroGlobal) return;
+        const badge = document.getElementById('badgeGiraAbertaLimpeza');
+        const subPre = document.getElementById('subGiraLimpezaPre');
+        const subPos = document.getElementById('subGiraLimpezaPos');
+        const painel = document.getElementById('painelSelecaoLimpeza');
+
+        if (!badge) return;
+        painel?.classList.add('hidden');
+        tipoLimpezaAtivo = null;
+
+        try {
+            const agoraISO = new Date().toISOString();
+            const { data: giras } = await supabaseClient
+                .from('agenda')
+                .select('*')
+                .eq('terreiro_id', idTerreiroGlobal)
+                .neq('tipo', 'informativo')
+                .or('ata_encerrada.eq.false,ata_encerrada.is.null')
+                .gte('data_hora_fim', agoraISO)
+                .order('data_hora_inicio', { ascending: true })
+                .limit(1);
+
+            if (giras && giras.length > 0) {
+                giraAlvoLimpeza = giras[0];
+                const dtFmt = new Date(giraAlvoLimpeza.data_hora_inicio).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+                badge.innerHTML = `<i class="fas fa-lock-open mr-1 text-emerald-600"></i> Gira Aberta: <strong>${giraAlvoLimpeza.titulo}</strong> (${dtFmt})`;
+                badge.className = 'text-xs font-bold px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200';
+                if (subPre) subPre.textContent = `Gira: ${giraAlvoLimpeza.titulo} (${(giraAlvoLimpeza.escalas?.limpeza_pre || []).length} marcados)`;
+                if (subPos) subPos.textContent = `Gira: ${giraAlvoLimpeza.titulo} (${(giraAlvoLimpeza.escalas?.limpeza_pos || []).length} marcados)`;
+            } else {
+                giraAlvoLimpeza = null;
+                badge.innerHTML = `<i class="fas fa-lock mr-1"></i> Nenhuma gira aberta no momento`;
+                badge.className = 'text-xs font-bold px-3 py-1.5 rounded-xl bg-gray-100 text-gray-500 border border-gray-200';
+                if (subPre) subPre.textContent = 'Aguardando abertura de próxima gira';
+                if (subPos) subPos.textContent = 'Aguardando abertura de próxima gira';
+            }
+        } catch (e) {
+            console.error('Erro ao buscar gira para limpeza:', e);
+        }
+    };
+
+    window.selecionarEventoLimpeza = (tipo) => {
+        if (!giraAlvoLimpeza) {
+            return alert('Não há nenhuma gira aberta no momento. Assim que houver uma gira aberta (não encerrada), a escala de limpeza ficará disponível.');
+        }
+
+        tipoLimpezaAtivo = tipo;
+        const esc = giraAlvoLimpeza.escalas || {};
+        const listaInicial = tipo === 'pre' ? (esc.limpeza_pre || []) : (esc.limpeza_pos || []);
+        selecionadosLimpezaSet = new Set(listaInicial.map(String));
+
+        const btnPre = document.getElementById('btnSelLimpezaPre');
+        const btnPos = document.getElementById('btnSelLimpezaPos');
+        if (btnPre && btnPos) {
+            btnPre.className = tipo === 'pre'
+                ? 'p-4 rounded-2xl border-2 border-sky-600 bg-sky-50/70 text-left transition flex items-center justify-between shadow-sm'
+                : 'p-4 rounded-2xl border-2 border-gray-200 bg-gray-50 hover:bg-sky-50/40 text-left transition flex items-center justify-between';
+            btnPos.className = tipo === 'pos'
+                ? 'p-4 rounded-2xl border-2 border-teal-600 bg-teal-50/70 text-left transition flex items-center justify-between shadow-sm'
+                : 'p-4 rounded-2xl border-2 border-gray-200 bg-gray-50 hover:bg-teal-50/40 text-left transition flex items-center justify-between';
+        }
+
+        const titulo = document.getElementById('tituloPainelLimpezaAtivo');
+        if (titulo) {
+            titulo.textContent = tipo === 'pre'
+                ? `🧹 Limpeza pré Gira — ${giraAlvoLimpeza.titulo}`
+                : `✨ Limpeza pós Gira — ${giraAlvoLimpeza.titulo}`;
+        }
+
+        const inp = document.getElementById('inputFiltroNomeLimpeza');
+        if (inp) inp.value = '';
+
+        document.getElementById('painelSelecaoLimpeza')?.classList.remove('hidden');
+        window.filtrarListaMediunsLimpeza();
+    };
+
+    window.filtrarListaMediunsLimpeza = () => {
+        const grid = document.getElementById('gridMediunsLimpeza');
+        const contador = document.getElementById('contadorMediunsLimpeza');
+        if (!grid) return;
+
+        const termo = (document.getElementById('inputFiltroNomeLimpeza')?.value || '').trim().toLowerCase();
+        const ativos = (listaMediunsGlobal || []).filter(m => m.status_ativo !== false);
+
+        const filtrados = ativos.filter(m => {
+            if (!termo) return true;
+            const nComp = (m.nome_completo || '').toLowerCase();
+            const nSoc = (m.nome_social || '').toLowerCase();
+            return nComp.includes(termo) || nSoc.includes(termo);
+        });
+
+        if (contador) contador.textContent = `${selecionadosLimpezaSet.size} médium(ns) selecionado(s)`;
+
+        if (filtrados.length === 0) {
+            grid.innerHTML = `<p class="text-xs text-gray-400 col-span-full text-center py-4">Nenhum médium encontrado.</p>`;
+            return;
+        }
+
+        grid.innerHTML = filtrados.map(m => {
+            const idStr = String(m.id);
+            const marcado = selecionadosLimpezaSet.has(idStr) ? 'checked' : '';
+            return `
+                <label class="flex items-center gap-2.5 p-2 bg-white hover:bg-sky-50/50 rounded-xl border border-gray-200 cursor-pointer text-xs transition select-none">
+                    <input type="checkbox" value="${idStr}" ${marcado} onchange="window.toggleMediumLimpeza('${idStr}', this.checked)" class="w-4 h-4 rounded text-sky-600">
+                    <span class="font-bold text-gray-800 truncate" title="${m.nome_completo}">${m.nome_completo}</span>
+                </label>
+            `;
+        }).join('');
+    };
+
+    window.toggleMediumLimpeza = (idStr, checked) => {
+        if (checked) selecionadosLimpezaSet.add(String(idStr));
+        else selecionadosLimpezaSet.delete(String(idStr));
+        const contador = document.getElementById('contadorMediunsLimpeza');
+        if (contador) contador.textContent = `${selecionadosLimpezaSet.size} médium(ns) selecionado(s)`;
+    };
+
+    window.salvarLimpezaTerreiro = async () => {
+        if (!giraAlvoLimpeza || !tipoLimpezaAtivo) return;
+        const btn = document.getElementById('btnSalvarLimpezaTerreiro');
+        const origHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
+
+        try {
+            const escalasAtuais = { ...(giraAlvoLimpeza.escalas || {}) };
+            const arrayIds = Array.from(selecionadosLimpezaSet);
+
+            if (tipoLimpezaAtivo === 'pre') escalasAtuais.limpeza_pre = arrayIds;
+            else escalasAtuais.limpeza_pos = arrayIds;
+
+            const { error } = await supabaseClient
+                .from('agenda')
+                .update({ escalas: escalasAtuais })
+                .eq('id', giraAlvoLimpeza.id)
+                .eq('terreiro_id', idTerreiroGlobal);
+
+            if (error) throw error;
+
+            giraAlvoLimpeza.escalas = escalasAtuais;
+            alert(`✅ Escala de Limpeza ${tipoLimpezaAtivo === 'pre' ? 'pré Gira' : 'pós Gira'} salva com sucesso!`);
+            await window.carregarGiraAbertaParaLimpeza();
+        } catch (err) {
+            alert('Erro ao salvar limpeza: ' + err.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = origHtml;
+        }
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('menuEscalas')?.addEventListener('click', () => {
+            setTimeout(window.carregarGiraAbertaParaLimpeza, 150);
         });
     });
 })();
