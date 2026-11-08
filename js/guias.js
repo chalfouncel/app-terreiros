@@ -1297,8 +1297,8 @@
             const legibilidadeCSS = `text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff, 0 0 12px #fff, 0 0 20px #fff, 0 0 30px #fff;`;
 
             const elementoPdf = document.createElement('div');
-            elementoPdf.style.width = '1122px';
-            elementoPdf.style.height = '792px';
+            elementoPdf.style.width = '1123px';
+            elementoPdf.style.height = '793px';
             elementoPdf.style.position = 'relative';
             elementoPdf.style.overflow = 'hidden';
             elementoPdf.style.backgroundColor = '#ffffff';
@@ -1317,9 +1317,9 @@
                 const estiloParagrafoCCT = `font-family: 'Playfair Display', serif; font-size: 13px; line-height: 1.55; text-align: justify; color: #111827; font-weight: 600; ${legibilidadeCSS}`;
 
                 elementoPdf.innerHTML = `
-                    <img src="${fundoBase64}" style="position: absolute; top: 0; left: 0; width: 1122px; height: 792px; object-fit: fill; z-index: 1;" />
+                    <img src="${fundoBase64}" style="position: absolute; top: 0; left: 0; width: 1123px !important; height: 793px !important; max-width: none !important; object-fit: fill; z-index: 1;" />
                     
-                    <div style="position: absolute; top: 52px; height: 535px; left: 0; width: 1122px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 0 95px; box-sizing: border-box; z-index: 2;">
+                    <div style="position: absolute; top: 52px; height: 535px; left: 0; width: 1123px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 0 95px; box-sizing: border-box; z-index: 2;">
                         
                         <div style="text-align: center; flex-shrink: 0;">
                             <h1 style="font-family: 'Cinzel', serif; font-size: 38px; font-weight: 700; margin: 0; color: #ffffff; letter-spacing: 8px; text-shadow: 2px 2px 6px rgba(0,0,0,0.75);">
@@ -1367,9 +1367,9 @@
                 const estiloParagrafoCert = `font-family: 'Playfair Display', serif; font-size: 14.5px; line-height: 1.65; text-align: justify; color: #111827; font-weight: 600; ${legibilidadeCSS}`;
 
                 elementoPdf.innerHTML = `
-                    <img src="${fundoBase64}" style="position: absolute; top: 0; left: 0; width: 1122px; height: 792px; object-fit: fill; z-index: 1;" />
+                    <img src="${fundoBase64}" style="position: absolute; top: 0; left: 0; width: 1123px !important; height: 793px !important; max-width: none !important; object-fit: fill; z-index: 1;" />
                     
-                    <div style="position: absolute; top: 55px; height: 530px; left: 0; width: 1122px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 0 105px; box-sizing: border-box; z-index: 2;">
+                    <div style="position: absolute; top: 55px; height: 530px; left: 0; width: 1123px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 0 105px; box-sizing: border-box; z-index: 2;">
                         
                         <div style="text-align: center; flex-shrink: 0;">
                             <h1 style="font-family: 'Cinzel', serif; font-size: 48px; font-weight: 700; margin: 0; color: #ffffff; letter-spacing: 10px; text-shadow: 2px 2px 6px rgba(0,0,0,0.7);">
@@ -1404,20 +1404,26 @@
             const wrapperInvisivel = document.createElement('div');
             wrapperInvisivel.style.position = 'fixed';
             wrapperInvisivel.style.top = '0';
-            wrapperInvisivel.style.left = '-9999px';
-            wrapperInvisivel.style.width = '1122px';
-            wrapperInvisivel.style.height = '792px';
+            wrapperInvisivel.style.left = '0';
+            wrapperInvisivel.style.width = '0px';
+            wrapperInvisivel.style.height = '0px';
+            wrapperInvisivel.style.overflow = 'hidden';
             wrapperInvisivel.style.zIndex = '-9999';
             
             wrapperInvisivel.appendChild(elementoPdf);
             document.body.appendChild(wrapperInvisivel);
 
-            // 5. Converter para PDF em Página Única Cravada (Sem corte de topo e sem 2ª página)
+            const posScrollX = window.scrollX;
+            const posScrollY = window.scrollY;
+            window.scrollTo(0, 0);
+
+            // 5. Converter para PDF em Página Única Cravada (Sem corte lateral/superior e sem 2ª página)
+            const nomeArquivo = `Certificado_${tipoSacramento}_${medium.nome_completo.replace(/\s+/g, '_')}.pdf`;
             const opt = {
                 margin: 0,
-                filename: `Certificado_${tipoSacramento}_${medium.nome_completo.replace(/\s+/g, '_')}.pdf`,
+                filename: nomeArquivo,
                 image: { type: 'jpeg', quality: 1.0 },
-                html2canvas: { scale: 2, useCORS: true, allowTaint: true, width: 1122, height: 792, windowWidth: 1122, windowHeight: 792, scrollX: 0, scrollY: 0 },
+                html2canvas: { scale: 2, useCORS: true, allowTaint: true, scrollX: 0, scrollY: 0 },
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
             };
 
@@ -1428,8 +1434,8 @@
                 return pdf.output('blob');
             });
 
+            window.scrollTo(posScrollX, posScrollY);
             document.body.removeChild(wrapperInvisivel);
-            const nomeArquivo = `Certificado_${tipoSacramento}_${medium.nome_completo.replace(/\s+/g, '_')}.pdf`;
 
             // 1. Dispara sempre o download direto do PDF no dispositivo (PC e Telemóvel)
             const url = URL.createObjectURL(pdfBlob);
