@@ -1297,10 +1297,12 @@
             const legibilidadeCSS = `text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff, 0 0 12px #fff, 0 0 20px #fff, 0 0 30px #fff;`;
 
             const elementoPdf = document.createElement('div');
-            elementoPdf.style.width = '1123px';
-            elementoPdf.style.height = '794px';
+            elementoPdf.style.width = '1122px';
+            elementoPdf.style.height = '792px';
             elementoPdf.style.position = 'relative';
+            elementoPdf.style.overflow = 'hidden';
             elementoPdf.style.backgroundColor = '#ffffff';
+            elementoPdf.style.boxSizing = 'border-box';
 
             if (tipoSacramento === 'Coroação') {
                 const dataCoroacaoFmt = formatarData(dataSacramento);
@@ -1312,12 +1314,12 @@
                 const nomeTemploGramatical = formatarNomeProprioPT(nomeTemploFormatado);
                 const rodapePadrinhosCCT = `<strong>Padrinhos espirituais:</strong> ${formatarPadrinho(padrinhoObj, false)} e ${formatarPadrinho(madrinhaObj, false)}.`;
 
-                const estiloParagrafoCCT = `font-family: 'Playfair Display', serif; font-size: 13px; line-height: 1.58; text-align: justify; color: #111827; font-weight: 600; ${legibilidadeCSS}`;
+                const estiloParagrafoCCT = `font-family: 'Playfair Display', serif; font-size: 13px; line-height: 1.55; text-align: justify; color: #111827; font-weight: 600; ${legibilidadeCSS}`;
 
                 elementoPdf.innerHTML = `
-                    <img src="${fundoBase64}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1;" />
+                    <img src="${fundoBase64}" style="position: absolute; top: 0; left: 0; width: 1122px; height: 792px; object-fit: fill; z-index: 1;" />
                     
-                    <div style="position: absolute; top: 6.5%; bottom: 23%; left: 0; width: 100%; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 0 95px; box-sizing: border-box; z-index: 2;">
+                    <div style="position: absolute; top: 52px; height: 535px; left: 0; width: 1122px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 0 95px; box-sizing: border-box; z-index: 2;">
                         
                         <div style="text-align: center; flex-shrink: 0;">
                             <h1 style="font-family: 'Cinzel', serif; font-size: 38px; font-weight: 700; margin: 0; color: #ffffff; letter-spacing: 8px; text-shadow: 2px 2px 6px rgba(0,0,0,0.75);">
@@ -1336,7 +1338,7 @@
 
                         <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 0 30px; width: 100%; box-sizing: border-box;">
                             <p style="${estiloParagrafoCCT} margin: 0 0 10px 0;">
-                                <strong>${nomeDirigenteFormatado}</strong>, ${estCivilDirigente}, ${profissaoDirigente}, portador(a) inscrito(a) no Cadastro de Pessoas Físicas sob o nº <strong>${ formatarCPF(cpfDirigente) }</strong>, Sacerdote do <strong>${nomeTemploGramatical}</strong>, com sede na ${enderecoTemplo}, com fundamento no art. 5º, inciso VI, da Constituição Federal e art. VI, alínea “g”, da Declaração sobre a Eliminação de Todas as Formas de Intolerância e Discriminação Fundadas na Religião ou nas Convicções, <strong>DECLARA PARA OS DEVIDOS FINS</strong> que em <strong>${dataCoroacaoFmt}</strong> certificou a habilitação religiosa, nomeou e designou como <strong>Comandante Chefe de Terreiro (CCT) – Linha de Morubixaba</strong> o(a) Sr.(a) <strong>${nomeMediumFormatado}</strong>, brasileiro(a), <strong>${estCivilTxt}</strong>, <strong>${profissaoTxt}</strong>, inscrito(a) no CPF sob o nº <strong>${cpfTxt}</strong>, razão pela qual o(a) nomeado(a) adquire o direito de exercer todos os direitos e prerrogativas religiosas que a presente habilitação lhe assegura.
+                                <strong>${nomeDirigenteFormatado}</strong>, ${estCivilDirigente}, ${profissaoDirigente}, portador(a) inscrito(a) no Cadastro de Pessoas Físicas sob o nº <strong>${formatarCPF(cpfDirigente)}</strong>, Sacerdote do <strong>${nomeTemploGramatical}</strong>, com sede na ${enderecoTemplo}, com fundamento no art. 5º, inciso VI, da Constituição Federal e art. VI, alínea “g”, da Declaração sobre a Eliminação de Todas as Formas de Intolerância e Discriminação Fundadas na Religião ou nas Convicções, <strong>DECLARA PARA OS DEVIDOS FINS</strong> que em <strong>${dataCoroacaoFmt}</strong> certificou a habilitação religiosa, nomeou e designou como <strong>Comandante Chefe de Terreiro (CCT) – Linha de Morubixaba</strong> o(a) Sr.(a) <strong>${nomeMediumFormatado}</strong>, brasileiro(a), <strong>${estCivilTxt}</strong>, <strong>${profissaoTxt}</strong>, inscrito(a) no CPF sob o nº <strong>${cpfTxt}</strong>, razão pela qual o(a) nomeado(a) adquire o direito de exercer todos os direitos e prerrogativas religiosas que a presente habilitação lhe assegura.
                             </p>
                             <p style="${estiloParagrafoCCT} margin: 0 0 10px 0;">
                                 Consigna ainda que o presente ato se assenta na Declaração sobre a Eliminação de Todas as Formas de Intolerância e Discriminação Fundadas na Religião ou nas Convicções, Resolução nº 36/55, proclamada pela Assembleia Geral das Nações Unidas em 25 de novembro de 1981, a qual assegura às organizações religiosas o direito de “Capacitar, nomear, e eleger por sucessão os dirigentes que correspondam segundo as necessidades e normas de qualquer religião ou convicção” (Art. VI, alínea “g”).
@@ -1362,12 +1364,12 @@
                     rodapePadrinhos = `<strong>Padrinhos espirituais:</strong> ${formatarPadrinho(padrinhoObj, false)} e ${formatarPadrinho(madrinhaObj, false)}.`;
                 }
 
-                const estiloParagrafoCert = `font-family: 'Playfair Display', serif; font-size: 14.5px; line-height: 1.7; text-align: justify; color: #111827; font-weight: 600; ${legibilidadeCSS}`;
+                const estiloParagrafoCert = `font-family: 'Playfair Display', serif; font-size: 14.5px; line-height: 1.65; text-align: justify; color: #111827; font-weight: 600; ${legibilidadeCSS}`;
 
                 elementoPdf.innerHTML = `
-                    <img src="${fundoBase64}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1;" />
+                    <img src="${fundoBase64}" style="position: absolute; top: 0; left: 0; width: 1122px; height: 792px; object-fit: fill; z-index: 1;" />
                     
-                    <div style="position: absolute; top: 7%; bottom: 23%; left: 0; width: 100%; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 0 105px; box-sizing: border-box; z-index: 2;">
+                    <div style="position: absolute; top: 55px; height: 530px; left: 0; width: 1122px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 0 105px; box-sizing: border-box; z-index: 2;">
                         
                         <div style="text-align: center; flex-shrink: 0;">
                             <h1 style="font-family: 'Cinzel', serif; font-size: 48px; font-weight: 700; margin: 0; color: #ffffff; letter-spacing: 10px; text-shadow: 2px 2px 6px rgba(0,0,0,0.7);">
@@ -1402,29 +1404,29 @@
             const wrapperInvisivel = document.createElement('div');
             wrapperInvisivel.style.position = 'fixed';
             wrapperInvisivel.style.top = '0';
-            wrapperInvisivel.style.left = '0';
-            wrapperInvisivel.style.width = '0px';
-            wrapperInvisivel.style.height = '0px';
-            wrapperInvisivel.style.overflow = 'hidden';
+            wrapperInvisivel.style.left = '-9999px';
+            wrapperInvisivel.style.width = '1122px';
+            wrapperInvisivel.style.height = '792px';
             wrapperInvisivel.style.zIndex = '-9999';
             
             wrapperInvisivel.appendChild(elementoPdf);
             document.body.appendChild(wrapperInvisivel);
 
-            // 5. Converter para PDF, Criar arquivo nativo e acionar Compartilhamento
+            // 5. Converter para PDF em Página Única Cravada (Sem corte de topo e sem 2ª página)
             const opt = {
                 margin: 0,
                 filename: `Certificado_${tipoSacramento}_${medium.nome_completo.replace(/\s+/g, '_')}.pdf`,
                 image: { type: 'jpeg', quality: 1.0 },
-                html2canvas: { scale: 2, useCORS: true, allowTaint: true },
+                html2canvas: { scale: 2, useCORS: true, allowTaint: true, width: 1122, height: 792, windowWidth: 1122, windowHeight: 792, scrollX: 0, scrollY: 0 },
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
             };
 
-            const pdfBlob = await html2pdf().set(opt).from(elementoPdf).outputPdf('blob');
-            
-            document.body.removeChild(wrapperInvisivel);
-            
-            const nomeArquivo = `Certificado_${tipoSacramento}_${medium.nome_completo.replace(/\s+/g, '_')}.pdf`;
+            const pdfBlob = await html2pdf().set(opt).from(elementoPdf).toPdf().get('pdf').then((pdf) => {
+                while (pdf.internal.getNumberOfPages() > 1) {
+                    pdf.deletePage(pdf.internal.getNumberOfPages());
+                }
+                return pdf.output('blob');
+            });
 
             // 1. Dispara sempre o download direto do PDF no dispositivo (PC e Telemóvel)
             const url = URL.createObjectURL(pdfBlob);
