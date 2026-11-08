@@ -706,6 +706,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     if (error) throw error;
 
                     Object.assign(perfilMediumLogado, payload);
+                    if (typeof window.atualizarBotoesCertificadoPerfil === 'function') window.atualizarBotoesCertificadoPerfil(perfilMediumLogado);
                     if (typeof carregarVinculosFamiliares === 'function') await carregarVinculosFamiliares();
 
                     const nomeCurto = nSocial || nCompleto.split(' ')[0];
