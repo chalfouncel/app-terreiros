@@ -1672,10 +1672,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                         const temTexto = g.texto_ata && g.texto_ata.trim() !== '';
                         const labelRedigir = temTexto ? '<i class="fas fa-edit"></i> Editar' : '<i class="fas fa-pen"></i> Redigir';
                         
+                        const podeEncerrarManual = perfilAdminLogado && (perfilAdminLogado.is_admin === true || perfilAdminLogado.is_master === true);
+                        const btnEncerrarHtml = podeEncerrarManual
+                            ? `<button onclick="encerrarAta('${g.id}')" class="text-xs bg-red-500 hover:bg-red-600 text-white font-bold py-1 px-3 rounded shadow transition" title="Travar Check-ins e Gerar PDF"><i class="fas fa-check-double"></i> Encerrar e Gerar</button>`
+                            : `<span class="text-[10px] bg-amber-50 text-amber-700 border border-amber-200 px-2 py-1 rounded font-bold" title="Encerra automaticamente no horário final"><i class="far fa-clock mr-1"></i>Encerra no horário</span>`;
+
                         acoesHtml = `
                             <div class="flex items-center justify-center space-x-2">
                                 <button onclick="abrirModalEscreverAta('${g.id}')" class="text-xs bg-indigo-100 text-indigo-700 hover:bg-indigo-200 font-bold py-1 px-3 rounded shadow transition" title="Redigir ATA">${labelRedigir}</button>
-                                <button onclick="encerrarAta('${g.id}')" class="text-xs bg-red-500 hover:bg-red-600 text-white font-bold py-1 px-3 rounded shadow transition" title="Travar Check-ins e Gerar PDF"><i class="fas fa-check-double"></i> Encerrar e Gerar</button>
+                                ${btnEncerrarHtml}
                             </div>
                         `;
                     }
@@ -4956,6 +4961,9 @@ window.fecharModalEscreverAta = () => {
 };
 
 window.encerrarAta = async (id) => {
+        if (!perfilAdminLogado || (!perfilAdminLogado.is_admin && !perfilAdminLogado.is_master)) {
+            return alert("Apenas o Administrador Geral pode encerrar uma gira manualmente antes do horário final.");
+        }
         if(!confirm("Atenção! Ao encerrar a ATA, os check-ins serão bloqueados para este evento e o documento não poderá mais ser alterado. Confirmar fechamento?")) return;
         
         // 1. Busca os dados do evento para a automação de sacramentos
