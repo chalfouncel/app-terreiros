@@ -2334,7 +2334,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 ] = await Promise.all([
                     supabaseClient.from('comprovantes_mensalidade').select('*').eq('terreiro_id', idTerreiroGlobal).neq('status', 'pendente').order('id', { ascending: false }).limit(25),
                     supabaseClient.from('caixa_terreiro').select('*').eq('terreiro_id', idTerreiroGlobal).neq('status', 'pendente').order('id', { ascending: false }).limit(25),
-                    supabaseClient.from('mediuns').select('id, auth_id, nome_completo, telefone').eq('terreiro_id', idTerreiroGlobal),
+                    supabaseClient.from('mediuns').select('id, auth_id, nome_completo').eq('terreiro_id', idTerreiroGlobal),
                     supabaseClient.from('rifas').select('id, titulo, valor_numero').eq('terreiro_id', idTerreiroGlobal),
                     supabaseClient.from('rifa_numeros').select('id, rifa_id, numero, nome_comprador, comprovante_url, status_pagamento').eq('terreiro_id', idTerreiroGlobal)
                 ]);
@@ -2364,9 +2364,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     // CORREÇÃO AQUI: Busca 'data_analise' primeiro, depois 'data_envio'
                     const tsBanco = comp.data_analise ? new Date(comp.data_analise).getTime() : (comp.data_envio ? new Date(comp.data_envio).getTime() : 0);
 
-                    const mdObj = (mediuns || []).find(m => m.auth_id === comp.enviado_por || Number(m.id) === Number(comp.detalhes_pagamento?.[0]?.medium_id));
-                    const telefoneMedium = mdObj?.telefone || '';
-
                     historicoMisto.push({
                         tipoBadge: '<span class="bg-emerald-100 text-emerald-800 text-[9px] font-black px-2 py-0.5 rounded uppercase">Mensalidade</span>',
                         nomePrincipal: titulares.join(', ') || remetente,
@@ -2375,7 +2372,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                         valor: comp.valor_total,
                         status: comp.status,
                         comprovanteUrl: comp.url_comprovante && String(comp.url_comprovante).startsWith('http') ? comp.url_comprovante : null,
-                        telefoneMedium: telefoneMedium,
                         dataExibicao: comp.data_analise || comp.data_envio,
                         ordemValidacao: tsLocal || tsBanco,
                         idDesempate: Number(comp.id) || 0
@@ -2413,9 +2409,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     // CORREÇÃO AQUI: Troquei 'updated_at' por 'data_analise' (ou equivalente no caixa, mantive a lógica base para garantir)
                     const tsBanco = cx.data_analise ? new Date(cx.data_analise).getTime() : (cx.data_transacao ? new Date(cx.data_transacao).getTime() : 0);
 
-                    const mdCaixa = (mediuns || []).find(m => m.id === cx.medium_responsavel_id || m.nome_completo === cx.pagador_nome);
-                    const telefoneMedium = mdCaixa?.telefone || '';
-
                     historicoMisto.push({
                         tipoBadge,
                         nomePrincipal: cx.pagador_nome || 'Visitante / Médium',
@@ -2424,11 +2417,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                         valor: cx.valor,
                         status: (cx.status === 'pago' || cx.status === 'aprovado') ? 'aprovado' : 'rejeitado',
                         comprovanteUrl,
-                        telefoneMedium: telefoneMedium,
                         dataExibicao: cx.data_analise || cx.data_transacao,
                         ordemValidacao: tsLocal || tsBanco,
                         idDesempate: Number(cx.id) || 0
                     });
+                });
 
                 // Ordena da validação mais recente para a mais antiga
                 historicoMisto.sort((a, b) => {
@@ -2460,32 +2453,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                         : '<span class="bg-red-100 text-red-700 px-2.5 py-1 rounded-full text-[10px] font-black inline-flex items-center gap-1"><i class="fas fa-times"></i> Rejeitado</span>';
 
                     const nomeSafe = String(item.nomePrincipal).replace(/'/g, "\\'");
-                    
-                    let btnAcoesExtras = '';
-
-                    // Se estiver REJEITADO, exibe o botão do WhatsApp DENTRO DA CAIXINHA com verificação de telefone
-                    if (item.status === 'rejeitado') {
-                        const telDestino = String(item.telefoneComprador || item.telefoneMedium || '').replace(/\D/g, '');
-                        
-                        if (telDestino.length >= 10) {
-                            const ddi = telDestino.startsWith('55') ? '' : '55';
-                            const msgWhatsRejeicao = encodeURIComponent(`⚠️ *AVISO DA TESOURARIA — ${nomeTerreiroGlobal || 'Templo'}*\n\nOlá, *${item.nomePrincipal}*!\nO comprovante enviado referente a ${item.detalheHtml} (${valFmt}) não pôde ser validado.\n\nPor favor, verifique e envie novamente pelo aplicativo.`);
-                            
-                            btnAcoesExtras += `<a href="https://wa.me/${ddi}${telDestino}?text=${msgWhatsRejeicao}" target="_blank" class="mt-1 md:mt-0 md:ml-1.5 text-[10px] bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold px-2.5 py-1 rounded-lg border border-emerald-300 transition active:scale-95 inline-flex items-center gap-1 shadow-sm" title="Avisar no WhatsApp">
-                                <i class="fab fa-whatsapp text-emerald-600 text-xs"></i> WhatsApp
-                            </a>`;
-                        } else {
-                            btnAcoesExtras += `<button type="button" onclick="alert('Este registro não possui um número de WhatsApp válido cadastrado na ficha.')" class="mt-1 md:mt-0 md:ml-1.5 text-[10px] bg-gray-100 text-gray-400 font-bold px-2.5 py-1 rounded-lg border border-gray-200 transition inline-flex items-center gap-1 opacity-75" title="Telefone não cadastrado">
-                                <i class="fab fa-whatsapp text-gray-400 text-xs"></i> WhatsApp
-                            </button>`;
-                        }
-                    }
-
-                    if (item.comprovanteUrl) {
-                        btnAcoesExtras += `<button type="button" onclick="window.visualizarAnexoSomenteLeitura('${item.comprovanteUrl}', '${nomeSafe} - ${valFmt}')" class="mt-1 md:mt-0 md:ml-1.5 text-[10px] bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-2.5 py-1 rounded-lg border border-gray-300 transition active:scale-95 inline-flex items-center gap-1 shadow-sm" title="Reabrir Comprovante">
+                    const btnVerAnexo = item.comprovanteUrl
+                        ? `<button type="button" onclick="window.visualizarAnexoSomenteLeitura('${item.comprovanteUrl}', '${nomeSafe} - ${valFmt}')" class="mt-1 md:mt-0 md:ml-1.5 text-[10px] bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-2.5 py-1 rounded-lg border border-gray-300 transition active:scale-95 inline-flex items-center gap-1" title="Reabrir Comprovante">
                                <i class="fas fa-receipt text-tema-primaria"></i> Ver PIX
-                           </button>`;
-                    }
+                           </button>`
+                        : '';
 
                     return `
                         <tr class="block md:table-row p-3.5 md:p-0 hover:bg-gray-50 transition border-b border-gray-100">
@@ -2511,7 +2483,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             </td>
                             <td class="block md:table-cell md:p-3 text-right md:text-center whitespace-nowrap mt-1 md:mt-0">
                                 <span class="hidden md:inline-block">${statusBadge}</span>
-                                ${btnAcoesExtras}
+                                ${btnVerAnexo}
                             </td>
                         </tr>
                     `;
