@@ -5358,33 +5358,6 @@ window.gerarPDF_ATA = async (eventoId) => {
             });
         }
 
-        // Médiuns que fizeram a Limpeza pré-gira, mas NÃO registraram presença na gira
-        if (evento.escalas && Array.isArray(evento.escalas.limpeza_pre) && evento.escalas.limpeza_pre.length > 0) {
-            const idsPresentesSet = new Set((presencas || []).map(p => {
-                const m = mapaMediuns[p.usuario_id];
-                return m ? String(m.id) : String(p.usuario_id);
-            }));
-
-            evento.escalas.limpeza_pre.map(String).forEach(idMedLimpeza => {
-                if (!idsPresentesSet.has(idMedLimpeza)) {
-                    const medAusente = mapaMediuns[idMedLimpeza] || { nome_completo: 'Médium', grau: '-', funcao: '-' };
-                    const gStr = medAusente.grau && medAusente.grau !== '-' ? medAusente.grau : '';
-                    const fStr = medAusente.funcao && medAusente.funcao !== '-' ? medAusente.funcao : '';
-                    const grauExib = (gStr && fStr) ? `${gStr}/${fStr}` : (gStr || fStr || '-');
-
-                    trsMediuns += `
-                        <tr style="page-break-inside: avoid; background-color: #fffbeb;">
-                            <td style="border-bottom: 1px solid #ddd; padding: 6px 4px; overflow-wrap: break-word;">
-                                ${medAusente.nome_completo}
-                                <br><span style="font-size: 8px; color: #b45309; font-style: italic; font-weight: bold;">↳ Efetuou a limpeza e firmeza pré gira porém não compareceu à gira</span>
-                            </td>
-                            <td style="border-bottom: 1px solid #ddd; padding: 6px 4px; text-align: center;">${grauExib}</td>
-                            <td style="border-bottom: 1px solid #ddd; padding: 6px 4px; text-align: right; font-size: 9px; color: #b45309;">Ausente na Gira</td>
-                        </tr>
-                    `;
-                }
-            });
-        }
         // Linhas da Assistência / Visitantes
         let trsAssist = '';
         if (assistencias && assistencias.length > 0) {
