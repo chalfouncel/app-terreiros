@@ -200,9 +200,8 @@
                         .eq('terreiro_id', idTerreiroGlobal);
 
                     if (error) throw error;
-                    if (error) throw error;
                     Object.assign(perfilMediumLogado, payload);
-                    atualizarBotoesCertificadoPerfil(perfilMediumLogado);
+                    window.atualizarBotoesCertificadoPerfil(perfilMediumLogado);
 
                     if (msg) {
                         msg.textContent = '✅ Guias e Padrinhos atualizados com sucesso!';
@@ -224,7 +223,7 @@
         }
     }
 
-    function atualizarBotoesCertificadoPerfil(m) {
+    window.atualizarBotoesCertificadoPerfil = function (m) {
         if (!m) return;
         const permite = window.grauPermiteConsagracao ? window.grauPermiteConsagracao(m.grau) : true;
 
