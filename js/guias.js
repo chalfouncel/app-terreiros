@@ -1268,6 +1268,18 @@
             };
             const dataNascFmt = dataNascimento ? formatarData(dataNascimento) : '___/___/____';
 
+            // Se estiver gerando pelo Meu Perfil (presenca.html), carrega o cache de nomes da corrente para completar o nome do médium padrinho
+            if (!listaGuiasMediunsCache || listaGuiasMediunsCache.length === 0) {
+                try {
+                    const { data: mCache } = await supabaseClient
+                        .from('mediuns')
+                        .select('id, nome_completo, nome_social, guia_caboclo, guia_preto_velho, guia_exu_pombagira, guia_crianca, guia_oriental, guia_cigano')
+                        .eq('terreiro_id', idTerreiroGlobal)
+                        .neq('status_ativo', false);
+                    if (mCache) listaGuiasMediunsCache = mCache;
+                } catch (e) {}
+            }
+
             // BUSCADOR INTELIGENTE COM DESEMPATE POR NOME DO GUIA
             const buscarNomeCompleto = (termoMedium, termoGuia) => {
                 if (!termoMedium || typeof listaGuiasMediunsCache === 'undefined') return termoMedium;
