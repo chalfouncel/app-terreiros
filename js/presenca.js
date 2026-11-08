@@ -254,19 +254,31 @@ document.addEventListener('DOMContentLoaded', async () => {
             return aindaRolando && acessoPermitido;
         });
 
-        // Compõe a lista do Carrossel: Próxima Gira Principal + Informativos/Eventos concomitantes
+        // Compõe a lista do Carrossel (Se houver Gira Aberta para check-in, fixa APENAS a gira na tela e desativa o carrossel)
         let slidesEventos = [];
         if (todosValidos.length > 0) {
-            const primeiraGiraNormal = todosValidos.find(g => g.tipo !== 'informativo');
-            const informativos = todosValidos.filter(g => g.tipo === 'informativo');
+            const giraAbertaAgora = todosValidos.find(g => {
+                if (g.tipo === 'informativo') return false;
+                const hrInicio = new Date(g.data_hora_inicio);
+                const hrFim = g.data_hora_fim ? new Date(g.data_hora_fim) : new Date(hrInicio.getTime() + (4 * 60 * 60 * 1000));
+                const hrLiberacao = new Date(hrInicio.getTime() - (90 * 60000));
+                return horaNavegador >= hrLiberacao && horaNavegador <= hrFim;
+            });
 
-            if (primeiraGiraNormal) {
-                const diaGira = new Date(primeiraGiraNormal.data_hora_inicio).toDateString();
-                // Pega todas as giras que caem no mesmo dia da próxima gira + todos os informativos vigentes
-                const girasMesmoDia = todosValidos.filter(g => g.tipo !== 'informativo' && new Date(g.data_hora_inicio).toDateString() === diaGira);
-                slidesEventos = [...girasMesmoDia, ...informativos];
+            if (giraAbertaAgora) {
+                // Trava exclusivamente na gira aberta para facilitar a confirmação de presença
+                slidesEventos = [giraAbertaAgora];
             } else {
-                slidesEventos = [...informativos];
+                const primeiraGiraNormal = todosValidos.find(g => g.tipo !== 'informativo');
+                const informativos = todosValidos.filter(g => g.tipo === 'informativo');
+
+                if (primeiraGiraNormal) {
+                    const diaGira = new Date(primeiraGiraNormal.data_hora_inicio).toDateString();
+                    const girasMesmoDia = todosValidos.filter(g => g.tipo !== 'informativo' && new Date(g.data_hora_inicio).toDateString() === diaGira);
+                    slidesEventos = [...girasMesmoDia, ...informativos];
+                } else {
+                    slidesEventos = [...informativos];
+                }
             }
         }
 
