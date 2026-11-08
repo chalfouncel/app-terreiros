@@ -1412,6 +1412,62 @@
                     </div>
                     
                     <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                         <!-- BLOCO INDEPENDENTE: LIMPEZA DO TERREIRO (PRÉ E PÓS GIRA) -->
+                    <div class="mt-8 bg-white rounded-2xl shadow-sm border border-gray-200 border-t-4 border-t-sky-600 p-5 md:p-6">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-gray-100">
+                            <div>
+                                <h3 class="text-base md:text-lg font-black text-gray-800 flex items-center gap-2">
+                                    <i class="fas fa-broom text-sky-600"></i> Limpeza e Firmeza do Terreiro
+                                </h3>
+                                <p class="text-xs text-gray-500 mt-0.5">Registre os médiuns que realizaram a limpeza vinculada à gira aberta. O registro encerra automaticamente junto com a gira.</p>
+                            </div>
+                            <span id="badgeGiraAbertaLimpeza" class="text-xs font-black px-3 py-1.5 rounded-xl bg-sky-50 text-sky-800 border border-sky-200">
+                                Carregando gira...
+                            </span>
+                        </div>
+
+                        <!-- Botões de Seleção: Pré-Gira vs Pós-Gira -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 my-4" id="botoesTipoLimpeza">
+                            <button type="button" id="btnSelLimpezaPre" onclick="window.selecionarEventoLimpeza('pre')" class="p-4 rounded-2xl border-2 border-gray-200 bg-gray-50 hover:bg-sky-50/50 text-left transition flex items-center justify-between group">
+                                <div>
+                                    <span class="text-[10px] font-black uppercase tracking-wider text-sky-600 block">Evento 1</span>
+                                    <h4 class="text-sm md:text-base font-black text-gray-800">Limpeza pré Gira</h4>
+                                    <p class="text-[11px] text-gray-500 mt-0.5" id="subGiraLimpezaPre">Consta na ATA como Limpeza e firmeza pré gira</p>
+                                </div>
+                                <i class="fas fa-chevron-right text-gray-400 group-hover:text-sky-600"></i>
+                            </button>
+
+                            <button type="button" id="btnSelLimpezaPos" onclick="window.selecionarEventoLimpeza('pos')" class="p-4 rounded-2xl border-2 border-gray-200 bg-gray-50 hover:bg-teal-50/50 text-left transition flex items-center justify-between group">
+                                <div>
+                                    <span class="text-[10px] font-black uppercase tracking-wider text-teal-600 block">Evento 2</span>
+                                    <h4 class="text-sm md:text-base font-black text-gray-800">Limpeza pós Gira</h4>
+                                    <p class="text-[11px] text-gray-500 mt-0.5" id="subGiraLimpezaPos">Consta na ATA como Limpeza pós gira</p>
+                                </div>
+                                <i class="fas fa-chevron-right text-gray-400 group-hover:text-teal-600"></i>
+                            </button>
+                        </div>
+
+                        <!-- Área de Seleção de Médiuns com Filtro por Nome -->
+                        <div id="painelSelecaoLimpeza" class="hidden space-y-4 pt-3 border-t border-gray-100">
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                <h4 id="tituloPainelLimpezaAtivo" class="text-sm font-black text-sky-900 uppercase">Selecionar Médiuns</h4>
+                                <span id="contadorMediunsLimpeza" class="text-xs font-bold text-gray-500">0 selecionado(s)</span>
+                            </div>
+
+                            <div class="relative">
+                                <i class="fas fa-search absolute left-3.5 top-3 text-gray-400 text-xs"></i>
+                                <input type="text" id="inputFiltroNomeLimpeza" oninput="window.filtrarListaMediunsLimpeza()" placeholder="Filtrar médium pelo nome..." class="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-xl text-xs md:text-sm outline-none focus:ring-2 focus:ring-sky-500 bg-white">
+                            </div>
+
+                            <div id="gridMediunsLimpeza" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 max-h-60 overflow-y-auto p-3 bg-gray-50 rounded-xl border border-gray-200"></div>
+
+                            <div class="flex justify-end items-center gap-3 pt-2">
+                                <button type="button" id="btnSalvarLimpezaTerreiro" onclick="window.salvarLimpezaTerreiro()" class="w-full sm:w-auto bg-sky-600 hover:bg-sky-700 active:scale-95 text-white font-bold py-2.5 px-6 rounded-xl shadow text-xs md:text-sm transition flex items-center justify-center gap-2">
+                                    <i class="fas fa-save"></i> Salvar Registro de Limpeza
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                         <!-- Esquerda: Lista de Eventos que requerem escala -->
                         <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-5 h-fit">
                             <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2"><i class="fas fa-calendar-check text-emerald-500"></i> Eventos Pendentes</h3>
