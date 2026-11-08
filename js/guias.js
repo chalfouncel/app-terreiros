@@ -200,7 +200,9 @@
                         .eq('terreiro_id', idTerreiroGlobal);
 
                     if (error) throw error;
+                    if (error) throw error;
                     Object.assign(perfilMediumLogado, payload);
+                    atualizarBotoesCertificadoPerfil(perfilMediumLogado);
 
                     if (msg) {
                         msg.textContent = '✅ Guias e Padrinhos atualizados com sucesso!';
@@ -222,12 +224,80 @@
         }
     }
 
+    function atualizarBotoesCertificadoPerfil(m) {
+        if (!m) return;
+        const permite = window.grauPermiteConsagracao ? window.grauPermiteConsagracao(m.grau) : true;
+
+        const btnBat = document.getElementById('btnPerfilCertBatismo');
+        const btnCons = document.getElementById('btnPerfilCertConsagracao');
+        const btnCor = document.getElementById('btnPerfilCertCoroacao');
+
+        // 1. Batismo (Exige Data + Padrinho + Madrinha)
+        if (btnBat) {
+            let ok = false;
+            try {
+                const b = JSON.parse(m.padrinhos_batismo || '{}');
+                if (m.data_batismo && b.padrinho?.nome && b.madrinha?.nome) ok = true;
+            } catch (e) {}
+
+            if (ok) {
+                btnBat.classList.remove('hidden');
+                btnBat.classList.add('inline-flex');
+                btnBat.onclick = (e) => window.gerarCertificadoIndividual(e, m, 'Batismo');
+            } else {
+                btnBat.classList.add('hidden');
+                btnBat.classList.remove('inline-flex');
+            }
+        }
+
+        // 2. Consagração (Exige Grau CT+ + Data + Padrinho + Madrinha)
+        if (btnCons) {
+            let ok = false;
+            if (permite) {
+                try {
+                    const c = JSON.parse(m.padrinhos_consagracao || '{}');
+                    if (m.data_consagracao && c.padrinho?.nome && c.madrinha?.nome) ok = true;
+                } catch (e) {}
+            }
+
+            if (ok) {
+                btnCons.classList.remove('hidden');
+                btnCons.classList.add('inline-flex');
+                btnCons.onclick = (e) => window.gerarCertificadoIndividual(e, m, 'Consagração');
+            } else {
+                btnCons.classList.add('hidden');
+                btnCons.classList.remove('inline-flex');
+            }
+        }
+
+        // 3. Coroação (Exige Grau CT+ + Data + Padrinho/Madrinha Consagração + CPF + Estado Civil + Profissão + LGPD)
+        if (btnCor) {
+            let temPadrinhos = false;
+            try {
+                const c = JSON.parse(m.padrinhos_consagracao || '{}');
+                if (c.padrinho?.nome && c.madrinha?.nome) temPadrinhos = true;
+            } catch (e) {}
+
+            const cpfLimpo = String(m.cpf || '').replace(/\D/g, '');
+            const dadosCivisCompletos = cpfLimpo.length === 11 && Boolean(m.estado_civil) && Boolean(m.profissao) && m.lgpd_aceite === true;
+
+            if (permite && m.data_coroacao && temPadrinhos && dadosCivisCompletos) {
+                btnCor.classList.remove('hidden');
+                btnCor.classList.add('inline-flex');
+                btnCor.onclick = (e) => window.gerarCertificadoIndividual(e, m, 'Coroação');
+            } else {
+                btnCor.classList.add('hidden');
+                btnCor.classList.remove('inline-flex');
+            }
+        }
+    }
+
     async function carregarDadosGuiasNoPerfil() {
         if (typeof perfilMediumLogado === 'undefined' || !perfilMediumLogado?.id) return;
         try {
             const { data, error } = await supabaseClient
                 .from('mediuns')
-                .select('grau, padrinhos_batismo, padrinhos_consagracao, data_batismo, data_consagracao, data_coroacao, guia_caboclo, guia_preto_velho, guia_exu_pombagira, guia_crianca, guia_oriental, guia_cigano, pontos_cantados')
+                .select('nome_completo, grau, cpf, estado_civil, profissao, lgpd_aceite, padrinhos_batismo, padrinhos_consagracao, data_batismo, data_consagracao, data_coroacao, guia_caboclo, guia_preto_velho, guia_exu_pombagira, guia_crianca, guia_oriental, guia_cigano, pontos_cantados')
                 .eq('id', perfilMediumLogado.id)
                 .eq('terreiro_id', idTerreiroGlobal)
                 .single();
@@ -325,6 +395,8 @@
                 document.getElementById('perfilGuiaCrianca').value = data.guia_crianca || '';
                 document.getElementById('perfilGuiaOriental').value = data.guia_oriental || '';
                 document.getElementById('perfilGuiaCigano').value = data.guia_cigano || '';
+
+                atualizarBotoesCertificadoPerfil(perfilMediumLogado);
             }
         } catch (err) {
             console.error('Erro ao carregar guias do perfil:', err);
