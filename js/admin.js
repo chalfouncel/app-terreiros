@@ -8196,15 +8196,37 @@ async function inicializarModuloFornecedoresAdmin() {
         window.filtrarListaMediunsLimpeza();
     };
 
-    window.filtrarListaMediunsLimpeza = () => {
+    window.filtrarListaMediunsLimpeza = async () => {
         const grid = document.getElementById('gridMediunsLimpeza');
         const contador = document.getElementById('contadorMediunsLimpeza');
         if (!grid) return;
 
-        const termo = (document.getElementById('inputFiltroNomeLimpeza')?.value || '').trim().toLowerCase();
-        const ativos = (listaMediunsGlobal || []).filter(m => m.status_ativo !== false);
+        grid.innerHTML = `<p class="text-xs text-gray-400 col-span-full text-center py-4"><i class="fas fa-spinner fa-spin mr-1"></i> Carregando médiuns...</p>`;
 
-        const filtrados = ativos.filter(m => {
+        const termo = (document.getElementById('inputFiltroNomeLimpeza')?.value || '').trim().toLowerCase();
+        let baseMédiuns = (listaMediunsGlobal || []).filter(m => m.status_ativo !== false);
+
+        // SE FOR PÓS-GIRA, FILTRA APENAS OS MÉDIUNS QUE JÁ FIZERAM CHECK-IN NA GIRA ABERTA
+        if (tipoLimpezaAtivo === 'pos' && giraAlvoLimpeza) {
+            try {
+                const { data: presencasGira } = await supabaseClient
+                    .from('presencas')
+                    .select('usuario_id')
+                    .eq('evento_id', giraAlvoLimpeza.id);
+
+                const idsPresentesSet = new Set((presencasGira || []).map(p => String(p.usuario_id)));
+
+                baseMédiuns = baseMédiuns.filter(m => {
+                    const idMedStr = String(m.id);
+                    const authIdStr = m.auth_id ? String(m.auth_id) : '';
+                    return idsPresentesSet.has(idMedStr) || (authIdStr && idsPresentesSet.has(authIdStr));
+                });
+            } catch (e) {
+                console.error('Erro ao cruzar presenças para o pós-gira:', e);
+            }
+        }
+
+        const filtrados = baseMédiuns.filter(m => {
             if (!termo) return true;
             const nComp = (m.nome_completo || '').toLowerCase();
             const nSoc = (m.nome_social || '').toLowerCase();
@@ -8214,7 +8236,10 @@ async function inicializarModuloFornecedoresAdmin() {
         if (contador) contador.textContent = `${selecionadosLimpezaSet.size} médium(ns) selecionado(s)`;
 
         if (filtrados.length === 0) {
-            grid.innerHTML = `<p class="text-xs text-gray-400 col-span-full text-center py-4">Nenhum médium encontrado.</p>`;
+            const avisoVazio = tipoLimpezaAtivo === 'pos'
+                ? 'Nenhum médium realizou check-in nesta gira ainda.'
+                : 'Nenhum médium encontrado.';
+            grid.innerHTML = `<p class="text-xs text-amber-700 font-bold col-span-full text-center py-4 bg-amber-50 rounded-xl border border-amber-200">${avisoVazio}</p>`;
             return;
         }
 
