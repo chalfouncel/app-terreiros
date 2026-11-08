@@ -3374,7 +3374,7 @@ function renderizarTagsConfiguracao() {
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(mapaGlobal);
                 
                 marcadorGlobal = L.marker([lat, lng]).addTo(mapaGlobal);
-                circuloGlobal = L.circle([lat, lng], { color: 'green', fillColor: '#22c55e', fillOpacity: 0.2, radius: 30 }).addTo(mapaGlobal);
+                circuloGlobal = L.circle([lat, lng], { color: 'green', fillColor: '#22c55e', fillOpacity: 0.2, radius: 25 }).addTo(mapaGlobal);
 
                 mapaGlobal.on('click', function(e) {
                     if (document.getElementById('inputLat')) document.getElementById('inputLat').value = e.latlng.lat;
