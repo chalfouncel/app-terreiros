@@ -908,57 +908,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         if (btnRejeitarModal) {
-            btnRejeitarModal.addEventListener('click', async () => {
+            btnRejeitarModal.addEventListener('click', () => {
                 if (!window.comprovanteAtualId && !window.comprovanteRifaItemAtual) return;
-                if (!confirm("Rejeitar este comprovante?")) return;
-
-                const btnHtml = btnRejeitarModal.innerHTML;
-                btnRejeitarModal.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Rejeitando...';
-                btnRejeitarModal.disabled = true;
-
-                try {
-                    if (window.comprovanteRifaItemAtual) {
-                        const item = window.comprovanteRifaItemAtual;
-                        
-                        let idsParaExcluir = [];
-                        if (item.tipo === 'rifa_agrupada' && item.idsOriginais && item.idsOriginais.length > 0) {
-                            idsParaExcluir = item.idsOriginais;
-                        } else {
-                            idsParaExcluir = [item.id];
-                        }
-
-                        // Exclui todos os registros agrupados de uma vez (libera os números)
-                        const { error: errDel } = await supabaseClient
-                            .from('rifa_numeros')
-                            .delete()
-                            .in('id', idsParaExcluir)
-                            .eq('terreiro_id', idTerreiroGlobal);
-                        if (errDel) throw errDel;
-
-                        alert(`Comprovante rejeitado! ${idsParaExcluir.length} número(s) liberado(s) na cartela.`);
-                        window.fecharModalVerComprovante();
-                        carregarValidadorPagamentos();
-                    } else if (window.comprovanteAtualId) {
-                        const { error } = await supabaseClient
-                            .from('comprovantes_mensalidade')
-                            .update({ status: 'rejeitado' })
-                            .eq('id', window.comprovanteAtualId)
-                            .eq('terreiro_id', idTerreiroGlobal);
-
-                        if (error) throw error;
-                        
-                        window.registrarTimestampValidacaoLocal(`comp_${window.comprovanteAtualId}`);
-                        alert("Comprovante rejeitado.");
-                        window.fecharModalVerComprovante();
-                        carregarValidadorPagamentos();
-                    }
-                } catch (err) {
-                    console.error(err);
-                    alert("Erro ao rejeitar comprovante: " + err.message);
-                } finally {
-                    btnRejeitarModal.innerHTML = btnHtml;
-                    btnRejeitarModal.disabled = false;
-                }
+                window.abrirModalMotivoRejeicao({
+                    origem: window.comprovanteRifaItemAtual ? 'rifa' : 'mensalidade',
+                    comprovanteId: window.comprovanteAtualId,
+                    rifaItem: window.comprovanteRifaItemAtual
+                });
             });
         }
 
