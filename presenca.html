@@ -1013,19 +1013,19 @@
             <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
                 <i class="fas fa-users text-3xl text-blue-600"></i>
             </div>
-            <h3 class="text-xl font-bold text-gray-800 mb-2">Check-in Familiar</h3>
-            <p class="text-gray-600 mb-4 text-sm">Detectamos que você possui menores sob sua responsabilidade. Deseja registrar a presença deles também?</p>
+            <h3 class="text-xl font-bold text-gray-800 mb-1">Check-in Familiar</h3>
+            <p class="text-gray-600 mb-4 text-xs leading-relaxed">Marque na caixinha abaixo <strong>apenas os familiares que estão presentes hoje no Terreiro</strong> com você:</p>
             
-            <div class="bg-gray-50 border border-gray-200 rounded-xl p-3 mb-6 text-left max-h-40 overflow-y-auto" id="listaFamiliaresCheckin">
+            <div class="bg-gray-50 border border-gray-200 rounded-xl p-3 mb-5 text-left max-h-48 overflow-y-auto space-y-1.5" id="listaFamiliaresCheckin">
                 <!-- Lista de familiares injetada via JS -->
             </div>
 
             <div class="flex flex-col gap-2">
                 <button id="btnConfirmarCheckinFamiliar" class="w-full bg-tema-primaria text-white font-bold py-3.5 px-4 rounded-xl hover:opacity-90 transition flex items-center justify-center shadow-md active:scale-95 text-sm">
-                    <i class="fas fa-check mr-2"></i> Confirmar Presença de Todos
+                    <i class="fas fa-check mr-2"></i> Confirmar Familiares Marcados
                 </button>
                 <button id="btnPularCheckinFamiliar" class="w-full bg-gray-100 text-gray-700 font-bold py-3 px-4 rounded-xl hover:bg-gray-200 transition flex items-center justify-center shadow-sm active:scale-95 text-sm border border-gray-200">
-                    Não, apenas a minha
+                    Nenhum / Apenas a minha presença
                 </button>
             </div>
         </div>
