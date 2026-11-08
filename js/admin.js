@@ -8132,8 +8132,12 @@ async function inicializarModuloFornecedoresAdmin() {
                 return;
             }
 
-            // 4. Se já estiver na primeira aba do Admin, volta para o Aplicativo de Presença em vez de fechar o telemóvel
+            // 4. Se já estiver na primeira aba do Admin, volta para o Aplicativo de Presença em vez de fechar o celular
             window.location.replace('presenca.html');
+        });
+    });
+})();
+
 // ==========================================================
 // MÓDULO INDEPENDENTE: LIMPEZA DO TERREIRO (PRÉ E PÓS GIRA)
 // ==========================================================
