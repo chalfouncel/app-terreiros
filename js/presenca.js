@@ -3559,3 +3559,7 @@ window.obterComponentesKit = function(descricaoJson) {
     } catch(e) {}
     return '';
 };
+window.itemOuKitTemFornecedor = function(item) {
+    if (!item) return false;
+    return !!item.fornecedor;
+};
