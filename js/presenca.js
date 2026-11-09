@@ -2053,9 +2053,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 if (detalhesJson.length === 0) throw new Error("Nenhum mês selecionado.");
 
+                const { data: { session: sessaoAtiva } } = await supabaseClient.auth.getSession();
+
                 const { error: errIns } = await supabaseClient.from('comprovantes_mensalidade').insert([{
                     terreiro_id: idTerreiroGlobal,
-                    enviado_por: session.user.id,
+                    enviado_por: sessaoAtiva.user.id,
                     valor_total: valorTotalCalculado,
                     url_comprovante: publicUrl,
                     status: 'pendente',
