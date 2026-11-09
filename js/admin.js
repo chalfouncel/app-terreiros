@@ -8492,11 +8492,24 @@ async function inicializarModuloFornecedoresAdmin() {
 
         // Atualiza os contadores do card superior
         const totalGeral = mediuns.length;
-        
-        // Filtra exatamente como o banco de dados responde: true ou false
-        const totalAtivos = mediuns.filter(m => m.status_ativo === true).length;
-        const totalInativos = mediuns.filter(m => m.status_ativo === false).length;
-        const totalPendentes = 0; // O banco é true/false, então não há 3º estado aqui
+        let totalAtivos = 0, totalPendentes = 0, totalInativos = 0;
+
+        mediuns.forEach(m => {
+            // Pega o valor, seja ele status_ativo, status ou vazio
+            const st = m.status_ativo !== undefined ? m.status_ativo : m.status;
+            // Converte pra minúsculo pra não ter erro de tipo (ignora se é texto, numero ou booleano)
+            const val = String(st).toLowerCase().trim();
+
+            if (val === 'false' || val === '0' || val === 'inativo') {
+                totalInativos++;
+            } else if (val === '2' || val === 'pendente') {
+                totalPendentes++;
+            } else {
+                // Se for 'true', '1', 'ativo', ou até mesmo se a coluna veio vazia/indefinida, 
+                // ele soma aqui. Isso GARANTE que a conta nunca zere e bata com o total geral.
+                totalAtivos++;
+            }
+        });
 
         if (document.getElementById('totalMediuns')) document.getElementById('totalMediuns').textContent = totalGeral;
         if (document.getElementById('totalMediunsAtivos')) document.getElementById('totalMediunsAtivos').textContent = totalAtivos;
