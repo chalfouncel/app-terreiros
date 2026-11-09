@@ -1407,20 +1407,33 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                         listaMediunsGlobal = data || [];
         
-        let c_ativos = 0, c_pendentes = 0, c_inativos = 0;
-        listaMediunsGlobal.forEach(m => {
-            if (m.status_ativo === false) {
-                c_inativos++;
-            } else if (m.cadastro_completo === false) {
-                c_pendentes++;
-            } else {
-                c_ativos++;
-            }
-        });
+        // Aguarda 300ms para impedir que a função aplicarFiltrosMediuns zere a tela
+        setTimeout(() => {
+            let c_ativos = 0, c_pendentes = 0, c_inativos = 0;
+            
+            listaMediunsGlobal.forEach(m => {
+                if (m.status_ativo === false) {
+                    c_inativos++;
+                } else if (m.cadastro_completo === false) {
+                    c_pendentes++;
+                } else {
+                    c_ativos++;
+                }
+            });
 
-        if (document.getElementById('totalMediunsAtivos')) document.getElementById('totalMediunsAtivos').textContent = c_ativos;
-        if (document.getElementById('totalMediunsPendentes')) document.getElementById('totalMediunsPendentes').textContent = c_pendentes;
-        if (document.getElementById('totalMediunsInativos')) document.getElementById('totalMediunsInativos').textContent = c_inativos;
+            const elAtivos = document.getElementById('totalMediunsAtivos');
+            const elPendentes = document.getElementById('totalMediunsPendentes');
+            const elInativos = document.getElementById('totalMediunsInativos');
+
+            if (elAtivos) elAtivos.textContent = c_ativos;
+            if (elPendentes) elPendentes.textContent = c_pendentes;
+            if (elInativos) elInativos.textContent = c_inativos;
+
+            // DIAGNÓSTICO: Se ele não achar a caixa no seu HTML, vai te avisar!
+            if (!elAtivos && listaMediunsGlobal.length > 0) {
+                alert("Mário, o cálculo deu certo (Ativos: " + c_ativos + "), mas o JavaScript não conseguiu injetar na tela porque o ID 'totalMediunsAtivos' não existe no seu HTML! Verifique o nome do ID no arquivo .html");
+            }
+        }, 300);
 
 
                 // Sincroniza os selects de filtro de Grau com os Graus personalizados do Terreiro (SaaS)
