@@ -819,10 +819,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                         msg.classList.remove('hidden');
                     }
                 } finally {
-                    btn.disabled = false;
-                    btn.innerHTML = 'Salvar Alterações';
-                }
-            });
+                      btn.disabled = false;
+                      btn.innerHTML = 'Salvar Alterações';
+                    }
+                  } catch (error) {
+                    console.error("Erro ao salvar:", error);
+                    Swal.fire('Erro!', 'Ocorreu um problema: ' + error.message, 'error');
+                  }
+                });
         }
 
         const btnSalvarPermissoes = document.getElementById('btnSalvarPermissoes');
