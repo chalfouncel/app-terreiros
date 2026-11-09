@@ -1350,6 +1350,31 @@ document.addEventListener('DOMContentLoaded', async () => {
             if(!idTerreiroGlobal) return;
             const tbody = document.getElementById('tabelaTodosMediuns');
             if (!tbody) return;
+
+            window.atualizarContadoresDashboard = () => {
+    if (!listaMediunsGlobal) return;
+    
+    let ativos = 0;
+    let pendentes = 0;
+    let inativos = 0;
+
+    listaMediunsGlobal.forEach(m => {
+        // Usa a MESMA regra exata que pinta a tabela visual
+        if (m.status_ativo === false) {
+            inativos++;
+        } else if (m.cadastro_completo === false) {
+            pendentes++;
+        } else {
+            ativos++;
+        }
+    });
+
+    if (document.getElementById('totalMediuns')) document.getElementById('totalMediuns').textContent = listaMediunsGlobal.length;
+    if (document.getElementById('totalMediunsAtivos')) document.getElementById('totalMediunsAtivos').textContent = ativos;
+    if (document.getElementById('totalMediunsPendentes')) document.getElementById('totalMediunsPendentes').textContent = pendentes;
+    if (document.getElementById('totalMediunsInativos')) document.getElementById('totalMediunsInativos').textContent = inativos;
+};
+
             
             // Loading Skeleton Moderno
             let skeletonHtml = '';
@@ -8490,30 +8515,5 @@ async function inicializarModuloFornecedoresAdmin() {
             await supabaseClient.from('mediuns').delete().in('id', idsParaExcluir);
         }
 
-        // Atualiza os contadores do card superior
-        const totalGeral = mediuns.length;
-        let totalAtivos = 0, totalPendentes = 0, totalInativos = 0;
-
-        mediuns.forEach(m => {
-            // Pega o valor, seja ele status_ativo, status ou vazio
-            const st = m.status_ativo !== undefined ? m.status_ativo : m.status;
-            // Converte pra minúsculo pra não ter erro de tipo (ignora se é texto, numero ou booleano)
-            const val = String(st).toLowerCase().trim();
-
-            if (val === 'false' || val === '0' || val === 'inativo') {
-                totalInativos++;
-            } else if (val === '2' || val === 'pendente') {
-                totalPendentes++;
-            } else {
-                // Se for 'true', '1', 'ativo', ou até mesmo se a coluna veio vazia/indefinida, 
-                // ele soma aqui. Isso GARANTE que a conta nunca zere e bata com o total geral.
-                totalAtivos++;
-            }
-        });
-
-        if (document.getElementById('totalMediuns')) document.getElementById('totalMediuns').textContent = totalGeral;
-        if (document.getElementById('totalMediunsAtivos')) document.getElementById('totalMediunsAtivos').textContent = totalAtivos;
-        if (document.getElementById('totalMediunsPendentes')) document.getElementById('totalMediunsPendentes').textContent = totalPendentes;
-        if (document.getElementById('totalMediunsInativos')) document.getElementById('totalMediunsInativos').textContent = totalInativos;
-}
+    }
 })();
