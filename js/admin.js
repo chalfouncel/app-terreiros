@@ -1557,20 +1557,20 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return;
             }
             // Abaixo dos aniversariantes no mesmo widget lateral:
-            const anoCorrente = new Date().getFullYear();
-            const mesAtualNum = (new Date().getMonth() + 1);
+            const anoAtualJubileu = new Date().getFullYear();
+            const mesAtualJubileu = new Date().getMonth() + 1;
 
             const jubileus = lista.filter(m => {
                 if (!m.data_entrada && !m.created_at) return false;
                 const dtIng = new Date(m.data_entrada || m.created_at);
                 if (isNaN(dtIng.getTime())) return false;
-                if ((dtIng.getMonth() + 1) !== mesAtualNum) return false;
-
-                const tempoCasa = anoCorrente - dtIng.getFullYear();
+                if ((dtIng.getMonth() + 1) !== mesAtualJubileu) return false;
+    
+                const tempoCasa = anoAtualJubileu - dtIng.getFullYear();
                 return tempoCasa > 0 && tempoCasa % 5 === 0;
-});
+            });
 
-// Renderize os jubileus logo após os aniversariantes com crachá dourado/especial indicando "5 anos de casa", "10 anos", etc.
+            // Renderize os jubileus logo após os aniversariantes com crachá dourado/especial indicando "5 anos de casa", "10 anos", etc.
 
             aniversariantes.forEach(m => {
                 let dia = '00';
