@@ -225,7 +225,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
                 logoTerreiroGlobal = terreiro.logo_url;
                 const elSide = document.getElementById('nomeTerreiroSidebar');
-                if (elSide) elSide.textContent = terreiro.nome;
+                if (elSide) {
+                    elSide.innerHTML = terreiro.nome;
+                    if (terreiroSaaSForcado) {
+                        elSide.innerHTML += ` <button onclick="voltarParaMeuPainel()" class="ml-2 text-[10px] bg-red-600 hover:bg-red-700 text-white px-2 py-0.5 rounded shadow-sm transition inline-flex items-center gap-1 active:scale-95"><i class="fas fa-sign-out-alt"></i> Encerrar Suporte</button>`;
+                    }
+                }
                 
                 const root = document.documentElement;
                 if(terreiro.cor_primaria) root.style.setProperty('--cor-primaria', terreiro.cor_primaria);
