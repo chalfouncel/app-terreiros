@@ -137,9 +137,25 @@
                             <h3 class="text-gray-400 text-[11px] font-black uppercase tracking-wider">Médiuns Presentes Hoje</h3>
                             <p class="text-3xl font-black text-tema-texto mt-1" id="totalPresentes">0</p>
                         </div>
-                        <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 border-l-4 border-l-tema-primaria flex flex-col justify-center">
-                            <h3 class="text-gray-400 text-[11px] font-black uppercase tracking-wider">Total Cadastrados</h3>
-                            <p class="text-3xl font-black text-tema-texto mt-1" id="totalMediuns">0</p>
+                        <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 border-l-4 border-l-tema-primaria flex flex-col justify-between">
+                            <div class="flex items-center justify-between mb-1.5">
+                                <h3 class="text-gray-400 text-[11px] font-black uppercase tracking-wider">Total Cadastrados</h3>
+                                <span class="text-xs font-black bg-gray-100 text-tema-primaria px-2 py-0.5 rounded-md" id="totalMediuns">0</span>
+                            </div>
+                            <div class="grid grid-cols-3 gap-1.5 pt-1.5 border-t border-gray-100 text-center">
+                                <div onclick="document.getElementById('menuQuadroMediuns')?.click(); setTimeout(()=>{ document.getElementById('filtroStatusMedium').value='Ativo'; window.aplicarFiltrosMediuns(); }, 180);" class="bg-emerald-50 hover:bg-emerald-100 py-1 px-1 rounded-xl cursor-pointer transition active:scale-95" title="Filtrar Médiuns Ativos">
+                                    <span class="text-[9px] font-black text-emerald-700 uppercase block leading-tight">Ativos</span>
+                                    <span class="text-sm font-black text-emerald-800" id="totalMediunsAtivos">0</span>
+                                </div>
+                                <div onclick="document.getElementById('menuQuadroMediuns')?.click(); setTimeout(()=>{ document.getElementById('filtroStatusMedium').value='Pendente'; window.aplicarFiltrosMediuns(); }, 180);" class="bg-amber-50 hover:bg-amber-100 py-1 px-1 rounded-xl cursor-pointer transition active:scale-95" title="Filtrar Pendentes (1º Acesso)">
+                                    <span class="text-[9px] font-black text-amber-700 uppercase block leading-tight">Pendentes</span>
+                                    <span class="text-sm font-black text-amber-800" id="totalMediunsPendentes">0</span>
+                                </div>
+                                <div onclick="document.getElementById('menuQuadroMediuns')?.click(); setTimeout(()=>{ document.getElementById('filtroStatusMedium').value='Inativo'; window.aplicarFiltrosMediuns(); }, 180);" class="bg-red-50 hover:bg-red-100 py-1 px-1 rounded-xl cursor-pointer transition active:scale-95" title="Filtrar Médiuns Inativos">
+                                    <span class="text-[9px] font-black text-red-700 uppercase block leading-tight">Inativos</span>
+                                    <span class="text-sm font-black text-red-800" id="totalMediunsInativos">0</span>
+                                </div>
+                            </div>
                         </div>
                         <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 border-l-4 border-l-purple-500 flex flex-col justify-center">
                             <h3 class="text-gray-400 text-[11px] font-black uppercase tracking-wider">Próximo Evento</h3>
@@ -651,8 +667,20 @@
                                 </button>
                             </div>
                             <div class="p-0">
-                                <ul id="listaAniversariantes" class="divide-y divide-gray-100 max-h-[500px] overflow-y-auto">
+                                <ul id="listaAniversariantes" class="divide-y divide-gray-100 max-h-[320px] overflow-y-auto">
                                     <li class="p-4 text-center text-gray-500 text-sm">Carregando...</li>
+                                </ul>
+                            </div>
+                            <div class="border-t border-gray-200">
+                                <div class="p-3.5 border-b border-gray-100 bg-amber-50/70 flex items-center justify-between">
+                                    <div class="flex items-center gap-2">
+                                        <i class="fas fa-award text-amber-500 text-base"></i>
+                                        <h3 class="font-bold text-amber-900 text-xs uppercase tracking-wider">Jubileu / Tempo de Casa</h3>
+                                    </div>
+                                    <span class="text-[10px] font-black text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">5, 10, 15+ anos</span>
+                                </div>
+                                <ul id="listaTempoDeCasa" class="divide-y divide-gray-100 max-h-[260px] overflow-y-auto">
+                                    <li class="p-4 text-center text-gray-400 text-xs">Carregando...</li>
                                 </ul>
                             </div>
                         </div>
@@ -2079,16 +2107,14 @@
                         <label class="block text-xs md:text-sm font-medium text-gray-700">Nome Social</label>
                         <input type="text" id="editMediumNomeSocial" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-xl text-sm">
                     </div>
-                    <div class="grid grid-cols-2 gap-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                         <div>
-                            <label class="block text-xs md:text-sm font-medium text-gray-700">WhatsApp</label>
-                            <input type="tel" id="editMediumTelefone" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-xl text-sm">
+                            <label class="block text-xs font-medium text-gray-700">WhatsApp</label>
+                            <input type="tel" id="editMediumTelefone" class="mt-1 block w-full px-2.5 py-2 border border-gray-300 rounded-xl text-xs">
                         </div>
                         <div>
-                            <label class="block text-xs md:text-sm font-medium text-gray-700">Nascimento</label>
-                            <input type="date" id="editMediumNascimento" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-xl text-sm">
-                        </div>
-                    </div>
+                            <label class="block text-xs font-medium text-gray-700">Nascimento</label>
+                            <input type="date" id="editMediumNascimento" class="mt-1 block w-full px-2.5 py-2 border border-gray-300
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="block text-xs md:text-sm font-medium text-gray-700">Grau</label>
