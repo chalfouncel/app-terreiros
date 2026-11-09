@@ -1405,7 +1405,23 @@ document.addEventListener('DOMContentLoaded', async () => {
                     data.sort((a, b) => (a.nome_completo || '').localeCompare(b.nome_completo || '', 'pt-BR'));
                 }
 
-                listaMediunsGlobal = data || [];
+                        listaMediunsGlobal = data || [];
+        
+        let c_ativos = 0, c_pendentes = 0, c_inativos = 0;
+        listaMediunsGlobal.forEach(m => {
+            if (m.status_ativo === false) {
+                c_inativos++;
+            } else if (m.cadastro_completo === false) {
+                c_pendentes++;
+            } else {
+                c_ativos++;
+            }
+        });
+
+        if (document.getElementById('totalMediunsAtivos')) document.getElementById('totalMediunsAtivos').textContent = c_ativos;
+        if (document.getElementById('totalMediunsPendentes')) document.getElementById('totalMediunsPendentes').textContent = c_pendentes;
+        if (document.getElementById('totalMediunsInativos')) document.getElementById('totalMediunsInativos').textContent = c_inativos;
+
 
                 // Sincroniza os selects de filtro de Grau com os Graus personalizados do Terreiro (SaaS)
                 ['filtroGrauMedium', 'filtroConvocadosGrau', 'editFiltroConvocadosGrau'].forEach(selId => {
@@ -8514,6 +8530,5 @@ async function inicializarModuloFornecedoresAdmin() {
             await supabaseClient.from('financeiro').update({ medium_id: null }).in('medium_id', idsParaExcluir);
             await supabaseClient.from('mediuns').delete().in('id', idsParaExcluir);
         }
-
-    }
+}
 })();
