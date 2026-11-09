@@ -3548,3 +3548,14 @@ window.pagarDoacaoCantinaViaAsaas = async () => {
         btn.innerHTML = origHtml;
     }
 };
+// Função de apoio para ler os itens dos Kits de doação
+window.obterComponentesKit = function(descricaoJson) {
+    if (!descricaoJson) return '';
+    try {
+        const itens = JSON.parse(descricaoJson);
+        if (Array.isArray(itens)) {
+            return itens.map(i => `${i.qtd}x ${i.nome}`).join(' + ');
+        }
+    } catch(e) {}
+    return '';
+};
