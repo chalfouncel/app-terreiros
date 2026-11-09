@@ -8492,14 +8492,15 @@ async function inicializarModuloFornecedoresAdmin() {
 
         // Atualiza os contadores do card superior
         const totalGeral = mediuns.length;
-        const totalAtivos = mediuns.filter(m => m.status_ativo !== false && m.cadastro_completo).length;
-        const totalPendentes = mediuns.filter(m => m.status_ativo !== false && !m.cadastro_completo).length;
+        
+        // Filtra exatamente como o banco de dados responde: true ou false
+        const totalAtivos = mediuns.filter(m => m.status_ativo === true).length;
         const totalInativos = mediuns.filter(m => m.status_ativo === false).length;
+        const totalPendentes = 0; // O banco é true/false, então não há 3º estado aqui
 
-        if (document.getElementById('totalMediunsGeral')) document.getElementById('totalMediunsGeral').textContent = totalGeral;
+        if (document.getElementById('totalMediuns')) document.getElementById('totalMediuns').textContent = totalGeral;
         if (document.getElementById('totalMediunsAtivos')) document.getElementById('totalMediunsAtivos').textContent = totalAtivos;
         if (document.getElementById('totalMediunsPendentes')) document.getElementById('totalMediunsPendentes').textContent = totalPendentes;
         if (document.getElementById('totalMediunsInativos')) document.getElementById('totalMediunsInativos').textContent = totalInativos;
-        if (document.getElementById('totalMediuns')) document.getElementById('totalMediuns').textContent = totalGeral;
 }
 })();
