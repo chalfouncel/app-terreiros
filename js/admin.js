@@ -6038,7 +6038,7 @@ window.aprovarComprovante = async (comprovanteId) => {
 window.rejeitarComprovante = async (comprovanteId) => {
     // 1. Tenta usar o modal da Parte 1 para unificar a inteligência do sistema
     if (typeof window.abrirModalMotivoRejeicao === 'function') {
-        return window.abrirModalMotivoRejeicao(comprovanteId, 'mensalidade');
+        return window.abrirModalMotivoRejeicao({ origem: 'mensalidade', comprovanteId: comprovanteId });
     }
 
     // 2. FALLBACK SEGURO: Cria o modal dinamicamente garantindo que o fluxo do WhatsApp não seja ignorado
@@ -8410,10 +8410,9 @@ async function inicializarModuloFornecedoresAdmin() {
     async function aplicarRegrasInadimplenciaEExclusao() {
     if (!idTerreiroGlobal) return;
 
-    try {
-        const { data: mediuns } = await supabaseClient
+    const { data: mediuns } = await supabaseClient
             .from('mediuns')
-            .select('id, created_at, data_entrada, status_ativo, data_inativacao, isento_mensalidade, grau, funcao')
+            .select('id, created_at, data_entrada, status_ativo, data_inativacao, isento_mensalidade, grau, funcao, cadastro_completo')
             .eq('terreiro_id', idTerreiroGlobal)
             .neq('nome_completo', 'Administrador Sistema');
 
@@ -8483,6 +8482,7 @@ async function inicializarModuloFornecedoresAdmin() {
         }
 
         if (idsParaExcluir.length > 0) {
+            await supabaseClient.from('financeiro').update({ medium_id: null }).in('medium_id', idsParaExcluir);
             await supabaseClient.from('mediuns').delete().in('id', idsParaExcluir);
         }
 
