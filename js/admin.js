@@ -1138,14 +1138,59 @@ document.addEventListener('DOMContentLoaded', async () => {
             if(!idTerreiroGlobal) return; 
             
             try {
-                // 1. Total Cadastrados
-                const { count: totalMediuns } = await supabaseClient.from('mediuns')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('terreiro_id', idTerreiroGlobal)
-                    .neq('nome_completo', 'Administrador Sistema');
-                    
-                const elTotalMed = document.getElementById('totalMediuns');
-                if (elTotalMed) elTotalMed.textContent = totalMediuns || '0';
+
+// 1. TOTAL DE CADASTRADOS E CONTADORES POR STATUS
+
+const filtroBaseMediuns = (query) => query
+    .eq('terreiro_id', idTerreiroGlobal)
+    .neq('nome_completo', 'Administrador Sistema');
+
+// Total de cadastrados
+const { count: totalMediuns, error: erroTotal } = await filtroBaseMediuns(
+    supabaseClient.from('mediuns')
+        .select('*', { count: 'exact', head: true })
+);
+
+// Total de ativos
+const { count: totalAtivos, error: erroAtivos } = await filtroBaseMediuns(
+    supabaseClient.from('mediuns')
+        .select('*', { count: 'exact', head: true })
+        .eq('status_ativo', true)
+        .eq('cadastro_completo', true)
+);
+
+// Total de pendentes
+const { count: totalPendentes, error: erroPendentes } = await filtroBaseMediuns(
+    supabaseClient.from('mediuns')
+        .select('*', { count: 'exact', head: true })
+        .eq('status_ativo', true)
+        .eq('cadastro_completo', false)
+);
+
+// Total de inativos
+const { count: totalInativos, error: erroInativos } = await filtroBaseMediuns(
+    supabaseClient.from('mediuns')
+        .select('*', { count: 'exact', head: true })
+        .eq('status_ativo', false)
+);
+
+// Verifica erros nas consultas
+if (erroTotal || erroAtivos || erroPendentes || erroInativos) {
+    console.error('Erro ao atualizar contadores:', {
+        erroTotal,
+        erroAtivos,
+        erroPendentes,
+        erroInativos
+    });
+    throw erroTotal || erroAtivos || erroPendentes || erroInativos;
+}
+
+// Atualiza os quatro indicadores no HTML
+document.getElementById('totalMediuns').textContent = totalMediuns ?? 0;
+document.getElementById('totalMediunsAtivos').textContent = totalAtivos ?? 0;
+document.getElementById('totalMediunsPendentes').textContent = totalPendentes ?? 0;
+document.getElementById('totalMediunsInativos').textContent = totalInativos ?? 0;
+
 
                 // 2. Próximo Evento (Gira - Ignorando informativos)
                 const agora = new Date().toISOString();
