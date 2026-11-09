@@ -569,7 +569,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (perfilMediumLogado && perfilMediumLogado.id) {
                     const { data: medAtual, error: errMed } = await supabaseClient
                         .from('mediuns')
-                        .select('nome_completo, nome_social, telefone, grau, cpf, estado_civil, profissao, emergencia_nome, emergencia_telefone, tipo_sanguineo, possui_plano_saude, qual_plano_saude, comorbidades_alergias, lgpd_aceite')
+                        .select('nome_completo, nome_social, telefone, data_entrada, grau, cpf, estado_civil, profissao, emergencia_nome, emergencia_telefone, tipo_sanguineo, possui_plano_saude, qual_plano_saude, comorbidades_alergias, lgpd_aceite')
                         .eq('id', perfilMediumLogado.id)
                         .single();
 
@@ -585,6 +585,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (document.getElementById('perfilNomeCompleto')) document.getElementById('perfilNomeCompleto').value = p.nome_completo || '';
             if (document.getElementById('perfilNomeSocial')) document.getElementById('perfilNomeSocial').value = p.nome_social || '';
             if (document.getElementById('perfilTelefone')) document.getElementById('perfilTelefone').value = p.telefone || '';
+            if (document.getElementById('perfilDataEntrada')) document.getElementById('perfilDataEntrada').value = p.data_entrada || '';
 
             // Mostra bloco CCT para SCCT, Escola de CCT, CCT e Dirigente
             const grauUpper = String(p.grau || '').trim().toUpperCase();
@@ -699,6 +700,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     nome_completo: nCompleto,
                     nome_social: nSocial,
                     telefone: nTel,
+                    data_entrada: document.getElementById('perfilDataEntrada')?.value || null,
                     cpf: cpfLimpo || null,
                     estado_civil: estadoCivil,
                     profissao: profissao,
@@ -2685,8 +2687,10 @@ async function verificarPendenciaMensalidade(mediumId) {
         const anoAtual = hoje.getFullYear();
         const mesAtual = hoje.getMonth() + 1;
 
-        // 2. Data de ingresso para não cobrar meses anteriores à entrada na Casa
-        const dataIngresso = (perfilMediumLogado && perfilMediumLogado.created_at) ? new Date(perfilMediumLogado.created_at) : new Date('2000-01-01');
+        // 2. Marco inicial de cobrança/inadimplência: Novembro/2026 (ou data_entrada se entrou depois de Nov/2026)
+        const dtBase = (perfilMediumLogado && perfilMediumLogado.data_entrada) ? new Date(perfilMediumLogado.data_entrada + 'T12:00:00') : new Date(2026, 10, 1);
+        const marcoNov2026 = new Date(2026, 10, 1);
+        const dataIngresso = (!isNaN(dtBase.getTime()) && dtBase > marcoNov2026) ? dtBase : marcoNov2026;
         const mesIngresso = dataIngresso.getMonth() + 1;
         const anoIngresso = dataIngresso.getFullYear();
 
