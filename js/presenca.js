@@ -677,7 +677,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const nCompleto = document.getElementById('perfilNomeCompleto').value.trim();
                 const nSocial = document.getElementById('perfilNomeSocial').value.trim();
                 const nTel = document.getElementById('perfilTelefone').value.replace(/\D/g, '');
-                const data_entrada = document.getElementById('perfilDataEntrada')?.value || null,
+                const data_entrada = document.getElementById('perfilDataEntrada')?.value || null;
                 const aceiteLgpd = document.getElementById('perfilAceiteLGPD')?.checked || false;
 
                 if (!nCompleto) return alert("O Nome Completo é obrigatório.");
