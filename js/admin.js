@@ -8501,9 +8501,5 @@ async function inicializarModuloFornecedoresAdmin() {
         if (document.getElementById('totalMediunsPendentes')) document.getElementById('totalMediunsPendentes').textContent = totalPendentes;
         if (document.getElementById('totalMediunsInativos')) document.getElementById('totalMediunsInativos').textContent = totalInativos;
         if (document.getElementById('totalMediuns')) document.getElementById('totalMediuns').textContent = totalGeral;
-
-    } catch (e) {
-        console.error('Erro na rotina automática:', e);
-    }
 }
 })();
