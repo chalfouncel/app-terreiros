@@ -81,7 +81,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Redirecionamento automático do Admin Master para Gestão da Plataforma (SaaS)
         const emailLogado = (session.user.email || '').toLowerCase().trim();
-        if (emailLogado === 'chalfouncel@gmail.com' || emailLogado === 'chelfouncel@gmail.com' || (perfil.is_master === true && !sessionStorage.getItem('forcarAppPresenca'))) {
+        if (!sessionStorage.getItem('forcarAppPresenca') && (emailLogado === 'chalfouncel@gmail.com' || emailLogado === 'chelfouncel@gmail.com' || perfil.is_master === true)) {
             localStorage.removeItem('terreiroAtivoSaaS');
             window.location.replace('admin.html?secao=menuMaster');
             return;
@@ -98,6 +98,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         perfilMediumLogado = perfil;
         idTerreiroGlobal = perfil.terreiro_id;
+        if (perfil.is_master) {
+            const terreiroInfiltrado = localStorage.getItem('terreiroAtivoSaaS');
+            if (terreiroInfiltrado) {
+                idTerreiroGlobal = terreiroInfiltrado;
+            }
+        }
 
         const nomeCurto = perfil.nome_social || (perfil.nome_completo ? perfil.nome_completo.split(' ')[0] : 'Médium');
         const txtNome = document.getElementById('nomeMedium');
