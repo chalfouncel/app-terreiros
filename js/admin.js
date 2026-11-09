@@ -12,6 +12,89 @@ let listaMediunsGlobal = [];
 
 window.comprovanteAtualId = null;
 
+// =========================================================================
+// MOTORES DE ROTINAS AUTOMÁTICAS E JUBILEU
+// =========================================================================
+window.executarRotinasAutomaticasMediuns = async function() {
+    if (!idTerreiroGlobal) return;
+    try {
+        // 1. INATIVAÇÃO AUTOMÁTICA (> 6 meses inadimplente a partir de Nov/2026)
+        const { data: mediunsAtivos } = await supabaseClient
+            .from('mediuns')
+            .select('id, isento_mensalidade')
+            .eq('terreiro_id', idTerreiroGlobal)
+            .eq('status_ativo', true)
+            .neq('grau', 'Dirigente');
+
+        if (mediunsAtivos && mediunsAtivos.length > 0) {
+            const idsParaChecar = mediunsAtivos.filter(m => !m.isento_mensalidade).map(m => m.id);
+            if (idsParaChecar.length > 0) {
+                // Traz pendências SÓ de Nov/2026 em diante (ano > 2026 ou ano == 2026 e mes >= 11)
+                const { data: pendencias } = await supabaseClient
+                    .from('financeiro')
+                    .select('medium_id')
+                    .in('medium_id', idsParaChecar)
+                    .eq('pago', false)
+                    .eq('isento', false)
+                    .or('ano.gt.2026,and(ano.eq.2026,mes.gte.11)');
+
+                if (pendencias && pendencias.length > 0) {
+                    const contagemPorMedium = {};
+                    pendencias.forEach(p => { contagemPorMedium[p.medium_id] = (contagemPorMedium[p.medium_id] || 0) + 1; });
+                    const idsParaInativar = Object.keys(contagemPorMedium).filter(id => contagemPorMedium[id] >= 7).map(Number);
+
+                    if (idsParaInativar.length > 0) {
+                        await supabaseClient.from('mediuns').update({ status_ativo: false, data_inativacao: new Date().toISOString() }).in('id', idsParaInativar);
+                    }
+                }
+            }
+        }
+
+        // 2. EXCLUSÃO AUTOMÁTICA (> 12 meses inativo) - Mantendo Tesouraria!
+        const dataLimite = new Date();
+        dataLimite.setMonth(dataLimite.getMonth() - 12);
+        
+        const { data: mediunsInativos } = await supabaseClient
+            .from('mediuns')
+            .select('id')
+            .eq('terreiro_id', idTerreiroGlobal)
+            .eq('status_ativo', false)
+            .not('data_inativacao', 'is', null)
+            .lt('data_inativacao', dataLimite.toISOString());
+
+        if (mediunsInativos && mediunsInativos.length > 0) {
+            const idsParaExcluir = mediunsInativos.map(m => m.id);
+            // Salva a tesouraria (seta medium_id para null para não quebrar FK mas manter o balanço)
+            await supabaseClient.from('financeiro').update({ medium_id: null }).in('medium_id', idsParaExcluir);
+            // Exclui a ficha
+            await supabaseClient.from('mediuns').delete().in('id', idsParaExcluir);
+        }
+    } catch (e) { console.error("Erro nas rotinas:", e); }
+};
+
+window.gerarBlocoJubileu = function(listaMediuns) {
+    const dataAtual = new Date();
+    const mesAtual = dataAtual.getMonth() + 1; 
+    const anoAtual = dataAtual.getFullYear();
+    
+    const jubileu = listaMediuns.filter(m => {
+        if (!m.data_entrada || !m.status_ativo) return false;
+        const partes = m.data_entrada.split('-'); 
+        if (partes.length !== 3) return false;
+        const anosDeCasa = anoAtual - parseInt(partes[0]);
+        return (parseInt(partes[1]) === mesAtual && anosDeCasa > 0 && anosDeCasa % 5 === 0);
+    });
+
+    if (jubileu.length === 0) return '';
+    let html = `<div class="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-4 shadow-sm">
+        <h4 class="text-xs font-black text-amber-800 uppercase tracking-wider mb-3 flex items-center gap-2"><i class="fas fa-award text-amber-600"></i> Jubileu - Tempo de Casa</h4><ul class="space-y-2">`;
+    jubileu.forEach(m => {
+        const anos = anoAtual - parseInt(m.data_entrada.split('-')[0]);
+        html += `<li class="flex items-center justify-between text-xs"><span class="font-bold text-gray-700 truncate mr-2">${m.nome_completo}</span><span class="bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full font-black text-[10px] shrink-0">${anos} anos</span></li>`;
+    });
+    return html + `</ul></div>`;
+};
+
 const GRAUS_PADRAO = ['I', 'IJ', 'B', 'BJ', 'T', 'TJ', 'SCT', 'Escola de CT', 'CT', 'SCCT', 'Escola de CCT', 'CCT', 'Dirigente', 'Outros'];
 const FUNCOES_PADRAO = ['MG', 'MGA', 'MC', 'MCA', 'MD', 'MDA', 'CC', 'CAC', 'Cantina', 'Dirigente'];
 
@@ -701,6 +784,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (msg) msg.classList.add('hidden');
 
                 try {
+                    try {
                     const { error } = await supabaseClient
                         .from('mediuns')
                         .update({
@@ -719,16 +803,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                             qual_plano_saude: planoTxt,
                             tipo_sanguineo: tipoSang,
                             comorbidades_alergias: comorbidades,
-                            data_entrada: data_entrada // ✅ Incluído no update para salvar a data de entrada do médium
+                            data_entrada: data_entrada
                         })
-                        .eq('id', id)
-                        .eq('terreiro_id', idTerreiroGlobal);
-
-                    if (error) throw error;
-
-                    w.fecharModalEditarMedium();
-                    carregarQuadroMediuns();
-                } catch (err) { ... }
                         .eq('id', id)
                         .eq('terreiro_id', idTerreiroGlobal);
 
