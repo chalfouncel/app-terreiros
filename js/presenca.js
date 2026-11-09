@@ -586,7 +586,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (document.getElementById('perfilNomeSocial')) document.getElementById('perfilNomeSocial').value = p.nome_social || '';
             if (document.getElementById('perfilTelefone')) document.getElementById('perfilTelefone').value = p.telefone || '';
             if (document.getElementById('perfilDataEntrada')) document.getElementById('perfilDataEntrada').value = p.data_entrada || '';
-
+           
             // Mostra bloco CCT para SCCT, Escola de CCT, CCT e Dirigente
             const grauUpper = String(p.grau || '').trim().toUpperCase();
             const boxCCT = document.getElementById('boxDadosHabilitacaoCCT');
@@ -677,6 +677,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const nCompleto = document.getElementById('perfilNomeCompleto').value.trim();
                 const nSocial = document.getElementById('perfilNomeSocial').value.trim();
                 const nTel = document.getElementById('perfilTelefone').value.replace(/\D/g, '');
+                const data_entrada = document.getElementById('perfilDataEntrada')?.value || null,
                 const aceiteLgpd = document.getElementById('perfilAceiteLGPD')?.checked || false;
 
                 if (!nCompleto) return alert("O Nome Completo é obrigatório.");
