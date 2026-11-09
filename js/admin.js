@@ -691,6 +691,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const planoTxt = document.getElementById('editMediumPlano')?.value.trim() || null;
                 const tipoSang = document.getElementById('editMediumTipoSang')?.value.trim() || null;
                 const comorbidades = document.getElementById('editMediumComorbidades')?.value.trim() || null;
+                const data_entrada = document.getElementById('editMediumDataEntrada')?.value || null; // ✅ Correto com ponto e vírgula
 
                 const btn = document.getElementById('btnSalvarEditMedium');
                 const msg = document.getElementById('msgEditMedium');
@@ -717,8 +718,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                             possui_plano_saude: Boolean(planoTxt),
                             qual_plano_saude: planoTxt,
                             tipo_sanguineo: tipoSang,
-                            comorbidades_alergias: comorbidades
+                            comorbidades_alergias: comorbidades,
+                            data_entrada: data_entrada // ✅ Incluído no update para salvar a data de entrada do médium
                         })
+                        .eq('id', id)
+                        .eq('terreiro_id', idTerreiroGlobal);
+
+                    if (error) throw error;
+
+                    w.fecharModalEditarMedium();
+                    carregarQuadroMediuns();
+                } catch (err) { ... }
                         .eq('id', id)
                         .eq('terreiro_id', idTerreiroGlobal);
 
@@ -1466,6 +1476,21 @@ document.addEventListener('DOMContentLoaded', async () => {
                     </li>`;
                 return;
             }
+            // Abaixo dos aniversariantes no mesmo widget lateral:
+            const anoCorrente = new Date().getFullYear();
+            const mesAtualNum = (new Date().getMonth() + 1);
+
+            const jubileus = lista.filter(m => {
+                if (!m.data_entrada && !m.created_at) return false;
+                const dtIng = new Date(m.data_entrada || m.created_at);
+                if (isNaN(dtIng.getTime())) return false;
+                if ((dtIng.getMonth() + 1) !== mesAtualNum) return false;
+
+                const tempoCasa = anoCorrente - dtIng.getFullYear();
+                return tempoCasa > 0 && tempoCasa % 5 === 0;
+});
+
+// Renderize os jubileus logo após os aniversariantes com crachá dourado/especial indicando "5 anos de casa", "10 anos", etc.
 
             aniversariantes.forEach(m => {
                 let dia = '00';
@@ -4576,7 +4601,8 @@ window.abrirModalEditarMedium = async (id) => {
     if (document.getElementById('editMediumPlano')) document.getElementById('editMediumPlano').value = medium.qual_plano_saude || '';
     if (document.getElementById('editMediumTipoSang')) document.getElementById('editMediumTipoSang').value = medium.tipo_sanguineo || '';
     if (document.getElementById('editMediumComorbidades')) document.getElementById('editMediumComorbidades').value = medium.comorbidades_alergias || '';
-
+    if (document.getElementById('editMediumDataEntrada')) document.getElementById('editMediumDataEntrada').value = medium.data_entrada || '';
+    
     const selGrau = document.getElementById('editMediumGrau');
     const selFuncao = document.getElementById('editMediumFuncao');
     if (selGrau) selGrau.innerHTML = renderizarOpcoes(opcoesGrau, medium.grau || '-');
@@ -8305,4 +8331,99 @@ async function inicializarModuloFornecedoresAdmin() {
             setTimeout(window.carregarGiraAbertaParaLimpeza, 150);
         });
     });
+    async function aplicarRegrasInadimplenciaEExclusao() {
+    if (!idTerreiroGlobal) return;
+
+    try {
+        const { data: mediuns } = await supabaseClient
+            .from('mediuns')
+            .select('id, created_at, data_entrada, status_ativo, data_inativacao, isento_mensalidade, grau, funcao')
+            .eq('terreiro_id', idTerreiroGlobal)
+            .neq('nome_completo', 'Administrador Sistema');
+
+        if (!mediuns || mediuns.length === 0) return;
+
+        const ids = mediuns.map(m => m.id);
+        const { data: pgtos } = await supabaseClient
+            .from('financeiro')
+            .select('medium_id, mes, ano, pago, isento')
+            .in('medium_id', ids);
+
+        const hoje = new Date();
+        const anoAtual = hoje.getFullYear();
+        const mesAtual = hoje.getMonth() + 1;
+        const agoraMs = hoje.getTime();
+
+        const idsParaInativar = [];
+        const idsParaExcluir = [];
+
+        mediuns.forEach(m => {
+            const ehDirigente = (m.grau === 'Dirigente' || m.funcao === 'Dirigente');
+            const isento = m.isento_mensalidade === true;
+            if (ehDirigente || isento) return;
+
+            const dtIngresso = new Date(m.data_entrada || m.created_at || '2026-11-01');
+            const meusPgtos = (pgtos || []).filter(p => p.medium_id === m.id);
+
+            let mesesDevendo = 0;
+            const marcoInicioInadimplencia = new Date(2026, 10, 1); // 1 de Novembro de 2026
+
+            for (let an = 2026; an <= anoAtual; an++) {
+                const mInicio = (an === 2026) ? 11 : 1;
+                const mFim = (an === anoAtual) ? mesAtual : 12;
+
+                for (let me = mInicio; me <= mFim; me++) {
+                    const dataMesRef = new Date(an, me - 1, 1);
+                    if (dataMesRef < marcoInicioInadimplencia) continue; // Inicia contagem estritamente em Nov/2026
+                    if (dataMesRef < dtIngresso) continue;
+
+                    const quitado = meusPgtos.some(p => p.ano === an && p.mes === me && (p.pago === true || p.isento === true));
+                    if (!quitado) {
+                        mesesDevendo++;
+                    }
+                }
+            }
+
+            if (m.status_ativo !== false) {
+                // Inativa automaticamente se acumular mais de 6 meses em aberto (>= 7) a partir de Nov/2026
+                if (mesesDevendo >= 7) {
+                    idsParaInativar.push(m.id);
+                }
+            } else {
+                // Exclui o cadastro após 12 meses inativo (mantendo o histórico na tabela 'financeiro')
+                if (m.data_inativacao) {
+                    const diffMesesInativo = (agoraMs - new Date(m.data_inativacao).getTime()) / (1000 * 60 * 60 * 24 * 30.44);
+                    if (diffMesesInativo >= 12) {
+                        idsParaExcluir.push(m.id);
+                    }
+                }
+            }
+        });
+
+        if (idsParaInativar.length > 0) {
+            await supabaseClient.from('mediuns')
+                .update({ status_ativo: false, data_inativacao: new Date().toISOString() })
+                .in('id', idsParaInativar);
+        }
+
+        if (idsParaExcluir.length > 0) {
+            await supabaseClient.from('mediuns').delete().in('id', idsParaExcluir);
+        }
+
+        // Atualiza os contadores do card superior
+        const totalGeral = mediuns.length;
+        const totalAtivos = mediuns.filter(m => m.status_ativo !== false && m.cadastro_completo).length;
+        const totalPendentes = mediuns.filter(m => m.status_ativo !== false && !m.cadastro_completo).length;
+        const totalInativos = mediuns.filter(m => m.status_ativo === false).length;
+
+        if (document.getElementById('totalMediunsGeral')) document.getElementById('totalMediunsGeral').textContent = totalGeral;
+        if (document.getElementById('totalMediunsAtivos')) document.getElementById('totalMediunsAtivos').textContent = totalAtivos;
+        if (document.getElementById('totalMediunsPendentes')) document.getElementById('totalMediunsPendentes').textContent = totalPendentes;
+        if (document.getElementById('totalMediunsInativos')) document.getElementById('totalMediunsInativos').textContent = totalInativos;
+        if (document.getElementById('totalMediuns')) document.getElementById('totalMediuns').textContent = totalGeral;
+
+    } catch (e) {
+        console.error('Erro na rotina automática:', e);
+    }
+}
 })();
