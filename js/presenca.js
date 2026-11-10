@@ -186,7 +186,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Carrega dados e tema do terreiro
         if (idTerreiroGlobal) {
-            const { data: terreiros } = await supabaseClient.from('terreiros').select('*').eq('id', idTerreiroGlobal).limit(1);
+            
+                const { data: terreiros } = await supabaseClient.from('terreiros').select('*').eq('id', idTerreiroGlobal).limit(1);
             
             if (terreiros && terreiros.length > 0) {
                 const terreiro = terreiros[0];
