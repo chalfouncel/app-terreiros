@@ -115,23 +115,26 @@
         let tokenFornecedor = null;
 
         async function chamarApiFornecedor(action, payload = {}, token = tokenFornecedor) {
-            const headers = token ? { Authorization: `Bearer ${token}` } : {};
-            const { data, error } = await supabaseClient.functions.invoke('fornecedor-api', {
-                body: { action, ...payload },
-                headers
+            const resposta = await fetch(`${supabaseUrl}/functions/v1/fornecedor-api`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'apikey': supabaseKey,
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                },
+                body: JSON.stringify({ action, ...payload })
             });
-            if (error) {
-                let mensagem = data?.error;
-                if (!mensagem && error.context && typeof error.context.json === 'function') {
-                    try {
-                        const respostaErro = await error.context.json();
-                        mensagem = respostaErro?.error;
-                    } catch (_) { /* Resposta não é JSON. */ }
-                }
-                throw new Error(mensagem || error.message || 'Falha na comunicação com o servidor.');
+            const texto = await resposta.text();
+            let dados;
+            try { dados = JSON.parse(texto); }
+            catch (_) { throw new Error('Resposta inválida do servidor.'); }
+            if (!resposta.ok || dados?.error) {
+                throw new Error(dados?.error || `Erro HTTP ${resposta.status}.`);
             }
-            if (data?.error) throw new Error(data.error);
-            return data;
+            if (!dados || typeof dados !== 'object') {
+                throw new Error('Resposta vazia do servidor.');
+            }
+            return dados;
         }
 
         function alternarModo24hFornecedor() {
@@ -153,8 +156,14 @@
             btn.textContent = 'Verificando...';
             try {
                 const login = await chamarApiFornecedor('login', { whatsapp: whats, pin }, null);
+                if (!login?.token || !login?.fornecedor?.id) {
+                    throw new Error('Login não confirmado pelo servidor.');
+                }
                 tokenFornecedor = login.token;
                 const inicial = await chamarApiFornecedor('portal_bootstrap');
+                if (!inicial?.fornecedor?.id || !Array.isArray(inicial.terreiros)) {
+                    throw new Error('Não foi possível validar os dados do fornecedor.');
+                }
                 fornecedorAtual = inicial.fornecedor;
 
                 document.getElementById('telaLoginFornecedor').classList.add('hidden');
@@ -177,7 +186,9 @@
                 }
                 await carregarItensTerreiroFornecedor();
             } catch (err) {
-                alert(err.message || 'WhatsApp ou PIN incorretos.');
+                tokenFornecedor = null;
+                fornecedorAtual = null;
+                alert(err.message || 'Não foi possível entrar no painel.');
             } finally {
                 btn.disabled = false;
                 btn.textContent = 'Entrar no Painel';
