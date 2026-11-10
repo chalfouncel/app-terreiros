@@ -76,7 +76,7 @@ async function carregarDadosRifa() {
         if (rifa.terreiro_id) {
             const { data: terreiro } = await window.supabaseClient
                 .from('terreiros')
-                .select('*')
+                .select('id, nome, logo_url')
                 .eq('id', rifa.terreiro_id)
                 .single();
             terreiroAtual = terreiro;
