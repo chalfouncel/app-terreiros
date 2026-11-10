@@ -4111,7 +4111,7 @@ const livroCurimbaAtivo = !!t.modulo_livro_curimba_ativo;
                 </div>
             `;
 
-            const { data, error } = await supabaseClient.from('terreiros').select('*').order('id', { ascending: true });
+            const { data, error } = await supabaseClient.from('terreiros').select('id, nome, logo_url, status_bloqueado, modulo_mensalidade_ativo, modulo_livro_curimba_ativo, asaas_wallet_id').order('id', { ascending: true });
             if (error) {
                 container.innerHTML = `<div class="col-span-full p-4 text-center text-red-500 font-bold bg-white rounded-xl border border-red-200">Erro: ${error.message}</div>`;
                 return;
