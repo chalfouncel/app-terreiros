@@ -187,7 +187,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Carrega dados e tema do terreiro
         if (idTerreiroGlobal) {
             
-                const { data: terreiros } = await supabaseClient.from('terreiros').select('*').eq('id', idTerreiroGlobal).limit(1);
+                const { data: terreiros } = await supabaseClient.from('terreiros').select('id, nome, status_bloqueado, latitude, longitude, cor_primaria, cor_secundaria, cor_fundo, cor_texto, logo_url, modulo_mensalidade_ativo, gateway_pagamento, chave_pix_manual').eq('id', idTerreiroGlobal).limit(1);
             
             if (terreiros && terreiros.length > 0) {
                 const terreiro = terreiros[0];
