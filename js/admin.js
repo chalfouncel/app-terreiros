@@ -8137,40 +8137,57 @@ async function inicializarModuloFornecedoresAdmin() {
         });
     }
 
-    // 2. Gestão de Fornecedores Parceiros na aba Master SaaS
+    // 2. Gestão de Fornecedores Parceiros na aba Master SaaS — via Edge Function
     const formForn = document.getElementById('formNovoFornecedorMaster');
     const listaFornEl = document.getElementById('listaFornecedoresMaster');
 
+    async function chamarApiFornecedorMaster(action, payload = {}) {
+        const { data, error } = await supabaseClient.functions.invoke('fornecedor-api', {
+            body: { action, ...payload }
+        });
+        if (error) throw new Error(data?.error || error.message || 'Falha ao comunicar com o servidor.');
+        if (data?.error) throw new Error(data.error);
+        return data;
+    }
+
     window.carregarFornecedoresMaster = async () => {
         if (!listaFornEl) return;
-        const { data, error } = await supabaseClient.from('fornecedores').select('*').order('nome_fantasia');
-        if (error) {
-            listaFornEl.innerHTML = `<p class="text-xs text-red-500 col-span-full">Erro: ${error.message}</p>`;
-            return;
-        }
-        if (!data || data.length === 0) {
-            listaFornEl.innerHTML = `<p class="text-xs text-gray-400 col-span-full py-2">Nenhum fornecedor parceiro cadastrado ainda.</p>`;
-            return;
-        }
-        listaFornEl.innerHTML = data.map(f => `
-            <div class="bg-gray-50 border border-gray-200 rounded-xl p-3 flex justify-between items-center text-xs">
-                <div>
-                    <p class="font-black text-gray-800">${f.nome_fantasia}</p>
-                    <p class="text-[11px] text-gray-500"><i class="fab fa-whatsapp text-emerald-600"></i> ${f.whatsapp} • PIN: <strong class="font-mono">${f.pin_acesso}</strong></p>
-                    <p class="text-[10px] font-mono text-gray-600 mt-0.5">CPF/CNPJ: ${f.cpf_cnpj || 'Não informado'}</p>
-                    <p class="text-[10px] font-mono text-amber-700">PIX (${f.tipo_chave_pix}): ${f.chave_pix}</p>
+        listaFornEl.innerHTML = '<p class="text-xs text-gray-400 col-span-full">Carregando fornecedores...</p>';
+        try {
+            const result = await chamarApiFornecedorMaster('admin_list');
+            const data = result.fornecedores || [];
+            if (data.length === 0) {
+                listaFornEl.innerHTML = '<p class="text-xs text-gray-400 col-span-full py-2">Nenhum fornecedor parceiro cadastrado ainda.</p>';
+                return;
+            }
+            listaFornEl.innerHTML = data.map(f => `
+                <div class="bg-gray-50 border border-gray-200 rounded-xl p-3 flex justify-between items-center text-xs">
+                    <div class="min-w-0">
+                        <p class="font-black text-gray-800">${f.nome_fantasia}</p>
+                        <p class="text-[11px] text-gray-500">WhatsApp: ${f.whatsapp}</p>
+                        <p class="text-[10px] font-mono text-gray-600 mt-0.5">CPF/CNPJ: ${f.cpf_cnpj || 'Não informado'}</p>
+                        <p class="text-[10px] font-mono text-amber-700 break-all">PIX (${f.tipo_chave_pix}): ${f.chave_pix}</p>
+                        <p class="text-[10px] font-bold mt-1 ${f.ativo ? 'text-emerald-700' : 'text-rose-600'}">${f.ativo ? 'ATIVO' : 'DESATIVADO'}</p>
+                    </div>
+                    <button type="button" onclick="alterarStatusFornecedorMaster(${f.id}, ${!f.ativo})" class="ml-2 shrink-0 ${f.ativo ? 'text-red-500' : 'text-emerald-600'} hover:opacity-70 p-2" title="${f.ativo ? 'Desativar fornecedor' : 'Reativar fornecedor'}">
+                        <i class="fas ${f.ativo ? 'fa-user-slash' : 'fa-user-check'}"></i>
+                    </button>
                 </div>
-                <button type="button" onclick="excluirFornecedorMaster(${f.id})" class="text-red-500 hover:text-red-700 p-2" title="Excluir Fornecedor">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </div>
-        `).join('');
+            `).join('');
+        } catch (err) {
+            listaFornEl.innerHTML = `<p class="text-xs text-red-500 col-span-full">Erro ao carregar: ${err.message}</p>`;
+        }
     };
 
-    window.excluirFornecedorMaster = async (id) => {
-        if (!confirm('Deseja excluir este fornecedor parceiro?')) return;
-        await supabaseClient.from('fornecedores').delete().eq('id', id);
-        window.carregarFornecedoresMaster();
+    window.alterarStatusFornecedorMaster = async (id, ativo) => {
+        const verbo = ativo ? 'reativar' : 'desativar';
+        if (!confirm(`Deseja ${verbo} este fornecedor? Os pedidos e históricos serão preservados.`)) return;
+        try {
+            await chamarApiFornecedorMaster('admin_set_active', { fornecedor_id: id, ativo });
+            await window.carregarFornecedoresMaster();
+        } catch (err) {
+            alert(`Erro ao ${verbo}: ${err.message}`);
+        }
     };
 
     document.getElementById('menuMaster')?.addEventListener('click', () => setTimeout(window.carregarFornecedoresMaster, 200));
@@ -8179,22 +8196,28 @@ async function inicializarModuloFornecedoresAdmin() {
     if (formForn) {
         formForn.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const cpfCnpjLimpo = (document.getElementById('fornCpfCnpj')?.value || '').replace(/\D/g, '');
+            const btn = formForn.querySelector('button[type="submit"]');
+            const pin = document.getElementById('fornPin').value.trim();
+            if (!/^\d{6}$/.test(pin)) return alert('O PIN inicial deve conter exatamente 6 números.');
             const payload = {
                 nome_fantasia: document.getElementById('fornNome').value.trim(),
-                cpf_cnpj: cpfCnpjLimpo || null,
-                whatsapp: document.getElementById('fornWhatsapp').value.replace(/\D/g, ''),
+                cpf_cnpj: document.getElementById('fornCpfCnpj')?.value || '',
+                whatsapp: document.getElementById('fornWhatsapp').value,
                 tipo_chave_pix: document.getElementById('fornTipoPix').value,
                 chave_pix: document.getElementById('fornChavePix').value.trim(),
-                pin_acesso: document.getElementById('fornPin').value.trim() || '123456',
-                ativo: true
+                pin
             };
-            const { error } = await supabaseClient.from('fornecedores').insert([payload]);
-            if (error) return alert('Erro ao cadastrar fornecedor: ' + error.message);
-            formForn.reset();
-            document.getElementById('fornPin').value = '123456';
-            alert('✅ Fornecedor cadastrado com sucesso!');
-            window.carregarFornecedoresMaster();
+            if (btn) { btn.disabled = true; btn.textContent = 'Salvando...'; }
+            try {
+                await chamarApiFornecedorMaster('admin_create', payload);
+                formForn.reset();
+                alert('Fornecedor cadastrado com PIN protegido.');
+                await window.carregarFornecedoresMaster();
+            } catch (err) {
+                alert('Erro ao cadastrar fornecedor: ' + err.message);
+            } finally {
+                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-plus"></i> Salvar'; }
+            }
         });
     }
 }

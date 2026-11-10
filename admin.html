@@ -1999,8 +1999,8 @@
                             </div>
                             <div class="flex gap-1.5">
                                 <div class="w-20">
-                                    <label class="block text-[10px] font-bold text-gray-600 uppercase mb-1">PIN (6 díg)</label>
-                                    <input type="text" id="fornPin" required maxlength="6" value="123456" class="w-full px-2 py-2 border border-gray-300 rounded-xl text-xs bg-white text-center font-mono font-bold outline-none">
+                                    <label class="block text-[10px] font-bold text-gray-600 uppercase mb-1">PIN inicial (6 díg)</label>
+                                    <input type="password" id="fornPin" required minlength="6" maxlength="6" pattern="[0-9]{6}" autocomplete="new-password" inputmode="numeric" placeholder="6 números" class="w-full px-2 py-2 border border-gray-300 rounded-xl text-xs bg-white text-center font-mono font-bold outline-none">
                                 </div>
                                 <button type="submit" class="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 px-3 rounded-xl text-xs shadow active:scale-95 transition">
                                     <i class="fas fa-plus"></i> Salvar

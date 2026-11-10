@@ -112,6 +112,30 @@
     <script src="js/supabase.js"></script>
     <script>
         let fornecedorAtual = null;
+        let tokenFornecedor = null;
+
+        async function chamarApiFornecedor(action, payload = {}, token = tokenFornecedor) {
+            const resposta = await fetch(`${supabaseUrl}/functions/v1/fornecedor-api`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'apikey': supabaseKey,
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                },
+                body: JSON.stringify({ action, ...payload })
+            });
+            const texto = await resposta.text();
+            let dados;
+            try { dados = JSON.parse(texto); }
+            catch (_) { throw new Error('Resposta inválida do servidor.'); }
+            if (!resposta.ok || dados?.error) {
+                throw new Error(dados?.error || `Erro HTTP ${resposta.status}.`);
+            }
+            if (!dados || typeof dados !== 'object') {
+                throw new Error('Resposta vazia do servidor.');
+            }
+            return dados;
+        }
 
         function alternarModo24hFornecedor() {
             const chk24h = document.getElementById('chkAceita24hForn');
@@ -125,240 +149,177 @@
 
         document.getElementById('formLoginFornecedor').addEventListener('submit', async (e) => {
             e.preventDefault();
+            const btn = e.currentTarget.querySelector('button[type="submit"]');
             const whats = document.getElementById('loginFornWhats').value.replace(/\D/g, '');
             const pin = document.getElementById('loginFornPin').value.trim();
+            btn.disabled = true;
+            btn.textContent = 'Verificando...';
+            try {
+                const login = await chamarApiFornecedor('login', { whatsapp: whats, pin }, null);
+                if (!login?.token || !login?.fornecedor?.id) {
+                    throw new Error('Login não confirmado pelo servidor.');
+                }
+                tokenFornecedor = login.token;
+                const inicial = await chamarApiFornecedor('portal_bootstrap');
+                if (!inicial?.fornecedor?.id || !Array.isArray(inicial.terreiros)) {
+                    throw new Error('Não foi possível validar os dados do fornecedor.');
+                }
+                fornecedorAtual = inicial.fornecedor;
 
-            const { data, error } = await supabaseClient.from('fornecedores')
-                .select('*')
-                .eq('whatsapp', whats)
-                .eq('pin_acesso', pin)
-                .eq('ativo', true)
-                .single();
+                document.getElementById('telaLoginFornecedor').classList.add('hidden');
+                document.getElementById('painelFornecedorAtivo').classList.remove('hidden');
+                document.getElementById('nomeFornecedorLogado').textContent = fornecedorAtual.nome_fantasia;
+                document.getElementById('chkAceita24hForn').checked = fornecedorAtual.aceita_24h !== false;
+                document.getElementById('inputHoraAberturaForn').value = fornecedorAtual.hora_abertura || '08:00';
+                document.getElementById('inputHoraFechamentoForn').value = fornecedorAtual.hora_fechamento || '18:00';
+                document.getElementById('inputAvisoEntregaFornecedor').value = fornecedorAtual.aviso_entrega || '';
+                alternarModo24hFornecedor();
 
-            if (error || !data) return alert('WhatsApp ou PIN incorretos.');
-            fornecedorAtual = data;
-
-            document.getElementById('telaLoginFornecedor').classList.add('hidden');
-            document.getElementById('painelFornecedorAtivo').classList.remove('hidden');
-            document.getElementById('nomeFornecedorLogado').textContent = data.nome_fantasia;
-
-            document.getElementById('chkAceita24hForn').checked = data.aceita_24h !== false;
-            document.getElementById('inputHoraAberturaForn').value = data.hora_abertura || '08:00';
-            document.getElementById('inputHoraFechamentoForn').value = data.hora_fechamento || '18:00';
-            document.getElementById('inputAvisoEntregaFornecedor').value = data.aviso_entrega || '';
-            alternarModo24hFornecedor();
-
-            const { data: terreiros } = await supabaseClient.from('terreiros').select('id, nome, address, address_number').eq('status_bloqueado', false).order('nome');
-            const sel = document.getElementById('selectTerreiroFornecedor');
-            sel.innerHTML = (terreiros || []).map(t => `<option value="${t.id}">${t.nome} ${t.address ? `(${t.address})` : ''}</option>`).join('');
-
-            await carregarItensTerreiroFornecedor();
+                const sel = document.getElementById('selectTerreiroFornecedor');
+                sel.innerHTML = (inicial.terreiros || []).map(t =>
+                    `<option value="${t.id}">${t.nome} ${t.address ? `(${t.address})` : ''}</option>`
+                ).join('');
+                if (!inicial.terreiros?.length) {
+                    document.getElementById('listaItensPrecificacao').innerHTML =
+                        '<p class="text-xs text-slate-500 py-4 text-center">Nenhum terreiro disponível para atualização.</p>';
+                    return;
+                }
+                await carregarItensTerreiroFornecedor();
+            } catch (err) {
+                tokenFornecedor = null;
+                fornecedorAtual = null;
+                document.getElementById('painelFornecedorAtivo').classList.add('hidden');
+                document.getElementById('telaLoginFornecedor').classList.remove('hidden');
+                document.getElementById('loginFornPin').value = '';
+                alert(err.message || 'Não foi possível entrar no painel.');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Entrar no Painel';
+            }
         });
 
         async function carregarItensTerreiroFornecedor() {
             const terreiroId = document.getElementById('selectTerreiroFornecedor').value;
             const container = document.getElementById('listaItensPrecificacao');
             if (!terreiroId || !fornecedorAtual || !container) return;
-
             container.innerHTML = '<p class="text-xs text-slate-400 py-4 text-center"><i class="fas fa-spinner fa-spin mr-1"></i> Carregando lista de doações...</p>';
+            try {
+                const result = await chamarApiFornecedor('portal_load', { terreiro_id: terreiroId });
+                const frete = result.frete;
+                document.getElementById('inputFreteTerreiro').value = frete ? frete.taxa_entrega : '0.00';
+                document.getElementById('inputFreteGratisTerreiro').value = frete?.frete_gratis_acima ?? '';
 
-            const { data: frete } = await supabaseClient.from('fornecedores_terreiros_frete')
-                .select('*')
-                .eq('fornecedor_id', fornecedorAtual.id)
-                .eq('terreiro_id', terreiroId)
-                .maybeSingle();
+                const itens = result.itens || [];
+                const precos = result.precos || [];
+                if (itens.length === 0) {
+                    container.innerHTML = '<p class="text-xs text-slate-500 py-4 text-center">Este terreiro ainda não cadastrou itens de doação.</p>';
+                    return;
+                }
 
-            document.getElementById('inputFreteTerreiro').value = frete ? frete.taxa_entrega : '0.00';
-            document.getElementById('inputFreteGratisTerreiro').value = frete && frete.frete_gratis_acima ? frete.frete_gratis_acima : '';
-
-            const { data: todosItens, error: errItens } = await supabaseClient.from('itens_doacao')
-                .select('*')
-                .eq('terreiro_id', terreiroId)
-                .order('nome');
-
-            if (errItens) {
-                container.innerHTML = `<p class="text-xs text-rose-400 py-4 text-center">Erro ao ler catálogo: ${errItens.message}</p>`;
-                return;
-            }
-
-            const itens = (todosItens || []).filter(item => {
-                const ativoOk = item.ativo !== false;
-                const cat = String(item.categoria || '').toLowerCase().trim();
-                return ativoOk && cat !== 'cantina' && cat !== 'kit';
-            });
-
-            const { data: precos } = await supabaseClient.from('fornecedores_precos_itens')
-                .select('*')
-                .eq('fornecedor_id', fornecedorAtual.id)
-                .eq('terreiro_id', terreiroId);
-
-            if (itens.length === 0) {
-                container.innerHTML = '<p class="text-xs text-slate-500 py-4 text-center">Este terreiro ainda não cadastrou itens de doação.</p>';
-                return;
-            }
-
-            // Mapeia os dados combinados para aplicar ordenação por estoque (Estoque no topo) e gerencia a flag 'jaSalvo'
-            const itensProcessados = itens.map(item => {
-                const p = (precos || []).find(x => String(x.item_id) === String(item.id));
-                const val = p ? p.preco_unitario : '';
-                // REGRA 1: Se não houver registro prévio, o estoque nasce desabilitado (false)
-                const disp = p ? p.disponivel === true : false;
-                const jaSalvo = p ? true : false; // IDENTIFICA SE O ITEM JÁ EXISTE NO BANCO DE DADOS
-                return { item, val, disp, jaSalvo };
-            });
-
-            // REGRA 2: Ordena por estoque (true primeiro) e depois por nome
-            itensProcessados.sort((a, b) => {
-                if (a.disp === b.disp) return a.item.nome.localeCompare(b.item.nome);
-                return a.disp ? -1 : 1;
-            });
-
-            // REGRA 3: Agrupamento por família para lote (remove sufixos comuns de cores)
-            const familiasMap = {};
-            const coresTermos = ['branca', 'preta', 'vermelha', 'azul', 'amarela', 'verde', 'rosa', 'roxa', 'marrom', 'bicolor', '7 linhas'];
-            
-            itensProcessados.forEach(obj => {
-                let nomeBase = obj.item.nome.toLowerCase();
-                coresTermos.forEach(cor => {
-                    nomeBase = nomeBase.replace(new RegExp(`\\b${cor}\\b`, 'g'), '');
+                const itensProcessados = itens.map(item => {
+                    const p = precos.find(x => String(x.item_id) === String(item.id));
+                    return { item, val: p ? p.preco_unitario : '', disp: p ? p.disponivel === true : false, jaSalvo: !!p };
                 });
-                nomeBase = nomeBase.trim();
-                if (!familiasMap[nomeBase]) familiasMap[nomeBase] = [];
-                familiasMap[nomeBase].push(obj.item.id);
-            });
+                itensProcessados.sort((a, b) => {
+                    if (a.disp === b.disp) return a.item.nome.localeCompare(b.item.nome);
+                    return a.disp ? -1 : 1;
+                });
 
-            container.innerHTML = itensProcessados.map(({ item, val, disp, jaSalvo }) => {
-                let nomeBase = item.nome.toLowerCase();
-                coresTermos.forEach(cor => { nomeBase = nomeBase.replace(new RegExp(`\\b${cor}\\b`, 'g'), ''); });
-                nomeBase = nomeBase.trim();
-                const temIrmaosCor = familiasMap[nomeBase] && familiasMap[nomeBase].length > 1;
+                const familiasMap = {};
+                const coresTermos = ['branca', 'preta', 'vermelha', 'azul', 'amarela', 'verde', 'rosa', 'roxa', 'marrom', 'bicolor', '7 linhas'];
+                itensProcessados.forEach(obj => {
+                    let nomeBase = obj.item.nome.toLowerCase();
+                    coresTermos.forEach(cor => { nomeBase = nomeBase.replace(new RegExp(`\\b${cor}\\b`, 'g'), ''); });
+                    nomeBase = nomeBase.trim();
+                    if (!familiasMap[nomeBase]) familiasMap[nomeBase] = [];
+                    familiasMap[nomeBase].push(obj.item.id);
+                });
 
-                const botaoLote = temIrmaosCor ? `
-                    <button type="button" onclick="aplicarPrecoEmLote('${nomeBase}', ${item.id})" class="text-[9px] bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30 px-2 py-0.5 rounded border border-indigo-500/30 transition" title="Aplicar este preço e estoque em todas as cores/variações semelhantes">
-                        <i class="fas fa-layer-group mr-1"></i> Aplicar em Lote
-                    </button>
-                ` : '';
-
-                return `
-                <div class="pt-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 item-linha-fornecedor" data-familia="${nomeBase}">
-                    <div class="flex-1">
-                        <p class="text-xs font-bold text-white">${item.nome}</p>
-                        <div class="flex items-center gap-2 mt-0.5">
-                            <span class="text-[10px] text-slate-400 uppercase">${item.categoria || 'Geral'}</span>
-                            ${botaoLote}
+                container.innerHTML = itensProcessados.map(({ item, val, disp, jaSalvo }) => {
+                    let nomeBase = item.nome.toLowerCase();
+                    coresTermos.forEach(cor => { nomeBase = nomeBase.replace(new RegExp(`\\b${cor}\\b`, 'g'), ''); });
+                    nomeBase = nomeBase.trim();
+                    const temIrmaosCor = familiasMap[nomeBase]?.length > 1;
+                    const botaoLote = temIrmaosCor ? `
+                        <button type="button" onclick="aplicarPrecoEmLote('${nomeBase}', ${item.id})" class="text-[9px] bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30 px-2 py-0.5 rounded border border-indigo-500/30 transition">
+                            <i class="fas fa-layer-group mr-1"></i> Aplicar em Lote
+                        </button>` : '';
+                    return `
+                    <div class="pt-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 item-linha-fornecedor" data-familia="${nomeBase}">
+                        <div class="flex-1">
+                            <p class="text-xs font-bold text-white">${item.nome}</p>
+                            <div class="flex items-center gap-2 mt-0.5"><span class="text-[10px] text-slate-400 uppercase">${item.categoria || 'Geral'}</span>${botaoLote}</div>
                         </div>
-                    </div>
-                    <div class="flex items-center gap-3 justify-between sm:justify-end">
-                        <label class="flex items-center gap-1 text-[10px] text-slate-300 cursor-pointer">
-                            <input type="checkbox" class="chk-disp-forn rounded" data-item-id="${item.id}" ${disp ? 'checked' : ''}> Estoque
-                        </label>
-                        <div class="flex items-center gap-1">
-                            <span class="text-xs text-slate-400 font-bold">R$</span>
-                            <!-- INJEÇÃO DA TAG data-ja-salvo NO INPUT -->
-                            <input type="number" step="0.01" min="0" data-item-id="${item.id}" data-ja-salvo="${jaSalvo}" value="${val}" placeholder="0.00" oninput="autoMarcarEstoque(this)" class="inp-preco-forn w-24 px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-xl text-xs font-bold text-right text-amber-300 outline-none">
+                        <div class="flex items-center gap-3 justify-between sm:justify-end">
+                            <label class="flex items-center gap-1 text-[10px] text-slate-300 cursor-pointer">
+                                <input type="checkbox" class="chk-disp-forn rounded" data-item-id="${item.id}" ${disp ? 'checked' : ''}> Estoque
+                            </label>
+                            <div class="flex items-center gap-1">
+                                <span class="text-xs text-slate-400 font-bold">R$</span>
+                                <input type="number" step="0.01" min="0" data-item-id="${item.id}" data-ja-salvo="${jaSalvo}" value="${val}" placeholder="0.00" oninput="autoMarcarEstoque(this)" class="inp-preco-forn w-24 px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-xl text-xs font-bold text-right text-amber-300 outline-none">
+                            </div>
                         </div>
-                    </div>
-                </div>`;
-            }).join('');
+                    </div>`;
+                }).join('');
+            } catch (err) {
+                container.innerHTML = `<p class="text-xs text-rose-400 py-4 text-center">${err.message}</p>`;
+            }
         }
 
-        // Funções auxiliares de lote e auto-check para o painel do fornecedor
         function autoMarcarEstoque(input) {
             const itemId = input.getAttribute('data-item-id');
             const chk = document.querySelector(`.chk-disp-forn[data-item-id="${itemId}"]`);
-            if (chk && parseFloat(input.value) > 0) {
-                chk.checked = true;
-            }
+            if (chk && parseFloat(input.value) > 0) chk.checked = true;
         }
 
-        function aplicarPrecoEmLote(familia, itemIdOrigem) {
+        function aplicarPrecoEmLote(familia) {
             const linhaOrigem = document.querySelector(`.item-linha-fornecedor[data-familia="${familia}"]`);
             if (!linhaOrigem) return;
-            
-            const inpPrecoOrigem = linhaOrigem.querySelector('.inp-preco-forn');
+            const inpOrigem = linhaOrigem.querySelector('.inp-preco-forn');
             const chkOrigem = linhaOrigem.querySelector('.chk-disp-forn');
-            if (!inpPrecoOrigem) return;
-
-            const precoValor = inpPrecoOrigem.value;
-            const estoqueStatus = chkOrigem ? chkOrigem.checked : false;
-
-            const linhasFamilia = document.querySelectorAll(`.item-linha-fornecedor[data-familia="${familia}"]`);
-            linhasFamilia.forEach(linha => {
+            if (!inpOrigem) return;
+            document.querySelectorAll(`.item-linha-fornecedor[data-familia="${familia}"]`).forEach(linha => {
                 const inp = linha.querySelector('.inp-preco-forn');
                 const chk = linha.querySelector('.chk-disp-forn');
-                if (inp) inp.value = precoValor;
-                if (chk) chk.checked = estoqueStatus;
+                if (inp) inp.value = inpOrigem.value;
+                if (chk) chk.checked = chkOrigem?.checked === true;
             });
-
-            alert("✅ Preço e status de estoque aplicados a todas as variações desta cor!");
+            alert('Preço e status de estoque aplicados às variações semelhantes.');
         }
 
         async function salvarTabelaFornecedor() {
             const terreiroId = document.getElementById('selectTerreiroFornecedor').value;
             const btn = document.getElementById('btnSalvarTabelaFornecedor');
+            if (!terreiroId || !fornecedorAtual || !tokenFornecedor) return alert('Sessão do fornecedor inválida. Entre novamente.');
             const aceita24h = document.getElementById('chkAceita24hForn')?.checked !== false;
             const horaAbertura = document.getElementById('inputHoraAberturaForn')?.value || '08:00';
             const horaFechamento = document.getElementById('inputHoraFechamentoForn')?.value || '18:00';
             const avisoEntrega = (document.getElementById('inputAvisoEntregaFornecedor')?.value || '').trim();
-
+            const taxaEntrega = document.getElementById('inputFreteTerreiro').value || '0';
+            const freteGratis = document.getElementById('inputFreteGratisTerreiro').value;
+            const precos = [];
+            document.querySelectorAll('.inp-preco-forn').forEach(inp => {
+                const itemId = Number(inp.getAttribute('data-item-id'));
+                const preco = Number(inp.value || 0);
+                const jaSalvo = inp.getAttribute('data-ja-salvo') === 'true';
+                const chk = document.querySelector(`.chk-disp-forn[data-item-id="${itemId}"]`);
+                if (preco > 0 || jaSalvo) precos.push({ item_id: itemId, preco_unitario: preco, disponivel: chk?.checked === true });
+            });
             btn.disabled = true;
             btn.textContent = 'Salvando...';
-
             try {
-                const { error: errForn } = await supabaseClient
-                    .from('fornecedores')
-                    .update({
-                        aceita_24h: aceita24h,
-                        hora_abertura: horaAbertura,
-                        hora_fechamento: horaFechamento,
-                        aviso_entrega: avisoEntrega || null
-                    })
-                    .eq('id', fornecedorAtual.id);
-                if (errForn) throw errForn;
-
+                await chamarApiFornecedor('portal_save', {
+                    terreiro_id: terreiroId,
+                    configuracoes: { aceita_24h: aceita24h, hora_abertura: horaAbertura, hora_fechamento: horaFechamento, aviso_entrega: avisoEntrega },
+                    frete: { taxa_entrega: taxaEntrega, frete_gratis_acima: freteGratis },
+                    precos
+                });
                 fornecedorAtual.aceita_24h = aceita24h;
                 fornecedorAtual.hora_abertura = horaAbertura;
                 fornecedorAtual.hora_fechamento = horaFechamento;
                 fornecedorAtual.aviso_entrega = avisoEntrega;
-
-                const taxaEntrega = parseFloat(document.getElementById('inputFreteTerreiro').value) || 0;
-                const valFreteGratis = document.getElementById('inputFreteGratisTerreiro').value;
-                const freteGratis = valFreteGratis ? parseFloat(valFreteGratis) : null;
-
-                await supabaseClient.from('fornecedores_terreiros_frete').upsert({
-                    fornecedor_id: fornecedorAtual.id,
-                    terreiro_id: terreiroId,
-                    taxa_entrega: taxaEntrega,
-                    frete_gratis_acima: freteGratis
-                }, { onConflict: 'fornecedor_id,terreiro_id' });
-
-                const inputs = document.querySelectorAll('.inp-preco-forn');
-                const upserts = [];
-                
-                inputs.forEach(inp => {
-                    const itemId = parseInt(inp.getAttribute('data-item-id'), 10);
-                    const preco = parseFloat(inp.value) || 0;
-                    const jaSalvo = inp.getAttribute('data-ja-salvo') === 'true'; // LÊ A FLAG PARA SABER SE JÁ ESTAVA NO BANCO
-                    const chk = document.querySelector(`.chk-disp-forn[data-item-id="${itemId}"]`);
-                    
-                    // Condição corrigida: Só salva se for maior que zero OU se já existia no banco (para permitir desativar)
-                    if (preco > 0 || jaSalvo) {
-                        upserts.push({
-                            fornecedor_id: fornecedorAtual.id,
-                            terreiro_id: terreiroId,
-                            item_id: itemId,
-                            preco_unitario: preco,
-                            disponivel: chk ? chk.checked : false, // Salva o status real (true/false)
-                            updated_at: new Date().toISOString()
-                        });
-                    }
-                });
-
-                if (upserts.length > 0) {
-                    await supabaseClient.from('fornecedores_precos_itens').upsert(upserts, { onConflict: 'fornecedor_id,item_id' });
-                }
-
-                alert('✅ Horários, aviso de entrega, preços e frete atualizados com sucesso!');
+                alert('Horários, aviso de entrega, preços e frete atualizados com sucesso!');
+                await carregarItensTerreiroFornecedor();
             } catch (err) {
                 alert('Erro ao salvar: ' + err.message);
             } finally {
@@ -366,6 +327,13 @@
                 btn.innerHTML = '<i class="fas fa-save mr-1"></i> Salvar Horários, Aviso, Preços e Taxa de Entrega';
             }
         }
+
+        // Funções chamadas pelo HTML.
+        window.alternarModo24hFornecedor = alternarModo24hFornecedor;
+        window.carregarItensTerreiroFornecedor = carregarItensTerreiroFornecedor;
+        window.autoMarcarEstoque = autoMarcarEstoque;
+        window.aplicarPrecoEmLote = aplicarPrecoEmLote;
+        window.salvarTabelaFornecedor = salvarTabelaFornecedor;
     </script>
 </body>
 </html>
