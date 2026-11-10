@@ -3765,9 +3765,9 @@ function renderizarTagsConfiguracao() {
                         const lat = pos.coords.latitude, lon = pos.coords.longitude;
                         if(idTerreiroGlobal) {
                             const { data, error } = await supabaseClient.from('terreiros')
-                                .update({ latitude: lat, longitude: lon })
+                                .update({ latitude: lat, longitude: lng })
                                 .eq('id', idTerreiroGlobal)
-                                .select(); 
+                                .select('id, latitude, longitude'); 
 
                             if(error) {
                                 if(msg) { msg.className = 'mt-4 text-sm font-bold text-red-600 block'; msg.textContent = 'Erro ao salvar no banco: ' + error.message; }
