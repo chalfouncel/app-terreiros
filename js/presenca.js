@@ -2845,7 +2845,7 @@ async function verificarPendenciaMensalidade(mediumId) {
         container.innerHTML = '<p class="text-center text-gray-400 text-xs py-8"><i class="fas fa-spinner fa-spin mr-2"></i> Buscando menores preços nos fornecedores...</p>';
 
         try {
-            const { data: fornecedores } = await supabaseClient.from('fornecedores').select('*').eq('ativo', true);
+            const { data: fornecedores } = await supabaseClient.from('fornecedores').select('id, nome_fantasia, whatsapp, ativo, aceita_24h, hora_abertura, hora_fechamento, aviso_entrega').eq('ativo', true);
             const { data: fretes } = await supabaseClient.from('fornecedores_terreiros_frete').select('*').eq('terreiro_id', idTerreiroGlobal);
             const idsItens = itensSelecionados.map(i => i.id);
             const { data: precos } = await supabaseClient.from('fornecedores_precos_itens')
@@ -3060,8 +3060,6 @@ async function verificarPendenciaMensalidade(mediumId) {
                     valorTotal: op.totalCobrado,
                     valorRepasseFornecedor: op.liquidoFornecedor,
                     taxaBancaria: op.taxaServico,
-                    fornecedorPixKey: op.fornecedor.chave_pix,
-                    fornecedorPixType: op.fornecedor.tipo_chave_pix,
                     fornecedorNome: op.fornecedor.nome_fantasia
                 }
             });
