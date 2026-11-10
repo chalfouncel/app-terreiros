@@ -267,7 +267,9 @@
 
                 vendedorIdParaBD = urlParams.get('v') ? urlParams.get('v') : usuarioLogadoId;
 
-                const { data: terreiro, error: errT } = await supabaseClient.from('terreiros').select('*').eq('id', idTerreiro).single();
+                
+                const { data: terreiro, error: errT } = await supabaseClient.from('terreiros').select('id, nome, cor_primaria, logo_url').eq('id', idTerreiro).single();
+
                 if (errT || !terreiro) throw new Error("Instituição não encontrada.");
                 
                 window.terreiroGlobal = terreiro;
