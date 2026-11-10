@@ -120,7 +120,16 @@
                 body: { action, ...payload },
                 headers
             });
-            if (error) throw new Error(data?.error || error.message || 'Falha na comunicação com o servidor.');
+            if (error) {
+                let mensagem = data?.error;
+                if (!mensagem && error.context && typeof error.context.json === 'function') {
+                    try {
+                        const respostaErro = await error.context.json();
+                        mensagem = respostaErro?.error;
+                    } catch (_) { /* Resposta não é JSON. */ }
+                }
+                throw new Error(mensagem || error.message || 'Falha na comunicação com o servidor.');
+            }
             if (data?.error) throw new Error(data.error);
             return data;
         }
