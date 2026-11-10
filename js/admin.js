@@ -1027,16 +1027,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                     let gateway = 'manual';
                     document.getElementsByName('gatewayPagamento').forEach(r => { if(r.checked) gateway = r.value; });
                     
-                    const chavePix = document.getElementById('chavePixManual') ? document.getElementById('chavePixManual').value.trim() : '';
-                    const asaasKey = document.getElementById('asaasApiKey') ? document.getElementById('asaasApiKey').value.trim() : '';
-                                                          
-                    const { error: errT } = await supabaseClient.from('terreiros').update({
-                        gateway_pagamento: gateway, 
-                        chave_pix_manual: chavePix, 
-                        asaas_api_key: asaasKey
-                    }).eq('id', idTerreiroGlobal);
-                    
-                    if (errT) throw errT;
+
+const chavePix = document.getElementById('chavePixManual') ? document.getElementById('chavePixManual').value.trim() : '';
+
+const { error: errT } = await supabaseClient.from('terreiros').update({
+    gateway_pagamento: gateway,
+    chave_pix_manual: chavePix
+}).eq('id', idTerreiroGlobal);
+
+if (errT) throw errT;
+
                     
                     const inputs = document.querySelectorAll('.input-valor-grau');
                     const upserts = Array.from(inputs).map(inp => {
@@ -3505,7 +3505,8 @@ document.getElementById('totalMediunsInativos').textContent = totalInativos ?? 0
                 }
             }
 
-            const { data } = await supabaseClient.from('terreiros').select('logo_url, cor_primaria, cor_secundaria, cor_fundo, cor_texto, latitude, longitude, modulo_mensalidade_ativo, gateway_pagamento, chave_pix_manual, asaas_api_key, email, cpf_cnpj, phone, postal_code, address, address_number, company_type, asaas_wallet_id, dirigente_id, tipo_chave_pix_repasse, chave_pix_repasse, lista_graus, lista_funcoes').eq('id', idTerreiroGlobal).single();
+
+const { data } = await supabaseClient.from('terreiros').select('logo_url, cor_primaria, cor_secundaria, cor_fundo, cor_texto, latitude, longitude, modulo_mensalidade_ativo, gateway_pagamento, chave_pix_manual, email, cpf_cnpj, phone, postal_code, address, address_number, company_type, asaas_wallet_id, dirigente_id, tipo_chave_pix_repasse, chave_pix_repasse, lista_graus, lista_funcoes').eq('id', idTerreiroGlobal).single();
             if (data) {
                 // Sincroniza listas de Graus e Funções do Terreiro
                 grausAtuaisTerreiro = (data.lista_graus && data.lista_graus.length > 0) ? [...data.lista_graus] : [...GRAUS_PADRAO];
