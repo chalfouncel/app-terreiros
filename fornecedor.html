@@ -188,6 +188,9 @@
             } catch (err) {
                 tokenFornecedor = null;
                 fornecedorAtual = null;
+                document.getElementById('painelFornecedorAtivo').classList.add('hidden');
+                document.getElementById('telaLoginFornecedor').classList.remove('hidden');
+                document.getElementById('loginFornPin').value = '';
                 alert(err.message || 'Não foi possível entrar no painel.');
             } finally {
                 btn.disabled = false;
