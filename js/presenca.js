@@ -187,8 +187,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Carrega dados e tema do terreiro
         if (idTerreiroGlobal) {
             
-                const { data: terreiros } = await supabaseClient.from('terreiros').select('id, nome, status_bloqueado, latitude, longitude, cor_primaria, cor_secundaria, cor_fundo, cor_texto, logo_url, modulo_mensalidade_ativo, gateway_pagamento, chave_pix_manual').eq('id', idTerreiroGlobal).limit(1);
-            
+const { data: terreiros } = await supabaseClient.from('terreiros').select('id, nome, status_bloqueado, latitude, longitude, cor_primaria, cor_secundaria, cor_fundo, cor_texto, logo_url, modulo_mensalidade_ativo, modulo_livro_curimba_ativo, gateway_pagamento, chave_pix_manual').eq('id', idTerreiroGlobal).limit(1);            
             if (terreiros && terreiros.length > 0) {
                 const terreiro = terreiros[0];
                 if (terreiro.status_bloqueado === true && !perfil.is_master) {
