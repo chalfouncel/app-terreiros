@@ -16,9 +16,6 @@ window.comprovanteAtualId = null;
 // MOTORES DE ROTINAS AUTOMÁTICAS E JUBILEU
 // =========================================================================
 window.executarRotinasAutomaticasMediuns = async function() {
-    if (!idTerreiroGlobal) return;
-    try {
-        // 1. INATIVAÇÃO AUTOMÁTICA (> 6 meses inadimplente a partir de Nov/2026)
         const { data: mediunsAtivos } = await supabaseClient
             .from('mediuns')
             .select('id, isento_mensalidade')
@@ -2933,10 +2930,6 @@ document.getElementById('totalMediunsInativos').textContent = totalInativos ?? 0
             if (errMediuns) console.error('Erro ao carregar médiuns no financeiro:', errMediuns);
 
             const mediuns = (todosMediuns || []).filter(m => {
-                const ehDirigente = (m.grau === 'Dirigente' || m.funcao === 'Dirigente');
-                const estaIsento = m.isento_mensalidade === true;
-                return !(ehDirigente && estaIsento);
-            });
 
             if(!mediuns || mediuns.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="14" class="p-6 text-center text-gray-500">Nenhum médium registrado.</td></tr>';
@@ -5767,11 +5760,6 @@ window.salvarGrau = async (id) => {
     btn.disabled = true;
     
     // Atualiza o médium
-    const { error } = await supabaseClient
-        .from('mediuns')
-        .update({ grau, funcao })
-        .eq('id', id)
-        .eq('terreiro_id', idTerreiroGlobal);
     
     if (error) { 
         btn.innerHTML = 'Erro!'; 
