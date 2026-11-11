@@ -4297,86 +4297,110 @@ window.gerarPDFRelatorio = (titulo, colunas, dados, orientacao = 'portrait') => 
     }
 
     const isLandscape = orientacao === 'landscape';
-    const larguraPdfPx = isLandscape ? 1045 : 718;
-
-    // 1. TAMANHO DE FONTE E ESPAÇAMENTO AUTOAJUSTÁVEIS
+    // Largura segura com folga para não cortar a borda direita no html2canvas
+    const larguraPdfPx = isLandscape ? 1010 : 680;
     const totalCols = colunas.length;
-    let fontSize = '9pt';
-    let cellPadding = '5px 6px';
-    let headerFontSize = '9.5pt';
+    const ehRelatorioReceita = totalCols === 5 && String(colunas[4] || '').toLowerCase().includes('valor');
+
+    let fontSize = '8.5pt';
+    let cellPadding = '6px 8px';
+    let headerFontSize = '8.5pt';
 
     if (totalCols >= 14) {
-        fontSize = isLandscape ? '8pt' : '6.5pt';
-        headerFontSize = isLandscape ? '8.5pt' : '7pt';
+        fontSize = isLandscape ? '7.5pt' : '6.2pt';
+        headerFontSize = isLandscape ? '8pt' : '6.8pt';
         cellPadding = isLandscape ? '4px 3px' : '3px 2px';
     } else if (totalCols >= 6) {
-        fontSize = '7.5pt';
+        fontSize = '7.8pt';
         headerFontSize = '8pt';
-        cellPadding = '4px 3px';
-    } else if (totalCols >= 4) {
-        fontSize = '8.2pt';
-        headerFontSize = '8.7pt';
-        cellPadding = '4px 5px';
-    } else {
-        fontSize = '9.5pt';
-        headerFontSize = '10pt';
-        cellPadding = '6px 8px';
+        cellPadding = '5px 5px';
     }
 
+    // Define larguras e alinhamentos inteligentes por coluna
+    const obterEstiloColuna = (idx, isHeader = false) => {
+        if (totalCols >= 14) {
+            const w = idx === 0 ? 'width: 22%;' : (idx === totalCols - 1 ? 'width: 8%;' : 'width: 5.8%;');
+            const al = idx === 0 ? 'left' : 'center';
+            return `${w} text-align: ${al};`;
+        }
+        if (ehRelatorioReceita) {
+            if (idx === 0) return 'width: 27%; text-align: left;';
+            if (idx === 1) return 'width: 10%; text-align: center; white-space: nowrap;';
+            if (idx === 2) return 'width: 12%; text-align: center; white-space: nowrap;';
+            if (idx === 3) return 'width: 37%; text-align: left;';
+            if (idx === 4) return `width: 14%; text-align: right; white-space: nowrap; ${!isHeader ? 'font-weight: bold; color: #15803d;' : ''}`;
+        }
+        const al = idx === 0 ? 'left' : (idx === totalCols - 1 && String(colunas[idx]).toLowerCase().includes('valor') ? 'right' : 'center');
+        return `text-align: ${al};`;
+    };
+
     const watermarkHtml = logoTerreiroGlobal
-        ? `<div style="position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); opacity: 0.05; z-index: 0; pointer-events: none;">
-             <img src="${logoTerreiroGlobal}" style="width: 320px; max-width: 80%;">
+        ? `<div style="position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); opacity: 0.04; z-index: 0; pointer-events: none;">
+             <img src="${logoTerreiroGlobal}" style="width: 300px; max-width: 75%;">
            </div>`
         : '';
 
     const theadHtml = `
         <thead>
             <tr>
-                ${colunas.map((c, idx) => {
-                    let larguraEstilo = '';
-                    if (totalCols >= 14) {
-                        larguraEstilo = idx === 0 ? 'width: 22%;' : (idx === totalCols - 1 ? 'width: 8%;' : 'width: 5.8%;');
-                    }
-                    const align = idx === 0 ? 'left' : 'center';
-                    return `
-                        <th style="background-color: #f1f5f9; color: #1e293b; font-weight: bold; border: 1px solid #cbd5e1; padding: ${cellPadding}; text-align:${align}; font-size: ${headerFontSize};${larguraEstilo}">
-                            ${c}
-                        </th>
-                    `;
-                }).join('')}
+                ${colunas.map((c, idx) => `
+                    <th style="background-color: #0f172a; color: #ffffff; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; border: 1px solid #0f172a; padding: ${cellPadding}; font-size: ${headerFontSize}; ${obterEstiloColuna(idx, true)}">
+                        ${c}
+                    </th>
+                `).join('')}
             </tr>
         </thead>
     `;
 
-    // 2. PRÉ-CÁLCULO E MEDIÇÃO EM CONTAINER OCULTO
+    const renderizarLinhaTabela = (linha, i) => {
+        const ehLinhaTotal = String(linha[0] || '').toUpperCase().startsWith('TOTAL');
+        if (ehLinhaTotal) {
+            return `
+                <tr style="background-color: #f0fdf4; border-top: 2px solid #16a34a;">
+                    <td colspan="${totalCols - 1}" style="border: 1px solid #bbf7d0; padding: 8px 10px; color: #14532d; font-size: 9.5pt; font-weight: 800; text-align: left; text-transform: uppercase;">
+                        ${linha[0]}
+                    </td>
+                    <td style="border: 1px solid #bbf7d0; padding: 8px 10px; color: #15803d; font-size: 10pt; font-weight: 900; text-align: right; white-space: nowrap;">
+                        ${linha[totalCols - 1]}
+                    </td>
+                </tr>
+            `;
+        }
+
+        const bg = i % 2 === 0 ? '#ffffff' : '#f8fafc';
+        return `
+            <tr style="background-color: ${bg};">
+                ${linha.map((celula, idx) => `
+                    <td style="border: 1px solid #e2e8f0; padding: ${cellPadding}; color: #1e293b; font-size: ${fontSize}; vertical-align: middle; line-height: 1.35; ${ idx === 0 ? 'font-weight: 600;' : '' } ${obterEstiloColuna(idx, false)}">
+                        ${celula || '-'}
+                    </td>
+                `).join('')}
+            </tr>
+        `;
+    };
+
+    // Medição oculta para paginar sem cortar linhas ao meio
     const stage = document.createElement('div');
-    stage.style.cssText = `position: absolute; left: -9999px; top: 0; width: ${larguraPdfPx}px; font-family: Arial, sans-serif; visibility: hidden;`;
-    
+    stage.style.cssText = `position: absolute; left: -9999px; top: 0; width: ${larguraPdfPx}px; font-family: 'Segoe UI', Arial, sans-serif; visibility: hidden; box-sizing: border-box;`;
     stage.innerHTML = `
-        <div id="test-header" style="padding-bottom: 8px; margin-bottom: 12px; border-bottom: 2px solid #2563eb;">
-            <div style="height: 55px;"></div>
-        </div>
-        <table id="test-table" style="width: 100%; border-collapse: collapse; table-layout: ${totalCols >= 14 ? 'fixed' : 'auto'};">
+        <div id="test-header" style="height: 75px; margin-bottom: 14px;"></div>
+        <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
             ${theadHtml}
             <tbody>
-                ${dados.map(linha => `
-                    <tr>${linha.map((celula, idx) => `<td style="padding: ${cellPadding}; font-size: ${fontSize}; border: 1px solid #e2e8f0; word-break: break-word; text-align: ${idx === 0 ? 'left' : 'center'};">${celula || '-'}</td>`).join('')}</tr>
-                `).join('')}
+                ${dados.map((linha, i) => renderizarLinhaTabela(linha, i)).join('')}
             </tbody>
         </table>
     `;
     document.body.appendChild(stage);
 
-    const alturaHeaderPag1 = stage.querySelector('#test-header').offsetHeight + 20;
+    const alturaHeaderPag1 = stage.querySelector('#test-header').offsetHeight + 16;
     const alturaThead = stage.querySelector('thead').offsetHeight;
-    const linhasElements = stage.querySelectorAll('tbody tr');
-    const alturasLinhas = Array.from(linhasElements).map(tr => tr.offsetHeight);
+    const alturasLinhas = Array.from(stage.querySelectorAll('tbody tr')).map(tr => tr.offsetHeight);
     document.body.removeChild(stage);
 
-    // 3. SEPARAÇÃO DAS LINHAS EM PÁGINAS SEM CORTAR NENHUMA
-    const ALTURA_BASE = isLandscape ? 660 : 980;
+    const ALTURA_BASE = isLandscape ? 640 : 940;
     const ALTURA_MAX_PAG1 = ALTURA_BASE - alturaHeaderPag1 - alturaThead;
-    const ALTURA_MAX_OUTRAS = ALTURA_BASE - 45 - alturaThead;
+    const ALTURA_MAX_OUTRAS = ALTURA_BASE - 40 - alturaThead;
 
     const paginas = [];
     let linhasPaginaAtual = [];
@@ -4384,8 +4408,7 @@ window.gerarPDFRelatorio = (titulo, colunas, dados, orientacao = 'portrait') => 
     let limiteAtual = ALTURA_MAX_PAG1;
 
     dados.forEach((linha, idx) => {
-        const alturaLinha = alturasLinhas[idx] || 25;
-
+        const alturaLinha = alturasLinhas[idx] || 26;
         if (alturaAcumulada + alturaLinha > limiteAtual && linhasPaginaAtual.length > 0) {
             paginas.push(linhasPaginaAtual);
             linhasPaginaAtual = [linha];
@@ -4396,16 +4419,13 @@ window.gerarPDFRelatorio = (titulo, colunas, dados, orientacao = 'portrait') => 
             alturaAcumulada += alturaLinha;
         }
     });
+    if (linhasPaginaAtual.length > 0) paginas.push(linhasPaginaAtual);
 
-    if (linhasPaginaAtual.length > 0) {
-        paginas.push(linhasPaginaAtual);
-    }
-
-    // 4. CONSTRUÇÃO DO HTML FINAL PAGINADO
-    const containerPDF = document.createElement('div');
-    containerPDF.style.cssText = `width: ${larguraPdfPx}px; font-family: Arial, sans-serif; color: #333;`;
-
+    const qtdRegistrosReais = dados.filter(l => !String(l[0] || '').toUpperCase().startsWith('TOTAL')).length;
     const dataAtual = `${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+
+    const containerPDF = document.createElement('div');
+    containerPDF.style.cssText = `width: ${larguraPdfPx}px; margin: 0 auto; font-family: 'Segoe UI', Arial, sans-serif; color: #1e293b; box-sizing: border-box;`;
 
     let htmlFinal = '';
 
@@ -4414,54 +4434,41 @@ window.gerarPDFRelatorio = (titulo, colunas, dados, orientacao = 'portrait') => 
         const pageBreak = ehPrimeira ? '' : 'page-break-before: always;';
 
         htmlFinal += `
-            <div class="pagina-relatorio" style="position: relative; ${pageBreak} padding: 4px 0;">
+            <div class="pagina-relatorio" style="position: relative; ${pageBreak} padding: 2px 4px; box-sizing: border-box;">
                 ${watermarkHtml}
                 <div style="position: relative; z-index: 1;">
         `;
 
         if (ehPrimeira) {
             htmlFinal += `
-                <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #2563eb; padding-bottom: 8px; margin-bottom: 12px;">
-                    <div style="width: 70px;">
-                        ${logoTerreiroGlobal ? `<img src="${logoTerreiroGlobal}" style="max-height: 50px; max-width: 70px; object-fit: contain;">` : ''}
+                <div style="display: flex; align-items: center; justify-content: space-between; background: #f8fafc; border: 1px solid #cbd5e1; border-left: 5px solid #16a34a; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        ${logoTerreiroGlobal ? `<img src="${logoTerreiroGlobal}" style="height: 46px; width: 46px; object-fit: contain; background: #fff; padding: 3px; border-radius: 6px; border: 1px solid #e2e8f0;">` : ''}
+                        <div>
+                            <h2 style="margin: 0; color: #0f172a; font-size: 11.5pt; font-weight: 800; text-transform: uppercase; letter-spacing: 0.3px;">${nomeTerreiroGlobal || 'Templo'}</h2>
+                            <h3 style="margin: 2px 0 0 0; color: #15803d; font-size: 9.5pt; font-weight: 700;">${titulo}</h3>
+                        </div>
                     </div>
-                    <div style="text-align: center; flex: 1;">
-                        <h2 style="margin: 0; color: #1e3a8a; font-size: 13pt; text-transform: uppercase;">${nomeTerreiroGlobal || 'Templo'}</h2>
-                        <h3 style="margin: 3px 0 0 0; color: #475569; font-size: 10.5pt;">${titulo}</h3>
-                        <p style="margin: 3px 0 0 0; color: #64748b; font-size: 7.5pt;">Emitido em: ${dataAtual} | Registros: ${dados.length}</p>
+                    <div style="text-align: right; font-size: 7.5pt; color: #475569; line-height: 1.4;">
+                        <div><strong>Emissão:</strong> ${dataAtual}</div>
+                        <div><strong>Registros:</strong> ${qtdRegistrosReais}</div>
                     </div>
-                    <div style="width: 70px; text-align: right; font-size: 8pt; color: #94a3b8;">Pág. 1/${paginas.length}</div>
                 </div>
             `;
         } else {
             htmlFinal += `
-                <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #cbd5e1; padding-bottom: 6px; margin-bottom: 10px;">
-                    <span style="font-size: 8pt; color: #475569; font-weight: bold;">${nomeTerreiroGlobal || 'Templo'} — ${titulo} (Continuação)</span>
-                    <span style="font-size: 8pt; color: #94a3b8;">Pág. ${numPag + 1}/${paginas.length}</span>
+                <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #0f172a; padding-bottom: 5px; margin-bottom: 10px;">
+                    <span style="font-size: 8.5pt; color: #0f172a; font-weight: 800; text-transform: uppercase;">${nomeTerreiroGlobal || 'Templo'} — ${titulo}</span>
+                    <span style="font-size: 7.5pt; color: #64748b; font-weight: 600;">Continuação</span>
                 </div>
             `;
         }
 
         htmlFinal += `
-            <table style="width: 100%; border-collapse: collapse; table-layout: ${totalCols >= 14 ? 'fixed' : 'auto'};">
+            <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
                 ${theadHtml}
                 <tbody>
-        `;
-
-        grupoLinhas.forEach((linha, i) => {
-            const bg = i % 2 === 0 ? '#ffffff' : '#f8fafc';
-            htmlFinal += `
-                <tr style="background-color: ${bg};">
-                    ${linha.map((celula, idx) => `
-                        <td style="border: 1px solid #e2e8f0; padding: ${cellPadding}; color: #334155; font-size: ${fontSize}; vertical-align: middle; word-break: break-word; text-align:${idx === 0 ? 'left' : 'center'};">
-                            ${celula || '-'}
-                        </td>
-                    `).join('')}
-                </tr>
-            `;
-        });
-
-        htmlFinal += `
+                    ${grupoLinhas.map((linha, i) => renderizarLinhaTabela(linha, i)).join('')}
                 </tbody>
             </table>
             </div>
@@ -4472,7 +4479,7 @@ window.gerarPDFRelatorio = (titulo, colunas, dados, orientacao = 'portrait') => 
     containerPDF.innerHTML = htmlFinal;
 
     const opt = {
-        margin:       [10, 10, 15, 10],
+        margin:       [10, 10, 14, 10],
         filename:     `${titulo.replace(/\s+/g, '_')}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
         html2canvas:  { scale: 2, useCORS: true, scrollY: 0, scrollX: 0 },
@@ -4486,13 +4493,13 @@ window.gerarPDFRelatorio = (titulo, colunas, dados, orientacao = 'portrait') => 
             pdf.setPage(i);
             pdf.setFont('helvetica', 'normal');
             pdf.setFontSize(8);
-            pdf.setTextColor(100, 100, 100);
+            pdf.setTextColor(100, 116, 139);
             
             const pageWidth = pdf.internal.pageSize.getWidth();
             const pageHeight = pdf.internal.pageSize.getHeight();
             
-            pdf.text(`Página ${i} de ${totalPages}`, pageWidth - 15, pageHeight - 8, { align: 'right' });
-            pdf.text(`${nomeTerreiroGlobal || 'Templo'} — Documento Oficial`, 15, pageHeight - 8, { align: 'left' });
+            pdf.text(`Página ${i} de ${totalPages}`, pageWidth - 10, pageHeight - 7, { align: 'right' });
+            pdf.text(`${nomeTerreiroGlobal || 'Templo'} — Documento Oficial`, 10, pageHeight - 7, { align: 'left' });
         }
     }).save();
 };
