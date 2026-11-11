@@ -217,13 +217,21 @@ const { data: terreiros } = await supabaseClient.from('terreiros').select('id, n
                 carregarItensDoacao();
 
                 if (terreiro.modulo_mensalidade_ativo === true) {
-                    const btnMensalidade = document.getElementById('btnAbrirMensalidade');
-                    const btnMensalidadeSucesso = document.getElementById('btnAbrirMensalidadeSucesso');
-                    if (btnMensalidade) btnMensalidade.classList.replace('hidden', 'flex');
-                    if (btnMensalidadeSucesso) btnMensalidadeSucesso.classList.replace('hidden', 'flex');
-                    
-                    carregarConfigValoresGrau();
-                    verificarPendenciaMensalidade(perfil.id);
+                    const ehDirigenteOuIsentoFixo = (
+                        perfil.grau === 'Dirigente' ||
+                        perfil.funcao === 'Dirigente' ||
+                        perfil.isento_mensalidade === true
+                    );
+
+                    if (!ehDirigenteOuIsentoFixo) {
+                        const btnMensalidade = document.getElementById('btnAbrirMensalidade');
+                        const btnMensalidadeSucesso = document.getElementById('btnAbrirMensalidadeSucesso');
+                        if (btnMensalidade) btnMensalidade.classList.replace('hidden', 'flex');
+                        if (btnMensalidadeSucesso) btnMensalidadeSucesso.classList.replace('hidden', 'flex');
+                        
+                        carregarConfigValoresGrau();
+                        verificarPendenciaMensalidade(perfil.id);
+                    }
                 }
             }
         } else {
@@ -2689,13 +2697,16 @@ async function verificarPendenciaMensalidade(mediumId) {
             document.getElementById('btnAbrirMensalidadeSucesso')
         ];
 
-        // 1. Isenção: Dirigente ou Médium Isento não têm cobrança pendente
+        // 1. Isenção: Dirigente ou Médium Isento não exibem o botão de mensalidade
         const ehDirigente = perfilMediumLogado && (perfilMediumLogado.grau === 'Dirigente' || perfilMediumLogado.funcao === 'Dirigente');
         const estaIsento = perfilMediumLogado && (perfilMediumLogado.isento_mensalidade === true);
 
         if (ehDirigente || estaIsento) {
             botoes.forEach(btn => {
-                if (btn) btn.classList.remove('alerta-mensalidade-pendente');
+                if (btn) {
+                    btn.classList.remove('alerta-mensalidade-pendente', 'flex');
+                    btn.classList.add('hidden');
+                }
             });
             return;
         }
@@ -2720,13 +2731,6 @@ async function verificarPendenciaMensalidade(mediumId) {
         if (error) throw error;
 
         const quitadosOuIsentos = new Set();
-        if (registros) {
-            registros.forEach(r => {
-                if (r.pago === true || r.isento === true) {
-                    quitadosOuIsentos.add(r.mes);
-                }
-            });
-        }
 
         let temMensalidadeVencida = false;
         for (let m = 1; m <= mesAtual; m++) {
