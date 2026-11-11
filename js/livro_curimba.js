@@ -4,7 +4,31 @@
 // ============================================================================
 
 (function () {
+    // Categorias propostas para a migração. Até a atualização do banco, a
+    // leitura aceita tanto a numeração antiga como a nova, sem gravar nada.
+    const CATEGORIA_ORIXAS = "5. Orixás";
+    const SUBCATEGORIAS_ORIXAS = [
+        "Oxalá", "Oxóssi", "Ogum", "Iemanjá", "Oxum",
+        "Nanã", "Iansã", "Xangô", "Ibeijada", "Omulu"
+    ];
     const CATEGORIAS_CURIMBA = [
+        "1. Hinos Oficiais",
+        "2. Pontos de Defumação",
+        "3. Abertura, Encerramento e Rituais",
+        "4. Preces Diversas",
+        CATEGORIA_ORIXAS,
+        "6. Povo do Oriente",
+        "7. Caboclos - Tupixabas e Morubixabas",
+        "8. Caboclos, Boiadeiros e Caboclas",
+        "9. Marinheiros",
+        "10. Pretos Velhos - Tupixabas e Morubixabas",
+        "11. Pretos Velhos e Falanges (Congo, Angola, Minas, Bahia, Almas)",
+        "12. Exús, Pombagiras e Malandros",
+        "13. Povo Cigano",
+        "14. Encerramento de Gira Oficial"
+    ];
+
+    const CATEGORIAS_CURIMBA_LEGADO = [
         "1. Hinos Oficiais",
         "2. Pontos de Defumação",
         "3. Abertura, Encerramento e Rituais",
@@ -29,6 +53,112 @@
         "22. Povo Cigano",
         "23. Encerramento de Gira Oficial"
     ];
+
+    // Os valores são nomes de categoria, NÃO IDs. Não alterar os identificadores
+    // das cantigas ou os respectivos terreiros durante a reorganização.
+    const MAPA_CATEGORIAS_ANTIGAS = {
+        "5. Oxalá": [CATEGORIA_ORIXAS, "Oxalá"],
+        "7. Ibeijada": [CATEGORIA_ORIXAS, "Ibeijada"],
+        "8. Oxóssi": [CATEGORIA_ORIXAS, "Oxóssi"],
+        "11. Ogum": [CATEGORIA_ORIXAS, "Ogum"],
+        "12. Iemanjá": [CATEGORIA_ORIXAS, "Iemanjá"],
+        "14. Oxum": [CATEGORIA_ORIXAS, "Oxum"],
+        "15. Nanã Buruquê": [CATEGORIA_ORIXAS, "Nanã"],
+        "16. Iansã": [CATEGORIA_ORIXAS, "Iansã"],
+        "17. Xangô": [CATEGORIA_ORIXAS, "Xangô"],
+        "18. Omulú": [CATEGORIA_ORIXAS, "Omulu"],
+        "6. Povo do Oriente": ["6. Povo do Oriente", null],
+        "9. Caboclos - Tupixabas e Morubixabas": ["7. Caboclos - Tupixabas e Morubixabas", null],
+        "10. Caboclos, Boiadeiros e Caboclas": ["8. Caboclos, Boiadeiros e Caboclas", null],
+        "13. Marinheiros": ["9. Marinheiros", null],
+        "19. Pretos Velhos - Tupixabas e Morubixabas": ["10. Pretos Velhos - Tupixabas e Morubixabas", null],
+        "20. Pretos Velhos e Falanges (Congo, Angola, Minas, Bahia, Almas)": ["11. Pretos Velhos e Falanges (Congo, Angola, Minas, Bahia, Almas)", null],
+        "21. Exús, Pombagiras e Malandros": ["12. Exús, Pombagiras e Malandros", null],
+        "22. Povo Cigano": ["13. Povo Cigano", null],
+        "23. Encerramento de Gira Oficial": ["14. Encerramento de Gira Oficial", null],
+        "22. Encerramento de Gira Oficial": ["14. Encerramento de Gira Oficial", null]
+    };
+
+    function nomeCanonicoOrixa(valor) {
+        const chave = String(valor || '').trim().replace(/^\d+[.)]\s*/, '')
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+        return SUBCATEGORIAS_ORIXAS.find(n =>
+            n.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase() === chave
+        ) || (chave === 'NANA BURUQUE' ? 'Nanã' : null);
+    }
+
+    // O Templo de Oxalá é um ambiente fictício: não normalizar suas cantigas,
+    // nem mesmo apenas para exibição. ID conferido no CSV de 1.195 registros.
+    const TERREIRO_FICTICIO_ID = 'dd40ed7c-cd8d-44a1-b63c-b7d69be304f1';
+
+    function temploFicticioAtual() {
+        return String(typeof idTerreiroGlobal !== 'undefined' ? idTerreiroGlobal : '') === TERREIRO_FICTICIO_ID;
+    }
+
+    function categoriasDisponiveis() {
+        return temploFicticioAtual() ? CATEGORIAS_CURIMBA_LEGADO : CATEGORIAS_CURIMBA;
+    }
+
+    function exibirCategoriaMigrada(item) {
+        const original = String(item.categoria || '').trim();
+        if (String(item.terreiro_id || '') === TERREIRO_FICTICIO_ID) {
+            return {
+                ...item,
+                _categoriaOriginal: original,
+                _subcategoriaOriginal: item.subcategoria
+            };
+        }
+        const mapeamento = MAPA_CATEGORIAS_ANTIGAS[original];
+        const categoria = mapeamento ? mapeamento[0] :
+            original === 'Orixás' ? CATEGORIA_ORIXAS : original;
+        const subcategoria = mapeamento && mapeamento[1]
+            ? mapeamento[1]
+            : categoria === CATEGORIA_ORIXAS
+                ? (nomeCanonicoOrixa(item.subcategoria) || item.subcategoria || 'Geral')
+                : item.subcategoria;
+        return {
+            ...item,
+            // Campos apenas em memória; NUNCA usados no UPDATE/INSERT.
+            _categoriaOriginal: original,
+            _subcategoriaOriginal: item.subcategoria,
+            categoria,
+            subcategoria
+        };
+    }
+
+    // Atualiza a lista APÓS o terreiro estar identificado. O templo fictício
+    // mantém integralmente as 23 opções legadas, inclusive na edição.
+    function adicionarCategoriasEspeciaisDoTerreiro() {
+        const categoriasBase = categoriasDisponiveis();
+        const extras = [...new Set(cacheCantigasLivro.map(c => c.categoria)
+            .filter(c => c && !categoriasBase.includes(c)))];
+        const categorias = [...categoriasBase, ...extras];
+        ['selectCategoriaLivro', 'editCantigaCategoria'].forEach(id => {
+            const seletor = document.getElementById(id);
+            if (!seletor) return;
+            const selecionado = seletor.value;
+            seletor.replaceChildren();
+            if (id === 'selectCategoriaLivro') {
+                const todas = document.createElement('option');
+                todas.value = 'todas';
+                todas.textContent = '📚 Todas as Classificações do Livro';
+                seletor.appendChild(todas);
+            }
+            categorias.forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat;
+                option.textContent = cat;
+                seletor.appendChild(option);
+            });
+            if (categorias.includes(selecionado) || (id === 'selectCategoriaLivro' && selecionado === 'todas')) {
+                seletor.value = selecionado;
+            } else if (id === 'selectCategoriaLivro') {
+                seletor.value = 'todas';
+                categoriaAtiva = 'todas';
+                subcategoriaAtiva = 'todas';
+            }
+        });
+    }
 
     let cacheCantigasLivro = [];
     let categoriaAtiva = "todas";
@@ -81,7 +211,7 @@
     function injetarModaisLivroCurimba() {
         if (document.getElementById('modalLivroCurimba')) return;
 
-        const opcoesCatHtml = CATEGORIAS_CURIMBA.map(c => `<option value="${c}">${c}</option>`).join('');
+        const opcoesCatHtml = categoriasDisponiveis().map(c => `<option value="${c}">${c}</option>`).join('');
 
         const html = `
         <!-- MODAL PRINCIPAL: LIVRO GERAL DA CURIMBA -->
@@ -180,7 +310,7 @@
                 <div class="space-y-3 overflow-y-auto pr-1 flex-1">
                     <div>
                         <label class="block text-[10px] font-black text-gray-500 uppercase mb-1">📚 Classificação Principal *</label>
-                        <select id="editCantigaCategoria" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs font-bold bg-white outline-none focus:ring-2 focus:ring-indigo-500">
+                        <select id="editCantigaCategoria" onchange="window.atualizarCampoSubcategoriaEdicaoLivro()" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs font-bold bg-white outline-none focus:ring-2 focus:ring-indigo-500">
                             ${opcoesCatHtml}
                         </select>
                     </div>
@@ -189,6 +319,10 @@
                         <div>
                             <label class="block text-[10px] font-black text-gray-500 uppercase mb-1">🔖 Sub-classificação / Guia</label>
                             <input type="text" id="editCantigaSubcategoria" placeholder="Ex: Vibração de Oxalá, Caboclo Tupi..." class="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs font-bold outline-none bg-white">
+                            <select id="editCantigaOrixa" class="hidden w-full px-3 py-2 border border-gray-300 rounded-xl text-xs font-bold outline-none bg-white">
+                                <option value="">Selecione o orixá *</option>
+                                ${SUBCATEGORIAS_ORIXAS.map((o, i) => `<option value="${o}">${i + 1}. ${o}</option>`).join('')}
+                            </select>
                         </div>
                         <div>
                             <label class="block text-[10px] font-black text-gray-500 uppercase mb-1">📌 Título / Identificador</label>
@@ -314,13 +448,26 @@
         const selSub = document.getElementById('selectSubcategoriaLivro');
         if (!selSub) return;
 
-        const base = categoriaAtiva === "todas"
+        const base = categoriaAtiva === 'todas'
             ? cacheCantigasLivro
             : cacheCantigasLivro.filter(c => c.categoria === categoriaAtiva);
 
-        const subs = [...new Set(base.map(c => c.subcategoria).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
-        selSub.innerHTML = `<option value="todas">🔖 Todas as Sub-classificações / Guias (${subs.length})</option>` +
-            subs.map(s => `<option value="${s}">${s}</option>`).join('');
+        const subs = !temploFicticioAtual() && categoriaAtiva === CATEGORIA_ORIXAS
+            ? [...SUBCATEGORIAS_ORIXAS]
+            : [...new Set(base.map(c => c.subcategoria).filter(Boolean))]
+                .sort((a, b) => a.localeCompare(b, 'pt-BR'));
+
+        selSub.replaceChildren();
+        const geral = document.createElement('option');
+        geral.value = 'todas';
+        geral.textContent = `🔖 Todas as Sub-classificações / Guias (${subs.length})`;
+        selSub.appendChild(geral);
+        subs.forEach((sub, i) => {
+            const opcao = document.createElement('option');
+            opcao.value = sub;
+            opcao.textContent = !temploFicticioAtual() && categoriaAtiva === CATEGORIA_ORIXAS ? `${i + 1}. ${sub}` : sub;
+            selSub.appendChild(opcao);
+        });
     }
 
     async function carregarCantigasDoBanco() {
@@ -349,6 +496,9 @@
                 } else break;
             }
 
+            // Migração de leitura: não altera o Supabase nem as cantigas.
+            todos = todos.map(exibirCategoriaMigrada);
+
             // 1. Guarda a posição original de cada Categoria e Sub-classificação no Livro
             const ordemGrupoSub = {};
             todos.forEach((item, idx) => {
@@ -366,9 +516,16 @@
 
             // 2. Ordena mantendo a sequência das Sub-classificações e aplicando ordem numérica crescente nos Títulos
             todos.sort((a, b) => {
-                const catA = CATEGORIAS_CURIMBA.indexOf(a.categoria);
-                const catB = CATEGORIAS_CURIMBA.indexOf(b.categoria);
+                const catA = categoriasDisponiveis().indexOf(a.categoria);
+                const catB = categoriasDisponiveis().indexOf(b.categoria);
                 if (catA !== catB) return (catA === -1 ? 999 : catA) - (catB === -1 ? 999 : catB);
+
+                // Para Orixás, respeitar a sequência oficial de 1 a 10.
+                if (!temploFicticioAtual() && a.categoria === CATEGORIA_ORIXAS && b.categoria === CATEGORIA_ORIXAS) {
+                    const posA = SUBCATEGORIAS_ORIXAS.indexOf(a.subcategoria);
+                    const posB = SUBCATEGORIAS_ORIXAS.indexOf(b.subcategoria);
+                    if (posA !== posB) return (posA < 0 ? 999 : posA) - (posB < 0 ? 999 : posB);
+                }
 
                 const chaveA = `${String(a.categoria || '').trim().toUpperCase()}||${String(a.subcategoria || 'GERAL').trim().toUpperCase()}`;
                 const chaveB = `${String(b.categoria || '').trim().toUpperCase()}||${String(b.subcategoria || 'GERAL').trim().toUpperCase()}`;
@@ -396,14 +553,22 @@
             });
 
             cacheCantigasLivro = todos;
-            try { localStorage.setItem(`cache_offline_livro_curimba_${idTerreiroGlobal}`, JSON.stringify(todos)); } catch (e) {}
+            adicionarCategoriasEspeciaisDoTerreiro();
+            // Cache offline contém o espelho do banco, sem mudar os dados originais.
+            try {
+                const semTransformacao = todos.map(({ _categoriaOriginal, _subcategoriaOriginal, ...c }) => ({
+                    ...c, categoria: _categoriaOriginal, subcategoria: _subcategoriaOriginal
+                }));
+                localStorage.setItem(`cache_offline_livro_curimba_${idTerreiroGlobal}`, JSON.stringify(semTransformacao));
+            } catch (e) {}
             atualizarDropdownSubcategorias();
             window.renderizarCardsLivroCurimba();
         } catch (err) {
             const salvoOffline = localStorage.getItem(`cache_offline_livro_curimba_${idTerreiroGlobal}`);
             if (salvoOffline) {
                 try {
-                    cacheCantigasLivro = JSON.parse(salvoOffline);
+                    cacheCantigasLivro = JSON.parse(salvoOffline).map(exibirCategoriaMigrada);
+                    adicionarCategoriasEspeciaisDoTerreiro();
                     atualizarDropdownSubcategorias();
                     window.renderizarCardsLivroCurimba();
                     if (typeof window.mostrarToastSistema === 'function') {
@@ -883,14 +1048,27 @@
         area.focus();
     };
 
+    window.atualizarCampoSubcategoriaEdicaoLivro = () => {
+        const categoria = document.getElementById('editCantigaCategoria')?.value;
+        const inputTexto = document.getElementById('editCantigaSubcategoria');
+        const selectOrixa = document.getElementById('editCantigaOrixa');
+        if (!inputTexto || !selectOrixa) return;
+        const ehOrixas = !temploFicticioAtual() && categoria === CATEGORIA_ORIXAS;
+        inputTexto.classList.toggle('hidden', ehOrixas);
+        selectOrixa.classList.toggle('hidden', !ehOrixas);
+        if (ehOrixas) selectOrixa.value = nomeCanonicoOrixa(inputTexto.value) || '';
+    };
+
     window.abrirModalNovaCantigaLivro = () => {
         pararGravacaoLivroSeAtiva();
         blobAudioNovoLivro = null;
         urlAudioExistenteLivro = null;
         document.getElementById('tituloModalEditCantigaLivro').textContent = 'Nova Cantiga da Curimba';
         document.getElementById('editCantigaLivroId').value = '';
-        document.getElementById('editCantigaCategoria').value = categoriaAtiva !== 'todas' ? categoriaAtiva : CATEGORIAS_CURIMBA[0];
+        document.getElementById('editCantigaCategoria').value = categoriaAtiva !== 'todas' ? categoriaAtiva : categoriasDisponiveis()[0];
         document.getElementById('editCantigaSubcategoria').value = subcategoriaAtiva !== 'todas' ? subcategoriaAtiva : '';
+        document.getElementById('editCantigaOrixa').value = '';
+        window.atualizarCampoSubcategoriaEdicaoLivro();
         document.getElementById('editCantigaTitulo').value = '';
         document.getElementById('editCantigaRitmo').value = '';
         document.getElementById('editCantigaMelodia').value = '';
@@ -909,8 +1087,10 @@
 
         document.getElementById('tituloModalEditCantigaLivro').textContent = 'Editar Cantiga';
         document.getElementById('editCantigaLivroId').value = c.id;
-        document.getElementById('editCantigaCategoria').value = c.categoria || CATEGORIAS_CURIMBA[0];
+        document.getElementById('editCantigaCategoria').value = c.categoria || categoriasDisponiveis()[0];
         document.getElementById('editCantigaSubcategoria').value = c.subcategoria || '';
+        document.getElementById('editCantigaOrixa').value = '';
+        window.atualizarCampoSubcategoriaEdicaoLivro();
         document.getElementById('editCantigaTitulo').value = c.titulo || '';
         document.getElementById('editCantigaRitmo').value = c.ritmo || '';
         document.getElementById('editCantigaMelodia').value = c.obs_melodia || '';
@@ -942,6 +1122,13 @@
         const id = document.getElementById('editCantigaLivroId').value;
         const letra = document.getElementById('editCantigaLetra').value.trim();
         if (!letra) return alert('Digite a letra da cantiga.');
+        const categoriaEscolhida = document.getElementById('editCantigaCategoria').value;
+        const subcategoriaEscolhida = !temploFicticioAtual() && categoriaEscolhida === CATEGORIA_ORIXAS
+            ? document.getElementById('editCantigaOrixa').value
+            : (document.getElementById('editCantigaSubcategoria').value.trim() || 'Geral');
+        if (!temploFicticioAtual() && categoriaEscolhida === CATEGORIA_ORIXAS && !SUBCATEGORIAS_ORIXAS.includes(subcategoriaEscolhida)) {
+            return alert('Selecione um dos 10 orixás antes de salvar.');
+        }
 
         const btn = document.getElementById('btnSalvarCantigaLivro');
         btn.disabled = true;
@@ -960,8 +1147,8 @@
 
             const payload = {
                 terreiro_id: idTerreiroGlobal,
-                categoria: document.getElementById('editCantigaCategoria').value,
-                subcategoria: document.getElementById('editCantigaSubcategoria').value.trim() || 'Geral',
+                categoria: categoriaEscolhida,
+                subcategoria: subcategoriaEscolhida,
                 titulo: document.getElementById('editCantigaTitulo').value.trim() || null,
                 ritmo: document.getElementById('editCantigaRitmo').value || null,
                 obs_melodia: document.getElementById('editCantigaMelodia').value.trim() || null,
@@ -1013,9 +1200,9 @@
             return;
         }
 
-        const substituirExistentes = cacheCantigasLivro.length > 0
-            ? confirm(`Já existem ${cacheCantigasLivro.length} cantigas cadastradas.\n\nClique em "OK" para APAGAR as atuais e substituir pelo novo arquivo.\nClique em "Cancelar" para MANTER as atuais e apenas adicionar as novas.`)
-            : false;
+        // Operação segura: importação aditiva. Substituição total via navegador
+        // foi desativada porque o DELETE e os INSERTs não são transacionais.
+        // O backup de cantigas não deve ser colocado em risco por erro de lote.
 
         try {
             if (typeof mammoth === 'undefined') {
@@ -1032,7 +1219,7 @@
             const result = await mammoth.extractRawText({ arrayBuffer });
             const linhas = result.value.split(/\r?\n/).map(l => l.trim());
 
-            const mapaSecoes = [
+            const mapaSecoesLegado = [
                 { match: /^1\.\s*HINOS|^REFLETIU A LUZ DIVINA|^HINO D/i, cat: "1. Hinos Oficiais" },
                 { match: /^2\.\s*PONTOS DE DEFUMA|^PONTOS DE DEFUMAÇÃO|^DEFUMADOR/i, cat: "2. Pontos de Defumação" },
                 { match: /^3\.\s*ABERTURA|^PONTOS DE ABERTURA E ENCERRAMENTO|^ABERTURA E ENCERRAMENTO DOS/i, cat: "3. Abertura, Encerramento e Rituais" },
@@ -1057,6 +1244,36 @@
                 { match: /^22\.\s*POVO CIGANO|^POVO CIGANO|^PONTOS DO POVO CIGANO/i, cat: "22. Povo Cigano" },
                 { match: /^2[23]\.\s*ENCERRAMENTO|^ENCERRAMENTO DE GIRA OFICIAL/i, cat: "23. Encerramento de Gira Oficial" }
             ];
+
+            // Aceita cabeçalhos de documentos antigos e da nova organização.
+            // Apenas o resultado normalizado é inserido no banco.
+            const mapaSecoesNovos = [
+                { match: /^1[.]\s*HINOS|^REFLETIU A LUZ DIVINA|^HINO D/i, cat: "1. Hinos Oficiais" },
+                { match: /^2[.]\s*PONTOS DE DEFUMA|^PONTOS DE DEFUMAÇÃO|^DEFUMADOR/i, cat: "2. Pontos de Defumação" },
+                { match: /^3[.]\s*ABERTURA|^PONTOS DE ABERTURA E ENCERRAMENTO|^ABERTURA E ENCERRAMENTO DOS/i, cat: "3. Abertura, Encerramento e Rituais" },
+                { match: /^4[.]\s*PRECES|^PRECES DIVERSAS|^PRECE DE CÁRITAS/i, cat: "4. Preces Diversas" },
+                { match: /^5[.]\s*ORIX[ÁA]S$|^ORIX[ÁA]S$/i, cat: CATEGORIA_ORIXAS },
+                { match: /^(?:1|5)[.)]\s*OXAL[ÁA]$|^OXAL[ÁA]$|^PONTOS DE OXAL[ÁA]/i, cat: CATEGORIA_ORIXAS, sub: "Oxalá" },
+                { match: /^(?:2|8)[.)]\s*OX[ÓO]SSI$|^OX[ÓO]SSI$|^PONTOS DE OX[ÓO]SSI/i, cat: CATEGORIA_ORIXAS, sub: "Oxóssi" },
+                { match: /^(?:3|11)[.)]\s*OGUM$|^OGUM$|^PONTOS DE OGUM|^PONTOS DE SUBIDA DE OGUM/i, cat: CATEGORIA_ORIXAS, sub: "Ogum" },
+                { match: /^(?:4|12)[.)]\s*IEMANJ[ÁA]$|^IEMANJ[ÁA]$|^PONTOS DE IEMANJ[ÁA]|^PONTOS DE SUBIDA DE IEMANJ[ÁA]/i, cat: CATEGORIA_ORIXAS, sub: "Iemanjá" },
+                { match: /^(?:5|14)[.)]\s*OXUM$|^OXUM$|^PONTOS DE OXUM|^PONTOS DE SUBIDA DE OXUM/i, cat: CATEGORIA_ORIXAS, sub: "Oxum" },
+                { match: /^(?:6|15)[.)]\s*NAN[ÃA](?:\s+BURUQU[ÊE])?$|^NAN[ÃA](?:\s+BURUQU[ÊE])?$|^PONTOS DE NAN[ÃA]|^PONTOS DE SUBIDA DE NAN[ÃA]/i, cat: CATEGORIA_ORIXAS, sub: "Nanã" },
+                { match: /^(?:7|16)[.)]\s*IANS[ÃA]$|^IANS[ÃA]$|^PONTOS DE IANS[ÃA]|^PONTOS DE SUBIDA DE IANS[ÃA]/i, cat: CATEGORIA_ORIXAS, sub: "Iansã" },
+                { match: /^(?:8|17)[.)]\s*XANG[ÔO]$|^XANG[ÔO]$|^PONTOS DE XANG[ÔO]|^PONTOS DE SUBIDA DE XANG[ÔO]/i, cat: CATEGORIA_ORIXAS, sub: "Xangô" },
+                { match: /^(?:9|7)[.)]\s*IBEIJADA$|^IBEIJADA$|^PONTOS DE IBEIJADA|^PONTOS DE SUBIDA DE IBEIJADA/i, cat: CATEGORIA_ORIXAS, sub: "Ibeijada" },
+                { match: /^(?:10|18)[.)]\s*OMUL[ÚU]$|^OMUL[ÚU]$|^PONTOS DE OMUL[ÚU]|^PONTOS DE SUBIDA OMUL[ÚU]/i, cat: CATEGORIA_ORIXAS, sub: "Omulu" },
+                { match: /^6[.]\s*POVO DO ORIENTE|^PONTOS DO POVO DO ORIENTE|^PONTOS DE SUBIDA DE POVO DO ORIENTE/i, cat: "6. Povo do Oriente" },
+                { match: /^(?:7|9)[.]\s*CABOCLOS\s*-\s*TUPIXABAS|^DESCIDA DOS CABOCLOS ARRANCA-TOCO|^DESCIDA DOS MORUBIXABAS|^DESCIDA DO CABOCLO BOIADEIRO DA MATA|^DESCIDA DA CABOCLA CACHOEIRA|^DESCIDA DO CABOCLO GUERREIRO|^DESCIDA DO CABOCLO BOIADEIRO DOS PAMPAS|^DESCIDA DE OGUM BEIRA MAR|^DESCIDA DO CABOCLO BOIADEIRO DA ESTRADA|^DESCIDA DO CABOCLO BOIADEIRO NAVIZALA|^DESCIDA DO CABOCLO COBRA D/i, cat: "7. Caboclos - Tupixabas e Morubixabas" },
+                { match: /^(?:8|10)[.]\s*CABOCLOS(?:,|\s+BOIADEIROS)|^PONTOS DE CABOCLOS|^PONTOS DE BOIADEIRO|^PONTOS DE CABOCLAS|^PONTOS DE SUBIDA DE CABOCLOS/i, cat: "8. Caboclos, Boiadeiros e Caboclas" },
+                { match: /^(?:9|13)[.]\s*MARINHEIROS|^PONTOS DE MARINHEIROS|^PONTOS DE SUBIDA DE MARINHEIROS/i, cat: "9. Marinheiros" },
+                { match: /^(?:10|19)[.]\s*PRETOS VELHOS\s*-\s*TUPIXABAS|^DESCIDA DO PAI JOÃO DA PEDREIRA|^DESCIDA DO PAI JOAQUIM DE ANGOLA|^DESCIDA DA VOVÓ CATARINA|^DESCIDA DA VOVÓ CAMBINDA|^DESCIDA DO PAI JOSÉ DO CRUZEIRO|^DESCIDA DO PAI BENEDITO DAS ALMAS|^DESCIDA DA VOVÓ MARIA CONGA|^DESCIDA DO PAI JOAQUIM DE ARUANDA|^DESCIDA DO VOVÔ BENEDITO AFRICANO/i, cat: "10. Pretos Velhos - Tupixabas e Morubixabas" },
+                { match: /^(?:11|20)[.]\s*PRETOS VELHOS E FALANGES|^PONTOS DE PRETOS VELHOS|^PONTOS DO POVO DE CONGO|^PONTOS DO POVO DE ANGOLA|^PONTOS DO POVO DE MINAS|^PONTOS DO POVO DA BAHIA|^PONTOS DO POVO DO CATIVEIRO|^PONTOS DAS SANTAS ALMAS|^PONTOS DE SANTO ANTÔNIO|^PONTOS DE SUBIDA DE PRETOS VELHOS/i, cat: "11. Pretos Velhos e Falanges (Congo, Angola, Minas, Bahia, Almas)" },
+                { match: /^(?:12|21)[.]\s*EX|^PONTOS DE EXÚS|^PONTOS DE POMBAGIRAS|^PONTOS DE MALANDROS|^PONTOS DE SUBIDA DE EXÚS/i, cat: "12. Exús, Pombagiras e Malandros" },
+                { match: /^(?:13|22)[.]\s*POVO CIGANO|^POVO CIGANO|^PONTOS DO POVO CIGANO/i, cat: "13. Povo Cigano" },
+                { match: /^(?:14|23|22)[.]\s*ENCERRAMENTO DE GIRA OFICIAL|^ENCERRAMENTO DE GIRA OFICIAL/i, cat: "14. Encerramento de Gira Oficial" }
+            ];
+            const mapaSecoes = temploFicticioAtual() ? mapaSecoesLegado : mapaSecoesNovos;
 
             const ehSubtitulo = (str) => {
                 if (!str || str.length > 65) return false;
@@ -1103,8 +1320,12 @@
                 const sec = mapaSecoes.find(s => s.match.test(l));
                 if (sec) {
                     fecharPonto();
+                    if (catAtual !== sec.cat) subAtual = 'Geral';
                     catAtual = sec.cat;
-                    if (ehSubtitulo(l)) subAtual = l.replace(/^(SUBCATEGORIA|GUIA):\s*/i, '').trim();
+                    if (sec.sub) subAtual = sec.sub;
+                    else if (ehSubtitulo(l) && catAtual !== CATEGORIA_ORIXAS) {
+                        subAtual = l.replace(/^(SUBCATEGORIA|GUIA):\s*/i, '').trim();
+                    }
                     continue;
                 }
                 if (!catAtual) continue;
@@ -1123,12 +1344,23 @@
                     continue;
                 }
 
-                if (ehSubtitulo(l)) {
+                // Um título definido explicitamente no DOCX não pode ser
+                // perdido por uma primeira linha de letra como "SALVE ...".
+                const subtituloExplicito = /^(SUBCATEGORIA|GUIA):\s*/i.test(l);
+                if (ehSubtitulo(l) && (subtituloExplicito || !tituloAtual || bufferLetra.length > 0)) {
                     fecharPonto();
                     const limpo = l.replace(/^(SUBCATEGORIA|GUIA):\s*/i, '').trim();
                     const partes = limpo.split(/\s*[•\-–]\s*/);
-                    subAtual = partes[0].trim();
-                    if (partes.length > 1) tituloAtual = partes.slice(1).join(' - ').trim();
+                    if (!temploFicticioAtual() && catAtual === CATEGORIA_ORIXAS) {
+                        // Somente uma subcategoria explicitamente canônica troca
+                        // o orixá. Identificadores antigos de importação são ignorados.
+                        const explicita = /^(SUBCATEGORIA|GUIA):\s*/i.test(l);
+                        const novoOrixa = explicita ? nomeCanonicoOrixa(limpo) : null;
+                        if (novoOrixa) subAtual = novoOrixa;
+                    } else {
+                        subAtual = partes[0].trim();
+                        if (partes.length > 1) tituloAtual = partes.slice(1).join(' - ').trim();
+                    }
                 } else {
                     bufferLetra.push(l);
                 }
@@ -1137,6 +1369,15 @@
 
             if (registros.length === 0) {
                 alert('Não foi possível identificar cantigas no arquivo selecionado.');
+                return;
+            }
+
+            // Não aceitar importação de cantigas de Orixás sem uma das dez
+            // subcategorias definidas. Esse bloqueio ocorre ANTES de qualquer
+            // exclusão ou inserção feita pelo importador.
+            const semOrixa = registros.filter(r => !temploFicticioAtual() && r.categoria === CATEGORIA_ORIXAS && !SUBCATEGORIAS_ORIXAS.includes(r.subcategoria));
+            if (semOrixa.length > 0) {
+                alert(`${semOrixa.length} cantiga(s) de Orixás não têm subcategoria válida no DOCX. Ajuste os títulos das seções (Oxalá, Oxóssi, Ogum etc.) antes de importar. Nenhuma cantiga foi alterada.`);
                 return;
             }
 
@@ -1163,13 +1404,7 @@
                 registrosUnicos.push(reg);
             }
 
-            if (substituirExistentes) {
-                const { error: errDel } = await supabaseClient
-                    .from('curimba_cantigas')
-                    .delete()
-                    .eq('terreiro_id', idTerreiroGlobal);
-                if (errDel) throw errDel;
-            } else if (cacheCantigasLivro.length > 0) {
+            if (cacheCantigasLivro.length > 0) {
                 // 2. Compara com as cantigas que já existem no banco de dados
                 const existentesProcessadas = cacheCantigasLivro.map(c => ({
                     cat: c.categoria,
