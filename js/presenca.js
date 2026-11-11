@@ -871,7 +871,7 @@ const { data: terreiros } = await supabaseClient.from('terreiros').select('id, n
             if (idsEnvolvidos.size > 0) {
                 const { data: dadosMed } = await supabaseClient
                     .from('mediuns')
-                    .select('id, auth_id, nome_completo, grau, status_ativo')
+                    .select('id, auth_id, nome_completo, grau, funcao, isento_mensalidade, status_ativo')
                     .in('id', Array.from(idsEnvolvidos));
                 
                 if (dadosMed) {
@@ -1601,11 +1601,19 @@ const { data: terreiros } = await supabaseClient.from('terreiros').select('id, n
             `;
         }
 
+        const souDirigenteOuIsento = (
+            perfilMediumLogado.grau === 'Dirigente' ||
+            perfilMediumLogado.funcao === 'Dirigente' ||
+            perfilMediumLogado.isento_mensalidade === true
+        );
+
         carrinhoMensalidadesState = [{
             mediumId: perfilMediumLogado.id,
             mediumNome: perfilMediumLogado.nome_completo,
             grau: perfilMediumLogado.grau || '-',
-            valorUnitario: configValoresGrau[perfilMediumLogado.grau] || 0.00,
+            funcao: perfilMediumLogado.funcao || '-',
+            isentoFixo: souDirigenteOuIsento,
+            valorUnitario: souDirigenteOuIsento ? 0.00 : (configValoresGrau[perfilMediumLogado.grau] || 0.00),
             mesesPagosNoAno: [],
             mesesSelecionados: []
         }];
@@ -1700,15 +1708,18 @@ const { data: terreiros } = await supabaseClient.from('terreiros').select('id, n
         carrinhoMensalidadesState.forEach((itemCarrinho, indexCarrinho) => {
             const pgtosMedium = pgtosFeitos ? pgtosFeitos.filter(p => p.medium_id === itemCarrinho.mediumId) : [];
             const mesesPagos = pgtosMedium.filter(p => p.pago === true).map(p => p.mes);
-            const mesesIsentos = pgtosMedium.filter(p => p.isento === true).map(p => p.mes);
-            itemCarrinho.mesesPagosNoAno = [...mesesPagos, ...mesesIsentos];
+            const isentoPermanente = itemCarrinho.isentoFixo === true || itemCarrinho.grau === 'Dirigente' || itemCarrinho.funcao === 'Dirigente';
+            const mesesIsentos = isentoPermanente
+                ? [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+                : pgtosMedium.filter(p => p.isento === true).map(p => p.mes);
+            itemCarrinho.mesesPagosNoAno = [...new Set([...mesesPagos, ...mesesIsentos])];
 
             const nomesMeses = ['', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
             
             let gridMesesHtml = '';
             for (let m = 1; m <= 12; m++) {
                 const jaPago = mesesPagos.includes(m);
-                const ehIsento = mesesIsentos.includes(m);
+                const ehIsento = isentoPermanente || mesesIsentos.includes(m);
                 const estaPendente = mesesPendentesMap[itemCarrinho.mediumId]?.has(m);
                 const selecionado = itemCarrinho.mesesSelecionados.includes(m);
                 
@@ -1877,15 +1888,16 @@ const { data: terreiros } = await supabaseClient.from('terreiros').select('id, n
         if (!resultadoBuscaOutroMedium) return;
         resultadoBuscaOutroMedium.innerHTML = '';
 
-        // Filtra familiares que ainda não estão no carrinho
+        // Filtra familiares que ainda não estão no carrinho e que NÃO são Dirigentes/Isentos
         const disponiveis = familiaresAprovadosCache.filter(fam => {
-            return !carrinhoMensalidadesState.some(c => c.mediumId === fam.id);
+            const ehDirigenteOuIsento = fam.grau === 'Dirigente' || fam.funcao === 'Dirigente' || fam.isento_mensalidade === true;
+            return !ehDirigenteOuIsento && !carrinhoMensalidadesState.some(c => c.mediumId === fam.id);
         });
 
         if (disponiveis.length === 0) {
             resultadoBuscaOutroMedium.innerHTML = `
                 <li class="p-3 text-center text-gray-500 text-xs">
-                    ${familiaresAprovadosCache.length === 0 ? 'Você ainda não possui familiares vinculados.' : 'Todos os seus familiares já foram adicionados ao carrinho.'}
+                    ${familiaresAprovadosCache.length === 0 ? 'Você ainda não possui familiares vinculados.' : 'Nenhum familiar pagante disponível para adicionar.'}
                 </li>
             `;
             return;
@@ -1902,6 +1914,8 @@ const { data: terreiros } = await supabaseClient.from('terreiros').select('id, n
                     mediumId: fam.id,
                     mediumNome: fam.nome_completo,
                     grau: fam.grau || '-',
+                    funcao: fam.funcao || '-',
+                    isentoFixo: false,
                     valorUnitario: valorGrau,
                     mesesPagosNoAno: [],
                     mesesSelecionados: []
