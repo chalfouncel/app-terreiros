@@ -217,21 +217,8 @@ const { data: terreiros } = await supabaseClient.from('terreiros').select('id, n
                 carregarItensDoacao();
 
                 if (terreiro.modulo_mensalidade_ativo === true) {
-                    const ehDirigenteOuIsentoFixo = (
-                        perfil.grau === 'Dirigente' ||
-                        perfil.funcao === 'Dirigente' ||
-                        perfil.isento_mensalidade === true
-                    );
-
-                    if (!ehDirigenteOuIsentoFixo) {
-                        const btnMensalidade = document.getElementById('btnAbrirMensalidade');
-                        const btnMensalidadeSucesso = document.getElementById('btnAbrirMensalidadeSucesso');
-                        if (btnMensalidade) btnMensalidade.classList.replace('hidden', 'flex');
-                        if (btnMensalidadeSucesso) btnMensalidadeSucesso.classList.replace('hidden', 'flex');
-                        
-                        carregarConfigValoresGrau();
-                        verificarPendenciaMensalidade(perfil.id);
-                    }
+                    carregarConfigValoresGrau();
+                    verificarPendenciaMensalidade(perfil.id);
                 }
             }
         } else {
@@ -2697,11 +2684,73 @@ async function verificarPendenciaMensalidade(mediumId) {
             document.getElementById('btnAbrirMensalidadeSucesso')
         ];
 
-        // 1. Isenção: Dirigente ou Médium Isento não exibem o botão de mensalidade
+        const hoje = new Date();
+        const anoAtual = hoje.getFullYear();
+        const mesAtual = hoje.getMonth() + 1;
+
         const ehDirigente = perfilMediumLogado && (perfilMediumLogado.grau === 'Dirigente' || perfilMediumLogado.funcao === 'Dirigente');
         const estaIsento = perfilMediumLogado && (perfilMediumLogado.isento_mensalidade === true);
 
+        // Familiares pagantes vinculados (ignora familiares que são Dirigentes ou Isentos fixos)
+        const familiaresPagantes = (familiaresAprovadosCache || []).filter(f => {
+            return f.grau !== 'Dirigente' && f.funcao !== 'Dirigente' && f.isento_mensalidade !== true;
+        });
+
+        const idsParaConsultar = [mediumId, ...familiaresPagantes.map(f => f.id)];
+
+        const { data: registros, error } = await supabaseClient
+            .from('financeiro')
+            .select('medium_id, mes, pago, isento')
+            .in('medium_id', idsParaConsultar)
+            .eq('ano', anoAtual);
+
+        if (error) throw error;
+
+        // 1. Avalia a situação do titular logado
+        const quitadosTitular = new Set();
         if (ehDirigente || estaIsento) {
+            for (let m = 1; m <= 12; m++) quitadosTitular.add(m);
+        } else if (registros) {
+            registros.filter(r => r.medium_id === mediumId).forEach(r => {
+                if (r.pago === true || r.isento === true) quitadosTitular.add(r.mes);
+            });
+        }
+
+        const dtBase = (perfilMediumLogado && perfilMediumLogado.data_entrada) ? new Date(perfilMediumLogado.data_entrada + 'T12:00:00') : new Date(2026, 10, 1);
+        const marcoNov2026 = new Date(2026, 10, 1);
+        const dataIngresso = (!isNaN(dtBase.getTime()) && dtBase > marcoNov2026) ? dtBase : marcoNov2026;
+        const mesIngresso = dataIngresso.getMonth() + 1;
+        const anoIngresso = dataIngresso.getFullYear();
+
+        let temMensalidadeVencidaTitular = false;
+        let titularQuitouAnoTodo = true;
+
+        for (let m = 1; m <= 12; m++) {
+            const isAntesDoIngresso = (anoAtual < anoIngresso) || (anoAtual === anoIngresso && m < mesIngresso);
+            if (!isAntesDoIngresso && !quitadosTitular.has(m)) {
+                titularQuitouAnoTodo = false;
+                if (m <= mesAtual) temMensalidadeVencidaTitular = true;
+            }
+        }
+
+        // 2. Verifica se algum familiar vinculado ainda tem meses em aberto no ano
+        let familiarTemMesAbertoNoAno = false;
+        for (const fam of familiaresPagantes) {
+            const quitadosFam = new Set();
+            (registros || []).filter(r => r.medium_id === fam.id).forEach(r => {
+                if (r.pago === true || r.isento === true) quitadosFam.add(r.mes);
+            });
+            for (let m = 1; m <= 12; m++) {
+                if (!quitadosFam.has(m)) {
+                    familiarTemMesAbertoNoAno = true;
+                    break;
+                }
+            }
+            if (familiarTemMesAbertoNoAno) break;
+        }
+
+        // 3. Se o titular é isento/quitou o ano todo E nenhum familiar tem mês aberto no ano, esconde o botão
+        if (titularQuitouAnoTodo && !familiarTemMesAbertoNoAno) {
             botoes.forEach(btn => {
                 if (btn) {
                     btn.classList.remove('alerta-mensalidade-pendente', 'flex');
@@ -2711,42 +2760,14 @@ async function verificarPendenciaMensalidade(mediumId) {
             return;
         }
 
-        const hoje = new Date();
-        const anoAtual = hoje.getFullYear();
-        const mesAtual = hoje.getMonth() + 1;
-
-        // 2. Marco inicial de cobrança/inadimplência: Novembro/2026 (ou data_entrada se entrou depois de Nov/2026)
-        const dtBase = (perfilMediumLogado && perfilMediumLogado.data_entrada) ? new Date(perfilMediumLogado.data_entrada + 'T12:00:00') : new Date(2026, 10, 1);
-        const marcoNov2026 = new Date(2026, 10, 1);
-        const dataIngresso = (!isNaN(dtBase.getTime()) && dtBase > marcoNov2026) ? dtBase : marcoNov2026;
-        const mesIngresso = dataIngresso.getMonth() + 1;
-        const anoIngresso = dataIngresso.getFullYear();
-
-        const { data: registros, error } = await supabaseClient
-            .from('financeiro')
-            .select('mes, pago, isento')
-            .eq('medium_id', mediumId)
-            .eq('ano', anoAtual);
-
-        if (error) throw error;
-
-        const quitadosOuIsentos = new Set();
-
-        let temMensalidadeVencida = false;
-        for (let m = 1; m <= mesAtual; m++) {
-            const isAntesDoIngresso = (anoAtual < anoIngresso) || (anoAtual === anoIngresso && m < mesIngresso);
-            if (!isAntesDoIngresso && !quitadosOuIsentos.has(m)) {
-                temMensalidadeVencida = true;
-                break;
-            }
-        }
-
+        // 4. Caso contrário, exibe o botão de acordo com o status
         botoes.forEach(btn => {
             if (!btn) return;
+            btn.classList.replace('hidden', 'flex');
             const spanTexto = btn.querySelector('span') || btn;
             const icone = btn.querySelector('i');
 
-            if (temMensalidadeVencida) {
+            if (temMensalidadeVencidaTitular) {
                 btn.classList.add('alerta-mensalidade-pendente');
                 btn.classList.remove('bg-green-50', 'text-green-700', 'border-green-300');
                 if (spanTexto) spanTexto.textContent = 'Mensalidade Pendente';
@@ -2754,7 +2775,7 @@ async function verificarPendenciaMensalidade(mediumId) {
             } else {
                 btn.classList.remove('alerta-mensalidade-pendente');
                 btn.classList.add('bg-green-50', 'text-green-700', 'border-green-300');
-                if (spanTexto) spanTexto.textContent = 'Mensalidade em Dia';
+                if (spanTexto) spanTexto.textContent = titularQuitouAnoTodo ? 'Mensalidade Familiar' : 'Mensalidade em Dia';
                 if (icone) icone.className = 'fas fa-check-circle mr-1.5 text-green-600';
             }
         });
@@ -3563,19 +3584,4 @@ window.pagarDoacaoCantinaViaAsaas = async () => {
         btn.disabled = false;
         btn.innerHTML = origHtml;
     }
-};
-// Função de apoio para ler os itens dos Kits de doação
-window.obterComponentesKit = function(descricaoJson) {
-    if (!descricaoJson) return '';
-    try {
-        const itens = JSON.parse(descricaoJson);
-        if (Array.isArray(itens)) {
-            return itens.map(i => `${i.qtd}x ${i.nome}`).join(' + ');
-        }
-    } catch(e) {}
-    return '';
-};
-window.itemOuKitTemFornecedor = function(item) {
-    if (!item) return false;
-    return !!item.fornecedor;
 };
