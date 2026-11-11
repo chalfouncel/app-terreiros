@@ -26,7 +26,8 @@
         "19. Pretos Velhos - Tupixabas e Morubixabas",
         "20. Pretos Velhos e Falanges (Congo, Angola, Minas, Bahia, Almas)",
         "21. Exús, Pombagiras e Malandros",
-        "22. Encerramento de Gira Oficial"
+        "22. Povo Cigano",
+        "23. Encerramento de Gira Oficial"
     ];
 
     let cacheCantigasLivro = [];
@@ -1053,7 +1054,8 @@
                 { match: /^19\.\s*PRETOS VELHOS|^DESCIDA DO PAI JOÃO DA PEDREIRA|^DESCIDA DO PAI JOAQUIM DE ANGOLA|^DESCIDA DA VOVÓ CATARINA|^DESCIDA DA VOVÓ CAMBINDA|^DESCIDA DO PAI JOSÉ DO CRUZEIRO|^DESCIDA DO PAI BENEDITO DAS ALMAS|^DESCIDA DA VOVÓ MARIA CONGA|^DESCIDA DO PAI JOAQUIM DE ARUANDA|^DESCIDA DO VOVÔ BENEDITO AFRICANO/i, cat: "19. Pretos Velhos - Tupixabas e Morubixabas" },
                 { match: /^20\.\s*PRETOS VELHOS|^PONTOS DE PRETOS VELHOS|^PONTOS DO POVO DE CONGO|^PONTOS DO POVO DE ANGOLA|^PONTOS DO POVO DE MINAS|^PONTOS DO POVO DA BAHIA|^PONTOS DO POVO DO CATIVEIRO|^PONTOS DAS SANTAS ALMAS|^PONTOS DE SANTO ANTÔNIO|^PONTOS DE SUBIDA DE PRETOS VELHOS/i, cat: "20. Pretos Velhos e Falanges (Congo, Angola, Minas, Bahia, Almas)" },
                 { match: /^21\.\s*EX|^PONTOS DE EXÚS|^PONTOS DE POMBAGIRAS|^PONTOS DE MALANDROS|^PONTOS DE SUBIDA DE EXÚS/i, cat: "21. Exús, Pombagiras e Malandros" },
-                { match: /^22\.\s*ENCERRAMENTO|^ENCERRAMENTO DE GIRA OFICIAL/i, cat: "22. Encerramento de Gira Oficial" }
+                { match: /^22\.\s*POVO CIGANO|^POVO CIGANO|^PONTOS DO POVO CIGANO/i, cat: "22. Povo Cigano" },
+                { match: /^2[23]\.\s*ENCERRAMENTO|^ENCERRAMENTO DE GIRA OFICIAL/i, cat: "23. Encerramento de Gira Oficial" }
             ];
 
             const ehSubtitulo = (str) => {
