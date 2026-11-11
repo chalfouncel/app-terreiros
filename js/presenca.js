@@ -883,33 +883,52 @@ const { data: terreiros } = await supabaseClient.from('terreiros').select('id, n
             const pedidosEnviados = [];
             const aprovados = [];
 
+            const idsJaAprovados = new Set();
+
+            // 1º passo: mapeia todos os familiares já aprovados (sem duplicar a mesma pessoa)
             (vinculos || []).forEach(v => {
+                if (v.status !== 'aprovado') return;
                 const souSolicitante = v.solicitante_id === perfilMediumLogado.id;
                 const outroId = souSolicitante ? v.familiar_id : v.solicitante_id;
                 const outroMedium = mapaNomes[outroId];
+                if (!outroMedium || idsJaAprovados.has(outroId)) return;
 
-                // Ignora se o familiar tiver sido inativado ou não existir
+                idsJaAprovados.add(outroId);
+                aprovados.push({ vinculoId: v.id, ...outroMedium });
+            });
+
+            // 2º passo: mapeia apenas pendentes de quem AINDA NÃO é familiar aprovado
+            (vinculos || []).forEach(v => {
+                if (v.status !== 'pendente') return;
+                const souSolicitante = v.solicitante_id === perfilMediumLogado.id;
+                const outroId = souSolicitante ? v.familiar_id : v.solicitante_id;
+                const outroMedium = mapaNomes[outroId];
                 if (!outroMedium) return;
 
-                if (v.status === 'pendente') {
-                    if (souSolicitante) {
-                        pedidosEnviados.push({ vinculoId: v.id, ...outroMedium });
-                    } else {
-                        pedidosRecebidos.push({ vinculoId: v.id, ...outroMedium });
-                    }
-                } else if (v.status === 'aprovado') {
-                    aprovados.push({ vinculoId: v.id, ...outroMedium });
+                // Se já é aprovado, limpa o registro pendente duplicado em background
+                if (idsJaAprovados.has(outroId)) {
+                    supabaseClient.from('vinculos_familiares').delete().eq('id', v.id).then();
+                    return;
+                }
+
+                if (souSolicitante) {
+                    pedidosEnviados.push({ vinculoId: v.id, ...outroMedium });
+                } else {
+                    pedidosRecebidos.push({ vinculoId: v.id, ...outroMedium });
                 }
             });
 
             familiaresAprovadosCache = aprovados;
 
-            // 1. Atualiza Badges de Notificação (Convites Família + Pendência CCT)
+            // 1. Atualiza Badges de Notificação (Convites Família + Pendência CCT apenas para não-Dirigentes)
             const badgePerfil = document.getElementById('badgeNotificacaoPerfil');
             const badgeAba = document.getElementById('badgeAbaFamilia');
             
             const grauUpper = String(perfilMediumLogado.grau || '').trim().toUpperCase();
-            const faltaDadosCCT = ['ESCOLA DE CCT', 'CCT'].includes(grauUpper) && 
+            const funcaoUpper = String(perfilMediumLogado.funcao || '').trim().toUpperCase();
+            const ehDirigente = grauUpper === 'DIRIGENTE' || funcaoUpper === 'DIRIGENTE';
+
+            const faltaDadosCCT = !ehDirigente && ['ESCOLA DE CCT', 'CCT'].includes(grauUpper) && 
                 (!perfilMediumLogado.cpf || String(perfilMediumLogado.cpf).replace(/\D/g, '').length !== 11 || !perfilMediumLogado.estado_civil || !perfilMediumLogado.profissao);
 
             const totalAlertasPerfil = pedidosRecebidos.length + (faltaDadosCCT ? 1 : 0);
@@ -1026,6 +1045,9 @@ const { data: terreiros } = await supabaseClient.from('terreiros').select('id, n
                 await supabaseClient.from('vinculos_familiares').update({ status: 'aprovado' }).eq('id', vinculoId);
             }
             await carregarVinculosFamiliares();
+            if (perfilMediumLogado && perfilMediumLogado.id) {
+                verificarPendenciaMensalidade(perfilMediumLogado.id);
+            }
         } catch (err) {
             alert("Erro ao responder: " + err.message);
         }
@@ -2684,37 +2706,45 @@ async function verificarPendenciaMensalidade(mediumId) {
             document.getElementById('btnAbrirMensalidadeSucesso')
         ];
 
+        const esconderBotoes = () => {
+            botoes.forEach(btn => {
+                if (btn) {
+                    btn.classList.remove('alerta-mensalidade-pendente', 'flex');
+                    btn.classList.add('hidden');
+                }
+            });
+        };
+
+        const grauUpper = String(perfilMediumLogado?.grau || '').trim().toUpperCase();
+        const funcaoUpper = String(perfilMediumLogado?.funcao || '').trim().toUpperCase();
+        const ehDirigente = grauUpper === 'DIRIGENTE' || funcaoUpper === 'DIRIGENTE';
+        const estaIsento = perfilMediumLogado?.isento_mensalidade === true;
+
+        // 1. Dirigente ou Médium com isenção fixa nunca vê o botão
+        if (ehDirigente || estaIsento) {
+            esconderBotoes();
+            return;
+        }
+
         const hoje = new Date();
         const anoAtual = hoje.getFullYear();
         const mesAtual = hoje.getMonth() + 1;
 
-        const ehDirigente = perfilMediumLogado && (perfilMediumLogado.grau === 'Dirigente' || perfilMediumLogado.funcao === 'Dirigente');
-        const estaIsento = perfilMediumLogado && (perfilMediumLogado.isento_mensalidade === true);
-
-        // Familiares pagantes vinculados (ignora familiares que são Dirigentes ou Isentos fixos)
-        const familiaresPagantes = (familiaresAprovadosCache || []).filter(f => {
-            return f.grau !== 'Dirigente' && f.funcao !== 'Dirigente' && f.isento_mensalidade !== true;
-        });
-
-        const idsParaConsultar = [mediumId, ...familiaresPagantes.map(f => f.id)];
-
         const { data: registros, error } = await supabaseClient
             .from('financeiro')
-            .select('medium_id, mes, pago, isento')
-            .in('medium_id', idsParaConsultar)
+            .select('mes, pago, isento')
+            .eq('medium_id', mediumId)
             .eq('ano', anoAtual);
 
         if (error) throw error;
 
-        // 1. Avalia a situação do titular logado
         const quitadosTitular = new Set();
-        if (ehDirigente || estaIsento) {
-            for (let m = 1; m <= 12; m++) quitadosTitular.add(m);
-        } else if (registros) {
-            registros.filter(r => r.medium_id === mediumId).forEach(r => {
-                if (r.pago === true || r.isento === true) quitadosTitular.add(r.mes);
-            });
-        }
+        const isentosTitular = new Set();
+
+        (registros || []).forEach(r => {
+            if (r.pago === true || r.isento === true) quitadosTitular.add(r.mes);
+            if (r.isento === true) isentosTitular.add(r.mes);
+        });
 
         const dtBase = (perfilMediumLogado && perfilMediumLogado.data_entrada) ? new Date(perfilMediumLogado.data_entrada + 'T12:00:00') : new Date(2026, 10, 1);
         const marcoNov2026 = new Date(2026, 10, 1);
@@ -2722,52 +2752,31 @@ async function verificarPendenciaMensalidade(mediumId) {
         const mesIngresso = dataIngresso.getMonth() + 1;
         const anoIngresso = dataIngresso.getFullYear();
 
-        let temMensalidadeVencidaTitular = false;
+        let temMensalidadeVencida = false;
         let titularQuitouAnoTodo = true;
 
         for (let m = 1; m <= 12; m++) {
             const isAntesDoIngresso = (anoAtual < anoIngresso) || (anoAtual === anoIngresso && m < mesIngresso);
             if (!isAntesDoIngresso && !quitadosTitular.has(m)) {
                 titularQuitouAnoTodo = false;
-                if (m <= mesAtual) temMensalidadeVencidaTitular = true;
+                if (m <= mesAtual) temMensalidadeVencida = true;
             }
         }
 
-        // 2. Verifica se algum familiar vinculado ainda tem meses em aberto no ano
-        let familiarTemMesAbertoNoAno = false;
-        for (const fam of familiaresPagantes) {
-            const quitadosFam = new Set();
-            (registros || []).filter(r => r.medium_id === fam.id).forEach(r => {
-                if (r.pago === true || r.isento === true) quitadosFam.add(r.mes);
-            });
-            for (let m = 1; m <= 12; m++) {
-                if (!quitadosFam.has(m)) {
-                    familiarTemMesAbertoNoAno = true;
-                    break;
-                }
-            }
-            if (familiarTemMesAbertoNoAno) break;
-        }
-
-        // 3. Se o titular é isento/quitou o ano todo E nenhum familiar tem mês aberto no ano, esconde o botão
-        if (titularQuitouAnoTodo && !familiarTemMesAbertoNoAno) {
-            botoes.forEach(btn => {
-                if (btn) {
-                    btn.classList.remove('alerta-mensalidade-pendente', 'flex');
-                    btn.classList.add('hidden');
-                }
-            });
+        // 2. Se já quitou/isentou todos os 12 meses do ano (ou todos os 12 meses estão isentos na tabela), esconde o botão
+        if (titularQuitouAnoTodo || isentosTitular.size === 12) {
+            esconderBotoes();
             return;
         }
 
-        // 4. Caso contrário, exibe o botão de acordo com o status
+        // 3. Se ainda tem meses a vencer no ano (ex: Dezembro), exibe o botão para pagar ou antecipar
         botoes.forEach(btn => {
             if (!btn) return;
             btn.classList.replace('hidden', 'flex');
             const spanTexto = btn.querySelector('span') || btn;
             const icone = btn.querySelector('i');
 
-            if (temMensalidadeVencidaTitular) {
+            if (temMensalidadeVencida) {
                 btn.classList.add('alerta-mensalidade-pendente');
                 btn.classList.remove('bg-green-50', 'text-green-700', 'border-green-300');
                 if (spanTexto) spanTexto.textContent = 'Mensalidade Pendente';
@@ -2775,7 +2784,7 @@ async function verificarPendenciaMensalidade(mediumId) {
             } else {
                 btn.classList.remove('alerta-mensalidade-pendente');
                 btn.classList.add('bg-green-50', 'text-green-700', 'border-green-300');
-                if (spanTexto) spanTexto.textContent = titularQuitouAnoTodo ? 'Mensalidade Familiar' : 'Mensalidade em Dia';
+                if (spanTexto) spanTexto.textContent = 'Mensalidade em Dia';
                 if (icone) icone.className = 'fas fa-check-circle mr-1.5 text-green-600';
             }
         });
