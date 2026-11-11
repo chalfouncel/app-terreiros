@@ -3010,13 +3010,13 @@ document.getElementById('totalMediunsInativos').textContent = totalInativos ?? 0
                         emDia = false;
                     }
 
-                    if (!isAntesDoIngresso) {
+                    if (!isAntesDoIngresso && !isIsento) {
                         if (pago) {
                             statsMeses[i-1].arrecadado += valorPorGrau[m.grau] || 0;
                         }
-                        if (!ehInativo || pago || isIsento) {
+                        if (!ehInativo || pago) {
                             statsMeses[i-1].totalMediuns++;
-                            if (isIsento || pago) {
+                            if (pago) {
                                 statsMeses[i-1].adimplentes++;
                             } else if (venceu) {
                                 statsMeses[i-1].inadimplentes++;
@@ -3160,7 +3160,7 @@ document.getElementById('totalMediunsInativos').textContent = totalInativos ?? 0
             try {
                 const cache = window.dadosAuditoriaMensalCache || {};
                 const mediuns = cache.mediuns || listaMediunsGlobal || [];
-                const pgtosMes = (cache.pgtos || []).filter(p => p.mes === mesNumero && (p.pago === true || p.isento === true));
+                const pgtosMes = (cache.pgtos || []).filter(p => p.mes === mesNumero && p.pago === true && p.isento !== true);
                 const valorPorGrau = cache.valorPorGrau || {};
 
                 // Busca comprovantes aprovados para descobrir QUANDO pagou e QUEM enviou (se pagou só o dele ou com dependentes)
@@ -3183,8 +3183,10 @@ document.getElementById('totalMediunsInativos').textContent = totalInativos ?? 0
                     if (!med) return;
 
                     const ehIsento = med.isento_mensalidade === true || pg.isento === true;
-                    const valorBase = ehIsento ? 0 : (valorPorGrau[med.grau] || 0);
-                    if (!ehIsento && pg.pago) somaReceitaMes += valorBase;
+                    if (ehIsento) return; // Ignora isentos no relatório de arrecadação
+
+                    const valorBase = valorPorGrau[med.grau] || 0;
+                    somaReceitaMes += valorBase;
 
                     // Procura se este mês/ano deste médium veio de algum comprovante aprovado
                     let compAssociado = null;
@@ -3201,7 +3203,7 @@ document.getElementById('totalMediunsInativos').textContent = totalInativos ?? 0
                     });
 
                     let dataPgtoStr = '-';
-                    let modalidadeDesc = ehIsento ? 'Isento' : 'Baixa Manual na Tabela';
+                    let modalidadeDesc = 'Baixa Manual na Tabela';
 
                     if (compAssociado) {
                         const dt = compAssociado.updated_at || compAssociado.data_envio;
@@ -3226,7 +3228,7 @@ document.getElementById('totalMediunsInativos').textContent = totalInativos ?? 0
                         nome: med.nome_completo,
                         grau: med.grau || '-',
                         valor: valorBase,
-                        ehIsento,
+                        ehIsento: false,
                         dataPgtoStr,
                         modalidadeDesc
                     });
@@ -3234,14 +3236,13 @@ document.getElementById('totalMediunsInativos').textContent = totalInativos ?? 0
 
                 linhasDetalhadas.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
 
-                const pagantesEfetivos = linhasDetalhadas.filter(l => !l.ehIsento);
-                const isentosLista = linhasDetalhadas.filter(l => l.ehIsento);
+                const pagantesEfetivos = linhasDetalhadas;
 
                 if (linhasDetalhadas.length === 0) {
-                    corpo.innerHTML = `<div class="p-8 text-center text-gray-400 text-sm bg-gray-50 rounded-2xl border border-dashed border-gray-200">Nenhum pagamento ou isenção registrado para ${nomeMes}/${anoBusca}.</div>`;
+                    corpo.innerHTML = `<div class="p-8 text-center text-gray-400 text-sm bg-gray-50 rounded-2xl border border-dashed border-gray-200">Nenhuma arrecadação registrada para ${nomeMes}/${anoBusca}.</div>`;
                 } else {
                     corpo.innerHTML = `
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div class="bg-green-50 border border-green-200 p-3.5 rounded-2xl">
                                 <span class="text-[10px] font-bold text-green-700 uppercase block">Receita Confirmada no Mês</span>
                                 <span class="text-xl font-black text-green-700">${somaReceitaMes.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
@@ -3249,10 +3250,6 @@ document.getElementById('totalMediunsInativos').textContent = totalInativos ?? 0
                             <div class="bg-blue-50 border border-blue-200 p-3.5 rounded-2xl">
                                 <span class="text-[10px] font-bold text-blue-700 uppercase block">Médiuns Pagantes</span>
                                 <span class="text-xl font-black text-blue-800">${pagantesEfetivos.length}</span>
-                            </div>
-                            <div class="bg-purple-50 border border-purple-200 p-3.5 rounded-2xl">
-                                <span class="text-[10px] font-bold text-purple-700 uppercase block">Médiuns Isentos</span>
-                                <span class="text-xl font-black text-purple-800">${isentosLista.length}</span>
                             </div>
                         </div>
 
@@ -3274,8 +3271,8 @@ document.getElementById('totalMediunsInativos').textContent = totalInativos ?? 0
                                             <td class="p-3 text-center text-gray-600">${l.grau}</td>
                                             <td class="p-3 text-center font-mono text-gray-500">${l.dataPgtoStr}</td>
                                             <td class="p-3 text-gray-600">${l.modalidadeDesc}</td>
-                                            <td class="p-3 text-right font-black ${l.ehIsento ? 'text-purple-600' : 'text-green-700'}">
-                                                ${l.ehIsento ? 'Isento' : l.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                            <td class="p-3 text-right font-black text-green-700">
+                                                ${l.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                             </td>
                                         </tr>
                                     `).join('')}
