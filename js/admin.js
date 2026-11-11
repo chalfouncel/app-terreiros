@@ -16,6 +16,16 @@ window.comprovanteAtualId = null;
 // MOTORES DE ROTINAS AUTOMÁTICAS E JUBILEU
 // =========================================================================
 window.executarRotinasAutomaticasMediuns = async function() {
+    if (!idTerreiroGlobal) return;
+    try {
+        // 0. GARANTE DEFINITIVAMENTE QUE TODO DIRIGENTE SEJA ISENTO NO BANCO
+        await supabaseClient
+            .from('mediuns')
+            .update({ isento_mensalidade: true })
+            .eq('terreiro_id', idTerreiroGlobal)
+            .or('grau.eq.Dirigente,funcao.eq.Dirigente');
+
+        // 1. INATIVAÇÃO AUTOMÁTICA (> 6 meses inadimplente a partir de Nov/2026)
         const { data: mediunsAtivos } = await supabaseClient
             .from('mediuns')
             .select('id, isento_mensalidade')
