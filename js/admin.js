@@ -335,6 +335,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                         img.classList.remove('hidden');
                     }
                 }
+                        }
+        } else if (emModoMasterPuro) {
+            const elSide = document.getElementById('nomeTerreiroSidebar');
+            if (elSide) {
+                elSide.textContent = 'Gestão da Plataforma';
             }
         }
 
