@@ -1633,10 +1633,57 @@ document.getElementById('totalMediunsInativos').textContent = totalInativos ?? 0
             const mesAtualNum = (dataAtual.getMonth() + 1).toString().padStart(2, '0');
             const nomeMesAtual = dataAtual.toLocaleString('pt-BR', { month: 'long' });
             
-            if(titulo) titulo.textContent = `Aniversariantes de ${nomeMesAtual.charAt(0).toUpperCase() + nomeMesAtual.slice(1)}`;
+            if (titulo) titulo.textContent = `Aniversariantes de ${nomeMesAtual.charAt(0).toUpperCase() + nomeMesAtual.slice(1)}`;
 
-            const aniversariantes = lista.filter(m => {
-                if (!m.data_nascimento) return false;
+            // 1. Renderiza Jubileu / Tempo de Casa (5, 10, 15+ anos neste mês)
+            const anoAtualJubileu = dataAtual.getFullYear();
+            const mesAtualJubileu = dataAtual.getMonth() + 1;
+
+            const jubileus = (lista || []).filter(m => {
+                if (m.status_ativo === false || !m.data_entrada) return false;
+                const partes = String(m.data_entrada).split('-');
+                if (partes.length < 2) return false;
+                const anoEnt = parseInt(partes[0], 10);
+                const mesEnt = parseInt(partes[1], 10);
+                const tempoCasa = anoAtualJubileu - anoEnt;
+                return mesEnt === mesAtualJubileu && tempoCasa > 0 && tempoCasa % 5 === 0;
+            });
+
+            let containerJubileu = document.getElementById('listaJubileu') 
+                || document.getElementById('listaJubileuMes') 
+                || document.getElementById('boxJubileu');
+
+            if (!containerJubileu) {
+                const cardLateral = ul.closest('.bg-white') || ul.parentElement?.parentElement;
+                if (cardLateral) {
+                    containerJubileu = Array.from(cardLateral.querySelectorAll('ul, div')).find(
+                        el => el !== ul && el.children.length === 0 && el.textContent.trim() === 'Carregando...'
+                    );
+                }
+            }
+
+            if (containerJubileu) {
+                if (jubileus.length === 0) {
+                    containerJubileu.innerHTML = `<div class="p-4 text-center text-gray-400 text-xs">Nenhum médium completa ciclo de 5, 10 ou 15+ anos neste mês.</div>`;
+                } else {
+                    containerJubileu.innerHTML = jubileus.map(m => {
+                        const anos = anoAtualJubileu - parseInt(String(m.data_entrada).split('-')[0], 10);
+                        const nomeExib = m.nome_social || m.nome_completo;
+                        return `
+                            <div class="p-2.5 flex items-center justify-between border-b border-amber-100 last:border-0">
+                                <span class="text-xs font-bold text-gray-800 truncate pr-2">${nomeExib}</span>
+                                <span class="bg-amber-100 text-amber-800 border border-amber-300 px-2 py-0.5 rounded-full font-black text-[10px] shrink-0">
+                                    <i class="fas fa-award text-amber-600 mr-1"></i>${anos} anos
+                                </span>
+                            </div>
+                        `;
+                    }).join('');
+                }
+            }
+
+            // 2. Renderiza Aniversariantes do Mês
+            const aniversariantes = (lista || []).filter(m => {
+                if (m.status_ativo === false || !m.data_nascimento) return false;
                 let mesNasc = '';
                 if (m.data_nascimento.includes('-')) mesNasc = m.data_nascimento.split('-')[1];
                 else if (m.data_nascimento.includes('/')) mesNasc = m.data_nascimento.split('/')[1];
@@ -1645,13 +1692,12 @@ document.getElementById('totalMediunsInativos').textContent = totalInativos ?? 0
 
             aniversariantes.sort((a, b) => {
                 let diaA = 0, diaB = 0;
-                if(a.data_nascimento.includes('-')) diaA = parseInt(a.data_nascimento.split('-')[2]);
-                if(b.data_nascimento.includes('-')) diaB = parseInt(b.data_nascimento.split('-')[2]);
+                if (a.data_nascimento.includes('-')) diaA = parseInt(a.data_nascimento.split('-')[2]);
+                if (b.data_nascimento.includes('-')) diaB = parseInt(b.data_nascimento.split('-')[2]);
                 return diaA - diaB;
             });
 
             window.aniversariantesAtuais = aniversariantes; 
-
             ul.innerHTML = '';
 
             if (aniversariantes.length === 0) {
@@ -1662,21 +1708,6 @@ document.getElementById('totalMediunsInativos').textContent = totalInativos ?? 0
                     </li>`;
                 return;
             }
-            // Abaixo dos aniversariantes no mesmo widget lateral:
-            const anoAtualJubileu = new Date().getFullYear();
-            const mesAtualJubileu = new Date().getMonth() + 1;
-
-            const jubileus = lista.filter(m => {
-                if (!m.data_entrada && !m.created_at) return false;
-                const dtIng = new Date(m.data_entrada || m.created_at);
-                if (isNaN(dtIng.getTime())) return false;
-                if ((dtIng.getMonth() + 1) !== mesAtualJubileu) return false;
-    
-                const tempoCasa = anoAtualJubileu - dtIng.getFullYear();
-                return tempoCasa > 0 && tempoCasa % 5 === 0;
-            });
-
-            // Renderize os jubileus logo após os aniversariantes com crachá dourado/especial indicando "5 anos de casa", "10 anos", etc.
 
             aniversariantes.forEach(m => {
                 let dia = '00';
