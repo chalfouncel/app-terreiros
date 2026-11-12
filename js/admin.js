@@ -1649,9 +1649,7 @@ document.getElementById('totalMediunsInativos').textContent = totalInativos ?? 0
                 return mesEnt === mesAtualJubileu && tempoCasa > 0 && tempoCasa % 5 === 0;
             });
 
-            let containerJubileu = document.getElementById('listaJubileu') 
-                || document.getElementById('listaJubileuMes') 
-                || document.getElementById('boxJubileu');
+            let containerJubileu = document.getElementById('listaTempoDeCasa');
 
             if (!containerJubileu) {
                 const cardLateral = ul.closest('.bg-white') || ul.parentElement?.parentElement;
