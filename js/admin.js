@@ -8189,9 +8189,112 @@ async function inicializarModuloFornecedoresAdmin() {
 
     // 2. Gestão de Fornecedores Parceiros na aba Master SaaS — via Edge Function
     const formForn = document.getElementById('formNovoFornecedorMaster');
-    const listaFornEl = document.getElementById('listaFornecedoresMaster');
+const listaFornEl = document.getElementById('listaFornecedoresMaster');
+let fornecedoresMasterCache = [];
 
-    async function chamarApiFornecedorMaster(action, payload = {}) {
+// Modal de edição e redefinição de PIN
+if (listaFornEl && !document.getElementById('modalGerenciarFornecedorMaster')) {
+    document.body.insertAdjacentHTML('beforeend', `
+        <div id="modalGerenciarFornecedorMaster" class="hidden fixed inset-0 z-[99999] bg-black/70 flex items-center justify-center p-4">
+            <form id="formGerenciarFornecedorMaster" class="bg-white rounded-2xl w-full max-w-lg p-5 shadow-xl space-y-3 max-h-[92vh] overflow-y-auto">
+                <div class="flex justify-between items-center gap-3">
+                    <h3 id="tituloGerenciarFornecedorMaster" class="font-black text-gray-800 text-lg">Editar fornecedor</h3>
+                    <button type="button" id="fecharGerenciarFornecedorMaster" class="text-gray-600 p-2" aria-label="Fechar"><i class="fas fa-times"></i></button>
+                </div>
+                <input type="hidden" id="gerFornId">
+                <div id="camposEditarFornecedorMaster" class="space-y-2">
+                    <label class="block text-xs font-bold">Nome / Fornecedor<input id="gerFornNome" required maxlength="120" class="mt-1 w-full border rounded-lg p-2 text-sm"></label>
+                    <label class="block text-xs font-bold">CPF / CNPJ<input id="gerFornCpfCnpj" class="mt-1 w-full border rounded-lg p-2 text-sm"></label>
+                    <label class="block text-xs font-bold">WhatsApp com DDD<input id="gerFornWhatsapp" required class="mt-1 w-full border rounded-lg p-2 text-sm"></label>
+                    <label class="block text-xs font-bold">Tipo de chave PIX<select id="gerFornTipoPix" required class="mt-1 w-full border rounded-lg p-2 text-sm bg-white"><option value="CPF">CPF</option><option value="CNPJ">CNPJ</option><option value="PHONE">Telefone</option><option value="EMAIL">E-mail</option><option value="EVP">Aleatória</option></select></label>
+                    <label class="block text-xs font-bold">Chave PIX<input id="gerFornChavePix" required maxlength="160" class="mt-1 w-full border rounded-lg p-2 text-sm"></label>
+                </div>
+                <div id="camposPinFornecedorMaster" class="hidden space-y-2">
+                    <p class="text-xs text-gray-600">Informe um novo PIN de 6 dígitos. O PIN antigo deixará de funcionar.</p>
+                    <label class="block text-xs font-bold">Novo PIN<input id="gerFornPin" type="password" inputmode="numeric" autocomplete="new-password" minlength="6" maxlength="6" pattern="[0-9]{6}" class="mt-1 w-full border rounded-lg p-2 text-sm"></label>
+                    <label class="block text-xs font-bold">Confirme o PIN<input id="gerFornPinConfirma" type="password" inputmode="numeric" autocomplete="new-password" minlength="6" maxlength="6" pattern="[0-9]{6}" class="mt-1 w-full border rounded-lg p-2 text-sm"></label>
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button type="button" id="cancelarGerenciarFornecedorMaster" class="flex-1 bg-gray-100 rounded-lg py-2 text-xs font-bold">Cancelar</button>
+                    <button type="submit" id="salvarGerenciarFornecedorMaster" class="flex-1 bg-blue-700 text-white rounded-lg py-2 text-xs font-bold">Salvar</button>
+                </div>
+            </form>
+        </div>
+    `);
+
+    const modal = document.getElementById('modalGerenciarFornecedorMaster');
+    const fechar = () => {
+        modal.classList.add('hidden');
+        document.getElementById('formGerenciarFornecedorMaster').reset();
+    };
+    document.getElementById('fecharGerenciarFornecedorMaster').addEventListener('click', fechar);
+    document.getElementById('cancelarGerenciarFornecedorMaster').addEventListener('click', fechar);
+    modal.addEventListener('click', e => { if (e.target === modal) fechar(); });
+    document.getElementById('formGerenciarFornecedorMaster').addEventListener('submit', async e => {
+        e.preventDefault();
+        const form = e.currentTarget;
+        const id = Number(document.getElementById('gerFornId').value);
+        const modo = form.dataset.modo;
+        const btn = document.getElementById('salvarGerenciarFornecedorMaster');
+        let payload = { fornecedor_id: id };
+        if (modo === 'pin') {
+            const pin = document.getElementById('gerFornPin').value;
+            if (!/^\d{6}$/.test(pin) || pin !== document.getElementById('gerFornPinConfirma').value) {
+                alert('Informe dois PINs iguais de exatamente 6 dígitos.');
+                return;
+            }
+            if (!confirm('Redefinir o PIN deste fornecedor? O PIN anterior deixará de funcionar.')) return;
+            payload.pin = pin;
+        } else {
+            payload = {
+                ...payload,
+                nome_fantasia: document.getElementById('gerFornNome').value.trim(),
+                cpf_cnpj: document.getElementById('gerFornCpfCnpj').value.trim(),
+                whatsapp: document.getElementById('gerFornWhatsapp').value.trim(),
+                tipo_chave_pix: document.getElementById('gerFornTipoPix').value,
+                chave_pix: document.getElementById('gerFornChavePix').value.trim()
+            };
+            if (!confirm('Salvar alterações cadastrais deste fornecedor?')) return;
+        }
+        btn.disabled = true;
+        try {
+            await chamarApiFornecedorMaster(modo === 'pin' ? 'admin_reset_pin' : 'admin_update', payload);
+            fechar();
+            await window.carregarFornecedoresMaster();
+            alert(modo === 'pin' ? 'PIN redefinido com sucesso.' : 'Fornecedor atualizado com sucesso.');
+        } catch (err) {
+            alert('Não foi possível salvar: ' + err.message);
+        } finally {
+            btn.disabled = false;
+        }
+    });
+}
+
+window.abrirGerenciarFornecedorMaster = (id, modo) => {
+    const f = fornecedoresMasterCache.find(x => Number(x.id) === Number(id));
+    if (!f || !['editar', 'pin'].includes(modo)) return alert('Fornecedor não encontrado. Atualize a lista.');
+    const form = document.getElementById('formGerenciarFornecedorMaster');
+    if (!form) return;
+    form.reset();
+    form.dataset.modo = modo;
+    document.getElementById('gerFornId').value = String(f.id);
+    document.getElementById('tituloGerenciarFornecedorMaster').textContent = modo === 'pin' ? 'Redefinir PIN — ' + f.nome_fantasia : 'Editar — ' + f.nome_fantasia;
+    document.getElementById('camposEditarFornecedorMaster').classList.toggle('hidden', modo === 'pin');
+    document.getElementById('camposPinFornecedorMaster').classList.toggle('hidden', modo !== 'pin');
+    for (const idCampo of ['gerFornPin', 'gerFornPinConfirma']) document.getElementById(idCampo).required = modo === 'pin';
+    for (const idCampo of ['gerFornNome','gerFornWhatsapp','gerFornTipoPix','gerFornChavePix']) document.getElementById(idCampo).required = modo !== 'pin';
+    if (modo === 'editar') {
+        document.getElementById('gerFornNome').value = f.nome_fantasia || '';
+        document.getElementById('gerFornCpfCnpj').value = f.cpf_cnpj || '';
+        document.getElementById('gerFornWhatsapp').value = f.whatsapp || '';
+        document.getElementById('gerFornTipoPix').value = f.tipo_chave_pix || 'CPF';
+        document.getElementById('gerFornChavePix').value = f.chave_pix || '';
+    }
+    document.getElementById('salvarGerenciarFornecedorMaster').textContent = modo === 'pin' ? 'Redefinir PIN' : 'Salvar alterações';
+    document.getElementById('modalGerenciarFornecedorMaster').classList.remove('hidden');
+};
+
+async function chamarApiFornecedorMaster(action, payload = {}) {
         const { data, error } = await supabaseClient.functions.invoke('fornecedor-api', {
             body: { action, ...payload }
         });
@@ -8205,8 +8308,9 @@ async function inicializarModuloFornecedoresAdmin() {
         listaFornEl.innerHTML = '<p class="text-xs text-gray-400 col-span-full">Carregando fornecedores...</p>';
         try {
             const result = await chamarApiFornecedorMaster('admin_list');
-            const data = result.fornecedores || [];
-            if (data.length === 0) {
+const data = result.fornecedores || [];
+fornecedoresMasterCache = data;
+if (data.length === 0) {
                 listaFornEl.innerHTML = '<p class="text-xs text-gray-400 col-span-full py-2">Nenhum fornecedor parceiro cadastrado ainda.</p>';
                 return;
             }
@@ -8219,9 +8323,28 @@ async function inicializarModuloFornecedoresAdmin() {
                         <p class="text-[10px] font-mono text-amber-700 break-all">PIX (${f.tipo_chave_pix}): ${f.chave_pix}</p>
                         <p class="text-[10px] font-bold mt-1 ${f.ativo ? 'text-emerald-700' : 'text-rose-600'}">${f.ativo ? 'ATIVO' : 'DESATIVADO'}</p>
                     </div>
-                    <button type="button" onclick="alterarStatusFornecedorMaster(${f.id}, ${!f.ativo})" class="ml-2 shrink-0 ${f.ativo ? 'text-red-500' : 'text-emerald-600'} hover:opacity-70 p-2" title="${f.ativo ? 'Desativar fornecedor' : 'Reativar fornecedor'}">
-                        <i class="fas ${f.ativo ? 'fa-user-slash' : 'fa-user-check'}"></i>
-                    </button>
+                    <div class="ml-2 shrink-0 flex items-center gap-1">
+    <button type="button"
+        onclick="abrirGerenciarFornecedorMaster(${Number(f.id)}, 'editar')"
+        class="text-blue-700 hover:opacity-70 p-2"
+        title="Editar fornecedor">
+        <i class="fas fa-pen"></i>
+    </button>
+
+    <button type="button"
+        onclick="abrirGerenciarFornecedorMaster(${Number(f.id)}, 'pin')"
+        class="text-amber-700 hover:opacity-70 p-2"
+        title="Redefinir PIN">
+        <i class="fas fa-key"></i>
+    </button>
+
+    <button type="button"
+        onclick="alterarStatusFornecedorMaster(${Number(f.id)}, ${!f.ativo})"
+        class="${f.ativo ? 'text-red-500' : 'text-emerald-600'} hover:opacity-70 p-2"
+        title="${f.ativo ? 'Desativar fornecedor' : 'Reativar fornecedor'}">
+        <i class="fas ${f.ativo ? 'fa-user-slash' : 'fa-user-check'}"></i>
+    </button>
+</div>
                 </div>
             `).join('');
         } catch (err) {
