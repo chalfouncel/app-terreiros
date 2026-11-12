@@ -2939,7 +2939,16 @@ document.getElementById('totalMediunsInativos').textContent = totalInativos ?? 0
 
             if (errMediuns) console.error('Erro ao carregar médiuns no financeiro:', errMediuns);
 
+            // Garante que qualquer Dirigente com flag desatualizada seja gravado como isento no banco
+            const dirigentesSemFlag = (todosMediuns || []).filter(m => (m.grau === 'Dirigente' || m.funcao === 'Dirigente') && !m.isento_mensalidade);
+            if (dirigentesSemFlag.length > 0) {
+                supabaseClient.from('mediuns').update({ isento_mensalidade: true }).in('id', dirigentesSemFlag.map(d => d.id)).then();
+            }
+
             const mediuns = (todosMediuns || []).filter(m => {
+                const ehDirigente = (m.grau === 'Dirigente' || m.funcao === 'Dirigente');
+                return !ehDirigente;
+            });
 
             if(!mediuns || mediuns.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="14" class="p-6 text-center text-gray-500">Nenhum médium registrado.</td></tr>';
@@ -5769,9 +5778,17 @@ window.salvarGrau = async (id) => {
     btn.innerHTML = 'Salvando...'; 
     btn.disabled = true;
     
+    const viraDirigente = (grau === 'Dirigente' || funcao === 'Dirigente');
+    const dadosUpdateGrau = viraDirigente ? { grau, funcao, isento_mensalidade: true } : { grau, funcao };
+
     // Atualiza o médium
+    const { error } = await supabaseClient
+        .from('mediuns')
+        .update(dadosUpdateGrau)
+        .eq('id', id)
+        .eq('terreiro_id', idTerreiroGlobal);
     
-    if (error) { 
+    if (error) {
         btn.innerHTML = 'Erro!'; 
         btn.classList.replace('bg-tema-primaria', 'bg-red-500'); 
         btn.disabled = false;
@@ -8534,8 +8551,8 @@ async function inicializarModuloFornecedoresAdmin() {
     });
     async function aplicarRegrasInadimplenciaEExclusao() {
     if (!idTerreiroGlobal) return;
-
-    const { data: mediuns } = await supabaseClient
+    try {
+        const { data: mediuns } = await supabaseClient
             .from('mediuns')
             .select('id, created_at, data_entrada, status_ativo, data_inativacao, isento_mensalidade, grau, funcao, cadastro_completo')
             .eq('terreiro_id', idTerreiroGlobal)
@@ -8610,5 +8627,8 @@ async function inicializarModuloFornecedoresAdmin() {
             await supabaseClient.from('financeiro').update({ medium_id: null }).in('medium_id', idsParaExcluir);
             await supabaseClient.from('mediuns').delete().in('id', idsParaExcluir);
         }
+    } catch (e) {
+        console.error("Erro na rotina de inadimplência:", e);
+    }
 }
 })();
