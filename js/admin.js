@@ -8338,17 +8338,87 @@ if (data.length === 0) {
         <i class="fas fa-key"></i>
     </button>
 
-    <button type="button"
+        <button type="button"
         onclick="alterarStatusFornecedorMaster(${Number(f.id)}, ${!f.ativo})"
         class="${f.ativo ? 'text-red-500' : 'text-emerald-600'} hover:opacity-70 p-2"
         title="${f.ativo ? 'Desativar fornecedor' : 'Reativar fornecedor'}">
         <i class="fas ${f.ativo ? 'fa-user-slash' : 'fa-user-check'}"></i>
+    </button>
+
+    <button type="button"
+        onclick="excluirFornecedorMaster(${Number(f.id)})"
+        class="text-red-700 hover:opacity-70 p-2"
+        title="Excluir fornecedor definitivamente">
+        <i class="fas fa-trash-alt"></i>
     </button>
 </div>
                 </div>
             `).join('');
         } catch (err) {
             listaFornEl.innerHTML = `<p class="text-xs text-red-500 col-span-full">Erro ao carregar: ${err.message}</p>`;
+        }
+    };
+
+        window.excluirFornecedorMaster = async (id) => {
+        const fornecedor = fornecedoresMasterCache.find(
+            f => Number(f.id) === Number(id)
+        );
+
+        if (!fornecedor) {
+            return alert('Fornecedor não encontrado. Atualize a lista.');
+        }
+
+        try {
+            const previa = await chamarApiFornecedorMaster(
+                'admin_delete_preview',
+                { fornecedor_id: id }
+            );
+
+            const quantidade = Number(previa.total_pedidos);
+
+            if (!Number.isSafeInteger(quantidade) || quantidade < 0) {
+                throw new Error('Contagem de pedidos inválida.');
+            }
+
+            const nome = String(previa.nome_fantasia || '');
+
+            const aviso =
+                `EXCLUSÃO DEFINITIVA\n\n` +
+                `Fornecedor: ${nome}\n` +
+                `Pedidos vinculados: ${quantidade}\n\n` +
+                `O cadastro e os registros relacionados serão apagados ` +
+                `definitivamente do Supabase.\n\n` +
+                `Pagamentos e transferências no Asaas NÃO serão cancelados.\n\n` +
+                `Digite o nome EXATO do fornecedor para confirmar:`;
+
+            const digitado = prompt(aviso);
+
+            if (digitado === null) return;
+
+            if (digitado.trim() !== nome) {
+                return alert('Nome incorreto. Exclusão cancelada.');
+            }
+
+            if (!confirm(
+                `ÚLTIMA CONFIRMAÇÃO\n\n` +
+                `Excluir DEFINITIVAMENTE ${nome} e seus ` +
+                `${quantidade} pedido(s) vinculado(s)?`
+            )) {
+                return;
+            }
+
+            await chamarApiFornecedorMaster('admin_delete', {
+                fornecedor_id: id,
+                confirmar_nome: nome,
+                total_pedidos_confirmado: quantidade
+            });
+
+            await window.carregarFornecedoresMaster();
+
+            alert('Fornecedor excluído com sucesso.');
+
+        } catch (err) {
+            alert('Erro ao excluir fornecedor: ' + err.message);
         }
     };
 
