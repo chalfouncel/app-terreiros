@@ -187,7 +187,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Carrega dados e tema do terreiro
         if (idTerreiroGlobal) {
             
-const { data: terreiros } = await supabaseClient.from('terreiros').select('id, nome, status_bloqueado, latitude, longitude, cor_primaria, cor_secundaria, cor_fundo, cor_texto, logo_url, modulo_mensalidade_ativo, modulo_livro_curimba_ativo, gateway_pagamento, chave_pix_manual').eq('id', idTerreiroGlobal).limit(1);            
+
+const { data: terreiros } = await supabaseClient
+    .from('terreiros')
+    .select('id, nome, status_bloqueado, latitude, longitude, cor_primaria, cor_secundaria, cor_fundo, cor_texto, logo_url, modulo_mensalidade_ativo, modulo_livro_curimba_ativo, gateway_pagamento, chave_pix_manual, doacoes_gestor_id')
+    .eq('id', idTerreiroGlobal)
+    .limit(1);
             if (terreiros && terreiros.length > 0) {
                 const terreiro = terreiros[0];
                 if (terreiro.status_bloqueado === true && !perfil.is_master) {
@@ -3169,13 +3174,35 @@ if (erroRegistroDoacoes) {
                     .single();
                 if (gestorMed && gestorMed.telefone) {
                     const foneGestor = gestorMed.telefone.replace(/\D/g, '');
-                    const msgGestor =
-                        `🕊️ *AVISO DE DOAÇÃO COMPRADA E PAGA PELO APP*\n\n` +
-                        `Olá, ${gestorMed.nome_completo.split(' ')[0]}!\n` +
-                        `O(a) médium *${perfilMediumLogado.nome_completo}* acabou de pagar e adquirir os seguintes materiais no fornecedor *${op.fornecedor.nome_fantasia}* para entrega direta no nosso Terreiro:\n\n` +
-                        `${resumoItensTxt}\n\n` +
-                        `*Pedido:* #${pedidoCriado.id} (Baixa automática já realizada no painel)`;
-                    urlWhatsGestor = `https://wa.me/55${foneGestor}?text=${encodeURIComponent(msgGestor)}`;
+                    
+const whatsappFornecedor = foneFornecedor
+    ? (foneFornecedor.startsWith('55')
+        ? foneFornecedor
+        : `55${foneFornecedor}`)
+    : '';
+
+const msgGestor =
+    `🕊️ *AVISO DE COMPRA PARA DOAÇÃO AO TERREIRO*\n\n` +
+    `Olá, ${gestorMed.nome_completo.split(' ')[0]}!\n\n` +
+    `Um médium realizou uma compra para doação ao terreiro.\n\n` +
+    `👤 *Médium comprador:*\n` +
+    `${perfilMediumLogado.nome_completo}\n\n` +
+    `📦 *Pedido:* #${pedidoCriado.id}\n\n` +
+    `🛒 *Materiais comprados:*\n` +
+    `${resumoItensTxt}\n\n` +
+    `🏪 *Fornecedor:*\n` +
+    `${op.fornecedor.nome_fantasia}\n\n` +
+    `📱 *WhatsApp do fornecedor:*\n` +
+    `${whatsappFornecedor ? '+' + whatsappFornecedor : 'Não informado'}\n` +
+    `${whatsappFornecedor ? 'https://wa.me/' + whatsappFornecedor + '\n' : ''}\n` +
+    `✅ *Pagamento confirmado pelo sistema.*\n\n` +
+    `⚠️ *Acompanhamento da entrega:*\n` +
+    `Favor acompanhar o recebimento dos materiais no terreiro ` +
+    `e confirmar a entrega física dos itens no painel de doações.`;
+
+urlWhatsGestor =
+    `https://wa.me/55${foneGestor}?text=${encodeURIComponent(msgGestor)}`;
+
                 }
             }
 
