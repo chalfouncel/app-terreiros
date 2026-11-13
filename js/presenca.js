@@ -219,7 +219,8 @@ const { data: terreiros } = await supabaseClient
                     img.classList.remove('hidden');
                 }
 
-                carregarItensDoacao();
+                await carregarItensDoacao();
+                iniciarRealtimePrecosFornecedores();
 
                 if (terreiro.modulo_mensalidade_ativo === true) {
                     carregarConfigValoresGrau();
@@ -1142,10 +1143,15 @@ const { data: terreiros } = await supabaseClient
                 .gt('preco_unitario', 0)
                 .eq('fornecedores.ativo', true);
                 
-            window.itensComFornecedorCache = new Set((precosAtivos || []).map(p => String(p.item_id)));
+            window.itensComFornecedorCache = new Set(
+                (precosAtivos || []).map(p => String(p.item_id))
+            );
 
             window.todosItensDoacaoCache = itens || [];
-            renderizarItensAba('doacao');
+
+            // Mantém a aba em que o médium está.
+            renderizarItensAba(abaCampanhaAtiva);
+        
         } catch (err) {
             console.error('Erro ao carregar itens:', err);
             const listaItensDoacao = document.getElementById('listaItensDoacao');
@@ -1153,7 +1159,173 @@ const { data: terreiros } = await supabaseClient
         }
     }
 
+    // ============================================================
+    // REALTIME: PREÇOS DOS FORNECEDORES POR TERREIRO
+    // ============================================================
+
+    let canalPrecosFornecedores = null;
+    let timerPrecosFornecedores = null;
+    let atualizacaoPrecosEmAndamento = false;
+    let atualizacaoPrecosPendente = false;
+
+    async function atualizarPrecosFornecedoresNaTela() {
+        if (atualizacaoPrecosEmAndamento) {
+            atualizacaoPrecosPendente = true;
+            return;
+        }
+
+        atualizacaoPrecosEmAndamento = true;
+
+        try {
+            // Recarrega itens e disponibilidade, sem zerar o carrinho.
+            await carregarItensDoacao();
+
+            const idsSelecionados = Object.keys(carrinhoDoacoes)
+                .filter(id => Number(carrinhoDoacoes[id]) > 0);
+
+            const todosDisponiveis = idsSelecionados.length > 0 &&
+                idsSelecionados.every(id => {
+                    const item = window.todosItensDoacaoCache.find(
+                        i => String(i.id) === String(id)
+                    );
+                    return window.itemOuKitTemFornecedor(item);
+                });
+
+            const botaoFornecedor = document.getElementById(
+                'btnComprarFornecedorApp'
+            );
+
+            if (botaoFornecedor && abaCampanhaAtiva === 'doacao') {
+                botaoFornecedor.classList.toggle(
+                    'hidden', !todosDisponiveis
+                );
+                botaoFornecedor.classList.toggle(
+                    'flex', todosDisponiveis
+                );
+            }
+
+            const aviso = document.getElementById(
+                'avisoCarrinhoMistoApp'
+            );
+
+            if (aviso && abaCampanhaAtiva === 'doacao') {
+                const indisponivel =
+                    idsSelecionados.length > 0 && !todosDisponiveis;
+
+                if (indisponivel) {
+                    aviso.textContent =
+                        'A disponibilidade dos fornecedores mudou. ' +
+                        'Revise os itens antes de comprar.';
+                }
+
+                aviso.classList.toggle('hidden', !indisponivel);
+            }
+
+            // Recalcula apenas o comparador aberto.
+            // Não altera uma cobrança PIX que já foi gerada.
+            const modal = document.getElementById(
+                'modalComparadorFornecedores'
+            );
+            const lista = document.getElementById(
+                'listaOpcoesFornecedores'
+            );
+            const posPagamento = document.getElementById(
+                'boxPosPagamentoFornecedor'
+            );
+
+            if (
+                modal &&
+                !modal.classList.contains('hidden') &&
+                lista &&
+                !lista.classList.contains('hidden') &&
+                (!posPagamento ||
+                    posPagamento.classList.contains('hidden')) &&
+                typeof window.renderizarCotacoesFornecedores === 'function'
+            ) {
+                const itens =
+                    window.explodirCarrinhoParaItensFornecedor();
+
+                if (itens.length > 0) {
+                    await window.renderizarCotacoesFornecedores(itens);
+                }
+            }
+
+        } catch (erro) {
+            console.error(
+                'Erro na atualização Realtime dos fornecedores:',
+                erro
+            );
+        } finally {
+            atualizacaoPrecosEmAndamento = false;
+
+            if (atualizacaoPrecosPendente) {
+                atualizacaoPrecosPendente = false;
+                agendarAtualizacaoPrecosFornecedores();
+            }
+        }
+    }
+
+    function agendarAtualizacaoPrecosFornecedores() {
+        clearTimeout(timerPrecosFornecedores);
+
+        timerPrecosFornecedores = setTimeout(
+            atualizarPrecosFornecedoresNaTela,
+            350
+        );
+    }
+
+    function iniciarRealtimePrecosFornecedores() {
+        if (!idTerreiroGlobal || canalPrecosFornecedores) return;
+
+        canalPrecosFornecedores = supabaseClient
+            .channel(`precos-terreiro-${idTerreiroGlobal}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'fornecedores_precos_itens',
+                    filter: `terreiro_id=eq.${idTerreiroGlobal}`
+                },
+                agendarAtualizacaoPrecosFornecedores
+            )
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'fornecedores_precos_itens',
+                    filter: `terreiro_id=eq.${idTerreiroGlobal}`
+                },
+                agendarAtualizacaoPrecosFornecedores
+            )
+            .subscribe(status => {
+                console.log(
+                    'Realtime preços fornecedores:',
+                    status
+                );
+
+                if (status === 'SUBSCRIBED') {
+                    agendarAtualizacaoPrecosFornecedores();
+                }
+            });
+    }
+
+    // Atualiza também após recuperar conexão.
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && idTerreiroGlobal) {
+            agendarAtualizacaoPrecosFornecedores();
+        }
+    });
+
+    window.addEventListener('online', () => {
+        if (idTerreiroGlobal) {
+            agendarAtualizacaoPrecosFornecedores();
+        }
+    });
+
     function renderizarItensAba(aba) {
+
         const listaItensDoacao = document.getElementById('listaItensDoacao');
         if (!listaItensDoacao) return;
 
@@ -2892,9 +3064,13 @@ async function verificarPendenciaMensalidade(mediumId) {
         await window.renderizarCotacoesFornecedores(itensSelecionados);
     };
 
-    window.renderizarCotacoesFornecedores = async (itensSelecionados) => {
+        window.renderizarCotacoesFornecedores = async (itensSelecionados) => {
         const container = document.getElementById('listaOpcoesFornecedores');
         if (!container) return;
+
+        // Impede comprar usando a cotação anterior durante o recálculo.
+        window.opcoesCotadasCache = [];
+
         container.innerHTML = '<p class="text-center text-gray-400 text-xs py-8"><i class="fas fa-spinner fa-spin mr-2"></i> Buscando menores preços nos fornecedores...</p>';
 
         try {
@@ -3036,9 +3212,116 @@ async function verificarPendenciaMensalidade(mediumId) {
         }
     };
 
+    
     let intervaloVerificacaoPedidoFornecedor = null;
 
+    // Verifica preços, frete, disponibilidade e horário
+    // antes de iniciar a criação de um pedido.
+    async function conferirCotacaoFornecedorAtual(op) {
+        const idsItens = op.itens.map(item => item.id);
+
+        if (
+            !idsItens.length ||
+            op.itens.some(item => !(Number(item.qtd) > 0))
+        ) {
+            throw new Error('Carrinho inválido. Refazer cotação.');
+        }
+
+        const [resPrecos, resFrete, resFornecedor] =
+            await Promise.all([
+                supabaseClient
+                    .from('fornecedores_precos_itens')
+                    .select('item_id, preco_unitario, disponivel')
+                    .eq('terreiro_id', idTerreiroGlobal)
+                    .eq('fornecedor_id', op.fornecedor.id)
+                    .in('item_id', idsItens),
+
+                supabaseClient
+                    .from('fornecedores_terreiros_frete')
+                    .select('taxa_entrega, frete_gratis_acima')
+                    .eq('terreiro_id', idTerreiroGlobal)
+                    .eq('fornecedor_id', op.fornecedor.id)
+                    .maybeSingle(),
+
+                supabaseClient
+                    .from('fornecedores')
+                    .select(
+                        'ativo, aceita_24h, hora_abertura, hora_fechamento'
+                    )
+                    .eq('id', op.fornecedor.id)
+                    .single()
+            ]);
+
+        if (resPrecos.error) throw resPrecos.error;
+        if (resFrete.error) throw resFrete.error;
+        if (resFornecedor.error) throw resFornecedor.error;
+
+        if (
+            resFornecedor.data?.ativo !== true ||
+            !verificarFornecedorAberto(resFornecedor.data)
+        ) {
+            return false;
+        }
+
+        let somaProdutos = 0;
+
+        for (const item of op.itens) {
+            const registro = (resPrecos.data || []).find(
+                p => String(p.item_id) === String(item.id)
+            );
+
+            if (
+                !registro ||
+                registro.disponivel !== true ||
+                !(Number(registro.preco_unitario) > 0) ||
+                Math.abs(
+                    Number(registro.preco_unitario) -
+                    Number(item.unitario)
+                ) > 0.001
+            ) {
+                return false;
+            }
+
+            somaProdutos +=
+                Number(registro.preco_unitario) * Number(item.qtd);
+        }
+
+        const regra = resFrete.data;
+        const fretePadrao = Number(regra?.taxa_entrega || 0);
+
+        const limiteGratis = regra?.frete_gratis_acima
+            ? Number(regra.frete_gratis_acima)
+            : null;
+
+        const frete =
+            limiteGratis !== null && somaProdutos >= limiteGratis
+                ? 0
+                : fretePadrao;
+
+        const liquido = Number(
+            (somaProdutos + frete).toFixed(2)
+        );
+
+        const total = calcularTotalComTaxas(liquido);
+
+        return (
+            Math.abs(
+                somaProdutos - Number(op.somaProdutos)
+            ) < 0.001 &&
+            Math.abs(
+                frete - Number(op.freteFinal)
+            ) < 0.001 &&
+            Math.abs(
+                liquido - Number(op.liquidoFornecedor)
+            ) < 0.001 &&
+            Math.abs(
+                total - Number(op.totalCobrado)
+            ) < 0.001
+        );
+    }
+
     window.fecharPedidoFornecedorParceiro = async (idxOpcao) => {
+
         const op = window.opcoesCotadasCache?.[idxOpcao];
         if (!op) return;
 
@@ -3046,7 +3329,20 @@ async function verificarPendenciaMensalidade(mediumId) {
             return alert(`Este fornecedor recebe pedidos apenas das ${op.horaAbre} às ${op.horaFecha}.`);
         }
 
-        try {
+                try {
+            // Confere os preços atuais antes de criar o pedido.
+            if (!(await conferirCotacaoFornecedorAtual(op))) {
+                await window.renderizarCotacoesFornecedores(
+                    window.explodirCarrinhoParaItensFornecedor()
+                );
+
+                alert(
+                    'Preço, frete ou disponibilidade foram alterados. ' +
+                    'Confira a nova cotação antes de comprar.'
+                );
+                return;
+            }
+
             if (intervaloVerificacaoPedidoFornecedor) {
                 clearInterval(intervaloVerificacaoPedidoFornecedor);
                 intervaloVerificacaoPedidoFornecedor = null;
