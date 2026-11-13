@@ -3095,7 +3095,24 @@ async function verificarPendenciaMensalidade(mediumId) {
                 status_pagamento: 'pendente',
                 entregue: false
             }));
-            await supabaseClient.from('doacoes_registradas').insert(insercoesDoacao);
+            
+if (!session?.user?.id) {
+    throw new Error(
+        'Sessão não encontrada para registrar a doação.'
+    );
+}
+
+const { error: erroRegistroDoacoes } = await supabaseClient
+    .from('doacoes_registradas')
+    .insert(insercoesDoacao);
+
+if (erroRegistroDoacoes) {
+    throw new Error(
+        'Pedido criado, mas houve falha ao registrar os itens doados: ' +
+        erroRegistroDoacoes.message
+    );
+}
+
 
             // 3. Dispara a cobrança para a Edge Function do Asaas
             const { data: cobrancaAsaas, error: errAsaas } = await supabaseClient.functions.invoke('asaas-gerar-cobranca', {
