@@ -1216,7 +1216,39 @@
                                     <i class="fas fa-file-pdf mr-2 text-red-400"></i> Exportar PDF
                                 </button>
                             </div>
-                            <p class="text-xs md:text-sm text-gray-500 mb-6">Acompanhe compromissos de doação de Firmeza e Limpeza.</p>
+                            
+<p class="text-xs md:text-sm text-gray-500 mb-6">Acompanhe compromissos de doação de Firmeza e Limpeza.</p>
+
+<div class="mt-4 mb-6 rounded-xl border border-emerald-200 bg-emerald-50/50 p-4">
+    <h4 class="font-bold text-emerald-900 mb-1">
+        Itens efetivamente doados ao terreiro
+    </h4>
+    <p class="text-xs text-gray-600 mb-3">
+        Somente entregas confirmadas, por item e médium.
+        Compras pendentes não entram.
+    </p>
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs border-collapse">
+            <thead>
+                <tr class="border-b text-gray-600">
+                    <th class="p-2">Item</th>
+                    <th class="p-2">Médium</th>
+                    <th class="p-2 text-right">Direta</th>
+                    <th class="p-2 text-right">Fornecedor</th>
+                    <th class="p-2 text-right">Total</th>
+                </tr>
+            </thead>
+            <tbody id="tabelaResumoItensDoados">
+                <tr>
+                    <td colspan="5" class="p-3 text-gray-500">
+                        Carregando...
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
                             
                             <div class="overflow-x-auto">
                                 <table class="w-full text-left border-collapse">
