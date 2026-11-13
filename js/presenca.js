@@ -3215,6 +3215,9 @@ async function verificarPendenciaMensalidade(mediumId) {
 
     
     let intervaloVerificacaoPedidoFornecedor = null;
+    let intervaloRelogioFornecedor = null;
+    let pedidoFornecedorEmAndamento = false;
+    let tentativaAtivaFornecedor = null;
 
     // Verifica preços, frete, disponibilidade e horário
     // antes de iniciar a criação de um pedido.
@@ -3420,6 +3423,8 @@ async function verificarPendenciaMensalidade(mediumId) {
         return; // Não cria pedido enquanto não houver CPF válido.
     }
 
+    if (pedidoFornecedorEmAndamento) return;
+    pedidoFornecedorEmAndamento = true;
     try {
             // Confere os preços atuais antes de criar o pedido.
             if (!(await conferirCotacaoFornecedorAtual(op))) {
@@ -3438,6 +3443,10 @@ async function verificarPendenciaMensalidade(mediumId) {
                 clearInterval(intervaloVerificacaoPedidoFornecedor);
                 intervaloVerificacaoPedidoFornecedor = null;
             }
+            if (intervaloRelogioFornecedor) {
+                clearInterval(intervaloRelogioFornecedor);
+                intervaloRelogioFornecedor = null;
+            }
 
             // Oculta a lista de fornecedores para mostrar apenas o QR Code PIX
             document.getElementById('listaOpcoesFornecedores')?.classList.add('hidden');
@@ -3453,72 +3462,39 @@ async function verificarPendenciaMensalidade(mediumId) {
                 boxPos.classList.remove('hidden');
             }
 
-            // 1. Registra o pedido no banco como pendente
-            const { data: pedidoCriado, error: errPed } = await supabaseClient.from('pedidos_fornecedores').insert([{
-                terreiro_id: idTerreiroGlobal,
-                medium_id: perfilMediumLogado.id,
-                medium_nome: perfilMediumLogado.nome_completo,
-                fornecedor_id: op.fornecedor.id,
-                itens_json: op.itens,
-                valor_produtos: op.somaProdutos,
-                valor_frete: op.freteFinal,
-                taxa_servico: op.taxaServico,
-                valor_total_cobrado: op.totalCobrado,
-                valor_repasse_fornecedor: op.liquidoFornecedor,
-                metodo_pagamento: 'PIX',
-                status_pagamento: 'pendente'
-            }]).select('*').single();
-
-            if (errPed) throw errPed;
-
-            // 2. Registra as doações na tabela doacoes_registradas mantendo o Kit (se escolheu Kit) para o painel da Casa
-            const { data: { session } } = await supabaseClient.auth.getSession();
-
-if (!session?.user?.id) {
-    throw new Error(
-        'Sessão não encontrada para registrar a doação.'
-    );
-}
-
-const baseRegistroCasa = (window.itensOriginaisCarrinhoDoacao && window.itensOriginaisCarrinhoDoacao.length > 0)
+            // A Edge Function cria o pedido de modo idempotente e só confirma as
+            // doações pelo webhook depois do pagamento. O navegador NÃO cria
+            // pedidos nem doações diretamente para compras de fornecedores.
+            const itensOriginais = (window.itensOriginaisCarrinhoDoacao && window.itensOriginaisCarrinhoDoacao.length)
                 ? window.itensOriginaisCarrinhoDoacao
                 : op.itens.map(i => ({ id: i.id, qtd: i.qtd }));
-
-            const insercoesDoacao = baseRegistroCasa.map(i => ({
-                terreiro_id: idTerreiroGlobal,
-                medium_auth_id: session.user.id,
-                item_id: i.id,
-                quantidade: i.qtd,
-                valor_total: 0,
-                metodo_pagamento: 'fornecedor_asaas',
-                status_pagamento: 'pendente',
-                entregue: false
-            }));
-            
-const { error: erroRegistroDoacoes } = await supabaseClient
-    .from('doacoes_registradas')
-    .insert(insercoesDoacao);
-
-if (erroRegistroDoacoes) {
-    throw new Error(
-        'Pedido criado, mas houve falha ao registrar os itens doados: ' +
-        erroRegistroDoacoes.message
-    );
-}
-
-
-            // 3. Dispara a cobrança para a Edge Function do Asaas
+            const assinatura = JSON.stringify({
+                medium: perfilMediumLogado.id,
+                fornecedor: op.fornecedor.id,
+                itens: op.itens.map(i => [i.id, i.qtd, i.unitario]),
+                itensOriginais: itensOriginais.map(i => [i.id, i.qtd]),
+                total: op.totalCobrado
+            });
+            if (!tentativaAtivaFornecedor || tentativaAtivaFornecedor.assinatura !== assinatura) {
+                tentativaAtivaFornecedor = {
+                    assinatura,
+                    uuid: crypto.randomUUID()
+                };
+            }
             const { data: cobrancaAsaas, error: errAsaas } = await supabaseClient.functions.invoke('asaas-gerar-cobranca', {
                 body: {
                     tipoOperacao: 'COMPRA_FORNECEDOR',
-                    pedidoFornecedorId: pedidoCriado.id,
+                    fornecedorId: op.fornecedor.id,
+                    tentativaUuid: tentativaAtivaFornecedor.uuid,
+                    itens: op.itens.map(i => ({
+                        id: i.id, nome: i.nome, qtd: i.qtd,
+                        unitario: i.unitario, subtotal: i.subtotal
+                    })),
+                    itensDoacao: itensOriginais.map(i => ({ id: i.id, qtd: i.qtd })),
                     mediumId: perfilMediumLogado.id,
                     terreiroId: idTerreiroGlobal,
-                    metodoPagamento: 'PIX',
                     valorTotal: op.totalCobrado,
-                    valorRepasseFornecedor: op.liquidoFornecedor,
-                    taxaBancaria: op.taxaServico,
-                    fornecedorNome: op.fornecedor.nome_fantasia
+                    valorRepasseFornecedor: op.liquidoFornecedor
                 }
             });
 
@@ -3558,6 +3534,11 @@ if (erroRegistroDoacoes) {
     );
 }
 
+            if (!cobrancaAsaas?.success || !cobrancaAsaas?.pedidoId) {
+                throw new Error('A Edge Function não confirmou o ID do pedido. Não repita a compra sem conferir o status.');
+            }
+            const pedidoCriado = { id: cobrancaAsaas.pedidoId };
+            const expiraEmPedido = Date.parse(cobrancaAsaas.expiraEm || '');
             const linkPagamento = cobrancaAsaas?.invoiceUrl || '';
             const pixQrBase64 = cobrancaAsaas?.pixEncodedImage || null;
             const pixCopiaCola = cobrancaAsaas?.pixPayload || null;
@@ -3637,6 +3618,7 @@ urlWhatsGestor =
                                 <span>AGUARDANDO PAGAMENTO PIX (PEDIDO #${pedidoCriado.id})</span>
                             </div>
 
+                            <p id="contadorExpiracaoFornecedor" class="text-sm font-black text-rose-700" role="timer">Tempo restante: calculando...</p>
                             <p class="text-xs font-bold text-gray-800">
                                 ${op.fornecedor.nome_fantasia} • <span class="text-emerald-700 font-black">R$ ${op.totalCobrado.toFixed(2).replace('.', ',')}</span>
                             </p>
@@ -3671,6 +3653,7 @@ urlWhatsGestor =
                                 <i class="fas fa-circle-notch fa-spin text-base"></i>
                                 <span>AGUARDANDO PAGAMENTO (PEDIDO #${pedidoCriado.id})</span>
                             </div>
+                            <p id="contadorExpiracaoFornecedor" class="text-sm font-black text-rose-700" role="timer">Tempo restante: calculando...</p>
                             <p class="text-xs font-bold text-gray-800">
                                 Fornecedor: ${op.fornecedor.nome_fantasia} • Total: R$ ${op.totalCobrado.toFixed(2).replace('.', ',')}
                             </p>
@@ -3683,12 +3666,42 @@ urlWhatsGestor =
                 }
             }
 
+            // Cronômetro visual. A expiração verdadeira é processada pelo servidor,
+            // independentemente de o usuário manter a tela aberta.
+            const atualizarRelogioFornecedor = () => {
+                const el = document.getElementById('contadorExpiracaoFornecedor');
+                if (!el) return;
+                if (!Number.isFinite(expiraEmPedido)) {
+                    el.textContent = 'Prazo de pagamento indisponível';
+                    return;
+                }
+                const segundos = Math.max(0, Math.ceil((expiraEmPedido - Date.now()) / 1000));
+                const minutos = Math.floor(segundos / 60);
+                el.textContent = segundos
+                    ? `Tempo restante: ${String(minutos).padStart(2, '0')}:${String(segundos % 60).padStart(2, '0')}`
+                    : 'Prazo encerrado. NÃO pague este PIX. Aguarde o cancelamento no Asaas.';
+                if (!segundos) {
+                    el.classList.add('text-red-700');
+                    if (intervaloRelogioFornecedor) {
+                        clearInterval(intervaloRelogioFornecedor);
+                        intervaloRelogioFornecedor = null;
+                    }
+                }
+            };
+            atualizarRelogioFornecedor();
+            intervaloRelogioFornecedor = setInterval(atualizarRelogioFornecedor, 1000);
+
             const exibirPagamentoValidadoELiberarWhats = () => {
                 if (intervaloVerificacaoPedidoFornecedor) {
                     clearInterval(intervaloVerificacaoPedidoFornecedor);
                     intervaloVerificacaoPedidoFornecedor = null;
                 }
 
+                if (intervaloRelogioFornecedor) {
+                    clearInterval(intervaloRelogioFornecedor);
+                    intervaloRelogioFornecedor = null;
+                }
+                tentativaAtivaFornecedor = null;
                 document.getElementById('listaOpcoesFornecedores')?.classList.add('hidden');
                 if (!boxPos) return;
 
@@ -3728,6 +3741,13 @@ urlWhatsGestor =
 
                     if (pedAtual && (pedAtual.status_pagamento === 'pago' || pedAtual.status_pagamento === 'repassado')) {
                         exibirPagamentoValidadoELiberarWhats();
+                    } else if (pedAtual && ['cancelado', 'falha'].includes(pedAtual.status_pagamento)) {
+                        clearInterval(intervaloVerificacaoPedidoFornecedor);
+                        intervaloVerificacaoPedidoFornecedor = null;
+                        if (intervaloRelogioFornecedor) clearInterval(intervaloRelogioFornecedor);
+                        intervaloRelogioFornecedor = null;
+                        if (boxPos) boxPos.innerHTML = '<div class="rounded-xl border border-rose-300 bg-rose-50 p-4 text-red-800 text-xs font-bold text-center">Compra não efetivada. O pedido foi encerrado. Faça uma nova cotação antes de comprar novamente.</div>';
+                        tentativaAtivaFornecedor = null;
                     }
                 } catch (e) {
                     console.warn('Verificando status do pedido...', e);
@@ -3739,6 +3759,11 @@ urlWhatsGestor =
             document.getElementById('listaOpcoesFornecedores')?.classList.remove('hidden');
             document.getElementById('boxPosPagamentoFornecedor')?.classList.add('hidden');
             alert('Erro ao processar pedido: ' + err.message);
+            if (/compra encerrada|compra já paga|prazo de pagamento encerrado|Asaas recusou a cobrança/i.test(err.message)) {
+                tentativaAtivaFornecedor = null;
+            }
+        } finally {
+            pedidoFornecedorEmAndamento = false;
         }
     };
 })();
