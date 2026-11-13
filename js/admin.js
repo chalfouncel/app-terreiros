@@ -4022,8 +4022,12 @@ if (resumoEl) {
         if (!origem) continue;
 
         const medium = porAuth.get(String(d.medium_auth_id));
-        const item = porItem.get(String(d.item_id));
-        const qtd = Number(d.quantidade);
+const item = porItem.get(String(d.item_id));
+const qtd = Number(d.quantidade);
+
+if (
+    String(item?.categoria || '').trim().toLowerCase() === 'cantina'
+) continue;
 
         if (!medium || !item ||
             !Number.isFinite(qtd) || qtd <= 0) continue;
