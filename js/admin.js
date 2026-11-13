@@ -8739,6 +8739,81 @@ if (data.length === 0) {
     let tipoLimpezaAtivo = null;
     let selecionadosLimpezaSet = new Set();
 
+    const periodoLimpeza = document.getElementById('limPeriodo');
+    if (periodoLimpeza) {
+        const { inicio, fim } = periodoLimpeza.elements;
+        const hoje = new Date();
+        const localISO = d => [d.getFullYear(), String(d.getMonth()+1).padStart(2,'0'), String(d.getDate()).padStart(2,'0')].join('-');
+        inicio.value = localISO(new Date(hoje.getFullYear(), hoje.getMonth(), 1));
+        fim.value = localISO(hoje);
+        const saida = document.getElementById('limResultado');
+        const imprimir = document.getElementById('limPrint');
+        let versao = 0;
+        periodoLimpeza.oninput = () => { versao++; saida.replaceChildren(); imprimir.hidden = true; };
+        periodoLimpeza.onsubmit = async event => {
+            event.preventDefault();
+            const atual = ++versao;
+            imprimir.hidden = true;
+            if (inicio.value > fim.value) { saida.textContent = 'A data final deve ser igual ou posterior à inicial.'; return; }
+            saida.textContent = 'Consultando registros…';
+            try {
+                const de = new Date(inicio.value + 'T00:00:00');
+                const ate = new Date(fim.value + 'T00:00:00');
+                ate.setDate(ate.getDate()+1);
+                const contagens = new Map();
+                for (let offset=0;;offset+=500) {
+                    const {data,error} = await supabaseClient.from('agenda').select('id,escalas')
+                        .eq('terreiro_id',idTerreiroGlobal).gte('data_hora_inicio',de.toISOString())
+                        .lt('data_hora_inicio',ate.toISOString()).order('id').range(offset,offset+499);
+                    if(error) throw error;
+                    for(const gira of data) for(const tipo of ['pre','pos']) {
+                        const ids = gira.escalas?.['limpeza_'+tipo];
+                        if(!Array.isArray(ids)) continue;
+                        for(const id of new Set(ids.filter(v=>v!=null).map(String))) {
+                            if(!contagens.has(id)) contagens.set(id,{id,pre:0,pos:0});
+                            contagens.get(id)[tipo]++;
+                        }
+                    }
+                    if(data.length<500) break;
+                }
+                const linhas = [...contagens.values()];
+                for(let i=0;i<linhas.length;i+=100) {
+                    const {data,error} = await supabaseClient.from('mediuns').select('id,nome_completo')
+                        .eq('terreiro_id',idTerreiroGlobal).in('id',linhas.slice(i,i+100).map(x=>x.id));
+                    if(error) throw error;
+                    for(const m of data) contagens.get(String(m.id)).nome=m.nome_completo;
+                }
+                if(atual!==versao) return;
+                if(!linhas.length){saida.textContent='Nenhuma participação registrada neste período.';return;}
+                saida.replaceChildren();
+                const legenda=document.createElement('p');
+                legenda.textContent='Participação na limpeza · '+de.toLocaleDateString('pt-BR')+' a '+new Date(fim.value+'T00:00:00').toLocaleDateString('pt-BR');
+                saida.append(legenda);
+                const tabela=document.createElement('table');
+                tabela.className='w-full text-sm mt-3';
+                const cab=tabela.createTHead().insertRow();
+                for(const t of ['Médium','Pré-gira','Pós-gira','Total']){
+                    const th=document.createElement('th'); th.className='text-left bg-sky-50 p-2'; th.textContent=t; cab.append(th);
+                }
+                const corpo=tabela.createTBody();
+                for(const l of linhas) l.nome ||= 'Cadastro #'+l.id;
+                for(const l of linhas.sort((a,b)=>b.pre+b.pos-a.pre-a.pos || a.nome.localeCompare(b.nome,'pt-BR'))){
+                    const tr=corpo.insertRow();
+                    for(const v of [l.nome,l.pre,l.pos,l.pre+l.pos]){const td=tr.insertCell();td.className='border-b p-2';td.textContent=v;}
+                }
+                saida.append(tabela); imprimir.hidden=false;
+            } catch {if(atual===versao) saida.textContent='Não foi possível consultar o relatório. Tente novamente.';}
+        };
+        imprimir.onclick = () => {
+            const janela=window.open('','_blank');
+            if(!janela) return alert('Permita a abertura da janela para imprimir.');
+            janela.document.title='Relatório de participação na limpeza';
+            const estilo=janela.document.createElement('style');
+            estilo.textContent='body{font:14px Arial}table{border-collapse:collapse;width:100%}td,th{text-align:left;border-bottom:1px solid #ccc;padding:7px}thead{display:table-header-group}tr{break-inside:avoid}';
+            janela.document.head.append(estilo);
+            janela.document.body.append(saida.cloneNode(true)); janela.focus(); janela.print();
+        };
+    }
     window.carregarGiraAbertaParaLimpeza = async () => {
         if (!idTerreiroGlobal) return;
         const badge = document.getElementById('badgeGiraAbertaLimpeza');
