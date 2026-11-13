@@ -3323,14 +3323,104 @@ async function verificarPendenciaMensalidade(mediumId) {
 
     window.fecharPedidoFornecedorParceiro = async (idxOpcao) => {
 
-        const op = window.opcoesCotadasCache?.[idxOpcao];
-        if (!op) return;
+    const op = window.opcoesCotadasCache?.[idxOpcao];
+    if (!op) return;
 
-        if (!verificarFornecedorAberto(op.fornecedor)) {
-            return alert(`Este fornecedor recebe pedidos apenas das ${op.horaAbre} às ${op.horaFecha}.`);
+    if (!verificarFornecedorAberto(op.fornecedor)) {
+        return alert(`Este fornecedor recebe pedidos apenas das ${op.horaAbre} às ${op.horaFecha}.`);
+    }
+
+    // Confere inclusive os dígitos verificadores do CPF.
+    const validarCPFCompra = (valor) => {
+        const cpf = String(valor || '').replace(/\D/g, '');
+
+        if (!/^\d{11}$/.test(cpf) || /^(\d)\1{10}$/.test(cpf)) {
+            return false;
         }
 
-                try {
+        for (let tamanho = 9; tamanho <= 10; tamanho++) {
+            let soma = 0;
+
+            for (let i = 0; i < tamanho; i++) {
+                soma += Number(cpf[i]) * (tamanho + 1 - i);
+            }
+
+            let digito = (soma * 10) % 11;
+            if (digito === 10) digito = 0;
+
+            if (digito !== Number(cpf[tamanho])) {
+                return false;
+            }
+        }
+
+        return true;
+    };
+
+    // CPF só é solicitado quando necessário para a compra.
+    if (!validarCPFCompra(perfilMediumLogado?.cpf)) {
+        const modal = document.getElementById('modalSolicitarCPF');
+        const form = document.getElementById('formSalvarCPF');
+        const input = document.getElementById('inputCpfAsaas');
+        const btn = document.getElementById('btnSalvarCpfAsaas');
+
+        if (!modal || !form || !input) {
+            alert('Não foi possível abrir a solicitação de CPF.');
+            return;
+        }
+
+        input.value = '';
+        modal.classList.remove('hidden');
+
+        form.onsubmit = async (e) => {
+            e.preventDefault();
+
+            const cpfDigitado = input.value.replace(/\D/g, '');
+
+            if (!validarCPFCompra(cpfDigitado)) {
+                alert('CPF inválido. Confira os números informados.');
+                return;
+            }
+
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = 'Validando CPF...';
+            }
+
+            try {
+                const { data, error } = await supabaseClient
+                    .from('mediuns')
+                    .update({ cpf: cpfDigitado })
+                    .eq('id', perfilMediumLogado.id)
+                    .eq('terreiro_id', idTerreiroGlobal)
+                    .select('cpf')
+                    .single();
+
+                if (error) throw error;
+                if (!data?.cpf) {
+                    throw new Error('Não foi possível confirmar o CPF salvo.');
+                }
+
+                perfilMediumLogado.cpf = cpfDigitado;
+                modal.classList.add('hidden');
+
+                // Retoma a compra com uma nova conferência de preços.
+                await window.fecharPedidoFornecedorParceiro(idxOpcao);
+
+            } catch (err) {
+                alert('Erro ao validar CPF: ' + err.message);
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML =
+                        '<i class="fas fa-check"></i> Salvar e Gerar Pagamento';
+                }
+            }
+        };
+
+        return; // Não cria pedido enquanto não houver CPF válido.
+    }
+
+    try {
             // Confere os preços atuais antes de criar o pedido.
             if (!(await conferirCotacaoFornecedorAtual(op))) {
                 await window.renderizarCotacoesFornecedores(
@@ -3432,7 +3522,41 @@ if (erroRegistroDoacoes) {
                 }
             });
 
-            if (errAsaas) throw new Error(errAsaas.message || 'Falha ao gerar cobrança no Asaas.');
+            if (errAsaas) {
+    let detalheErro = null;
+    const statusHttp = errAsaas.context?.status || null;
+
+    try {
+        const resposta = errAsaas.context;
+
+        if (typeof resposta?.json === 'function') {
+            detalheErro = await resposta.json();
+        }
+    } catch (e) {
+        console.warn(
+            'Não foi possível ler os detalhes da Edge Function:',
+            e
+        );
+    }
+
+    console.error('Erro na cobrança do fornecedor:', {
+        status: statusHttp,
+        detalhe: detalheErro,
+        erro: errAsaas
+    });
+
+    const mensagem =
+        detalheErro?.error ||
+        detalheErro?.message ||
+        errAsaas.message ||
+        'Erro desconhecido.';
+
+    throw new Error(
+        `Falha ao gerar PIX` +
+        `${statusHttp ? ` (HTTP ${statusHttp})` : ''}: ` +
+        mensagem
+    );
+}
 
             const linkPagamento = cobrancaAsaas?.invoiceUrl || '';
             const pixQrBase64 = cobrancaAsaas?.pixEncodedImage || null;
