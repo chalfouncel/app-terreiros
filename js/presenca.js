@@ -3360,7 +3360,7 @@ async function verificarPendenciaMensalidade(mediumId) {
     };
 
     // CPF só é solicitado quando necessário para a compra.
-    if (!validarCPFCompra(perfilMediumLogado?.cpf)) {
+    const solicitarCpfParaCompra = () => {
         const modal = document.getElementById('modalSolicitarCPF');
         const form = document.getElementById('formSalvarCPF');
         const input = document.getElementById('inputCpfAsaas');
@@ -3420,8 +3420,7 @@ async function verificarPendenciaMensalidade(mediumId) {
             }
         };
 
-        return; // Não cria pedido enquanto não houver CPF válido.
-    }
+            };
 
     if (pedidoFornecedorEmAndamento) return;
     pedidoFornecedorEmAndamento = true;
@@ -3526,6 +3525,11 @@ async function verificarPendenciaMensalidade(mediumId) {
         detalheErro?.message ||
         errAsaas.message ||
         'Erro desconhecido.';
+
+    if (statusHttp === 400 && mensagem === 'CPF ausente ou inválido. Informe um CPF válido antes de pagar.') {
+        solicitarCpfParaCompra();
+        return;
+    }
 
     throw new Error(
         `Falha ao gerar PIX` +
