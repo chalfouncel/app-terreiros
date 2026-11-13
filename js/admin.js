@@ -4026,11 +4026,12 @@ const item = porItem.get(String(d.item_id));
 const qtd = Number(d.quantidade);
 
 if (
-    String(item?.categoria || '').trim().toLowerCase() === 'cantina'
+    String(item?.categoria || '').trim().toLowerCase()
+    === 'cantina'
 ) continue;
 
-        if (!medium || !item ||
-            !Number.isFinite(qtd) || qtd <= 0) continue;
+if (!medium || !item ||
+    !Number.isFinite(qtd) || qtd <= 0) continue;
 
         let componentes = null;
 
