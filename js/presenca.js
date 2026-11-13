@@ -19,7 +19,13 @@ window.todosItensDoacaoCache = [];
 let abaCampanhaAtiva = 'doacao';
 
 document.addEventListener('DOMContentLoaded', async () => {
-    
+
+    // Variáveis do Realtime inicializadas antes do carregamento
+    let canalPrecosFornecedores = null;
+    let timerPrecosFornecedores = null;
+    let atualizacaoPrecosEmAndamento = false;
+    let atualizacaoPrecosPendente = false;
+
     const tituloTerreiro = document.getElementById('nomeTerreiro');
     if (tituloTerreiro) tituloTerreiro.textContent = "Carregando sistema...";
 
@@ -1162,11 +1168,6 @@ const { data: terreiros } = await supabaseClient
     // ============================================================
     // REALTIME: PREÇOS DOS FORNECEDORES POR TERREIRO
     // ============================================================
-
-    let canalPrecosFornecedores = null;
-    let timerPrecosFornecedores = null;
-    let atualizacaoPrecosEmAndamento = false;
-    let atualizacaoPrecosPendente = false;
 
     async function atualizarPrecosFornecedoresNaTela() {
         if (atualizacaoPrecosEmAndamento) {
