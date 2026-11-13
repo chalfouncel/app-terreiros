@@ -8804,14 +8804,169 @@ if (data.length === 0) {
                 saida.append(tabela); imprimir.hidden=false;
             } catch {if(atual===versao) saida.textContent='Não foi possível consultar o relatório. Tente novamente.';}
         };
-        imprimir.onclick = () => {
-            const janela=window.open('','_blank');
-            if(!janela) return alert('Permita a abertura da janela para imprimir.');
-            janela.document.title='Relatório de participação na limpeza';
-            const estilo=janela.document.createElement('style');
-            estilo.textContent='body{font:14px Arial}table{border-collapse:collapse;width:100%}td,th{text-align:left;border-bottom:1px solid #ccc;padding:7px}thead{display:table-header-group}tr{break-inside:avoid}';
-            janela.document.head.append(estilo);
-            janela.document.body.append(saida.cloneNode(true)); janela.focus(); janela.print();
+        imprimir.textContent = 'Baixar PDF';
+        imprimir.onclick = async () => {
+            const dadosBase = Array.from(saida.querySelectorAll('tbody tr'), tr=>Array.from(tr.cells,td=>td.textContent));
+            if (!dadosBase.length) return;
+            const titulo = saida.querySelector('p').textContent.split(' · ').pop();
+            const periodoArquivo = inicio.value + '_a_' + fim.value;
+            imprimir.disabled=true;
+            try {
+        // Carrega a logo da Casa em Base64 mantendo a proporção
+        let logoBase64 = null;
+        if (logoTerreiroGlobal) {
+            try {
+                logoBase64 = await new Promise((resolve) => {
+                    const img = new Image();
+                    img.crossOrigin = 'Anonymous';
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = img.naturalWidth || img.width;
+                        canvas.height = img.naturalHeight || img.height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0);
+                        try { resolve(canvas.toDataURL('image/png')); } catch { resolve(null); }
+                    };
+                    img.onerror = () => resolve(null);
+                    img.src = logoTerreiroGlobal + (logoTerreiroGlobal.includes('?') ? '&' : '?') + 't=' + Date.now();
+                });
+            } catch (e) {
+                logoBase64 = null;
+            }
+        }
+
+        const dummy = document.createElement('div');
+        const opt = {
+            margin: 10,
+            filename: `Limpeza_${periodoArquivo}.pdf`,
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+
+        await html2pdf().set(opt).from(dummy).toPdf().get('pdf').then((pdf) => {
+            const pageWidth = pdf.internal.pageSize.getWidth();   // 210mm
+            const pageHeight = pdf.internal.pageSize.getHeight(); // 297mm
+            const mLeft = 12;
+            const tableWidth = 186;
+            const dataEmissao = `${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+
+            // Insere a Logo da Casa no canto superior esquerdo (ao lado do título)
+            if (logoBase64) {
+                try {
+                    pdf.addImage(logoBase64, 'PNG', mLeft, 11, 16, 16);
+                } catch (e) {}
+            }
+
+            // Definição das colunas (Soma = 186mm)
+            const cols = [
+                {header:'Médium', x:12, w:99, align:'left'},
+                {header:'Pré-gira', x:111, w:29, align:'center'},
+                {header:'Pós-gira', x:140, w:29, align:'center'},
+                {header:'Total', x:169, w:29, align:'center'}
+            ];
+
+            const desenharCabecalhoTabela = (posY) => {
+                pdf.setFillColor(241, 245, 249);
+                pdf.setDrawColor(203, 213, 225);
+                pdf.setLineWidth(0.2);
+                pdf.rect(mLeft, posY, tableWidth, 8, 'FD');
+
+                pdf.setFont('helvetica', 'bold');
+                pdf.setFontSize(8.5);
+                pdf.setTextColor(30, 41, 59);
+
+                cols.forEach(c => {
+                    pdf.line(c.x, posY, c.x, posY + 8);
+                    const tx = c.align === 'left' ? c.x + 2 : (c.align === 'right' ? c.x + c.w - 2 : c.x + c.w / 2);
+                    pdf.text(c.header, tx, posY + 5.3, { align: c.align });
+                });
+                pdf.line(mLeft + tableWidth, posY, mLeft + tableWidth, posY + 8);
+                return posY + 8;
+            };
+
+            // Cabeçalho Principal na Página 1
+            pdf.setFont('helvetica', 'bold');
+            pdf.setFontSize(13);
+            pdf.setTextColor(30, 58, 138);
+            pdf.text((nomeTerreiroGlobal || 'Templo').toUpperCase(), pageWidth / 2, 16, { align: 'center' });
+
+            pdf.setFontSize(10.5);
+            pdf.setTextColor(51, 65, 85);
+            pdf.text(`Participação na limpeza — ${titulo}`, pageWidth / 2, 22, { align: 'center' });
+
+            pdf.setFont('helvetica', 'normal');
+            pdf.setFontSize(8);
+            pdf.setTextColor(100, 116, 139);
+            pdf.text(`Emitido em: ${dataEmissao}  |  Médiuns: ${dadosBase.length}`, pageWidth / 2, 27, { align: 'center' });
+
+            pdf.setDrawColor(37, 99, 235);
+            pdf.setLineWidth(0.6);
+            pdf.line(mLeft, 30, mLeft + tableWidth, 30);
+
+            let y = desenharCabecalhoTabela(34);
+
+            // Linhas dos Compradores
+            dadosBase.forEach((comp, idx) => {
+                pdf.setFont('helvetica','bold');
+                pdf.setFontSize(8);
+                const lNome = pdf.splitTextToSize(comp[0],cols[0].w-4);
+                const altLinha = Math.max(7.5,lNome.length*4+3);
+
+                if (y + altLinha > 272) {
+                    pdf.addPage();
+                    y = desenharCabecalhoTabela(15);
+                }
+
+                // Fundo zebrado e borda
+                if (idx % 2 === 1) {
+                    pdf.setFillColor(248, 250, 252);
+                    pdf.rect(mLeft, y, tableWidth, altLinha, 'F');
+                }
+                pdf.setDrawColor(203, 213, 225);
+                pdf.setLineWidth(0.2);
+                pdf.rect(mLeft, y, tableWidth, altLinha, 'S');
+                cols.forEach(c => pdf.line(c.x, y, c.x, y + altLinha));
+
+                const yTextoBase = y + 4.8;
+
+                // 1. Comprador
+                pdf.setFont('helvetica', 'bold');
+                pdf.setTextColor(30, 41, 59);
+                pdf.text(lNome, cols[0].x + 2, yTextoBase);
+
+                for(let i=1;i<4;i++){
+                    pdf.setTextColor(...[[71,85,105],[67,56,202],[22,163,74]][i-1]);
+                    pdf.text(comp[i],cols[i].x+cols[i].w/2,yTextoBase,{align:'center'});
+                }
+                y += altLinha;
+            });
+
+            // Linha Final de Total Arrecadado
+            if (y + 10 > 272) {
+                pdf.addPage();
+                y = 15;
+            }
+            pdf.setFillColor(240, 253, 244);
+            pdf.setDrawColor(187, 247, 208);
+            pdf.rect(mLeft, y, tableWidth, 9, 'FD');
+
+            pdf.setFont('helvetica', 'bold');
+            pdf.setFontSize(9.5);
+            pdf.setTextColor(22, 101, 52);
+            pdf.text('TOTAL DE PARTICIPAÇÕES', mLeft + 3, y + 6);
+            for(let i=1;i<4;i++) pdf.text(String(dadosBase.reduce((s,r)=>s+Number(r[i]),0)),cols[i].x+cols[i].w/2,y+6,{align:'center'});
+
+            // Rodapé em todas as páginas
+            const totalPages = pdf.internal.getNumberOfPages();
+            for (let i = 1; i <= totalPages; i++) {
+                pdf.setPage(i);
+                pdf.setFont('helvetica', 'normal');
+                pdf.setFontSize(8);
+                pdf.setTextColor(100, 100, 100);
+                pdf.text(`Página ${i} de ${totalPages}`, pageWidth - 12, pageHeight - 8, { align: 'right' });
+                pdf.text(`${nomeTerreiroGlobal || 'Templo'} — Documento Oficial`, 12, pageHeight - 8, { align: 'left' });
+            }
+        }).save();
+            } catch { alert('Não foi possível gerar o PDF. Tente novamente.'); } finally { imprimir.disabled=false; }
         };
     }
     window.carregarGiraAbertaParaLimpeza = async () => {
