@@ -3081,7 +3081,14 @@ async function verificarPendenciaMensalidade(mediumId) {
 
             // 2. Registra as doações na tabela doacoes_registradas mantendo o Kit (se escolheu Kit) para o painel da Casa
             const { data: { session } } = await supabaseClient.auth.getSession();
-            const baseRegistroCasa = (window.itensOriginaisCarrinhoDoacao && window.itensOriginaisCarrinhoDoacao.length > 0)
+
+if (!session?.user?.id) {
+    throw new Error(
+        'Sessão não encontrada para registrar a doação.'
+    );
+}
+
+const baseRegistroCasa = (window.itensOriginaisCarrinhoDoacao && window.itensOriginaisCarrinhoDoacao.length > 0)
                 ? window.itensOriginaisCarrinhoDoacao
                 : op.itens.map(i => ({ id: i.id, qtd: i.qtd }));
 
@@ -3096,12 +3103,6 @@ async function verificarPendenciaMensalidade(mediumId) {
                 entregue: false
             }));
             
-if (!session?.user?.id) {
-    throw new Error(
-        'Sessão não encontrada para registrar a doação.'
-    );
-}
-
 const { error: erroRegistroDoacoes } = await supabaseClient
     .from('doacoes_registradas')
     .insert(insercoesDoacao);
