@@ -3965,8 +3965,147 @@ function renderizarTagsConfiguracao() {
                 const { data: mediuns } = await supabaseClient.from('mediuns').select('id, auth_id, nome_completo, nome_social').eq('terreiro_id', idTerreiroGlobal);
                 const { data: itens } = await supabaseClient.from('itens_doacao').select('id, nome, descricao, categoria').eq('terreiro_id', idTerreiroGlobal);
                 
-                window.dadosDoacoesParaPDF = { doacoes: [], mediuns, itens };
-                window.dadosCantinaParaPDF = { doacoes: [], mediuns, itens };
+                
+window.dadosDoacoesParaPDF = { doacoes: [], mediuns, itens };
+window.dadosCantinaParaPDF = { doacoes: [], mediuns, itens };
+
+// Resumo apenas de ITENS RECEBIDOS, por médium e modalidade.
+const resumoEl = document.getElementById('tabelaResumoItensDoados');
+
+if (resumoEl) {
+    const porAuth = new Map(
+        (mediuns || []).map(m => [String(m.auth_id), m])
+    );
+
+    const porItem = new Map(
+        (itens || []).map(i => [String(i.id), i])
+    );
+
+    const grupos = new Map();
+
+    const somar = (nome, medium, origem, qtd) => {
+        const nomeNormalizado = String(nome || '')
+            .trim()
+            .replace(/\s+/g, ' ');
+
+        if (!nomeNormalizado ||
+            !Number.isFinite(qtd) ||
+            qtd <= 0) return;
+
+        const chave =
+            `${nomeNormalizado.normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .toLowerCase()}|${medium.id}`;
+
+        if (!grupos.has(chave)) {
+            grupos.set(chave, {
+                item: nomeNormalizado,
+                medium: medium.nome_completo,
+                direta: 0,
+                fornecedor: 0
+            });
+        }
+
+        grupos.get(chave)[origem] += qtd;
+    };
+
+    for (const d of (registrosGlobais || [])) {
+        if (d.entregue !== true) continue;
+
+        const origem =
+            d.metodo_pagamento === 'fornecedor_asaas'
+                ? 'fornecedor'
+                : d.metodo_pagamento === 'entrega_presencial'
+                    ? 'direta'
+                    : null;
+
+        if (!origem) continue;
+
+        const medium = porAuth.get(String(d.medium_auth_id));
+        const item = porItem.get(String(d.item_id));
+        const qtd = Number(d.quantidade);
+
+        if (!medium || !item ||
+            !Number.isFinite(qtd) || qtd <= 0) continue;
+
+        let componentes = null;
+
+        if (String(item.categoria || '')
+            .trim().toLowerCase() === 'kit') {
+
+            try {
+                const parsed = JSON.parse(item.descricao || '');
+
+                if (Array.isArray(parsed) && parsed.length) {
+                    componentes = parsed;
+                }
+            } catch (_) {
+                // Kit sem composição válida:
+                // contabiliza pelo nome cadastrado.
+            }
+        }
+
+        if (componentes) {
+            for (const c of componentes) {
+                somar(
+                    c.nome,
+                    medium,
+                    origem,
+                    qtd * Number(c.qtd)
+                );
+            }
+        } else {
+            somar(item.nome, medium, origem, qtd);
+        }
+    }
+
+    resumoEl.replaceChildren();
+
+    const linhas = [...grupos.values()].sort(
+        (a, b) =>
+            a.item.localeCompare(b.item, 'pt-BR') ||
+            a.medium.localeCompare(b.medium, 'pt-BR')
+    );
+
+    if (!linhas.length) {
+        const tr = document.createElement('tr');
+        const td = document.createElement('td');
+
+        td.colSpan = 5;
+        td.className = 'p-3 text-gray-500';
+        td.textContent = 'Nenhum item com entrega confirmada.';
+
+        tr.appendChild(td);
+        resumoEl.appendChild(tr);
+    }
+
+    for (const linha of linhas) {
+        const tr = document.createElement('tr');
+        tr.className = 'border-b border-gray-100';
+
+        const valores = [
+            linha.item,
+            linha.medium,
+            linha.direta,
+            linha.fornecedor,
+            linha.direta + linha.fornecedor
+        ];
+
+        valores.forEach((valor, idx) => {
+            const td = document.createElement('td');
+
+            td.className =
+                'p-2 ' +
+                (idx >= 2 ? 'text-right tabular-nums' : '');
+
+            td.textContent = String(valor);
+            tr.appendChild(td);
+        });
+
+        resumoEl.appendChild(tr);
+    }
+}
+
 
                 if (!registrosGlobais || registrosGlobais.length === 0) {
                     if (tbodyDoacoes) tbodyDoacoes.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-gray-500">Nenhuma doação da casa registrada.</td></tr>';
