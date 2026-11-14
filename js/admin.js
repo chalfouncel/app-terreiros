@@ -4242,43 +4242,50 @@ if (!medium || !item ||
 
                 for (const [pedidoId, grupo] of gruposEntrega) {
                     const tr = document.createElement('tr');
-                    const td = tr.insertCell();
-                    td.colSpan = 4;
-                    td.className = 'p-3';
-                    const detalhes = document.createElement('details');
-                    detalhes.className = 'rounded-xl border border-sky-200 bg-sky-50 p-3';
-                    detalhes.open = grupo.registros.some(d => !d.entregue);
-                    const titulo = document.createElement('summary');
-                    titulo.className = 'cursor-pointer font-bold text-sm text-sky-900';
-                    const fornecedor = fornecedoresPorPedido.get(pedidoId) || 'Fornecedor';
-                    const pendentes = grupo.registros.filter(d => !d.entregue);
-                    titulo.textContent = 'Pedido #' + pedidoId + ' — ' + grupo.medium + ' — ' + fornecedor
-                        + ' · ' + grupo.registros.length + ' itens'
-                        + (pendentes.length ? ' · ' + pendentes.length + ' aguardando entrega' : ' · Entregue');
-                    detalhes.append(titulo);
-                    const aviso = document.createElement('p');
-                    aviso.className = 'text-xs text-gray-600 my-2';
-                    aviso.textContent = 'Confira os materiais abaixo. Em entregas parciais, dê baixa somente nos itens recebidos.';
-                    detalhes.append(aviso);
-                    const area = document.createElement('div');
-                    area.className = 'overflow-x-auto';
-                    const tabela = document.createElement('table');
-                    tabela.className = 'w-full bg-white text-xs';
-                    const cabecalho = tabela.createTHead().insertRow();
-                    for (const nome of ['Médium', 'Item', 'Quantidade', 'Entrega']) {
-                        const th = document.createElement('th');
-                        th.className = 'p-2 text-left';
-                        th.textContent = nome;
-                        cabecalho.append(th);
+                    tr.className = 'border-b border-gray-200 bg-white align-top';
+                    const mediumTd = tr.insertCell();
+                    mediumTd.className = 'p-3 text-sm font-medium text-gray-800';
+                    const nomeMedium = document.createElement('div');
+                    nomeMedium.textContent = grupo.medium;
+                    const numeroPedido = document.createElement('div');
+                    numeroPedido.className = 'text-xs text-gray-500 mt-1';
+                    numeroPedido.textContent = 'Pedido #' + pedidoId;
+                    mediumTd.append(nomeMedium, numeroPedido);
+
+                    const itensTd = tr.insertCell();
+                    itensTd.colSpan = 2;
+                    itensTd.className = 'p-3';
+                    const lista = document.createElement('div');
+                    lista.style.cssText = 'display:grid;grid-template-columns:minmax(0,1fr) max-content;gap:3px 16px;font-size:12px;line-height:1.4';
+                    for (const registro of grupo.registros) {
+                        const item = (itens || []).find(i => String(i.id) === String(registro.item_id));
+                        const nome = document.createElement('span');
+                        nome.textContent = item?.nome || 'Item excluído';
+                        const quantidade = document.createElement('span');
+                        quantidade.style.cssText = 'text-align:right;font-weight:700';
+                        quantidade.textContent = String(registro.quantidade);
+                        lista.append(nome, quantidade);
                     }
-                    tabela.createTBody().innerHTML = grupo.linhas.join('');
-                    area.append(tabela);
-                    detalhes.append(area);
+                    itensTd.append(lista);
+
+                    const entregaTd = tr.insertCell();
+                    entregaTd.className = 'p-3 text-center';
+                    const detalhes = document.createElement('div');
+                    detalhes.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:8px;max-width:220px;margin:auto';
+                    const fornecedor = fornecedoresPorPedido.get(pedidoId);
+                    const pendentes = grupo.registros.filter(d => !d.entregue);
+                    const situacao = document.createElement('span');
+                    situacao.className = 'text-xs font-bold rounded-lg px-3 py-2 '
+                        + (pendentes.length ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800');
+                    situacao.textContent = pendentes.length
+                        ? 'Aguardando entrega do fornecedor' + (fornecedor ? ' — ' + fornecedor : ' (nome indisponível)')
+                        : 'Entregue';
+                    detalhes.append(situacao);
                     if (pendentes.length) {
                         const botao = document.createElement('button');
                         botao.type = 'button';
                         botao.className = 'mt-3 rounded-lg bg-sky-700 text-white font-bold px-4 py-2 text-sm';
-                        botao.textContent = 'Confirmar entrega de todos os itens pendentes';
+                        botao.textContent = 'Receber pedido e dar baixa';
                         const terreiroEntrega = idTerreiroGlobal;
                         botao.onclick = async () => {
                             if (botao.disabled) return;
@@ -4305,7 +4312,7 @@ if (!medium || !item ||
                         };
                         detalhes.append(botao);
                     }
-                    td.append(detalhes);
+                    entregaTd.append(detalhes);
                     tbodyDoacoes.append(tr);
                 }
                 if (countDoacoes === 0 && tbodyDoacoes) tbodyDoacoes.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-gray-500 text-sm">Nenhuma doação pendente.</td></tr>';
