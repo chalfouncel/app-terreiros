@@ -3966,6 +3966,35 @@ function renderizarTagsConfiguracao() {
                 const { data: itens } = await supabaseClient.from('itens_doacao').select('id, nome, descricao, categoria').eq('terreiro_id', idTerreiroGlobal);
                 
                 
+                const fornecedoresPorPedido = new Map();
+                const idsPedidos = [...new Set((registrosGlobais || [])
+                    .filter(d => !d.entregue && d.pedido_fornecedor_id != null)
+                    .map(d => String(d.pedido_fornecedor_id)))];
+                try {
+                    const pedidos = [];
+                    for (let offset = 0; offset < idsPedidos.length; offset += 100) {
+                        const { data, error } = await supabaseClient.from('pedidos_fornecedores')
+                            .select('id,fornecedor_id').eq('terreiro_id', idTerreiroGlobal)
+                            .in('id', idsPedidos.slice(offset, offset + 100));
+                        if (error) throw error;
+                        pedidos.push(...(data || []));
+                    }
+                    const idsFornecedores = [...new Set(pedidos
+                        .filter(p => p.fornecedor_id != null).map(p => p.fornecedor_id))];
+                    const nomes = new Map();
+                    for (let offset = 0; offset < idsFornecedores.length; offset += 100) {
+                        const { data, error } = await supabaseClient.from('fornecedores')
+                            .select('id,nome_fantasia')
+                            .in('id', idsFornecedores.slice(offset, offset + 100));
+                        if (error) throw error;
+                        for (const f of data || []) nomes.set(String(f.id), f.nome_fantasia);
+                    }
+                    for (const p of pedidos) {
+                        fornecedoresPorPedido.set(String(p.id), nomes.get(String(p.fornecedor_id)));
+                    }
+                } catch (erroFornecedor) {
+                    console.warn('Não foi possível identificar o fornecedor da entrega.', erroFornecedor);
+                }
 window.dadosDoacoesParaPDF = { doacoes: [], mediuns, itens };
 window.dadosCantinaParaPDF = { doacoes: [], mediuns, itens };
 
@@ -4151,10 +4180,18 @@ if (!medium || !item ||
 
                     const dataRegistro = new Date(d.data_registro).toLocaleDateString('pt-BR');
                     
-                    // Na cantina mudamos o texto de status: "Pendente" ou "Entregue"
-                    const statusText = d.entregue ? 'Entregue' : 'Pendente';
+                    let statusText = d.entregue ? 'Entregue' : 'Aguardando entrega';
+                    if (!d.entregue && (d.pedido_fornecedor_id != null || d.metodo_pagamento === 'fornecedor_asaas')) {
+                        const nomeFornecedor = fornecedoresPorPedido.get(String(d.pedido_fornecedor_id));
+                        statusText = nomeFornecedor
+                            ? 'Aguardando entrega — ' + nomeFornecedor
+                            : 'Aguardando entrega do fornecedor';
+                    }
                     const bgStatus = d.entregue ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800';
-                    const statusHtml = `<span class="text-xs ${bgStatus} px-2 py-1 rounded font-bold">${statusText}</span>`;
+                    const statusElemento = document.createElement('span');
+                    statusElemento.className = 'text-xs ' + bgStatus + ' px-2 py-1 rounded font-bold inline-block';
+                    statusElemento.textContent = statusText;
+                    const statusHtml = statusElemento.outerHTML;
                     
                     const acaoBaixaHtml = d.entregue 
                         ? `<button onclick="marcarDoacao('${d.id}', false)" class="text-[10px] text-gray-400 hover:text-gray-800 underline mt-1 block w-full text-center">Desfazer</button>` 
