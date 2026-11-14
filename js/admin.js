@@ -8573,6 +8573,7 @@ async function chamarApiFornecedorMaster(action, payload = {}) {
     }
 
     window.carregarFornecedoresMaster = async () => {
+        if (perfilAdminLogado?.is_master !== true) return;
         if (!listaFornEl) return;
         listaFornEl.innerHTML = '<p class="text-xs text-gray-400 col-span-full">Carregando fornecedores...</p>';
         try {
@@ -8703,7 +8704,7 @@ if (data.length === 0) {
     };
 
     document.getElementById('menuMaster')?.addEventListener('click', () => setTimeout(window.carregarFornecedoresMaster, 200));
-    setTimeout(window.carregarFornecedoresMaster, 800);
+
 
     if (formForn) {
         formForn.addEventListener('submit', async (e) => {
