@@ -4318,6 +4318,8 @@ window.pagarDoacaoCantinaViaAsaas = async () => {
               background: linear-gradient(115deg, #166534 0%, #047857 60%, #065f46 100%);
               border: 0;
               box-sizing: border-box;
+              flex: 0 0 auto;
+              min-height: 48px;
               padding: 14px 16px;
               font-size: 14px;
               line-height: 20px;
