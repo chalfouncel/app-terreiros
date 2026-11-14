@@ -4316,7 +4316,11 @@ window.pagarDoacaoCantinaViaAsaas = async () => {
               overflow: hidden;
               isolation: isolate;
               background: linear-gradient(115deg, #166534 0%, #047857 60%, #065f46 100%);
-              border: 1px solid rgba(255,255,255,.2);
+              border: 0;
+              box-sizing: border-box;
+              padding: 14px 16px;
+              font-size: 14px;
+              line-height: 20px;
               box-shadow: 0 5px 14px rgba(6,95,70,.20), inset 0 1px 0 rgba(255,255,255,.18);
               cursor: pointer;
               transition: transform .18s ease, box-shadow .18s ease;
@@ -4329,9 +4333,10 @@ window.pagarDoacaoCantinaViaAsaas = async () => {
               display: flex;
               align-items: center;
               justify-content: center;
-              gap: .65rem;
+              gap: .5rem;
+              line-height: 20px;
             }
-            #btnDoacaoAnonimaDireta .fa-hand-holding-heart { font-size: 1.2em; }
+            #btnDoacaoAnonimaDireta .fa-hand-holding-heart { font-size: 1em; line-height: 1; }
             #btnDoacaoAnonimaDireta::before {
               content: '';
               position: absolute;
