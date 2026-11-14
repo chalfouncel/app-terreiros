@@ -187,6 +187,38 @@
         }
     }
 
+    function podeConsultarLivro() {
+        if (typeof perfilMediumLogado === 'undefined' || !perfilMediumLogado ||
+            typeof terreiroConfigMensalidade === 'undefined' || !terreiroConfigMensalidade ||
+            typeof idTerreiroGlobal === 'undefined') return false;
+        return terreiroConfigMensalidade.modulo_livro_curimba_ativo === true &&
+            String(terreiroConfigMensalidade.id) === String(idTerreiroGlobal) &&
+            (perfilMediumLogado.is_master === true ||
+             (!!perfilMediumLogado.terreiro_id && String(perfilMediumLogado.terreiro_id) === String(idTerreiroGlobal)));
+    }
+
+    function podeEditarLivro() {
+        if (!podeConsultarLivro()) return false;
+        const p = perfilMediumLogado;
+        return ['MG', 'MGA', 'DIRIGENTE'].includes(String(p.funcao || '').trim().toUpperCase()) ||
+            String(p.grau || '').trim().toUpperCase() === 'DIRIGENTE' ||
+            p.is_admin === true || p.is_master === true;
+    }
+
+    function exigirEdicaoLivro() {
+        if (podeEditarLivro()) return true;
+        alert('O Livro da Curimba está disponível para você somente para consulta.');
+        return false;
+    }
+
+    function atualizarControlesLivro() {
+        document.querySelectorAll('[data-curimba-edicao]').forEach(el => {
+            el.hidden = !podeEditarLivro();
+            el.style.display = podeEditarLivro() ? '' : 'none';
+        });
+        if (!podeEditarLivro()) document.getElementById('modalEditarCantigaLivro')?.classList.add('hidden');
+    }
+
     function verificarAcessoLivroCurimba() {
         const btnApp = document.getElementById('btnAbrirLivroCurimbaApp');
         if (!btnApp) return;
@@ -197,15 +229,20 @@
             return;
         }
 
-        const moduloAtivo = terreiroConfigMensalidade.modulo_livro_curimba_ativo === true;
-        const fn = String(perfilMediumLogado.funcao || '').trim().toUpperCase();
-        const gr = String(perfilMediumLogado.grau || '').trim().toUpperCase();
-        const temPermissao = ['MG', 'MGA', 'DIRIGENTE'].includes(fn) || gr === 'DIRIGENTE' || perfilMediumLogado.is_admin === true || perfilMediumLogado.is_master === true;
-
-        if (moduloAtivo && temPermissao) {
-            btnApp.classList.remove('hidden');
-            document.getElementById('areaCurimbaRapida')?.classList.remove('hidden');
+        // O acesso ao Livro fica separado do botão dos Pontos dos Guias (CT+).
+        let areaLivro = document.getElementById('areaConsultaLivroCurimba');
+        const areaGuias = document.getElementById('areaCurimbaRapida');
+        if (!areaLivro && areaGuias) {
+            areaLivro = document.createElement('div');
+            areaLivro.id = 'areaConsultaLivroCurimba';
+            areaLivro.className = 'w-full max-w-md mt-5';
+            areaGuias.insertAdjacentElement('afterend', areaLivro);
+            areaLivro.appendChild(btnApp);
         }
+        btnApp.classList.toggle('hidden', !podeConsultarLivro());
+        if (areaLivro) areaLivro.hidden = !podeConsultarLivro();
+        if (podeEditarLivro()) areaGuias?.classList.remove('hidden');
+        atualizarControlesLivro();
     }
 
     function injetarModaisLivroCurimba() {
@@ -228,13 +265,13 @@
                 </div>
                 <div class="flex items-center gap-1.5">
                     <input type="file" id="inputImportarDocxCurimba" accept=".docx" class="hidden" onchange="window.importarDocxLivroCurimba(this)">
-                    <button type="button" onclick="document.getElementById('inputImportarDocxCurimba').click()" class="px-2.5 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-indigo-300 font-bold text-[10px] border border-slate-700 active:scale-95 flex items-center gap-1" title="Importar arquivo .DOCX do Livro da Curimba">
+                    <button type="button" data-curimba-edicao style="display: none" onclick="document.getElementById('inputImportarDocxCurimba').click()" class="px-2.5 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-indigo-300 font-bold text-[10px] border border-slate-700 active:scale-95 flex items-center gap-1" title="Importar arquivo .DOCX do Livro da Curimba">
                         <i class="fas fa-file-word"></i> <span class="hidden sm:inline">Importar .DOCX</span>
                     </button>
                     <button type="button" onclick="window.exportarPDFLivroCurimba()" class="px-2.5 h-8 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-[11px] active:scale-95 flex items-center gap-1" title="Baixar Apostila em PDF A4">
                         <i class="fas fa-file-pdf"></i> <span class="hidden sm:inline">PDF</span>
                     </button>
-                    <button type="button" onclick="window.abrirModalNovaCantigaLivro()" class="px-2.5 h-8 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[11px] active:scale-95 flex items-center gap-1">
+                    <button type="button" data-curimba-edicao style="display: none" onclick="window.abrirModalNovaCantigaLivro()" class="px-2.5 h-8 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[11px] active:scale-95 flex items-center gap-1">
                         <i class="fas fa-plus"></i> <span class="hidden sm:inline">Nova Cantiga</span>
                     </button>
                     <button type="button" onclick="window.ajustarFonteLivroCurimba(-2)" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-black text-xs border border-slate-700 active:scale-90">A-</button>
@@ -404,7 +441,9 @@
     });
 
     window.abrirModalLivroCurimba = async () => {
+        if (!podeConsultarLivro()) return;
         injetarModaisLivroCurimba();
+        atualizarControlesLivro();
         document.getElementById('modalLivroCurimba')?.classList.remove('hidden');
         await ativarWakeLockLivro();
         await carregarCantigasDoBanco();
@@ -956,7 +995,7 @@
                                 <button type="button" onclick="window.abrirModoFocoCantiga(${c.id}); event.stopPropagation();" class="bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 text-[11px] font-bold px-2.5 py-1 rounded-lg border border-indigo-500/30 active:scale-95" title="Modo Foco (Tela Cheia)">
                                     <i class="fas fa-expand"></i> Foco
                                 </button>
-                                <button type="button" onclick="window.abrirModalEditarCantigaLivro(${c.id}); event.stopPropagation();" class="bg-slate-800 hover:bg-slate-700 text-indigo-300 text-[11px] font-bold px-2.5 py-1 rounded-lg border border-slate-700 active:scale-95">
+                                <button type="button" data-curimba-edicao style="display: none" onclick="window.abrirModalEditarCantigaLivro(${c.id}); event.stopPropagation();" class="bg-slate-800 hover:bg-slate-700 text-indigo-300 text-[11px] font-bold px-2.5 py-1 rounded-lg border border-slate-700 active:scale-95">
                                     <i class="fas fa-pen"></i> Editar
                                 </button>
                             </div>
@@ -972,6 +1011,7 @@
                     </div>
                 `;
         }).join('');
+        atualizarControlesLivro();
     };
 
     // --- EDIÇÃO, CRIAÇÃO E GRAVADOR DE ÁUDIO ---
@@ -987,6 +1027,7 @@
     }
 
     window.alternarGravacaoCantigaLivro = async () => {
+        if (!exigirEdicaoLivro()) return;
         if (mediaRecorderLivro && mediaRecorderLivro.state === 'recording') {
             pararGravacaoLivroSeAtiva();
             return;
@@ -1031,6 +1072,7 @@
     };
 
     window.removerAudioCantigaLivro = () => {
+        if (!exigirEdicaoLivro()) return;
         pararGravacaoLivroSeAtiva();
         blobAudioNovoLivro = null;
         urlAudioExistenteLivro = null;
@@ -1040,6 +1082,7 @@
     };
 
     window.inserirTagCantigaLivro = (tag) => {
+        if (!exigirEdicaoLivro()) return;
         const area = document.getElementById('editCantigaLetra');
         if (!area) return;
         const start = area.selectionStart || 0;
@@ -1060,6 +1103,7 @@
     };
 
     window.abrirModalNovaCantigaLivro = () => {
+        if (!exigirEdicaoLivro()) return;
         pararGravacaoLivroSeAtiva();
         blobAudioNovoLivro = null;
         urlAudioExistenteLivro = null;
@@ -1080,6 +1124,7 @@
     };
 
     window.abrirModalEditarCantigaLivro = (id) => {
+        if (!exigirEdicaoLivro()) return;
         pararGravacaoLivroSeAtiva();
         blobAudioNovoLivro = null;
         const c = cacheCantigasLivro.find(x => x.id === id);
@@ -1118,6 +1163,7 @@
     };
 
     window.salvarCantigaLivro = async () => {
+        if (!exigirEdicaoLivro()) return;
         pararGravacaoLivroSeAtiva();
         const id = document.getElementById('editCantigaLivroId').value;
         const letra = document.getElementById('editCantigaLetra').value.trim();
@@ -1139,7 +1185,7 @@
             if (blobAudioNovoLivro) {
                 const ext = (blobAudioNovoLivro.type && blobAudioNovoLivro.type.includes('mp4')) ? 'mp4' : 'webm';
                 const filePath = `curimba_livro_audio/cantiga_${idTerreiroGlobal}_${Date.now()}.${ext}`;
-                const { error: upErr } = await supabaseClient.storage.from('logos').upload(filePath, blobAudioNovoLivro, { upsert: true });
+                const { error: upErr } = await supabaseClient.storage.from('logos').upload(filePath, blobAudioNovoLivro, { upsert: false });
                 if (upErr) throw upErr;
                 const { data: pubData } = supabaseClient.storage.from('logos').getPublicUrl(filePath);
                 finalAudioUrl = pubData.publicUrl;
@@ -1179,6 +1225,7 @@
     };
 
     window.excluirCantigaLivroAtual = async () => {
+        if (!exigirEdicaoLivro()) return;
         const id = document.getElementById('editCantigaLivroId').value;
         if (!id || !confirm('Deseja excluir esta cantiga do Livro da Curimba?')) return;
         await supabaseClient
@@ -1192,6 +1239,7 @@
 
     // --- IMPORTADOR AUTOMÁTICO DO ARQUIVO .DOCX ---
     window.importarDocxLivroCurimba = async (input) => {
+        if (!exigirEdicaoLivro()) return;
         const file = input.files?.[0];
         if (!file) return;
 
