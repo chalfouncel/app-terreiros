@@ -1325,6 +1325,133 @@ const { data: terreiros } = await supabaseClient
         }
     });
 
+    const coresVelas = [
+        'preta e branca', 'preta e vermelha', 'vermelho e branca', 'vermelha e branca',
+        'verde', 'azul escuro', 'azul e rosa', 'lilás', 'marrom',
+        'vermelha', 'amarela', 'azul claro', 'rosa', 'roxo', 'preta', 'branca'
+    ];
+    function identificarGrupoVela(item) {
+        if (String(item.categoria || '').toLowerCase().trim() === 'kit') return null;
+        const nome = String(item.nome || '').trim().replace(/\s+/g, ' ');
+        const pacote = nome.match(/^Pacote de Velas (7 dias|7 horas) com 10 Velas\s*-\s*(.+)$/i);
+        const unidade = nome.match(/^Vela (7 dias|7 horas) (?:bicolor )?(.+)$/i);
+        const partes = pacote || unidade;
+        if (!partes) return null;
+        const cor = partes[2].toLowerCase();
+        if (!coresVelas.includes(cor)) return null;
+        return {
+            chave: String(item.categoria || '').toLowerCase().trim() + '|' + (pacote ? 'pacote|' : 'unidade|') + partes[1].toLowerCase(),
+            titulo: pacote ? 'Pacote de 10 velas — ' + partes[1].toLowerCase() : 'Vela ' + partes[1].toLowerCase() + ' — unidade',
+            cor, pacote: Boolean(pacote)
+        };
+    }
+
+    function agruparVelasNaTela(itens, lista) {
+        const grupos = new Map();
+        const cards = [...lista.children];
+        itens.forEach((item, indice) => {
+            const info = identificarGrupoVela(item);
+            if (!info) return;
+            if (!grupos.has(info.chave)) grupos.set(info.chave, { ...info, itens: [] });
+            grupos.get(info.chave).itens.push({ item, cor: info.cor, card: cards[indice] });
+        });
+        for (const grupo of grupos.values()) {
+            if (grupo.itens.length < 2) continue;
+            const bloco = document.createElement('section');
+            bloco.className = 'rounded-2xl border border-gray-200 bg-white p-3 mb-3';
+            const titulo = document.createElement('h3');
+            titulo.className = 'text-sm font-bold text-gray-800 mb-2';
+            titulo.textContent = grupo.titulo;
+            const formulario = document.createElement('div');
+            formulario.className = 'flex flex-wrap items-end gap-2';
+            const labelCor = document.createElement('label');
+            labelCor.className = 'text-xs text-gray-600 flex-1 min-w-0';
+            labelCor.textContent = 'Cor';
+            const select = document.createElement('select');
+            select.className = 'block w-full rounded-lg border border-gray-300 bg-white p-2 mt-1 text-sm';
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = 'Escolha a cor';
+            select.append(placeholder);
+            for (const variante of grupo.itens) {
+                const opt = document.createElement('option');
+                opt.value = String(variante.item.id);
+                opt.textContent = variante.cor;
+                if (grupo.itens.filter(v => v.cor === variante.cor).length > 1) {
+                    opt.textContent += ' · item #' + variante.item.id;
+                }
+                select.append(opt);
+            }
+            labelCor.append(select);
+            const labelQtd = document.createElement('label');
+            labelQtd.className = 'text-xs text-gray-600';
+            labelQtd.textContent = grupo.pacote ? 'Pacotes' : 'Unidades';
+            const qtd = document.createElement('input');
+            qtd.type = 'number'; qtd.min = '1'; qtd.max = '100'; qtd.step = '1'; qtd.value = '1';
+            qtd.className = 'block w-20 rounded-lg border border-gray-300 p-2 mt-1 text-sm';
+            labelQtd.append(qtd);
+            const adicionar = document.createElement('button');
+            adicionar.type = 'button';
+            adicionar.textContent = 'Adicionar';
+            adicionar.className = 'bg-green-700 text-white font-bold text-xs rounded-lg px-3 py-3';
+            const disponibilidade = document.createElement('p');
+            disponibilidade.className = 'text-xs text-gray-500 mt-2';
+            const resumo = document.createElement('div');
+            resumo.className = 'mt-2 space-y-1';
+            const atualizarResumo = () => {
+                resumo.replaceChildren();
+                for (const variante of grupo.itens) {
+                    const quantidade = Number(carrinhoDoacoes[variante.item.id] || 0);
+                    if (!quantidade) continue;
+                    const linha = document.createElement('div');
+                    linha.className = 'flex items-center justify-between gap-2 rounded-lg bg-green-50 px-2 py-1 text-xs';
+                    const texto = document.createElement('span');
+                    texto.textContent = quantidade + (grupo.pacote ? ' pacote(s)' : ' unidade(s)') + ' — ' + variante.cor;
+                    const remover = document.createElement('button');
+                    remover.type = 'button';
+                    remover.className = 'text-red-700 p-2 font-bold';
+                    remover.textContent = 'Remover';
+                    remover.onclick = () => alterarQuantidade(variante, -Number(carrinhoDoacoes[variante.item.id] || 0));
+                    linha.append(texto, remover); resumo.append(linha);
+                }
+            };
+            const alterarQuantidade = (variante, delta) => {
+                // Reutiliza o controle original para manter carrinho, estoque e ações sincronizados.
+                const controle = variante.card.querySelector('.btn-qtd[data-delta="1"]');
+                controle.setAttribute('data-delta', String(delta));
+                try { controle.click(); } finally { controle.setAttribute('data-delta', '1'); }
+                atualizarResumo();
+            };
+            select.onchange = () => {
+                const variante = grupo.itens.find(v => String(v.item.id) === select.value);
+                disponibilidade.textContent = !variante ? ''
+                    : window.itemOuKitTemFornecedor(variante.item)
+                    ? 'Disponível para cotação com fornecedor.'
+                    : 'Disponível para doação direta. Sem oferta de fornecedor no momento.';
+            };
+            adicionar.onclick = () => {
+                const variante = grupo.itens.find(v => String(v.item.id) === select.value);
+                if (!variante) { select.focus(); return; }
+                const quantidade = Number(qtd.value);
+                const total = Number(carrinhoDoacoes[variante.item.id] || 0) + quantidade;
+                if (!Number.isInteger(quantidade) || quantidade < 1 || total > 100) {
+                    alert('Escolha uma quantidade inteira. O limite é 100 por cor.');
+                    qtd.focus(); return;
+                }
+                alterarQuantidade(variante, quantidade);
+            };
+            formulario.append(labelCor, labelQtd, adicionar);
+            bloco.append(titulo, formulario, disponibilidade, resumo);
+            grupo.itens[0].card.before(bloco);
+            for (const variante of grupo.itens) {
+                variante.card.hidden = true;
+                variante.card.style.display = 'none';
+                bloco.append(variante.card);
+            }
+            atualizarResumo();
+        }
+    }
+
     function renderizarItensAba(aba) {
 
         const listaItensDoacao = document.getElementById('listaItensDoacao');
@@ -1401,6 +1528,7 @@ const { data: terreiros } = await supabaseClient
         });
 
         listaItensDoacao.innerHTML = html;
+        if (aba === 'doacao') agruparVelasNaTela(itensFiltrados, listaItensDoacao);
     }
 
     const tabDoacaoGeral = document.getElementById('tabDoacaoGeral');
