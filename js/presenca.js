@@ -4307,8 +4307,56 @@ window.pagarDoacaoCantinaViaAsaas = async () => {
         const botao = document.createElement('button');
         botao.id = 'btnDoacaoAnonimaDireta';
         botao.type = 'button';
-        botao.className = 'w-full mb-4 py-3.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow active:scale-95 transition';
-        botao.textContent = 'Doação anônima em dinheiro';
+        botao.className = 'w-full mb-4 py-3.5 px-4 rounded-xl text-white font-bold text-sm';
+        botao.innerHTML = '<span class="doacao-direta-conteudo"><i class="fas fa-hand-holding-heart" aria-hidden="true"></i><span>Doação anônima em dinheiro</span></span>';
+        document.body.insertAdjacentHTML('beforeend', `
+          <style id="estiloBotaoDoacaoDireta">
+            #btnDoacaoAnonimaDireta {
+              position: relative;
+              overflow: hidden;
+              isolation: isolate;
+              background: linear-gradient(115deg, #166534 0%, #047857 60%, #065f46 100%);
+              border: 1px solid rgba(255,255,255,.2);
+              box-shadow: 0 5px 14px rgba(6,95,70,.20), inset 0 1px 0 rgba(255,255,255,.18);
+              cursor: pointer;
+              transition: transform .18s ease, box-shadow .18s ease;
+              -webkit-tap-highlight-color: transparent;
+            }
+            #btnDoacaoAnonimaDireta[hidden] { display: none !important; }
+            #btnDoacaoAnonimaDireta .doacao-direta-conteudo {
+              position: relative;
+              z-index: 1;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              gap: .65rem;
+            }
+            #btnDoacaoAnonimaDireta .fa-hand-holding-heart { font-size: 1.2em; }
+            #btnDoacaoAnonimaDireta::before {
+              content: '';
+              position: absolute;
+              z-index: 0;
+              pointer-events: none;
+              inset: 0;
+              background: linear-gradient(105deg, transparent 32%, rgba(255,255,255,.18) 50%, transparent 68%);
+              transform: translateX(-120%);
+              animation: brilhoDoacaoDireta 6s ease-in-out infinite;
+            }
+            @keyframes brilhoDoacaoDireta {
+              0%, 70% { transform: translateX(-120%); }
+              93%, 100% { transform: translateX(120%); }
+            }
+            @media (hover: hover) {
+              #btnDoacaoAnonimaDireta:hover { box-shadow: 0 7px 18px rgba(6,95,70,.3), inset 0 1px 0 rgba(255,255,255,.2); }
+            }
+            #btnDoacaoAnonimaDireta:active { transform: scale(.98); }
+            #btnDoacaoAnonimaDireta:focus-visible { outline: 3px solid #10b981; outline-offset: 3px; }
+            @media (prefers-reduced-motion: reduce) {
+              #btnDoacaoAnonimaDireta { transition: none; }
+              #btnDoacaoAnonimaDireta::before { animation: none; display: none; }
+              #btnDoacaoAnonimaDireta:active { transform: none; }
+            }
+          </style>`);
         botao.hidden = true;
         titulo.before(botao);
         document.body.insertAdjacentHTML('beforeend', `
