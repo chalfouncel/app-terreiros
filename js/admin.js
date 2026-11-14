@@ -3968,7 +3968,7 @@ function renderizarTagsConfiguracao() {
                 
                 const fornecedoresPorPedido = new Map();
                 const idsPedidos = [...new Set((registrosGlobais || [])
-                    .filter(d => !d.entregue && d.pedido_fornecedor_id != null)
+                    .filter(d => d.pedido_fornecedor_id != null)
                     .map(d => String(d.pedido_fornecedor_id)))];
                 try {
                     const pedidos = [];
@@ -4153,6 +4153,7 @@ if (!medium || !item ||
                 let countDoacoes = 0;
                 let countCantina = 0;
 
+                const gruposEntrega = new Map();
                 registrosGlobais.forEach(d => {
                     const mdEncontrado = mediuns?.find(m => m.auth_id === d.medium_auth_id || String(m.id) === String(d.medium_auth_id));
                     const medium = mdEncontrado ? mdEncontrado.nome_completo : 'Médium Desconhecido';
@@ -4222,11 +4223,91 @@ if (!medium || !item ||
                         if (tbodyCantina) tbodyCantina.innerHTML += trHtml;
                         countCantina++;
                     } else {
-                        if (tbodyDoacoes) tbodyDoacoes.innerHTML += trHtml;
+                        if (tbodyDoacoes) {
+                            if (d.pedido_fornecedor_id != null) {
+                                const pedidoId = String(d.pedido_fornecedor_id);
+                                if (!gruposEntrega.has(pedidoId)) {
+                                    gruposEntrega.set(pedidoId, { medium, registros: [], linhas: [] });
+                                }
+                                const grupo = gruposEntrega.get(pedidoId);
+                                grupo.registros.push(d);
+                                grupo.linhas.push(trHtml);
+                            } else {
+                                tbodyDoacoes.insertAdjacentHTML('beforeend', trHtml);
+                            }
+                        }
                         countDoacoes++;
                     }
                 });
 
+                for (const [pedidoId, grupo] of gruposEntrega) {
+                    const tr = document.createElement('tr');
+                    const td = tr.insertCell();
+                    td.colSpan = 4;
+                    td.className = 'p-3';
+                    const detalhes = document.createElement('details');
+                    detalhes.className = 'rounded-xl border border-sky-200 bg-sky-50 p-3';
+                    detalhes.open = grupo.registros.some(d => !d.entregue);
+                    const titulo = document.createElement('summary');
+                    titulo.className = 'cursor-pointer font-bold text-sm text-sky-900';
+                    const fornecedor = fornecedoresPorPedido.get(pedidoId) || 'Fornecedor';
+                    const pendentes = grupo.registros.filter(d => !d.entregue);
+                    titulo.textContent = 'Pedido #' + pedidoId + ' — ' + grupo.medium + ' — ' + fornecedor
+                        + ' · ' + grupo.registros.length + ' itens'
+                        + (pendentes.length ? ' · ' + pendentes.length + ' aguardando entrega' : ' · Entregue');
+                    detalhes.append(titulo);
+                    const aviso = document.createElement('p');
+                    aviso.className = 'text-xs text-gray-600 my-2';
+                    aviso.textContent = 'Confira os materiais abaixo. Em entregas parciais, dê baixa somente nos itens recebidos.';
+                    detalhes.append(aviso);
+                    const area = document.createElement('div');
+                    area.className = 'overflow-x-auto';
+                    const tabela = document.createElement('table');
+                    tabela.className = 'w-full bg-white text-xs';
+                    const cabecalho = tabela.createTHead().insertRow();
+                    for (const nome of ['Médium', 'Item', 'Quantidade', 'Entrega']) {
+                        const th = document.createElement('th');
+                        th.className = 'p-2 text-left';
+                        th.textContent = nome;
+                        cabecalho.append(th);
+                    }
+                    tabela.createTBody().innerHTML = grupo.linhas.join('');
+                    area.append(tabela);
+                    detalhes.append(area);
+                    if (pendentes.length) {
+                        const botao = document.createElement('button');
+                        botao.type = 'button';
+                        botao.className = 'mt-3 rounded-lg bg-sky-700 text-white font-bold px-4 py-2 text-sm';
+                        botao.textContent = 'Confirmar entrega de todos os itens pendentes';
+                        const terreiroEntrega = idTerreiroGlobal;
+                        botao.onclick = async () => {
+                            if (botao.disabled) return;
+                            if (!confirm('Confirma o recebimento de TODOS os ' + pendentes.length
+                                + ' itens pendentes do pedido #' + pedidoId + '?')) return;
+                            botao.disabled = true;
+                            try {
+                                const { data, error } = await supabaseClient.from('doacoes_registradas')
+                                    .update({ entregue: true, data_entrega: new Date().toISOString() })
+                                    .eq('terreiro_id', terreiroEntrega)
+                                    .eq('pedido_fornecedor_id', pedidoId)
+                                    .in('id', pendentes.map(d => d.id))
+                                    .or('entregue.eq.false,entregue.is.null')
+                                    .select('id');
+                                if (error) throw error;
+                                if ((data || []).length !== pendentes.length) {
+                                    alert('Alguns registros não foram alterados. Confira a lista atualizada antes de considerar a entrega completa.');
+                                }
+                                await window.carregarDoacoesPrometidas();
+                            } catch (error) {
+                                alert('Não foi possível confirmar a entrega: ' + error.message);
+                                botao.disabled = false;
+                            }
+                        };
+                        detalhes.append(botao);
+                    }
+                    td.append(detalhes);
+                    tbodyDoacoes.append(tr);
+                }
                 if (countDoacoes === 0 && tbodyDoacoes) tbodyDoacoes.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-gray-500 text-sm">Nenhuma doação pendente.</td></tr>';
                 if (countCantina === 0 && tbodyCantina) tbodyCantina.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-gray-500 text-sm">Nenhum pedido pendente.</td></tr>';
 
