@@ -2918,6 +2918,7 @@ document.getElementById('totalMediunsInativos').textContent = totalInativos ?? 0
             
             const tbody = document.getElementById('tabelaFinanceiro');
             const dashboard = document.getElementById('cardsMesesFinanceiro');
+            window.financeiroPronto = false;
             if (!tbody) return;
             
             // Skeleton Tabela Financeira (Híbrido Mobile/Desktop)
@@ -3004,8 +3005,7 @@ document.getElementById('totalMediunsInativos').textContent = totalInativos ?? 0
                     .range(deLinha, deLinha + tamanhoBloco - 1);
 
                 if (errBloco) {
-                    console.error('Erro ao buscar bloco financeiro:', errBloco);
-                    break;
+                    throw errBloco;
                 }
 
                 if (blocoPgtos && blocoPgtos.length > 0) {
@@ -3034,7 +3034,7 @@ document.getElementById('totalMediunsInativos').textContent = totalInativos ?? 0
 
             mediuns.forEach(m => {
                 const meusPgtos = pgtos ? pgtos.filter(p => p.medium_id === m.id) : [];
-                let htmlMeses = ''; let emDia = true;
+                let htmlMeses = ''; let emDia = true; const mesesRelatorio = [];
                 const ehInativo = (m.status_ativo === false);
                 
                 const dataIngresso = m.created_at ? new Date(m.created_at) : new Date('2000-01-01');
@@ -3051,6 +3051,7 @@ document.getElementById('totalMediunsInativos').textContent = totalInativos ?? 0
                     // Define o mês corrente e os anteriores como vencidos/cobráveis
                     const venceu = (anoBusca < anoAtual) || (anoBusca === anoAtual && i <= mesAtual);
                     
+                    mesesRelatorio.push(isAntesDoIngresso ? '-' : isIsento ? 'Isento' : pago ? 'Pago' : ehInativo ? '-' : venceu ? 'Pendente' : 'A vencer');
                     // Se está ativo, o mês venceu (ou é o atual), não pagou, não isentou e já era do terreiro -> PENDENTE
                     if (!ehInativo && venceu && !pago && !isIsento && !isAntesDoIngresso) {
                         emDia = false;
@@ -3115,6 +3116,8 @@ document.getElementById('totalMediunsInativos').textContent = totalInativos ?? 0
                     grau: m.grau || '',
                     funcao: m.funcao || '',
                     emDia: emDia,
+                    inativo: ehInativo,
+                    meses: mesesRelatorio,
                     html: trHtml
                 });
             });
@@ -3127,7 +3130,9 @@ document.getElementById('totalMediunsInativos').textContent = totalInativos ?? 0
                     grausAtuaisTerreiro.map(g => `<option value="${g}" ${g === valAtual ? 'selected' : ''}>${g}</option>`).join('');
             }
 
-            // Renderiza os dados filtrados
+            // Tela e PDF compartilham os mesmos registros e critérios.
+            window.anoCacheFinanceiro = anoBusca;
+            window.financeiroPronto = true;
             window.aplicarFiltrosFinanceiro();
             
             if(dashboard) {
@@ -3361,38 +3366,49 @@ document.getElementById('totalMediunsInativos').textContent = totalInativos ?? 0
         };
 
         if(document.getElementById('selectAnoFinanceiro')) document.getElementById('selectAnoFinanceiro').addEventListener('change', (e) => carregarFinanceiro(parseInt(e.target.value)));
-        window.aplicarFiltrosFinanceiro = () => {
-            const tbody = document.getElementById('tabelaFinanceiro');
-            if (!tbody || !window.cacheLinhasFinanceiro) return;
-
-            const nomeFiltro = (document.getElementById('filtroNomeFinanceiro')?.value || '').trim().toLowerCase();
-            const grauFiltro = (document.getElementById('filtroGrauFinanceiro')?.value || '').trim().toUpperCase();
-            const statusFiltro = (document.getElementById('filtroStatusFinanceiro')?.value || '').trim().toLowerCase();
-
-            const filtrados = window.cacheLinhasFinanceiro.filter(item => {
-                if (nomeFiltro) {
-                    const nComp = item.nome_completo.toLowerCase();
-                    const nSoc = item.nome_social.toLowerCase();
-                    if (!nComp.includes(nomeFiltro) && !nSoc.includes(nomeFiltro)) return false;
-                }
-
-                if (grauFiltro) {
-                    const g = item.grau.toUpperCase();
-                    const f = item.funcao.toUpperCase();
-                    if (g !== grauFiltro && f !== grauFiltro) return false;
-                }
-
-                if (statusFiltro === 'em_dia' && !item.emDia) return false;
-                if (statusFiltro === 'pendente' && item.emDia) return false;
-
+        const mesesFinanceiro = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+        const statusFin = document.getElementById('filtroStatusFinanceiro');
+        if (statusFin) {
+            const anterior = statusFin.value;
+            statusFin.innerHTML = '<option value="">Todas as situações</option><option value="pago">Com pagamentos</option><option value="pendente">Inadimplentes</option><option value="em_dia">Em dia (inclui isentos)</option>';
+            statusFin.value = anterior;
+            if (!document.getElementById('filtroMesFinanceiro')) {
+                const mes = document.createElement('select');
+                mes.id = 'filtroMesFinanceiro'; mes.className = statusFin.className;
+                mes.setAttribute('aria-label','Mês das mensalidades');
+                mes.innerHTML = '<option value="">Ano inteiro</option>' + mesesFinanceiro.map((nome,i) => '<option value="'+(i+1)+'">'+nome+'</option>').join('');
+                statusFin.before(mes);
+                mes.addEventListener('change', () => window.aplicarFiltrosFinanceiro());
+            }
+        }
+        window.selecionarFinanceiro = () => {
+            const nome = (document.getElementById('filtroNomeFinanceiro')?.value || '').trim().toLowerCase();
+            const grau = (document.getElementById('filtroGrauFinanceiro')?.value || '').trim().toUpperCase();
+            const status = document.getElementById('filtroStatusFinanceiro')?.value || '';
+            const mes = Number(document.getElementById('filtroMesFinanceiro')?.value || 0);
+            return (window.cacheLinhasFinanceiro || []).filter(item => {
+                if (nome && !item.nome_completo.toLowerCase().includes(nome) && !item.nome_social.toLowerCase().includes(nome)) return false;
+                if (grau && item.grau.toUpperCase() !== grau && item.funcao.toUpperCase() !== grau) return false;
+                const estados = mes ? [item.meses[mes-1]] : item.meses;
+                if (status === 'pago') return estados.includes('Pago');
+                if (status === 'pendente') return estados.includes('Pendente');
+                if (status === 'em_dia') return !item.inativo && !estados.includes('Pendente') && estados.some(e => e === 'Pago' || e === 'Isento');
                 return true;
             });
-
-            if (filtrados.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="14" class="p-6 text-center text-gray-500 font-medium">Nenhum médium encontrado com estes filtros.</td></tr>';
-            } else {
-                tbody.innerHTML = filtrados.map(f => f.html).join('');
-            }
+        };
+        window.aplicarFiltrosFinanceiro = () => {
+            const tbody = document.getElementById('tabelaFinanceiro');
+            if (!tbody || !window.financeiroPronto) return;
+            const filtrados = window.selecionarFinanceiro();
+            tbody.innerHTML = filtrados.length ? filtrados.map(f => f.html).join('') : '<tr><td colspan="14" class="p-6 text-center">Nenhum médium encontrado com estes filtros.</td></tr>';
+            const mes = Number(document.getElementById('filtroMesFinanceiro')?.value || 0);
+            const table = tbody.closest('table');
+            table?.querySelectorAll('thead tr').forEach(tr => Array.from(tr.children).forEach((cell,i) => { if(i>0 && i<13) cell.hidden = !!mes && i!==mes; }));
+            Array.from(tbody.rows).forEach(tr => {
+                if(tr.cells.length!==14) return;
+                Array.from(tr.cells).forEach((cell,i) => { if(i>0 && i<13) cell.hidden = !!mes && i!==mes; });
+                if(mes) tr.cells[13].textContent = filtrados[tr.rowIndex - (table?.tHead?.rows.length || 0)]?.meses[mes-1] || '';
+            });
         };
 
         const fNomeFin = document.getElementById('filtroNomeFinanceiro');
@@ -4921,113 +4937,23 @@ setTimeout(() => {
         setTimeout(() => { btn.innerHTML = originalHtml; btn.disabled = false; }, 2000);
     });
 
-    document.getElementById('btnImprimirFinanceiro')?.addEventListener('click', async () => {
-        const btn = document.getElementById('btnImprimirFinanceiro');
-        const originalHtml = btn.innerHTML;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Gerando...';
-        btn.disabled = true;
-
-        try {
-            const anoBusca = parseInt(document.getElementById('selectAnoFinanceiro').value) || new Date().getFullYear();
-
-            const { data: todosMediuns, error: errMediuns } = await supabaseClient.from('mediuns')
-                .select('id, nome_completo, nome_social, isento_mensalidade, grau, funcao, status_ativo')
-                .eq('terreiro_id', idTerreiroGlobal)
-                .neq('nome_completo', 'Administrador Sistema')
-                .order('nome_completo');
-
-            if (errMediuns) throw errMediuns;
-
-            const mediuns = (todosMediuns || []).filter(m => {
-                const ehDirigente = (m.grau === 'Dirigente' || m.funcao === 'Dirigente');
-                return !(ehDirigente && m.isento_mensalidade === true);
-            });
-
-            if (mediuns.length === 0) {
-                alert('Nenhum médium registrado para gerar o relatório financeiro.');
-                return;
-            }
-
-            const idsMediuns = mediuns.map(m => m.id);
-
-            let pgtos = [];
-            let deLinha = 0;
-            const tamanhoBloco = 1000;
-
-            while (true) {
-                const { data: blocoPgtos, error: errBloco } = await supabaseClient.from('financeiro')
-                    .select('medium_id, mes, ano, pago, isento')
-                    .eq('ano', anoBusca)
-                    .in('medium_id', idsMediuns)
-                    .range(deLinha, deLinha + tamanhoBloco - 1);
-
-                if (errBloco) throw errBloco;
-
-                if (blocoPgtos && blocoPgtos.length > 0) {
-                    pgtos.push(...blocoPgtos);
-                    if (blocoPgtos.length < tamanhoBloco) break;
-                    deLinha += tamanhoBloco;
-                } else {
-                    break;
-                }
-            }
-
-            const mesAtual = new Date().getMonth() + 1;
-            const anoAtual = new Date().getFullYear();
-
-            const dados = mediuns.map(m => {
-                const meusPgtos = pgtos ? pgtos.filter(p => p.medium_id === m.id) : [];
-                let emDia = true;
-                const ehInativo = (m.status_ativo === false);
-
-                const dataIngresso = m.created_at ? new Date(m.created_at) : new Date('2000-01-01');
-                const mesIngresso = dataIngresso.getMonth() + 1;
-                const anoIngresso = dataIngresso.getFullYear();
-
-                const linha = [ehInativo ? `${m.nome_completo} (Inativo)` : m.nome_completo];
-
-                for (let i = 1; i <= 12; i++) {
-                    const pgto = meusPgtos.find(p => p.mes === i);
-                    const isAntesDoIngresso = (anoBusca < anoIngresso) || (anoBusca === anoIngresso && i < mesIngresso);
-                    const isIsento = m.isento_mensalidade === true || (pgto ? pgto.isento : false);
-                    const pago = pgto ? pgto.pago : false;
-                    const venceu = (anoBusca < anoAtual) || (anoBusca === anoAtual && i <= mesAtual);
-
-                    if (!ehInativo && venceu && !pago && !isIsento && !isAntesDoIngresso) {
-                        emDia = false;
-                    }
-
-                    if (isAntesDoIngresso) {
-                        linha.push('<span style="color: #cbd5e1;">-</span>');
-                    } else if (isIsento) {
-                        linha.push('<span style="color: #9333ea; font-weight: bold;">Isento</span>');
-                    } else if (pago) {
-                        linha.push('<span style="color: #16a34a; font-weight: bold;">Pago</span>');
-                    } else if (ehInativo) {
-                        linha.push('<span style="color: #94a3b8;">-</span>');
-                    } else {
-                        linha.push(venceu ? '<span style="color: #dc2626; font-weight: bold;">Pend.</span>' : '<span style="color: #94a3b8;">Aber.</span>');
-                    }
-                }
-
-                linha.push(ehInativo ? '<span style="color: #64748b; font-weight: bold;">Inativo</span>' : (emDia ? '<span style="color: #16a34a; font-weight: bold;">Em Dia</span>' : '<span style="color: #dc2626; font-weight: bold;">Pendente</span>'));
-                return linha;
-            });
-
-            dados.sort((a, b) => a[0].localeCompare(b[0], 'pt-BR'));
-
-            const colunas = ['Médium', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez', 'Status'];
-            window.gerarPDFRelatorio(`Relatório Financeiro Anual - ${anoBusca}`, colunas, dados, 'landscape');
-
-        } catch (err) {
-            console.error(err);
-            alert('Erro ao gerar relatório financeiro: ' + err.message);
-        } finally {
-            setTimeout(() => {
-                btn.innerHTML = originalHtml;
-                btn.disabled = false;
-            }, 2000);
-        }
+    document.getElementById('btnImprimirFinanceiro')?.addEventListener('click', () => {
+        const ano = Number(document.getElementById('selectAnoFinanceiro').value);
+        if (!window.financeiroPronto || window.anoCacheFinanceiro !== ano) return alert('Aguarde o carregamento das mensalidades antes de imprimir.');
+        const lista = window.selecionarFinanceiro();
+        if (!lista.length) return alert('Nenhum médium encontrado com estes filtros.');
+        const mes = Number(document.getElementById('filtroMesFinanceiro')?.value || 0);
+        const nomes = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+        const escape = texto => String(texto).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        const filtros = ['filtroStatusFinanceiro','filtroGrauFinanceiro'].map(id => {
+            const el = document.getElementById(id); return el?.selectedOptions[0]?.textContent || '';
+        });
+        const busca = document.getElementById('filtroNomeFinanceiro')?.value.trim();
+        if(busca) filtros.push('Nome: '+busca);
+        const titulo = 'Mensalidades - '+(mes ? nomes[mes-1]+'/' : '')+ano+' - '+filtros.join(' / ')+' - '+lista.length+' médium(ns)';
+        const colunas = mes ? ['Médium',nomes[mes-1]+'/'+ano] : ['Médium',...nomes,'Situação anual'];
+        const dados = lista.map(item => mes ? [escape(item.nome_completo), item.meses[mes-1]] : [escape(item.nome_completo), ...item.meses, item.inativo ? 'Inativo' : item.emDia ? 'Em dia' : 'Pendente']);
+        window.gerarPDFRelatorio(escape(titulo),colunas,dados,mes ? 'portrait' : 'landscape');
     });
 }, 500);
 
