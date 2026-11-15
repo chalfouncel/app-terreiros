@@ -376,6 +376,8 @@ const { data: terreiros } = await supabaseClient
             }
 
             const imgCartaz = document.getElementById('cartazGira');
+            // Restaura a área original antes de calcular o espaço do slide atual.
+            if (imgCartaz?.parentElement) imgCartaz.parentElement.style.height = ''; 
             const placeholderCartaz = document.getElementById('placeholderSemCartaz');
             const dicaZoom = document.getElementById('dicaZoomCartaz');
             if (imgCartaz) {
@@ -486,6 +488,7 @@ const { data: terreiros } = await supabaseClient
             const horaFeito = document.getElementById('horaCheckinFeito');
             const btnPonto = document.getElementById('btnCheckin');
             const txtInstrucao = document.getElementById('textoInstrucaoGps');
+            if (btnPonto) btnPonto.style.display = ''; 
 
             if (ehInformativo) {
                 if (areaSucesso) areaSucesso.classList.add('hidden');
@@ -546,6 +549,18 @@ const { data: terreiros } = await supabaseClient
                     };
                     atualizarStatusBotaoPonto();
                 }
+            }
+            // Transfere o espaço vazio para o cartaz, medindo o deslocamento real
+            // dos controles para também respeitar margens e tamanhos no celular.
+            if (ehInformativo && reservarEspacoEvento && ev.imagem_url && imgCartaz?.parentElement && areaPonto) {
+                const moldura = imgCartaz.parentElement;
+                const alturaOriginal = moldura.getBoundingClientRect().height;
+                const baseAntes = areaPonto.getBoundingClientRect().bottom;
+                const blocoTexto = titleGira?.parentElement;
+                if (blocoTexto && blocoTexto.contains(textHorario)) blocoTexto.style.display = 'none';
+                if (btnPonto) btnPonto.style.display = 'none';
+                const espacoLiberado = baseAntes - areaPonto.getBoundingClientRect().bottom;
+                moldura.style.height = (alturaOriginal + Math.max(0, espacoLiberado)) + 'px';
             }
         };
 
