@@ -4167,7 +4167,7 @@ window.pagarDoacaoCantinaViaAsaas = async () => {
     }
 
     const TAXA_ASAAS_PIX = 1.99;
-    const valorTotalCobrado = Number((valorLiquido + TAXA_ASAAS_PIX).toFixed(2));
+    const valorTotalCobrado = Math.max(5,Number((valorLiquido + TAXA_ASAAS_PIX).toFixed(2)));
 
     const origHtml = btn.innerHTML;
     btn.disabled = true;
@@ -4233,7 +4233,7 @@ window.pagarDoacaoCantinaViaAsaas = async () => {
                         <span>AGUARDANDO PAGAMENTO PIX (DOAÇÃO #${regCantina.id})</span>
                     </div>
                     <p class="text-xs font-bold text-gray-800">
-                        Doação Cantina: R$ ${valorLiquido.toFixed(2).replace('.', ',')} <span class="text-gray-400">(+ R$ 1,99 taxa PIX)</span> = <span class="text-emerald-700 font-black">R$ ${valorTotalCobrado.toFixed(2).replace('.', ',')}</span>
+                        Doação Cantina: R$ ${valorLiquido.toFixed(2).replace('.', ',')} <span class="text-gray-400">(+ R$ ${(valorTotalCobrado-valorLiquido).toFixed(2).replace('.', ',')} custos da cobrança)</span> = <span class="text-emerald-700 font-black">R$ ${valorTotalCobrado.toFixed(2).replace('.', ',')}</span>
                     </p>
                     ${pixQrBase64 ? `
                     <div class="bg-white p-2.5 rounded-2xl border border-gray-200 inline-block shadow-sm">
