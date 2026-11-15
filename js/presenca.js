@@ -226,7 +226,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 const { data: terreiros } = await supabaseClient
     .from('terreiros')
-    .select('id, nome, status_bloqueado, latitude, longitude, cor_primaria, cor_secundaria, cor_fundo, cor_texto, logo_url, modulo_mensalidade_ativo, modulo_livro_curimba_ativo, gateway_pagamento, chave_pix_manual, doacoes_gestor_id')
+    .select('id, nome, status_bloqueado, latitude, longitude, cor_primaria, cor_secundaria, cor_fundo, cor_texto, logo_url, modulo_mensalidade_ativo, modulo_livro_curimba_ativo, gateway_pagamento, chave_pix_manual, cantina_chave_pix, doacoes_gestor_id')
     .eq('id', idTerreiroGlobal)
     .limit(1);
             if (terreiros && terreiros.length > 0) {
