@@ -342,6 +342,7 @@ const { data: terreiros } = await supabaseClient
             indiceSlideAtual = (index + slidesEventos.length) % slidesEventos.length;
             const ev = slidesEventos[indiceSlideAtual];
             const ehInformativo = (ev.tipo === 'informativo');
+            const reservarEspacoEvento = slidesEventos.some(slide => slide.tipo !== 'informativo');
 
             if (timerBotaoPonto) clearTimeout(timerBotaoPonto);
 
@@ -364,12 +365,14 @@ const { data: terreiros } = await supabaseClient
             if (titleGira) {
                 titleGira.textContent = ev.titulo;
                 titleGira.title = ev.titulo;
-                // Remove também a altura reservada ao título e horário nos informativos.
+                // Mantém a altura entre slides, sem exibir os dados do informativo.
                 const blocoTexto = titleGira.parentElement;
                 if (blocoTexto && blocoTexto.contains(document.getElementById('horarioGira'))) {
-                    blocoTexto.style.display = ehInformativo ? 'none' : '';
+                    blocoTexto.style.display = ehInformativo && !reservarEspacoEvento ? 'none' : '';
+                    blocoTexto.style.visibility = ehInformativo ? 'hidden' : '';
+                    blocoTexto.setAttribute('aria-hidden', String(ehInformativo));
                 }
-                titleGira.classList.toggle('hidden', ehInformativo);
+                titleGira.classList.remove('hidden');
             }
 
             const imgCartaz = document.getElementById('cartazGira');
@@ -395,7 +398,7 @@ const { data: terreiros } = await supabaseClient
             const txtHrFim = hrFimEvento.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
             const badgeEl = document.getElementById('badgeTipoEvento');
             const textHorario = document.getElementById('horarioGira');
-            if (textHorario) textHorario.classList.toggle('hidden', ehInformativo);
+            if (textHorario) textHorario.classList.remove('hidden');
 
             if (ehInformativo) {
                 if (badgeEl) {
@@ -491,10 +494,20 @@ const { data: terreiros } = await supabaseClient
 
                 if (btnPonto) {
                     btnPonto.disabled = true;
-                    btnPonto.classList.add('hidden');
+                    btnPonto.className = 'w-full text-white text-lg font-bold py-4 rounded-xl flex items-center justify-center gap-2 mb-3';
+                    btnPonto.textContent = '\u00a0';
+                    btnPonto.style.visibility = 'hidden';
+                    btnPonto.style.minHeight = '60px';
+                    btnPonto.classList.toggle('hidden', !reservarEspacoEvento);
+                    btnPonto.setAttribute('aria-hidden', 'true');
                 }
             } else {
-                if (btnPonto) btnPonto.classList.remove('hidden');
+                if (btnPonto) {
+                    btnPonto.classList.remove('hidden');
+                    btnPonto.style.visibility = '';
+                    btnPonto.style.minHeight = '60px';
+                    btnPonto.removeAttribute('aria-hidden');
+                }
                 if (txtInstrucao) txtInstrucao.classList.remove('hidden');
                 const presencaFeita = window.mapaPresencasUsuario[ev.id];
 
