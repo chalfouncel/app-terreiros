@@ -506,7 +506,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <div id="ancoraPixAssistencia"></div>
                 <div id="rifasApoioAssistencia" class="space-y-4"></div>`;
             const acompanhante = document.getElementById('btnNovoRegistro');
-            if (acompanhante) acompanhante.before(area); else sucesso.appendChild(area);
+            if (acompanhante) acompanhante.after(area); else sucesso.appendChild(area);
         }
         window.atualizarBotaoDoacaoDireta('doacao');
         if (carregando || terreiroCarregado === String(idTerreiroGlobal)) return;
