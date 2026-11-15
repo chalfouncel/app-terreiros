@@ -2230,7 +2230,7 @@ const { data: terreiros } = await supabaseClient
             if (terreiroConfigMensalidade && terreiroConfigMensalidade.gateway_pagamento === 'asaas') {
                 const taxaFixaCfg = Number(terreiroConfigMensalidade.taxa_plataforma_fixa || 0);
                 const taxaPercCfg = Number(terreiroConfigMensalidade.taxa_plataforma_percentual || 0);
-                const TARIFA_BANCARIA = terreiroConfigMensalidade.mensalidades_asaas_seguras ? Number((2.99 + taxaFixaCfg + totalGeral * taxaPercCfg / 100).toFixed(2)) : ((taxaFixaCfg > 0 || taxaPercCfg > 0)
+                const TARIFA_BANCARIA = terreiroConfigMensalidade.mensalidades_asaas_seguras ? Number((1.99 + taxaFixaCfg + totalGeral * taxaPercCfg / 100).toFixed(2)) : ((taxaFixaCfg > 0 || taxaPercCfg > 0)
                     ? Number((taxaFixaCfg + (totalGeral * (taxaPercCfg / 100))).toFixed(2))
                     : 2.99);
                 const totalComTaxa = totalGeral + TARIFA_BANCARIA;
@@ -2583,7 +2583,7 @@ async function chamarEdgeFunctionAsaas(valorTotal, carrinhoArray, retomarComprov
     const containerCarrinho = document.getElementById('containerCarrinhoMensalidades');
     const taxaFixaCfg = Number(terreiroConfigMensalidade?.taxa_plataforma_fixa || 0);
     const taxaPercCfg = Number(terreiroConfigMensalidade?.taxa_plataforma_percentual || 0);
-    const tarifaAplicada = terreiroConfigMensalidade.mensalidades_asaas_seguras ? Number((2.99 + taxaFixaCfg + valorTotal * taxaPercCfg / 100).toFixed(2)) : ((taxaFixaCfg > 0 || taxaPercCfg > 0)
+    const tarifaAplicada = terreiroConfigMensalidade.mensalidades_asaas_seguras ? Number((1.99 + taxaFixaCfg + valorTotal * taxaPercCfg / 100).toFixed(2)) : ((taxaFixaCfg > 0 || taxaPercCfg > 0)
         ? Number((taxaFixaCfg + (valorTotal * (taxaPercCfg / 100))).toFixed(2))
         : 2.99);
     let valorComTaxa = Number((valorTotal + tarifaAplicada).toFixed(2));
