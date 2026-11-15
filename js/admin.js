@@ -6976,6 +6976,15 @@ window.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- MÓDULO RIFAS ---
+    window.configurarTipoPixRifa = async (id) => {
+        const escolha=prompt('Tipo da chave Pix desta rifa:\n1 — E-mail\n2 — Telefone\n3 — CPF\n4 — CNPJ\n5 — Chave aleatória');
+        if(escolha===null) return;
+        const tipo=({'1':'EMAIL','2':'PHONE','3':'CPF','4':'CNPJ','5':'EVP'})[escolha.trim()];
+        if(!tipo) return alert('Escolha uma opção de 1 a 5.');
+        const {error}=await supabaseClient.from('rifas').update({tipo_chave_pix:tipo}).eq('id',id).eq('terreiro_id',idTerreiroGlobal);
+        if(error) return alert('Não foi possível salvar: '+error.message);
+        alert('Tipo da chave Pix atualizado.');
+    };
     window.abrirModalNovaRifa = () => {
         document.getElementById('formNovaRifa').reset();
         document.getElementById('modalNovaRifa').classList.remove('hidden');
@@ -7009,6 +7018,7 @@ window.addEventListener('DOMContentLoaded', () => {
                     quantidade_numeros: parseInt(document.getElementById('rifaQtd').value),
                     valor_numero: parseFloat(document.getElementById('rifaValor').value),
                     chave_pix: document.getElementById('rifaPix').value.trim() || null,
+                    tipo_chave_pix: document.getElementById('rifaTipoPix').value || null,
                     descricao: document.getElementById('rifaDescricao').value.trim() || null,
                     imagem_url: imagemUrl,
                     status: 'aberta'
@@ -7087,7 +7097,7 @@ window.addEventListener('DOMContentLoaded', () => {
                         <div class="flex justify-between items-start mb-2">
                             <h4 class="font-bold text-gray-800 text-sm leading-tight pr-2">${r.titulo}</h4>${badge}
                         </div>
-                        <p class="text-[11px] text-gray-500 mb-4 line-clamp-2">${r.descricao || 'Sem descrição'}</p>
+                        <p class="text-[11px] text-gray-500 mb-4 line-clamp-2">${r.descricao || 'Sem descrição'}</p><button type="button" class="text-xs text-indigo-700 underline mb-3" onclick="configurarTipoPixRifa(${Number(r.id)})">Configurar tipo da chave Pix</button>
                         
                         <div class="flex items-center gap-4 mb-4">
                             <div class="text-center">
