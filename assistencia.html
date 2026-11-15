@@ -20,6 +20,7 @@
         .bg-tema-primaria { background-color: var(--cor-primaria) !important; }
         .text-tema-primaria { color: var(--cor-primaria) !important; }
         .border-tema-primaria { border-color: var(--cor-primaria) !important; }
+        #estadoSucesso #apoioAssistencia { margin-top: 16px; margin-bottom: 0; padding-top: 16px; }
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center justify-center p-4">
@@ -84,15 +85,16 @@
         </div>
 
         <!-- Estado 4: Sucesso -->
-        <div id="estadoSucesso" class="hidden text-center py-6">
-            <div class="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
-                <i class="fas fa-check text-4xl"></i>
+        <div id="estadoSucesso" class="hidden text-center py-1">
+            <div class="flex items-center gap-3 text-left mb-4" role="status">
+                <div class="w-10 h-10 flex-shrink-0 bg-green-100 text-green-600 rounded-full flex items-center justify-center">
+                    <i class="fas fa-check text-xl" aria-hidden="true"></i>
+                </div>
+                <div class="min-w-0">
+                    <h3 class="text-base font-black text-gray-800 leading-snug">Presença registrada!</h3>
+                    <p class="text-xs text-gray-500 mt-1">Boas-vindas! Chegada às <span id="horaConfirmada" class="font-bold text-gray-800">--:--</span>.</p>
+                </div>
             </div>
-            <h3 class="text-xl font-black text-gray-800">Presença Registrada!</h3>
-            <p class="text-xs text-gray-500 mt-2">
-                Seja bem-vindo(a)! Chegada anotada às <span id="horaConfirmada" class="font-bold text-gray-800">--:--</span>.
-            </p>
-            <p class="text-xs text-gray-400 mt-3 mb-6">Que os Guias abençoem sua visita e tragam paz aos seus caminhos.</p>
 
             <!-- Botão de Acompanhante / Familiar -->
             <button type="button" id="btnNovoRegistro" class="w-full bg-gray-800 hover:bg-gray-900 active:scale-95 text-white font-bold py-3 px-4 rounded-xl shadow transition text-xs flex items-center justify-center gap-2">
