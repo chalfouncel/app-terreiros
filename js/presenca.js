@@ -1,3 +1,32 @@
+
+// Consulta separada: evita enviar IDs numéricos para uma coluna UUID.
+async function consultarPresencasPessoas(eventos, pessoas) {
+    const ids=[...new Set(pessoas.filter(x=>x!==null && x!==undefined && String(x)!=='undefined').map(String))];
+    const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const resultado=[];
+    for(const grupo of [ids.filter(x=>uuid.test(x)),ids.filter(x=>!uuid.test(x))]) {
+        if(!grupo.length) continue;
+        const {data,error}=await supabaseClient.from('presencas').select('*').in('evento_id',eventos).in('usuario_id',grupo);
+        if(error){if(error.code==='22P02' && grupo.every(x=>!uuid.test(x)))continue;throw error;}
+        resultado.push(...(data||[]));
+    }
+    return resultado;
+}
+let checkinEmAndamento=false;
+function atualizarAcessoFamiliaCheckin(){
+    const area=document.getElementById('areaSucesso');
+    if(!area)return;
+    let botao=document.getElementById('btnFamiliaPresencaConfirmada');
+    if(!botao){
+        botao=document.createElement('button');botao.id='btnFamiliaPresencaConfirmada';botao.type='button';
+        botao.className='w-full py-3 px-4 mb-4 rounded-xl bg-tema-primaria text-white font-bold';
+        botao.textContent='Confirmar presença de familiares';
+        const ancora=document.getElementById('btnAbrirMensalidadeSucesso');
+        if(ancora)ancora.before(botao);else area.appendChild(botao);
+        botao.onclick=()=>executarCheckinGPS();
+    }
+    botao.hidden=!(familiaresAprovadosCache||[]).length;
+}
 // VERSÃO: ASAAS_STEP_1_FAMILIA
 let idTerreiroGlobal = null;
 let idGiraGlobal = null;
@@ -299,10 +328,7 @@ const { data: terreiros } = await supabaseClient
         window.mapaPresencasUsuario = {};
         if (slidesEventos.length > 0) {
             const idsSlides = slidesEventos.map(s => s.id);
-            const { data: presList } = await supabaseClient.from('presencas')
-                .select('*')
-                .in('usuario_id', [authId, String(perfil.id)])
-                .in('evento_id', idsSlides);
+            const presList = await consultarPresencasPessoas(idsSlides, [authId, perfil.id]);
             (presList || []).forEach(p => { window.mapaPresencasUsuario[p.evento_id] = p; });
         }
 
@@ -465,6 +491,7 @@ const { data: terreiros } = await supabaseClient
                 const presencaFeita = window.mapaPresencasUsuario[ev.id];
 
                 if (presencaFeita) {
+                    atualizarAcessoFamiliaCheckin();
                     if (areaPonto) areaPonto.classList.add('hidden');
                     if (areaSucesso) areaSucesso.classList.remove('hidden');
                     if (horaFeito) horaFeito.textContent = new Date(presencaFeita.data_hora_checkin).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
@@ -2671,6 +2698,8 @@ function mostrarModalGPS(estado) {
 }
 
 function mostrarTelaSucessoCheckin(isoHora) {
+    atualizarAcessoFamiliaCheckin();
+    isoHora = isoHora || window.mapaPresencasUsuario?.[idGiraGlobal]?.data_hora_checkin;
     const areaPonto = document.getElementById('areaBaterPonto');
     const areaSucesso = document.getElementById('areaSucesso');
     const horaFeito = document.getElementById('horaCheckinFeito');
@@ -2697,11 +2726,7 @@ async function abrirFluxoCheckinFamiliar(distanciaMetros) {
         possiveisIds.push(String(f.id));
     });
 
-    const { data: presExistentes } = await supabaseClient
-        .from('presencas')
-        .select('usuario_id')
-        .eq('evento_id', idGiraGlobal)
-        .in('usuario_id', possiveisIds);
+    const presExistentes = await consultarPresencasPessoas([idGiraGlobal], possiveisIds);
 
     const setJaPresentes = new Set((presExistentes || []).map(p => String(p.usuario_id)));
 
@@ -2771,11 +2796,7 @@ async function abrirFluxoCheckinFamiliar(distanciaMetros) {
 
         try {
             // Revalida no banco antes de inserir para impedir qualquer duplicidade simultânea
-            const { data: recheck } = await supabaseClient
-                .from('presencas')
-                .select('usuario_id')
-                .eq('evento_id', idGiraGlobal)
-                .in('usuario_id', possiveisIds);
+            const recheck = await consultarPresencasPessoas([idGiraGlobal], possiveisIds);
 
             const setRecheck = new Set((recheck || []).map(p => String(p.usuario_id)));
             const dataCheckin = new Date().toISOString();
@@ -2795,10 +2816,14 @@ async function abrirFluxoCheckinFamiliar(distanciaMetros) {
             }).filter(Boolean);
 
             if (insercoes.length > 0) {
-                await supabaseClient.from('presencas').insert(insercoes);
+                const {error} = await supabaseClient.from('presencas').insert(insercoes);
+                if(error) throw error;
             }
         } catch (e) {
             console.error('Erro ao registrar familiares:', e);
+            alert(e.code==='23505' ? 'Uma das pessoas já tem presença registrada nesta gira. Reabra a lista para conferir.' : 'Não foi possível confirmar os familiares. Tente novamente.');
+            btnConfirmarFam.disabled=false;
+            return;
         }
 
         finalizarModal();
@@ -2809,54 +2834,38 @@ async function abrirFluxoCheckinFamiliar(distanciaMetros) {
 }
 
 async function registrarMinhaPresencaEChecarFamilia(distanciaMetros, silencioso = false) {
-    const msg = document.getElementById('msgCheckin');
-    const { data: { session } } = await supabaseClient.auth.getSession();
-    if (!session || !idGiraGlobal) return;
-
-    // 1. Checa no banco se o próprio médium já teve a presença confirmada (individualmente ou por outro familiar)
-    const { data: jaFeito } = await supabaseClient
-        .from('presencas')
-        .select('*')
-        .eq('evento_id', idGiraGlobal)
-        .in('usuario_id', [session.user.id, String(perfilMediumLogado.id)])
-        .limit(1);
-
-    let dataHoraRegistro = new Date().toISOString();
-
-    if (jaFeito && jaFeito.length > 0) {
-        dataHoraRegistro = jaFeito[0].data_hora_checkin;
-    } else {
-        if (!silencioso && btnCheckin) {
-            btnCheckin.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Registrando...';
+    if(checkinEmAndamento)return;
+    checkinEmAndamento=true;
+    const evento=idGiraGlobal;
+    const msg=document.getElementById('msgCheckin');
+    try{
+        const {data:{session}}=await supabaseClient.auth.getSession();
+        if(!session || !evento || !perfilMediumLogado)return;
+        const ids=[session.user.id,perfilMediumLogado.id];
+        let encontrados=await consultarPresencasPessoas([evento],ids);
+        let registro=encontrados[0];
+        let novo=false;
+        if(!registro){
+            const hora=new Date().toISOString();
+            const {error}=await supabaseClient.from('presencas').insert([{evento_id:evento,usuario_id:session.user.id,data_hora_checkin:hora,localizacao_valida:true,distancia_metros:Math.round(distanciaMetros)}]);
+            if(error){
+                if(error.code!=='23505')throw error;
+                encontrados=await consultarPresencasPessoas([evento],ids);
+                registro=encontrados[0];
+                if(!registro)throw new Error('Já existe um registro de presença. Atualize a página para conferir.');
+            }else{registro={data_hora_checkin:hora};novo=true;}
         }
-        const { error } = await supabaseClient.from('presencas').insert([{
-            evento_id: idGiraGlobal,
-            usuario_id: session.user.id,
-            data_hora_checkin: dataHoraRegistro,
-            localizacao_valida: true,
-            distancia_metros: Math.round(distanciaMetros)
-        }]);
-
-        if (error) {
-            if (!silencioso && msg) {
-                msg.textContent = "Erro ao registrar: " + error.message;
-                msg.className = "mt-3 text-sm font-bold text-red-500 block";
-                msg.classList.remove('hidden');
-            }
-            restaurarBotao(btnCheckin);
-            return;
-        }
-    }
-
-    if (window.mapaPresencasUsuario) {
-        window.mapaPresencasUsuario[idGiraGlobal] = { data_hora_checkin: dataHoraRegistro };
-    }
-
-    if (silencioso && typeof window.mostrarToastSistema === 'function') {
-        window.mostrarToastSistema('📍 Presença confirmada automaticamente por proximidade!', 'sucesso');
-    }
-
-    await abrirFluxoCheckinFamiliar(distanciaMetros);
+        window.mapaPresencasUsuario=window.mapaPresencasUsuario||{};
+        window.mapaPresencasUsuario[evento]=registro;
+        if(String(evento)!==String(idGiraGlobal))return;
+        mostrarTelaSucessoCheckin(registro.data_hora_checkin);
+        if(novo && silencioso && typeof window.mostrarToastSistema==='function')window.mostrarToastSistema('Presença confirmada automaticamente por proximidade!','sucesso');
+        if(!silencioso || novo)await abrirFluxoCheckinFamiliar(distanciaMetros);
+    }catch(e){
+        if(!silencioso)alert(e.message || 'Não foi possível conferir a presença. Tente novamente.');
+        if(msg && !silencioso){msg.textContent='Não foi possível confirmar a presença. Tente novamente.';msg.classList.remove('hidden');}
+        restaurarBotao(btnCheckin);
+    }finally{checkinEmAndamento=false;}
 }
 
 function executarAutoCheckinSilencioso() {
@@ -2966,7 +2975,8 @@ if (btnFecharModalGps) {
     });
 }
 
-function restaurarBotao(btn) { 
+function restaurarBotao(btn) {
+    if(window.mapaPresencasUsuario?.[idGiraGlobal]) {mostrarTelaSucessoCheckin();return;}
     if (btn) { 
         btn.disabled = false; 
         btn.innerHTML = '<i class="fas fa-map-marker-alt"></i> Confirmar Presença'; 
