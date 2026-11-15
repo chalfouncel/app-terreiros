@@ -31,6 +31,43 @@
         }
         .animate-pulse-fast { animation: pulse-fast 1s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
     </style>
+
+<style id="rifa-cores-apresentacao">
+/* Somente apresentação: nenhuma regra de disponibilidade ou compra. */
+#gridNumerosRifa > button, #gridNumerosDisponiveis > button { position:relative; }
+#gridNumerosRifa > button.bg-white, #gridNumerosDisponiveis > button.bg-white {
+ background-color:#dcfce7 !important; color:#166534 !important; border-color:#86efac !important;
+}
+#gridNumerosRifa > button.bg-white:hover, #gridNumerosDisponiveis > button.bg-white:hover {
+ background-color:#bbf7d0 !important;
+}
+#gridNumerosRifa > button.bg-emerald-500, #gridNumerosRifa > button.bg-green-500,
+#gridNumerosDisponiveis > button.bg-green-500 {
+ background-color:#fee2e2 !important; color:#991b1b !important; border-color:#fca5a5 !important;
+}
+#gridNumerosRifa > button.bg-amber-400, #gridNumerosRifa > button.bg-yellow-400,
+#gridNumerosDisponiveis > button.bg-yellow-400 {
+ background-color:#fef3c7 !important; color:#92400e !important; border-color:#fcd34d !important;
+}
+#gridNumerosRifa > button.bg-indigo-600, #gridNumerosDisponiveis > button.bg-tema-primaria {
+ background-color:#fde68a !important; color:#78350f !important; border-color:#d97706 !important;
+ --tw-ring-color:#d97706 !important;
+}
+#gridNumerosRifa > button.bg-indigo-600::after, #gridNumerosDisponiveis > button.bg-tema-primaria::after {
+ content:'✓'; position:absolute; top:1px; right:4px; font-size:11px; line-height:1.2; pointer-events:none;
+}
+#gridNumerosRifa > button.bg-amber-400::after, #gridNumerosRifa > button.bg-yellow-400::after,
+#gridNumerosDisponiveis > button.bg-yellow-400::after {
+ content:'⏳'; position:absolute; top:1px; right:2px; font-size:9px; line-height:1.2; pointer-events:none;
+}
+.rifa-legenda-cores { display:flex; flex-wrap:wrap; justify-content:center; gap:8px 14px; padding:10px; font-size:12px; line-height:1.4; color:#374151; }
+.rifa-legenda-cores > span { display:inline-flex; align-items:center; gap:5px; }
+.rifa-legenda-cores i { display:inline-flex; align-items:center; justify-content:center; width:17px; height:17px; border:1px solid; border-radius:4px; font-style:normal; font-size:11px; }
+.rifa-cor-livre { background:#dcfce7; color:#166534; border-color:#86efac !important; }
+.rifa-cor-selecionado { background:#fde68a; color:#78350f; border-color:#d97706 !important; }
+.rifa-cor-processando { background:#fef3c7; color:#92400e; border-color:#fcd34d !important; }
+.rifa-cor-comprado { background:#fee2e2; color:#991b1b; border-color:#fca5a5 !important; }
+</style>
 </head>
 <body class="min-h-screen flex flex-col items-center p-4 pt-6 pb-20">
 
@@ -82,6 +119,12 @@
         </div>
 
         <div class="p-4 md:p-6 flex-1 overflow-y-auto bg-white">
+            <div class="rifa-legenda-cores" aria-label="Legenda dos números da rifa">
+ <span><i class="rifa-cor-livre" aria-hidden="true"></i>Disponível</span>
+ <span><i class="rifa-cor-selecionado" aria-hidden="true">✓</i>Escolhido por você</span>
+ <span><i class="rifa-cor-processando" aria-hidden="true">⏳</i>Compra / validação</span>
+ <span><i class="rifa-cor-comprado" aria-hidden="true"></i>Comprado / indisponível</span>
+</div>
             <div id="gridNumerosDisponiveis" class="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-2 md:gap-3">
                 <div class="col-span-full text-center text-gray-400 py-10"><i class="fas fa-spinner fa-spin text-2xl"></i></div>
             </div>
@@ -644,7 +687,7 @@
                         throw new Error("Falha ao registrar no Caixa. Compra desfeita.");
                     }
 
-                    alert("✅ Venda registrada! Os números já estão na cartela (Verde).");
+                    alert("✅ Venda registrada! Os números já estão marcados como comprados na cartela.");
                     fecharCheckout();
                     carregarCartelaRifa(dadosRifaGlobal.id);
 
