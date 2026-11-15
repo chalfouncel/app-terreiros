@@ -48,6 +48,7 @@ window.todosItensDoacaoCache = [];
 let abaCampanhaAtiva = 'doacao';
 
 document.addEventListener('DOMContentLoaded', async () => {
+    document.getElementById('textoInstrucaoGps')?.remove();
 
     // Variáveis do Realtime inicializadas antes do carregamento
     let canalPrecosFornecedores = null;
@@ -363,6 +364,12 @@ const { data: terreiros } = await supabaseClient
             if (titleGira) {
                 titleGira.textContent = ev.titulo;
                 titleGira.title = ev.titulo;
+                // Remove também a altura reservada ao título e horário nos informativos.
+                const blocoTexto = titleGira.parentElement;
+                if (blocoTexto && blocoTexto.contains(document.getElementById('horarioGira'))) {
+                    blocoTexto.style.display = ehInformativo ? 'none' : '';
+                }
+                titleGira.classList.toggle('hidden', ehInformativo);
             }
 
             const imgCartaz = document.getElementById('cartazGira');
@@ -388,6 +395,7 @@ const { data: terreiros } = await supabaseClient
             const txtHrFim = hrFimEvento.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
             const badgeEl = document.getElementById('badgeTipoEvento');
             const textHorario = document.getElementById('horarioGira');
+            if (textHorario) textHorario.classList.toggle('hidden', ehInformativo);
 
             if (ehInformativo) {
                 if (badgeEl) {
@@ -483,10 +491,10 @@ const { data: terreiros } = await supabaseClient
 
                 if (btnPonto) {
                     btnPonto.disabled = true;
-                    btnPonto.innerHTML = '<i class="fas fa-bullhorn"></i> INFORME';
-                    btnPonto.className = 'w-full bg-indigo-600 text-white text-lg font-black py-4 rounded-xl shadow-md cursor-default flex items-center justify-center gap-2 mb-3 tracking-wider uppercase';
+                    btnPonto.classList.add('hidden');
                 }
             } else {
+                if (btnPonto) btnPonto.classList.remove('hidden');
                 if (txtInstrucao) txtInstrucao.classList.remove('hidden');
                 const presencaFeita = window.mapaPresencasUsuario[ev.id];
 
