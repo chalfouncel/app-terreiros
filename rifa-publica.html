@@ -15,6 +15,43 @@
         .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
     </style>
+
+<style id="rifa-cores-apresentacao">
+/* Somente apresentação: nenhuma regra de disponibilidade ou compra. */
+#gridNumerosRifa > button, #gridNumerosDisponiveis > button { position:relative; }
+#gridNumerosRifa > button.bg-white, #gridNumerosDisponiveis > button.bg-white {
+ background-color:#dcfce7 !important; color:#166534 !important; border-color:#86efac !important;
+}
+#gridNumerosRifa > button.bg-white:hover, #gridNumerosDisponiveis > button.bg-white:hover {
+ background-color:#bbf7d0 !important;
+}
+#gridNumerosRifa > button.bg-emerald-500, #gridNumerosRifa > button.bg-green-500,
+#gridNumerosDisponiveis > button.bg-green-500 {
+ background-color:#fee2e2 !important; color:#991b1b !important; border-color:#fca5a5 !important;
+}
+#gridNumerosRifa > button.bg-amber-400, #gridNumerosRifa > button.bg-yellow-400,
+#gridNumerosDisponiveis > button.bg-yellow-400 {
+ background-color:#fef3c7 !important; color:#92400e !important; border-color:#fcd34d !important;
+}
+#gridNumerosRifa > button.bg-indigo-600, #gridNumerosDisponiveis > button.bg-tema-primaria {
+ background-color:#fde68a !important; color:#78350f !important; border-color:#d97706 !important;
+ --tw-ring-color:#d97706 !important;
+}
+#gridNumerosRifa > button.bg-indigo-600::after, #gridNumerosDisponiveis > button.bg-tema-primaria::after {
+ content:'✓'; position:absolute; top:1px; right:4px; font-size:11px; line-height:1.2; pointer-events:none;
+}
+#gridNumerosRifa > button.bg-amber-400::after, #gridNumerosRifa > button.bg-yellow-400::after,
+#gridNumerosDisponiveis > button.bg-yellow-400::after {
+ content:'⏳'; position:absolute; top:1px; right:2px; font-size:9px; line-height:1.2; pointer-events:none;
+}
+.rifa-legenda-cores { display:flex; flex-wrap:wrap; justify-content:center; gap:8px 14px; padding:10px; font-size:12px; line-height:1.4; color:#374151; }
+.rifa-legenda-cores > span { display:inline-flex; align-items:center; gap:5px; }
+.rifa-legenda-cores i { display:inline-flex; align-items:center; justify-content:center; width:17px; height:17px; border:1px solid; border-radius:4px; font-style:normal; font-size:11px; }
+.rifa-cor-livre { background:#dcfce7; color:#166534; border-color:#86efac !important; }
+.rifa-cor-selecionado { background:#fde68a; color:#78350f; border-color:#d97706 !important; }
+.rifa-cor-processando { background:#fef3c7; color:#92400e; border-color:#fcd34d !important; }
+.rifa-cor-comprado { background:#fee2e2; color:#991b1b; border-color:#fca5a5 !important; }
+</style>
 </head>
 <body class="bg-gray-50 text-gray-800 antialiased min-h-screen flex flex-col pb-28">
 
@@ -68,21 +105,12 @@
             </div>
         </div>
 
-        <!-- LEGENDA DA CARTELA -->
-        <div class="flex items-center justify-center gap-3 text-xs mb-3 font-semibold text-gray-600 bg-white p-2.5 rounded-xl border border-gray-200 shadow-sm">
-            <div class="flex items-center gap-1.5">
-                <span class="w-3.5 h-3.5 rounded bg-white border-2 border-gray-300"></span> Livre
-            </div>
-            <div class="flex items-center gap-1.5">
-                <span class="w-3.5 h-3.5 rounded bg-indigo-600"></span> Selecionado
-            </div>
-            <div class="flex items-center gap-1.5">
-                <span class="w-3.5 h-3.5 rounded bg-amber-400"></span> Reservado
-            </div>
-            <div class="flex items-center gap-1.5">
-                <span class="w-3.5 h-3.5 rounded bg-emerald-500"></span> Pago
-            </div>
-        </div>
+<div class="rifa-legenda-cores" aria-label="Legenda dos números da rifa">
+ <span><i class="rifa-cor-livre" aria-hidden="true"></i>Disponível</span>
+ <span><i class="rifa-cor-selecionado" aria-hidden="true">✓</i>Escolhido por você</span>
+ <span><i class="rifa-cor-processando" aria-hidden="true">⏳</i>Compra / validação</span>
+ <span><i class="rifa-cor-comprado" aria-hidden="true"></i>Comprado / indisponível</span>
+</div>
 
         <!-- ÁREA DA CARTELA DE NÚMEROS -->
         <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-200 mb-6">
@@ -169,7 +197,7 @@
                 </div>
 
                 <p class="text-[10px] text-gray-400 text-center leading-tight">
-                    <i class="fas fa-shield-alt text-emerald-500"></i> Pagamento processado com segurança via Asaas. Seus números serão garantidos e ficarão verdes automaticamente.
+                    <i class="fas fa-shield-alt text-emerald-500"></i> Pagamento processado com segurança via Asaas. Após a confirmação, seus números aparecerão como comprados na cartela.
                 </p>
 
                 <button type="submit" id="btnConfirmarPagamento" class="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-extrabold py-3.5 px-4 rounded-xl shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 transition text-sm">
