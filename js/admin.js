@@ -3455,12 +3455,14 @@ document.getElementById('totalMediunsInativos').textContent = totalInativos ?? 0
             if (btnImprimirCartaz && !btnImprimirCartaz.dataset.bound) {
                 btnImprimirCartaz.dataset.bound = 'true';
                 btnImprimirCartaz.addEventListener('click', () => {
-                    const nomeTerreiro = nomeTerreiroGlobal || 'Templo';
+                    const escaparCartaz = valor => String(valor).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+                    const nomeTerreiro = escaparCartaz(nomeTerreiroGlobal || 'Templo');
                     const logoHtml = logoTerreiroGlobal 
-                        ? `<img src="${logoTerreiroGlobal}" style="max-height: 90px; margin-bottom: 15px; object-fit: contain;">`
+                        ? `<img src="${escaparCartaz(logoTerreiroGlobal)}" class="logo" alt="Logo do terreiro">`
                         : '';
 
                     const janelaPrint = window.open('', '_blank');
+                    if (!janelaPrint) { alert('Permita a abertura da janela para imprimir o cartaz.'); return; }
                     janelaPrint.document.write(`
                         <!DOCTYPE html>
                         <html>
@@ -3468,73 +3470,33 @@ document.getElementById('totalMediunsInativos').textContent = totalInativos ?? 0
                             <title>Cartaz Recepção - ${nomeTerreiro}</title>
                             <style>
                                 @page { size: A4 portrait; margin: 15mm; }
-                                body {
-                                    font-family: Arial, sans-serif;
-                                    text-align: center;
-                                    color: #1e293b;
-                                    margin: 0;
-                                    padding: 20px 10px;
-                                    display: flex;
-                                    flex-direction: column;
-                                    justify-content: center;
-                                    align-items: center;
-                                    min-height: 90vh;
-                                }
-                                .borda {
-                                    border: 3px solid #1e3a8a;
-                                    border-radius: 24px;
-                                    padding: 40px 30px;
-                                    width: 88%;
-                                    box-sizing: border-box;
-                                }
-                                h1 { font-size: 24pt; margin: 0 0 8px 0; text-transform: uppercase; color: #1e3a8a; }
-                                h2 { font-size: 14pt; font-weight: normal; margin: 0 0 15px 0; color: #64748b; }
-                                .destaque {
-                                    background-color: #1e3a8a;
-                                    color: #ffffff;
-                                    font-size: 16pt;
-                                    font-weight: bold;
-                                    text-transform: uppercase;
-                                    padding: 10px 30px;
-                                    border-radius: 50px;
-                                    display: inline-block;
-                                    margin-bottom: 20px;
-                                    letter-spacing: 1px;
-                                }
-                                .qr-box {
-                                    margin: 0 auto;
-                                    padding: 15px;
-                                    background: #ffffff;
-                                    border: 2px solid #e2e8f0;
-                                    border-radius: 16px;
-                                    display: inline-block;
-                                }
-                                img.qr { width: 280px; height: 280px; display: block; }
-                                .instrucao {
-                                    font-size: 16pt;
-                                    font-weight: bold;
-                                    margin-top: 25px;
-                                    color: #0f172a;
-                                }
-                                .subtexto {
-                                    font-size: 11pt;
-                                    color: #64748b;
-                                    margin-top: 8px;
-                                    line-height: 1.5;
-                                }
+                                * { box-sizing: border-box; }
+                                body { font-family: Arial, sans-serif; color: #111827; background: white; margin: 0; padding: 8mm 0; }
+                                .borda { width: 100%; max-width: 180mm; margin: 0 auto; border: 2px solid #203e98; border-radius: 18px; padding: 10mm 8mm; text-align: center; break-inside: avoid; }
+                                .cabecalho { display: flex; align-items: center; gap: 6mm; text-align: left; padding-bottom: 8mm; border-bottom: 2px solid #203e98; }
+                                .logo { width: 25mm; height: 25mm; flex: 0 0 25mm; object-fit: contain; }
+                                h1 { margin: 0; font-size: 21pt; font-weight: 800; line-height: 1.25; color: #203e98; text-transform: uppercase; overflow-wrap: anywhere; }
+                                .destaque { font-size: 30pt; line-height: 1.13; font-weight: 900; margin: 10mm 0 4mm; }
+                                .publico { font-size: 28pt; font-weight: 900; line-height: 1.15; color: #203e98; margin-bottom: 7mm; }
+                                .qr-box { padding: 3mm; display: inline-block; background: white; }
+                                img.qr { display: block; width: 80mm; height: 80mm; }
+                                .instrucao { font-size: 16pt; font-weight: bold; line-height: 1.35; margin-top: 6mm; }
+                                .subtexto { font-size: 11pt; line-height: 1.4; margin-top: 3mm; }
                             </style>
                         </head>
                         <body>
                             <div class="borda">
-                                ${logoHtml}
-                                <h1>${nomeTerreiro}</h1>
-                                <h2>Recepção e Acolhimento • Assistência</h2>
-                                <div class="destaque">Registro de Presença Digital</div>
+                                <div class="cabecalho">
+                                    ${logoHtml}
+                                    <h1>${nomeTerreiro}</h1>
+                                </div>
+                                <div class="destaque">REGISTRO DE<br>PRESENÇA DIGITAL</div>
+                                <div class="publico">SOMENTE ASSISTÊNCIA</div>
                                 <div class="qr-box">
                                     <img class="qr" src="${qrCodeUrl}" alt="QR Code">
                                 </div>
                                 <div class="instrucao">Aponte a câmera do seu celular aqui</div>
-                                <div class="subtexto">Registre a sua presença na sessão de hoje de forma rápida e segura.</div>
+                                <div class="subtexto">Registre sua presença na sessão de hoje.</div>
                             </div>
                             <script>
                                 window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); };
