@@ -61,7 +61,44 @@
                 .no-print { display: none !important; }
             }
         </style>
-    </head>
+    
+<style id="rifa-cores-apresentacao">
+/* Somente apresentação: nenhuma regra de disponibilidade ou compra. */
+#gridNumerosRifa > button, #gridNumerosDisponiveis > button { position:relative; }
+#gridNumerosRifa > button.bg-white, #gridNumerosDisponiveis > button.bg-white {
+ background-color:#dcfce7 !important; color:#166534 !important; border-color:#86efac !important;
+}
+#gridNumerosRifa > button.bg-white:hover, #gridNumerosDisponiveis > button.bg-white:hover {
+ background-color:#bbf7d0 !important;
+}
+#gridNumerosRifa > button.bg-emerald-500, #gridNumerosRifa > button.bg-green-500,
+#gridNumerosDisponiveis > button.bg-green-500 {
+ background-color:#fee2e2 !important; color:#991b1b !important; border-color:#fca5a5 !important;
+}
+#gridNumerosRifa > button.bg-amber-400, #gridNumerosRifa > button.bg-yellow-400,
+#gridNumerosDisponiveis > button.bg-yellow-400 {
+ background-color:#fef3c7 !important; color:#92400e !important; border-color:#fcd34d !important;
+}
+#gridNumerosRifa > button.bg-indigo-600, #gridNumerosDisponiveis > button.bg-tema-primaria {
+ background-color:#fde68a !important; color:#78350f !important; border-color:#d97706 !important;
+ --tw-ring-color:#d97706 !important;
+}
+#gridNumerosRifa > button.bg-indigo-600::after, #gridNumerosDisponiveis > button.bg-tema-primaria::after {
+ content:'✓'; position:absolute; top:1px; right:4px; font-size:11px; line-height:1.2; pointer-events:none;
+}
+#gridNumerosRifa > button.bg-amber-400::after, #gridNumerosRifa > button.bg-yellow-400::after,
+#gridNumerosDisponiveis > button.bg-yellow-400::after {
+ content:'⏳'; position:absolute; top:1px; right:2px; font-size:9px; line-height:1.2; pointer-events:none;
+}
+.rifa-legenda-cores { display:flex; flex-wrap:wrap; justify-content:center; gap:8px 14px; padding:10px; font-size:12px; line-height:1.4; color:#374151; }
+.rifa-legenda-cores > span { display:inline-flex; align-items:center; gap:5px; }
+.rifa-legenda-cores i { display:inline-flex; align-items:center; justify-content:center; width:17px; height:17px; border:1px solid; border-radius:4px; font-style:normal; font-size:11px; }
+.rifa-cor-livre { background:#dcfce7; color:#166534; border-color:#86efac !important; }
+.rifa-cor-selecionado { background:#fde68a; color:#78350f; border-color:#d97706 !important; }
+.rifa-cor-processando { background:#fef3c7; color:#92400e; border-color:#fcd34d !important; }
+.rifa-cor-comprado { background:#fee2e2; color:#991b1b; border-color:#fca5a5 !important; }
+</style>
+</head>
     <body class="min-h-screen flex flex-col transition-colors duration-300">
     
         <!-- BARRA SUPERIOR FIXA (TOPBAR MODERNA SEM SIDEBAR) -->
@@ -2568,9 +2605,9 @@
                     <div>
                         <h3 class="text-xl font-black text-gray-800" id="cartelaTituloRifa">Rifa...</h3>
                         <p class="text-xs font-bold text-gray-500 mt-1 flex items-center gap-3">
-                            <span class="text-green-600"><i class="fas fa-circle text-[10px]"></i> <span id="cartelaQtdPagos">0</span> Pagos</span>
+                            <span class="text-red-700"><i class="fas fa-circle text-[10px]"></i> <span id="cartelaQtdPagos">0</span> Pagos</span>
                             <span class="text-amber-500"><i class="fas fa-circle text-[10px]"></i> <span id="cartelaQtdPendentes">0</span> Pendentes</span>
-                            <span><i class="fas fa-circle text-[10px]"></i> <span id="cartelaQtdLivres">0</span> Livres</span>
+                            <span class="text-green-700"><i class="fas fa-circle text-[10px]"></i> <span id="cartelaQtdLivres">0</span> Livres</span>
                         </p>
                     </div>
                     <div class="flex items-center gap-2">
