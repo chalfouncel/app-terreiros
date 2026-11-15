@@ -38,6 +38,7 @@ let hrInicioPermitidoGlobal = null;
 let perfilMediumLogado = null;
 let configValoresGrau = {};
 let terreiroConfigMensalidade = {};
+const cobrancasMensalidadesPendentes = new Map();
 let carrinhoMensalidadesState = []; 
 let valorPendenteParaPix = 0; 
 let familiaresAprovadosCache = [];
@@ -2069,7 +2070,7 @@ const { data: terreiros } = await supabaseClient
 
         // 2. Busca os comprovantes PENDENTES para travar os meses que aguardam validação
         const { data: comprovantesPendentes } = await supabaseClient.from('comprovantes_mensalidade')
-            .select('detalhes_pagamento')
+            .select('id,detalhes_pagamento,url_comprovante,enviado_por,valor_total')
             .eq('terreiro_id', idTerreiroGlobal)
             .eq('status', 'pendente');
 
@@ -2091,6 +2092,18 @@ const { data: terreiros } = await supabaseClient
         }
 
         let htmlGeral = '';
+        cobrancasMensalidadesPendentes.clear();
+        if (terreiroConfigMensalidade.mensalidades_asaas_seguras) {
+            (comprovantesPendentes || []).filter(c => c.enviado_por === perfilMediumLogado.auth_id &&
+                /^pay_[a-zA-Z0-9]+$/.test(c.url_comprovante || '') && /^[0-9a-f-]{36}$/i.test(c.id)
+            ).forEach(c => {
+                cobrancasMensalidadesPendentes.set(c.id, c);
+                htmlGeral += `<button type="button" onclick="window.retomarMensalidadeAsaas('${c.id}')"
+                    class="w-full p-3 mb-3 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 font-bold text-sm">
+                    PIX pendente — R$ ${Number(c.valor_total).toFixed(2).replace('.', ',')} · Reabrir PIX
+                </button>`;
+            });
+        }
 
         carrinhoMensalidadesState.forEach((itemCarrinho, indexCarrinho) => {
             const pgtosMedium = pgtosFeitos ? pgtosFeitos.filter(p => p.medium_id === itemCarrinho.mediumId) : [];
@@ -2131,7 +2144,7 @@ const { data: terreiros } = await supabaseClient
                 } else if (estaPendente) {
                     // MÊS PENDENTE / EM ANÁLISE (Amarelo Travado)
                     gridMesesHtml += `
-                        <div class="bg-yellow-50 border border-yellow-300 text-yellow-700 rounded-lg p-2 text-center text-xs font-bold flex flex-col justify-between opacity-90 cursor-not-allowed" title="Aguardando validação da tesouraria">
+                        <div class="bg-yellow-50 border border-yellow-300 text-yellow-700 rounded-lg p-2 text-center text-xs font-bold flex flex-col justify-between opacity-90 cursor-not-allowed" title="Aguardando pagamento ou validação">
                             <span>${nomesMeses[m]}</span>
                             <i class="fas fa-clock text-yellow-500 mt-1"></i>
                         </div>
@@ -2217,9 +2230,9 @@ const { data: terreiros } = await supabaseClient
             if (terreiroConfigMensalidade && terreiroConfigMensalidade.gateway_pagamento === 'asaas') {
                 const taxaFixaCfg = Number(terreiroConfigMensalidade.taxa_plataforma_fixa || 0);
                 const taxaPercCfg = Number(terreiroConfigMensalidade.taxa_plataforma_percentual || 0);
-                const TARIFA_BANCARIA = (taxaFixaCfg > 0 || taxaPercCfg > 0)
+                const TARIFA_BANCARIA = terreiroConfigMensalidade.mensalidades_asaas_seguras ? Number((2.99 + taxaFixaCfg + totalGeral * taxaPercCfg / 100).toFixed(2)) : ((taxaFixaCfg > 0 || taxaPercCfg > 0)
                     ? Number((taxaFixaCfg + (totalGeral * (taxaPercCfg / 100))).toFixed(2))
-                    : 2.99;
+                    : 2.99);
                 const totalComTaxa = totalGeral + TARIFA_BANCARIA;
                 const strTarifa = TARIFA_BANCARIA.toFixed(2).replace('.', ',');
 
@@ -2565,15 +2578,15 @@ window.copiarPixMensalidadeInApp = () => {
     });
 };
 
-async function chamarEdgeFunctionAsaas(valorTotal, carrinhoArray) {
+async function chamarEdgeFunctionAsaas(valorTotal, carrinhoArray, retomarComprovanteId = null) {
     const btnOriginal = document.getElementById('btnFinalizarMensalidade');
     const containerCarrinho = document.getElementById('containerCarrinhoMensalidades');
     const taxaFixaCfg = Number(terreiroConfigMensalidade?.taxa_plataforma_fixa || 0);
     const taxaPercCfg = Number(terreiroConfigMensalidade?.taxa_plataforma_percentual || 0);
-    const tarifaAplicada = (taxaFixaCfg > 0 || taxaPercCfg > 0)
+    const tarifaAplicada = terreiroConfigMensalidade.mensalidades_asaas_seguras ? Number((2.99 + taxaFixaCfg + valorTotal * taxaPercCfg / 100).toFixed(2)) : ((taxaFixaCfg > 0 || taxaPercCfg > 0)
         ? Number((taxaFixaCfg + (valorTotal * (taxaPercCfg / 100))).toFixed(2))
-        : 2.99;
-    const valorComTaxa = Number((valorTotal + tarifaAplicada).toFixed(2));
+        : 2.99);
+    let valorComTaxa = Number((valorTotal + tarifaAplicada).toFixed(2));
     const strTarifa = tarifaAplicada.toFixed(2).replace('.', ',');
     
     if (btnOriginal) {
@@ -2615,12 +2628,15 @@ async function chamarEdgeFunctionAsaas(valorTotal, carrinhoArray) {
                 valorTotal: valorComTaxa,
                 valorMensalidades: valorTotal,
                 taxaBancaria: tarifaAplicada,
+                retomarComprovanteId,
                 detalhesPagamento: detalhesArray
             }
         });
 
         if (error) throw error;
 
+        if (data?.error) throw new Error(data.error);
+        if (Number.isFinite(Number(data?.valorTotal))) valorComTaxa = Number(data.valorTotal);
         const pixQrBase64 = data?.pixEncodedImage || null;
         const pixCopiaCola = data?.pixPayload || null;
         const comprovanteId = data?.comprovanteId || null;
@@ -4537,3 +4553,13 @@ window.pagarDoacaoCantinaViaAsaas = async () => {
         if ($('btnDoacaoAnonimaDireta')) $('btnDoacaoAnonimaDireta').hidden = aba !== 'doacao';
     };
 })();
+
+// Retoma somente uma cobrança do pagador; o servidor confere novamente a propriedade.
+window.retomarMensalidadeAsaas = async (id) => {
+    const comp = cobrancasMensalidadesPendentes.get(id);
+    if (!comp || !Array.isArray(comp.detalhes_pagamento)) return;
+    const itens = comp.detalhes_pagamento.map(d => ({mediumId:d.medium_id,mediumNome:d.medium_nome,
+        mesesSelecionados:d.meses,valorUnitario:Number(d.subtotal) / d.meses.length}));
+    const principal = comp.detalhes_pagamento.reduce((s,d) => s + Number(d.subtotal), 0);
+    await chamarEdgeFunctionAsaas(principal,itens,id);
+};
