@@ -7,7 +7,31 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-</head>
+<style>
+#painelFornecedorAtivo { padding-bottom:110px; }
+#painelFornecedorAtivo input:not([type=checkbox]),#painelFornecedorAtivo select,#painelFornecedorAtivo textarea {font-size:16px;min-height:44px;}
+#painelFornecedorAtivo button {min-height:44px;font-size:14px;}
+#painelFornecedorAtivo input[type=checkbox] {width:20px;height:20px;accent-color:#10b981;flex-shrink:0;}
+.portal-grupo {border:1px solid #334155;border-radius:14px;margin-bottom:12px;overflow:hidden;}
+.portal-grupo summary {padding:16px;background:#1e293b;cursor:pointer;font-weight:700;}
+.portal-linha {padding:16px;border-top:1px solid #334155;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:center;}
+.portal-linha.editado {box-shadow:inset 3px 0 #fbbf24;}
+.portal-nome {font-size:14px;font-weight:600;overflow-wrap:anywhere;}
+.portal-meta {font-size:12px;color:#94a3b8;margin-top:4px;}
+.portal-campos {display:flex;gap:14px;align-items:center;}
+.portal-preco {width:112px;padding:10px;border:1px solid #475569;border-radius:10px;background:#0f172a;color:#fbbf24;text-align:right;}
+.portal-toolbar {display:grid;grid-template-columns:2fr 1fr;gap:10px;}
+.portal-toolbar input,.portal-toolbar select,.portal-lote input,.portal-lote select {width:100%;background:#1e293b;border:1px solid #475569;border-radius:10px;padding:10px;color:#fff;}
+.portal-lote {display:flex;flex-wrap:wrap;gap:10px;align-items:end;padding:12px 0;}
+.portal-lote label {flex:1 1 110px;font-size:12px;}
+.portal-lote button {background:#334155;border-radius:10px;padding:10px;}
+.portal-salvar {position:fixed;bottom:0;left:0;right:0;z-index:30;background:#0f172af5;border-top:1px solid #334155;padding:12px 16px calc(12px + env(safe-area-inset-bottom));display:flex;gap:12px;align-items:center;justify-content:center;}
+.portal-salvar button {max-width:300px;margin:0!important;}
+.portal-salvar p {font-size:12px;color:#cbd5e1;max-width:200px;}
+#painelFornecedorAtivo [hidden] {display:none!important;}
+#painelFornecedorAtivo button:disabled {opacity:.5;cursor:not-allowed;}
+@media(max-width:540px){.portal-linha{grid-template-columns:1fr;gap:10px}.portal-campos{justify-content:space-between}.portal-toolbar{grid-template-columns:1fr}.portal-salvar{gap:8px}.portal-salvar p{max-width:120px}}
+</style></head>
 <body class="min-h-screen bg-slate-950 text-slate-100 p-4 flex flex-col items-center">
 
     <!-- TELA DE LOGIN DO FORNECEDOR -->
@@ -36,14 +60,14 @@
     </div>
 
     <!-- PAINEL DE TABELA DE PREÇOS E FRETE DO FORNECEDOR -->
-    <div id="painelFornecedorAtivo" class="hidden w-full max-w-2xl mt-4 space-y-4">
+    <div id="painelFornecedorAtivo" class="hidden w-full max-w-4xl mt-4 space-y-4">
         <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
             <div class="flex justify-between items-center">
                 <div>
                     <span class="text-[10px] font-bold text-amber-400 uppercase">Fornecedor Parceiro</span>
                     <h2 id="nomeFornecedorLogado" class="text-base font-black text-white"></h2>
                 </div>
-                <button type="button" onclick="location.reload()" class="text-xs text-rose-400 font-bold bg-rose-500/10 px-3 py-1.5 rounded-xl border border-rose-500/20">Sair</button>
+                <button type="button" onclick="if(!portalAlterado() || confirm('Sair sem salvar as alterações?')) location.reload()" class="text-xs text-rose-400 font-bold bg-rose-500/10 px-3 py-1.5 rounded-xl border border-rose-500/20">Sair</button>
             </div>
 
             <div class="pt-3 border-t border-slate-800 space-y-3">
@@ -198,7 +222,7 @@
             }
         });
 
-        async function carregarItensTerreiroFornecedor() {
+        async function carregarItensTerreiroFornecedorOriginal() {
             const terreiroId = document.getElementById('selectTerreiroFornecedor').value;
             const container = document.getElementById('listaItensPrecificacao');
             if (!terreiroId || !fornecedorAtual || !container) return;
@@ -225,44 +249,10 @@
                     return a.disp ? -1 : 1;
                 });
 
-                const familiasMap = {};
-                const coresTermos = ['branca', 'preta', 'vermelha', 'azul', 'amarela', 'verde', 'rosa', 'roxa', 'marrom', 'bicolor', '7 linhas'];
-                itensProcessados.forEach(obj => {
-                    let nomeBase = obj.item.nome.toLowerCase();
-                    coresTermos.forEach(cor => { nomeBase = nomeBase.replace(new RegExp(`\\b${cor}\\b`, 'g'), ''); });
-                    nomeBase = nomeBase.trim();
-                    if (!familiasMap[nomeBase]) familiasMap[nomeBase] = [];
-                    familiasMap[nomeBase].push(obj.item.id);
-                });
-
-                container.innerHTML = itensProcessados.map(({ item, val, disp, jaSalvo }) => {
-                    let nomeBase = item.nome.toLowerCase();
-                    coresTermos.forEach(cor => { nomeBase = nomeBase.replace(new RegExp(`\\b${cor}\\b`, 'g'), ''); });
-                    nomeBase = nomeBase.trim();
-                    const temIrmaosCor = familiasMap[nomeBase]?.length > 1;
-                    const botaoLote = temIrmaosCor ? `
-                        <button type="button" onclick="aplicarPrecoEmLote('${nomeBase}', ${item.id})" class="text-[9px] bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30 px-2 py-0.5 rounded border border-indigo-500/30 transition">
-                            <i class="fas fa-layer-group mr-1"></i> Aplicar em Lote
-                        </button>` : '';
-                    return `
-                    <div class="pt-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 item-linha-fornecedor" data-familia="${nomeBase}">
-                        <div class="flex-1">
-                            <p class="text-xs font-bold text-white">${item.nome}</p>
-                            <div class="flex items-center gap-2 mt-0.5"><span class="text-[10px] text-slate-400 uppercase">${item.categoria || 'Geral'}</span>${botaoLote}</div>
-                        </div>
-                        <div class="flex items-center gap-3 justify-between sm:justify-end">
-                            <label class="flex items-center gap-1 text-[10px] text-slate-300 cursor-pointer">
-                                <input type="checkbox" class="chk-disp-forn rounded" data-item-id="${item.id}" ${disp ? 'checked' : ''}> Estoque
-                            </label>
-                            <div class="flex items-center gap-1">
-                                <span class="text-xs text-slate-400 font-bold">R$</span>
-                                <input type="number" step="0.01" min="0" data-item-id="${item.id}" data-ja-salvo="${jaSalvo}" value="${val}" placeholder="0.00" oninput="autoMarcarEstoque(this)" class="inp-preco-forn w-24 px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-xl text-xs font-bold text-right text-amber-300 outline-none">
-                            </div>
-                        </div>
-                    </div>`;
-                }).join('');
+                renderizarCatalogoPortal(itensProcessados);
             } catch (err) {
-                container.innerHTML = `<p class="text-xs text-rose-400 py-4 text-center">${err.message}</p>`;
+                container.textContent = err.message;
+                throw err;
             }
         }
 
@@ -287,7 +277,7 @@
             alert('Preço e status de estoque aplicados às variações semelhantes.');
         }
 
-        async function salvarTabelaFornecedor() {
+        async function salvarTabelaFornecedorOriginal() {
             const terreiroId = document.getElementById('selectTerreiroFornecedor').value;
             const btn = document.getElementById('btnSalvarTabelaFornecedor');
             if (!terreiroId || !fornecedorAtual || !tokenFornecedor) return alert('Sessão do fornecedor inválida. Entre novamente.');
@@ -318,15 +308,118 @@
                 fornecedorAtual.hora_abertura = horaAbertura;
                 fornecedorAtual.hora_fechamento = horaFechamento;
                 fornecedorAtual.aviso_entrega = avisoEntrega;
-                alert('Horários, aviso de entrega, preços e frete atualizados com sucesso!');
-                await carregarItensTerreiroFornecedor();
+                document.querySelectorAll('.inp-preco-forn').forEach(i => i.dataset.jaSalvo = 'true');
+                capturarEstadoPortal();
+                document.getElementById('estadoSalvarPortal').textContent = 'Alterações salvas com sucesso.';
             } catch (err) {
                 alert('Erro ao salvar: ' + err.message);
             } finally {
                 btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-save mr-1"></i> Salvar Horários, Aviso, Preços e Taxa de Entrega';
+                btn.textContent = 'Salvar alterações';
             }
         }
+
+let estadoPortal=[],casaPortal='',ocupadoPortal=false,prontoPortal=false;
+const portalEl=id=>document.getElementById(id);
+function camposPortal(){return [...document.querySelectorAll('#painelFornecedorAtivo input:not(.portal-selecao):not(#buscaPortal):not(#precoLotePortal), #painelFornecedorAtivo textarea')];}
+function portalAlterado(){return estadoPortal.some(x=>x.el.value!==x.valor || x.el.checked!==x.checked);}
+function capturarEstadoPortal(){estadoPortal=camposPortal().map(el=>({el,valor:el.value,checked:el.checked}));atualizarEstadoPortal();}
+function atualizarEstadoPortal(){
+ const alterado=portalAlterado();
+ portalEl('btnSalvarTabelaFornecedor').disabled=ocupadoPortal || !prontoPortal || !alterado;
+ portalEl('estadoSalvarPortal').textContent=ocupadoPortal?'Aguarde...':alterado?'Alterações não salvas':prontoPortal?'Tudo salvo':'Selecione uma casa';
+ document.querySelectorAll('.portal-linha').forEach(l=>l.classList.toggle('editado',estadoPortal.some(x=>l.contains(x.el)&&(x.el.value!==x.valor || x.el.checked!==x.checked))));
+}
+function travarPortal(valor){ocupadoPortal=valor;document.querySelectorAll('#painelFornecedorAtivo input,#painelFornecedorAtivo select,#painelFornecedorAtivo textarea,#painelFornecedorAtivo button').forEach(el=>el.disabled=valor);atualizarEstadoPortal();}
+function grupoProdutoPortal(item){
+ const nome=String(item.nome||'').trim();
+ const familia=nome.match(/^(Pacote de Velas 7 (?:dias|horas) com 10 Velas|Vela 7 (?:dias|horas))\b/i);
+ return String(item.categoria||'Geral')+' • '+(familia?familia[1]:'Outros produtos');
+}
+function renderizarCatalogoPortal(itens){
+ const lista=portalEl('listaItensPrecificacao');lista.replaceChildren();
+ const grupos=new Map();
+ itens.forEach(obj=>{const nome=grupoProdutoPortal(obj.item);if(!grupos.has(nome))grupos.set(nome,[]);grupos.get(nome).push(obj);});
+ for(const [nome,produtos] of grupos){
+  const grupo=document.createElement('details');grupo.className='portal-grupo';
+  const titulo=document.createElement('summary');titulo.textContent=nome+' ('+produtos.length+')';grupo.appendChild(titulo);
+  grupo.open=grupos.size===1;
+  for(const {item,val,disp,jaSalvo} of produtos){
+   const linha=document.createElement('div');linha.className='portal-linha item-linha-fornecedor';linha.dataset.busca=normalizarBuscaPortal(item.nome+' '+item.categoria);linha.dataset.categoria=item.categoria||'Geral';
+   const texto=document.createElement('div');const rotulo=document.createElement('label');rotulo.className='flex items-center gap-3';
+   const selecao=document.createElement('input');selecao.type='checkbox';selecao.className='portal-selecao';selecao.setAttribute('aria-label','Selecionar '+item.nome);
+   const tituloItem=document.createElement('span');tituloItem.className='portal-nome';tituloItem.textContent=item.nome;
+   rotulo.append(selecao,tituloItem);texto.appendChild(rotulo);
+   const meta=document.createElement('p');meta.className='portal-meta';meta.textContent=item.categoria||'Geral';texto.appendChild(meta);
+   const campos=document.createElement('div');campos.className='portal-campos';
+   const estoque=document.createElement('label');estoque.className='flex items-center gap-2 text-sm';
+   const chk=document.createElement('input');chk.type='checkbox';chk.className='chk-disp-forn';chk.dataset.itemId=item.id;chk.checked=disp;estoque.append(chk,document.createTextNode('Disponível'));
+   const precoLabel=document.createElement('label');precoLabel.className='flex items-center gap-2 text-sm';precoLabel.appendChild(document.createTextNode('R$'));
+   const preco=document.createElement('input');preco.type='number';preco.step='0.01';preco.min='0';preco.inputMode='decimal';preco.className='inp-preco-forn portal-preco';preco.dataset.itemId=item.id;preco.dataset.jaSalvo=String(jaSalvo);preco.value=val;preco.placeholder='0,00';preco.setAttribute('aria-label','Preço de '+item.nome);
+   preco.addEventListener('input',()=>{autoMarcarEstoque(preco);atualizarEstadoPortal();});precoLabel.appendChild(preco);campos.append(estoque,precoLabel);linha.append(texto,campos);grupo.appendChild(linha);
+  }
+  lista.appendChild(grupo);
+ }
+ const categorias=[...new Set(itens.map(x=>x.item.categoria||'Geral'))];
+ portalEl('categoriaPortal').replaceChildren(new Option('Todas as categorias',''));
+ categorias.forEach(c=>portalEl('categoriaPortal').add(new Option(c,c)));
+ filtrarPortal();
+}
+function normalizarBuscaPortal(s){return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();}
+function filtrarPortal(){
+ const busca=normalizarBuscaPortal(portalEl('buscaPortal').value).split(/\s+/).filter(Boolean),cat=portalEl('categoriaPortal').value,status=portalEl('statusPortal').value;
+ let total=0;
+ document.querySelectorAll('.portal-linha').forEach(l=>{const preco=l.querySelector('.inp-preco-forn'),disp=l.querySelector('.chk-disp-forn').checked;
+ const visivel=busca.every(b=>l.dataset.busca.includes(b))&&(!cat||cat===l.dataset.categoria)&&(!status||(status==='disponivel'&&disp)||(status==='indisponivel'&&!disp)||(status==='sem_preco'&&!(Number(preco.value)>0)));
+ l.hidden=!visivel;if(visivel)total++;else l.querySelector('.portal-selecao').checked=false;
+ });
+ document.querySelectorAll('.portal-grupo').forEach(g=>{g.hidden=![...g.querySelectorAll('.portal-linha')].some(l=>!l.hidden);if(busca.length||cat||status)g.open=!g.hidden;});
+ portalEl('contagemPortal').textContent=total+' produtos encontrados';
+}
+async function carregarItensTerreiroFornecedor(){
+ const sel=portalEl('selectTerreiroFornecedor');if(ocupadoPortal){sel.value=casaPortal;return;}
+ if(portalAlterado()){sel.value=casaPortal;alert('Salve ou desfaça as alterações antes de trocar de terreiro.');return;}
+ travarPortal(true);prontoPortal=false;
+ try{await carregarItensTerreiroFornecedorOriginal();casaPortal=sel.value;prontoPortal=true;capturarEstadoPortal();}
+ catch(e){portalEl('estadoSalvarPortal').textContent='Falha ao carregar. Selecione a casa novamente.';}
+ finally{travarPortal(false);}
+}
+async function salvarTabelaFornecedor(){
+ if(ocupadoPortal||!prontoPortal||!portalAlterado())return;
+ const campos=[...document.querySelectorAll('.inp-preco-forn'),portalEl('inputFreteTerreiro'),portalEl('inputFreteGratisTerreiro')];
+ for(const i of campos){if(i.validity.badInput || (i.value!==''&&(!Number.isFinite(Number(i.value))||Number(i.value)<0||!i.checkValidity()))){alert('Confira o valor informado. Use valores positivos com até duas casas decimais.');i.closest('details')?.setAttribute('open','');i.focus();return;}}
+ const invalido=[...document.querySelectorAll('.portal-linha')].find(l=>l.querySelector('.chk-disp-forn').checked && !(Number(l.querySelector('.inp-preco-forn').value)>0));
+ if(invalido){alert('Informe um preço maior que zero para os produtos disponíveis.');invalido.closest('details').open=true;invalido.hidden=false;invalido.querySelector('.inp-preco-forn').focus();return;}
+ travarPortal(true);try{await salvarTabelaFornecedorOriginal();}finally{travarPortal(false);}
+}
+function aplicarLotePortal(){
+ const linhas=[...document.querySelectorAll('.portal-linha')].filter(l=>!l.hidden&&l.querySelector('.portal-selecao').checked);
+ if(!linhas.length)return alert('Selecione os produtos que deseja alterar.');
+ const campo=portalEl('precoLotePortal'),v=campo.value,estado=portalEl('estoqueLotePortal').value;
+ if(v===''&&!estado)return alert('Informe um preço ou escolha a disponibilidade.');
+ if(v!==''&&(!campo.checkValidity()||!(Number(v)>0)))return alert('Informe um preço válido maior que zero.');
+ if(!confirm('Aplicar estas alterações a '+linhas.length+' produtos selecionados?'))return;
+ linhas.forEach(l=>{if(v!=='')l.querySelector('.inp-preco-forn').value=v;if(estado)l.querySelector('.chk-disp-forn').checked=estado==='sim';});atualizarEstadoPortal();
+}
+(function montarPortal(){
+ const painel=portalEl('painelFornecedorAtivo');const primeiro=painel.children[0];const config=primeiro.children[1];
+ const detalhes=document.createElement('details');detalhes.className='bg-slate-900 border border-slate-800 rounded-2xl p-4';
+ const resumo=document.createElement('summary');resumo.className='font-bold cursor-pointer';resumo.textContent='Funcionamento e avisos de entrega';detalhes.append(resumo,config);painel.appendChild(detalhes);
+ const lista=portalEl('listaItensPrecificacao');lista.previousElementSibling.textContent='Seus produtos';
+ const toolbar=document.createElement('div');toolbar.innerHTML=`<div class="portal-toolbar"><label>Buscar produto<input id="buscaPortal" type="search" placeholder="Ex.: vela branca, pacote, 7 dias"></label><label>Categoria<select id="categoriaPortal"><option value="">Todas as categorias</option></select></label><label>Mostrar<select id="statusPortal"><option value="">Todos os produtos</option><option value="disponivel">Disponíveis</option><option value="indisponivel">Indisponíveis</option><option value="sem_preco">Sem preço</option></select></label></div><p id="contagemPortal" class="text-sm text-slate-400 mt-3" aria-live="polite"></p><details class="mt-3"><summary class="cursor-pointer py-3 font-bold text-indigo-300">Alterar vários produtos</summary><p class="text-sm text-slate-400">Marque os produtos pelo nome. O lote só altera os selecionados visíveis.</p><button type="button" id="selecionarVisiveisPortal" class="text-indigo-300">Selecionar resultados</button> · <button type="button" id="limparSelecaoPortal" class="text-slate-300">Limpar seleção</button><div class="portal-lote"><label>Preço (R$)<input id="precoLotePortal" type="number" step="0.01" min="0.01" inputmode="decimal" placeholder="Manter"></label><label>Disponibilidade<select id="estoqueLotePortal"><option value="">Manter</option><option value="sim">Disponível</option><option value="nao">Indisponível</option></select></label><button type="button" id="aplicarLotePortal">Aplicar aos selecionados</button></div></details>`;
+ lista.before(toolbar);
+ const salvar=portalEl('btnSalvarTabelaFornecedor');const rodape=document.createElement('div');rodape.className='portal-salvar';
+ const estado=document.createElement('p');estado.id='estadoSalvarPortal';estado.setAttribute('role','status');
+ const desfazer=document.createElement('button');desfazer.type='button';desfazer.textContent='Desfazer';desfazer.className='text-slate-300 px-2';desfazer.onclick=()=>{if(!portalAlterado()||!confirm('Descartar as alterações não salvas?'))return;estadoPortal.forEach(x=>{x.el.value=x.valor;x.el.checked=x.checked;});alternarModo24hFornecedor();atualizarEstadoPortal();filtrarPortal();};
+ salvar.textContent='Salvar alterações';rodape.append(estado,desfazer,salvar);painel.appendChild(rodape);
+ for(const id of ['buscaPortal','categoriaPortal','statusPortal'])portalEl(id).addEventListener('input',filtrarPortal);
+ portalEl('aplicarLotePortal').onclick=aplicarLotePortal;
+ portalEl('selecionarVisiveisPortal').onclick=()=>document.querySelectorAll('.portal-linha').forEach(l=>l.querySelector('.portal-selecao').checked=!l.hidden);
+ portalEl('limparSelecaoPortal').onclick=()=>document.querySelectorAll('.portal-selecao').forEach(c=>c.checked=false);
+ painel.addEventListener('input',atualizarEstadoPortal);painel.addEventListener('change',atualizarEstadoPortal);
+ window.addEventListener('beforeunload',e=>{if(portalAlterado()){e.preventDefault();e.returnValue='';}});
+ atualizarEstadoPortal();
+})();
 
         // Funções chamadas pelo HTML.
         window.alternarModo24hFornecedor = alternarModo24hFornecedor;
