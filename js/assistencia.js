@@ -312,22 +312,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         botao.id = 'btnDoacaoAnonimaDireta';
         botao.type = 'button';
         botao.className = 'w-full mb-4 py-3.5 px-4 rounded-xl text-white font-bold text-sm';
-        botao.innerHTML = '<span class="doacao-direta-conteudo"><i class="fas fa-hand-holding-heart" aria-hidden="true"></i><span>Doação anônima em dinheiro</span></span>';
+        botao.innerHTML = '<span class="doacao-direta-conteudo"><i class="fas fa-hand-holding-heart" aria-hidden="true"></i><span>DOAR É UMA FORMA DE AGRADECER</span></span>';
         document.body.insertAdjacentHTML('beforeend', `
           <style id="estiloBotaoDoacaoDireta">
             #btnDoacaoAnonimaDireta {
               position: relative;
               overflow: hidden;
               isolation: isolate;
-              background: linear-gradient(115deg, #166534 0%, #047857 60%, #065f46 100%);
-              border: 0;
+              background: linear-gradient(115deg, #facc15 0%, #fde68a 55%, #fbbf24 100%);
+              color: #422006;
+              text-align: center;
+              font-weight: 800;
+              border: 1px solid #f59e0b;
               box-sizing: border-box;
               flex: 0 0 auto;
-              min-height: 48px;
-              padding: 14px 16px;
-              font-size: 14px;
-              line-height: 20px;
-              box-shadow: 0 5px 14px rgba(6,95,70,.20), inset 0 1px 0 rgba(255,255,255,.18);
+              min-height: 64px;
+              padding: 18px 16px;
+              font-size: clamp(14px, 3.8vw, 16px);
+              line-height: 22px;
+              box-shadow: 0 6px 18px rgba(245,158,11,.28), inset 0 1px 0 rgba(255,255,255,.6);
               cursor: pointer;
               transition: transform .18s ease, box-shadow .18s ease;
               -webkit-tap-highlight-color: transparent;
@@ -339,10 +342,11 @@ document.addEventListener('DOMContentLoaded', async () => {
               display: flex;
               align-items: center;
               justify-content: center;
-              gap: .5rem;
-              line-height: 20px;
+              gap: .75rem;
+              white-space: normal;
+              line-height: 22px;
             }
-            #btnDoacaoAnonimaDireta .fa-hand-holding-heart { font-size: 1em; line-height: 1; }
+            #btnDoacaoAnonimaDireta .fa-hand-holding-heart { font-size: 24px; line-height: 1; flex: 0 0 auto; }
             #btnDoacaoAnonimaDireta::before {
               content: '';
               position: absolute;
@@ -358,10 +362,10 @@ document.addEventListener('DOMContentLoaded', async () => {
               93%, 100% { transform: translateX(120%); }
             }
             @media (hover: hover) {
-              #btnDoacaoAnonimaDireta:hover { box-shadow: 0 7px 18px rgba(6,95,70,.3), inset 0 1px 0 rgba(255,255,255,.2); }
+              #btnDoacaoAnonimaDireta:hover { box-shadow: 0 8px 22px rgba(245,158,11,.4), inset 0 1px 0 rgba(255,255,255,.6); }
             }
             #btnDoacaoAnonimaDireta:active { transform: scale(.98); }
-            #btnDoacaoAnonimaDireta:focus-visible { outline: 3px solid #10b981; outline-offset: 3px; }
+            #btnDoacaoAnonimaDireta:focus-visible { outline: 3px solid #f59e0b; outline-offset: 3px; }
             @media (prefers-reduced-motion: reduce) {
               #btnDoacaoAnonimaDireta { transition: none; }
               #btnDoacaoAnonimaDireta::before { animation: none; display: none; }
