@@ -9,6 +9,11 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
 #painelFornecedorAtivo { padding-bottom:110px; }
+.portal-selecionar {display:none;}
+.modo-lote .portal-selecionar {display:inline-flex;align-items:center;gap:8px;font-size:12px;color:#a5b4fc;flex-shrink:0;}
+.portal-linha.selecionado {background:#1e293b;outline:1px solid #818cf8;outline-offset:-1px;}
+.portal-linha label {flex-wrap:wrap;}
+
 #painelFornecedorAtivo input:not([type=checkbox]),#painelFornecedorAtivo select,#painelFornecedorAtivo textarea {font-size:16px;min-height:44px;}
 #painelFornecedorAtivo button {min-height:44px;font-size:14px;}
 #painelFornecedorAtivo input[type=checkbox] {width:20px;height:20px;accent-color:#10b981;flex-shrink:0;}
@@ -328,6 +333,7 @@ function atualizarEstadoPortal(){
  const alterado=portalAlterado();
  portalEl('btnSalvarTabelaFornecedor').disabled=ocupadoPortal || !prontoPortal || !alterado;
  portalEl('estadoSalvarPortal').textContent=ocupadoPortal?'Aguarde...':alterado?'Alterações não salvas':prontoPortal?'Tudo salvo':'Selecione uma casa';
+ atualizarSelecaoPortal();
  document.querySelectorAll('.portal-linha').forEach(l=>l.classList.toggle('editado',estadoPortal.some(x=>l.contains(x.el)&&(x.el.value!==x.valor || x.el.checked!==x.checked))));
 }
 function travarPortal(valor){ocupadoPortal=valor;document.querySelectorAll('#painelFornecedorAtivo input,#painelFornecedorAtivo select,#painelFornecedorAtivo textarea,#painelFornecedorAtivo button').forEach(el=>el.disabled=valor);atualizarEstadoPortal();}
@@ -349,11 +355,11 @@ function renderizarCatalogoPortal(itens){
    const texto=document.createElement('div');const rotulo=document.createElement('label');rotulo.className='flex items-center gap-3';
    const selecao=document.createElement('input');selecao.type='checkbox';selecao.className='portal-selecao';selecao.setAttribute('aria-label','Selecionar '+item.nome);
    const tituloItem=document.createElement('span');tituloItem.className='portal-nome';tituloItem.textContent=item.nome;
-   rotulo.append(selecao,tituloItem);texto.appendChild(rotulo);
+   const selecionar=document.createElement('span');selecionar.className='portal-selecionar';selecionar.append(selecao,document.createTextNode('Selecionar'));rotulo.append(selecionar,tituloItem);texto.appendChild(rotulo);
    const meta=document.createElement('p');meta.className='portal-meta';meta.textContent=item.categoria||'Geral';texto.appendChild(meta);
    const campos=document.createElement('div');campos.className='portal-campos';
    const estoque=document.createElement('label');estoque.className='flex items-center gap-2 text-sm';
-   const chk=document.createElement('input');chk.type='checkbox';chk.className='chk-disp-forn';chk.dataset.itemId=item.id;chk.checked=disp;estoque.append(chk,document.createTextNode('Disponível'));
+   const chk=document.createElement('input');chk.type='checkbox';chk.className='chk-disp-forn';chk.dataset.itemId=item.id;chk.checked=disp;estoque.append(chk,document.createTextNode('Disponível para compra'));
    const precoLabel=document.createElement('label');precoLabel.className='flex items-center gap-2 text-sm';precoLabel.appendChild(document.createTextNode('R$'));
    const preco=document.createElement('input');preco.type='number';preco.step='0.01';preco.min='0';preco.inputMode='decimal';preco.className='inp-preco-forn portal-preco';preco.dataset.itemId=item.id;preco.dataset.jaSalvo=String(jaSalvo);preco.value=val;preco.placeholder='0,00';preco.setAttribute('aria-label','Preço de '+item.nome);
    preco.addEventListener('input',()=>{autoMarcarEstoque(preco);atualizarEstadoPortal();});precoLabel.appendChild(preco);campos.append(estoque,precoLabel);linha.append(texto,campos);grupo.appendChild(linha);
@@ -375,6 +381,7 @@ function filtrarPortal(){
  });
  document.querySelectorAll('.portal-grupo').forEach(g=>{g.hidden=![...g.querySelectorAll('.portal-linha')].some(l=>!l.hidden);if(busca.length||cat||status)g.open=!g.hidden;});
  portalEl('contagemPortal').textContent=total+' produtos encontrados';
+ atualizarSelecaoPortal();
 }
 async function carregarItensTerreiroFornecedor(){
  const sel=portalEl('selectTerreiroFornecedor');if(ocupadoPortal){sel.value=casaPortal;return;}
@@ -392,6 +399,12 @@ async function salvarTabelaFornecedor(){
  if(invalido){alert('Informe um preço maior que zero para os produtos disponíveis.');invalido.closest('details').open=true;invalido.hidden=false;invalido.querySelector('.inp-preco-forn').focus();return;}
  travarPortal(true);try{await salvarTabelaFornecedorOriginal();}finally{travarPortal(false);}
 }
+function atualizarSelecaoPortal(){
+ const n=[...document.querySelectorAll('.portal-linha')].filter(l=>!l.hidden && l.querySelector('.portal-selecao').checked).length;
+ const btn=portalEl('aplicarLotePortal');if(!btn)return;btn.textContent='Aplicar a '+n+' produto'+(n===1?'':'s');btn.disabled=ocupadoPortal || !n;
+ portalEl('selecaoLotePortal').textContent=n ? n+' produto'+(n===1?' selecionado':'s selecionados') : 'Nenhum produto selecionado';
+ document.querySelectorAll('.portal-linha').forEach(l=>l.classList.toggle('selecionado',l.querySelector('.portal-selecao').checked));
+}
 function aplicarLotePortal(){
  const linhas=[...document.querySelectorAll('.portal-linha')].filter(l=>!l.hidden&&l.querySelector('.portal-selecao').checked);
  if(!linhas.length)return alert('Selecione os produtos que deseja alterar.');
@@ -406,7 +419,7 @@ function aplicarLotePortal(){
  const detalhes=document.createElement('details');detalhes.className='bg-slate-900 border border-slate-800 rounded-2xl p-4';
  const resumo=document.createElement('summary');resumo.className='font-bold cursor-pointer';resumo.textContent='Funcionamento e avisos de entrega';detalhes.append(resumo,config);painel.appendChild(detalhes);
  const lista=portalEl('listaItensPrecificacao');lista.previousElementSibling.textContent='Seus produtos';
- const toolbar=document.createElement('div');toolbar.innerHTML=`<div class="portal-toolbar"><label>Buscar produto<input id="buscaPortal" type="search" placeholder="Ex.: vela branca, pacote, 7 dias"></label><label>Categoria<select id="categoriaPortal"><option value="">Todas as categorias</option></select></label><label>Mostrar<select id="statusPortal"><option value="">Todos os produtos</option><option value="disponivel">Disponíveis</option><option value="indisponivel">Indisponíveis</option><option value="sem_preco">Sem preço</option></select></label></div><p id="contagemPortal" class="text-sm text-slate-400 mt-3" aria-live="polite"></p><details class="mt-3"><summary class="cursor-pointer py-3 font-bold text-indigo-300">Alterar vários produtos</summary><p class="text-sm text-slate-400">Marque os produtos pelo nome. O lote só altera os selecionados visíveis.</p><button type="button" id="selecionarVisiveisPortal" class="text-indigo-300">Selecionar resultados</button> · <button type="button" id="limparSelecaoPortal" class="text-slate-300">Limpar seleção</button><div class="portal-lote"><label>Preço (R$)<input id="precoLotePortal" type="number" step="0.01" min="0.01" inputmode="decimal" placeholder="Manter"></label><label>Disponibilidade<select id="estoqueLotePortal"><option value="">Manter</option><option value="sim">Disponível</option><option value="nao">Indisponível</option></select></label><button type="button" id="aplicarLotePortal">Aplicar aos selecionados</button></div></details>`;
+ const toolbar=document.createElement('div');toolbar.innerHTML=`<div class="portal-toolbar"><label>Buscar produto<input id="buscaPortal" type="search" placeholder="Ex.: vela branca, pacote, 7 dias"></label><label>Categoria<select id="categoriaPortal"><option value="">Todas as categorias</option></select></label><label>Mostrar<select id="statusPortal"><option value="">Todos os produtos</option><option value="disponivel">Disponíveis</option><option value="indisponivel">Indisponíveis</option><option value="sem_preco">Sem preço</option></select></label></div><p id="contagemPortal" class="text-sm text-slate-400 mt-3" aria-live="polite"></p><details id="modoLotePortal" class="mt-3"><summary class="cursor-pointer py-3 font-bold text-indigo-300">Alterar vários produtos</summary><p class="text-sm text-slate-400">1. Selecione os produtos abaixo. 2. Informe o novo preço ou a disponibilidade. 3. Aplique e depois salve.</p><button type="button" id="selecionarVisiveisPortal" class="text-indigo-300">Selecionar todos os resultados</button> · <button type="button" id="limparSelecaoPortal" class="text-slate-300">Limpar seleção</button><div class="portal-lote"><label>Preço (R$)<input id="precoLotePortal" type="number" step="0.01" min="0.01" inputmode="decimal" placeholder="Não alterar preço"></label><label>Disponibilidade<select id="estoqueLotePortal"><option value="">Não alterar disponibilidade</option><option value="sim">Disponível</option><option value="nao">Indisponível</option></select></label><button type="button" id="aplicarLotePortal">Aplicar a 0 produtos</button><p id="selecaoLotePortal" class="text-sm text-indigo-300" role="status">Nenhum produto selecionado</p></div></details>`;
  lista.before(toolbar);
  const salvar=portalEl('btnSalvarTabelaFornecedor');const rodape=document.createElement('div');rodape.className='portal-salvar';
  const estado=document.createElement('p');estado.id='estadoSalvarPortal';estado.setAttribute('role','status');
@@ -414,8 +427,10 @@ function aplicarLotePortal(){
  salvar.textContent='Salvar alterações';rodape.append(estado,desfazer,salvar);painel.appendChild(rodape);
  for(const id of ['buscaPortal','categoriaPortal','statusPortal'])portalEl(id).addEventListener('input',filtrarPortal);
  portalEl('aplicarLotePortal').onclick=aplicarLotePortal;
- portalEl('selecionarVisiveisPortal').onclick=()=>document.querySelectorAll('.portal-linha').forEach(l=>l.querySelector('.portal-selecao').checked=!l.hidden);
- portalEl('limparSelecaoPortal').onclick=()=>document.querySelectorAll('.portal-selecao').forEach(c=>c.checked=false);
+ portalEl('modoLotePortal').addEventListener('toggle',()=>{const ativo=portalEl('modoLotePortal').open;painel.classList.toggle('modo-lote',ativo);if(!ativo)document.querySelectorAll('.portal-selecao').forEach(c=>c.checked=false);atualizarSelecaoPortal();});
+ painel.addEventListener('change',atualizarSelecaoPortal);
+ portalEl('selecionarVisiveisPortal').onclick=()=>{document.querySelectorAll('.portal-linha').forEach(l=>l.querySelector('.portal-selecao').checked=!l.hidden);atualizarSelecaoPortal();};
+ portalEl('limparSelecaoPortal').onclick=()=>{document.querySelectorAll('.portal-selecao').forEach(c=>c.checked=false);atualizarSelecaoPortal();};
  painel.addEventListener('input',atualizarEstadoPortal);painel.addEventListener('change',atualizarEstadoPortal);
  window.addEventListener('beforeunload',e=>{if(portalAlterado()){e.preventDefault();e.returnValue='';}});
  atualizarEstadoPortal();
