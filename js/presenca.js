@@ -2655,7 +2655,7 @@ async function chamarEdgeFunctionAsaas(valorTotal, carrinhoArray) {
                     </div>
 
                     <p class="text-[10px] text-gray-500 leading-snug">
-                        Copie o código acima, pague no app do seu banco e aguarde nesta tela. <strong>A baixa das mensalidades será feita automaticamente!</strong>
+                        Pague em até 5 minutos. Após esse prazo, o PIX não pago será cancelado automaticamente. Copie o código acima e pague no app do seu banco. <strong>A baixa das mensalidades será feita automaticamente!</strong>
                     </p>
                 </div>
             `;
@@ -2668,6 +2668,12 @@ async function chamarEdgeFunctionAsaas(valorTotal, carrinhoArray) {
 
                     const { data: compCheck } = await query.maybeSingle();
 
+                    if (compCheck?.status === 'cancelado') {
+                        clearInterval(intervaloVerificacaoMensalidadeAsaas);
+                        intervaloVerificacaoMensalidadeAsaas = null;
+                        containerCarrinho.innerHTML = '<div class="p-4 text-center"><strong>PIX cancelado por falta de pagamento.</strong><p class="mt-2">As mensalidades continuam em aberto. Atualize a página para gerar outro código.</p><button type="button" onclick="location.reload()" class="mt-3 px-4 py-3 rounded-xl bg-gray-800 text-white">Atualizar página</button></div>';
+                        return;
+                    }
                     if (compCheck && compCheck.status === 'aprovado') {
                         clearInterval(intervaloVerificacaoMensalidadeAsaas);
                         intervaloVerificacaoMensalidadeAsaas = null;
@@ -4225,7 +4231,7 @@ window.pagarDoacaoCantinaViaAsaas = async () => {
                         </button>
                     </div>
                     <p class="text-[10px] text-gray-500 leading-snug">
-                        Assim que o pagamento for concluído no seu banco, o saldo da Cantina será creditado e repassado automaticamente!
+                        Pague em até 5 minutos. Após esse prazo, o PIX não pago será cancelado automaticamente. A confirmação será exibida nesta tela.
                     </p>
                 </div>
             `;
@@ -4238,6 +4244,12 @@ window.pagarDoacaoCantinaViaAsaas = async () => {
                         .eq('id', regCantina.id)
                         .single();
 
+                    if (checkCant?.status === 'cancelado') {
+                        clearInterval(intervaloVerificacaoCantinaAsaas);
+                        intervaloVerificacaoCantinaAsaas = null;
+                        boxFinCantina.innerHTML = '<div class="p-4 text-center"><strong>PIX da doação cancelado por falta de pagamento.</strong><p class="mt-2">Nenhum valor foi registrado como recebido. Atualize a página se quiser gerar outra doação.</p><button type="button" onclick="location.reload()" class="mt-3 px-4 py-3 rounded-xl bg-gray-800 text-white">Atualizar página</button></div>';
+                        return;
+                    }
                     if (checkCant && checkCant.status === 'aprovado') {
                         clearInterval(intervaloVerificacaoCantinaAsaas);
                         intervaloVerificacaoCantinaAsaas = null;
