@@ -255,7 +255,7 @@ function renderizarListaFiltradaCantina() {
     const lista = transacoesCache.filter(t => {
         if (filtroAbaAtual === 'entradas_pendentes') return t.tipo === 'entrada' && t.status === 'pendente';
         if (filtroAbaAtual === 'saidas_auditoria') return t.tipo === 'saida' && (t.status === 'aguardando_auditoria' || t.status === 'pendente');
-        if (filtroAbaAtual === 'pendentes') return t.status !== 'aprovado' && t.status !== 'rejeitado';
+        if (filtroAbaAtual === 'pendentes') return t.status === 'pendente' || t.status === 'aguardando_auditoria';
         return true;
     });
 
@@ -292,6 +292,14 @@ function renderizarListaFiltradaCantina() {
             bolinhaStatus = '⚪';
             corValor = 'text-gray-400 line-through';
             textoStatus = `<span class="bg-red-100 text-red-700 text-[10px] font-bold px-2 py-0.5 rounded-full">Rejeitado por ${primeiroNomeValidador}</span>`;
+        } else if (t.status === 'cancelado') {
+            bolinhaStatus = '⚪';
+            corValor = 'text-gray-400 line-through';
+            textoStatus = '<span class="bg-gray-100 text-gray-600 text-[10px] font-bold px-2 py-0.5 rounded-full">Cancelado</span>';
+        } else if (t.status !== 'pendente' && t.status !== 'aguardando_auditoria') {
+            bolinhaStatus = '⚪';
+            corValor = 'text-gray-500';
+            textoStatus = '<span class="bg-gray-100 text-gray-600 text-[10px] font-bold px-2 py-0.5 rounded-full">Status não identificado</span>';
         } else {
             bolinhaStatus = '🟡';
             corValor = 'text-amber-600';
