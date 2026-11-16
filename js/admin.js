@@ -7465,10 +7465,13 @@ window.addEventListener('DOMContentLoaded', () => {
 
             if (error) throw error;
 
+            // Cancelados permanecem no histórico, mas não são arrecadação.
+            const lancamentosVisiveis = (lancamentos || []).filter(l => l.status !== 'cancelado');
+
             let saldoLiquido = 0;
             let somaPend = 0;
 
-            (lancamentos || []).forEach(l => {
+            lancamentosVisiveis.forEach(l => {
                 const v = parseFloat(l.valor) || 0;
                 const ehEntrada = l.tipo === 'entrada';
                 if (l.status === 'aprovado') {
@@ -7481,19 +7484,21 @@ window.addEventListener('DOMContentLoaded', () => {
             if (elTotalPago) elTotalPago.textContent = `Saldo Auditado: ${saldoLiquido.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`;
             if (elTotalPend) elTotalPend.textContent = `Em Validação: ${somaPend.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`;
 
-            if (!lancamentos || lancamentos.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" class="text-center p-6 text-gray-400">Nenhuma movimentação financeira na Cantina ainda.</td></tr>';
+            if (lancamentosVisiveis.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="text-center p-6 text-gray-400">Nenhuma movimentação ativa na Cantina.</td></tr>';
                 return;
             }
 
-            tbody.innerHTML = lancamentos.map(l => {
+            tbody.innerHTML = lancamentosVisiveis.map(l => {
                 const dt = l.created_at ? new Date(l.created_at).toLocaleDateString('pt-BR') : '-';
                 const ehEntrada = l.tipo === 'entrada';
                 const val = (parseFloat(l.valor) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
                 const corVal = ehEntrada ? 'text-green-600' : 'text-red-600';
                 const sinal = ehEntrada ? '+' : '-';
 
-                let badge = '<span class="bg-yellow-100 text-yellow-800 text-[10px] font-bold px-2 py-0.5 rounded">Pendente</span>';
+                let badge = '<span class="bg-gray-100 text-gray-700 text-[10px] font-bold px-2 py-0.5 rounded">Status não identificado</span>';
+                if (l.status === 'pendente') badge = '<span class="bg-yellow-100 text-yellow-800 text-[10px] font-bold px-2 py-0.5 rounded">Pendente</span>';
+                else if (l.status === 'aguardando_auditoria') badge = '<span class="bg-yellow-100 text-yellow-800 text-[10px] font-bold px-2 py-0.5 rounded">Em validação</span>';
                 if (l.status === 'aprovado') badge = '<span class="bg-green-100 text-green-700 text-[10px] font-bold px-2 py-0.5 rounded">Aprovado</span>';
                 else if (l.status === 'rejeitado') badge = '<span class="bg-red-100 text-red-700 text-[10px] font-bold px-2 py-0.5 rounded">Rejeitado</span>';
 
