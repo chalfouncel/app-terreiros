@@ -7541,7 +7541,7 @@ window.addEventListener('DOMContentLoaded', () => {
                     todosNumerosVendidos.forEach(num => {
                         // Considera apenas os aprovados ou todos conforme regra da casa (vamos somar os aprovados ou todos válidos)
                         const rifaObj = todasRifas.find(r => r.id === num.rifa_id);
-                        if (rifaObj && num.status_pagamento === 'aprovado') {
+                        if (rifaObj && (num.status_pagamento === 'aprovado' || num.status_pagamento === 'pago')) {
                             somaGeralTodasRifas += (rifaObj.valor_numero || 0);
                         }
                     });
