@@ -669,7 +669,18 @@
                     </div>
                 </div>
                 
-                <!-- Área de Pagamento (PIX Estático - Só aparece se gateway for Manual) -->
+                <fieldset id="escolhaPagamentoMensalidade" class="hidden mt-5 space-y-2">
+                    <legend class="text-sm font-bold text-gray-800 mb-2">Como deseja pagar?</legend>
+                    <label class="flex items-start gap-3 p-3 rounded-xl border border-blue-200 bg-blue-50 cursor-pointer">
+                        <input type="radio" name="formaPagamentoMensalidade" value="asaas" checked class="mt-1 accent-blue-600">
+                        <span><strong class="block text-sm text-blue-900">Pix pelo Asaas</strong><span class="text-xs text-gray-600">Confirmação automática, com taxa mostrada no total.</span></span>
+                    </label>
+                    <label class="flex items-start gap-3 p-3 rounded-xl border border-green-200 bg-green-50 cursor-pointer">
+                        <input type="radio" name="formaPagamentoMensalidade" value="manual" class="mt-1 accent-green-600">
+                        <span><strong class="block text-sm text-green-900">Pix + comprovante</strong><span class="text-xs text-gray-600">Sem taxa do aplicativo. Validação pela tesouraria.</span></span>
+                    </label>
+                </fieldset>
+                <!-- Pagamento manual escolhido pelo médium -->
                 <div id="boxPagamentoManual" class="hidden mt-6 bg-gray-50 border border-gray-200 rounded-2xl p-4 text-center">
                     <p class="text-xs text-gray-500 uppercase font-bold mb-1 tracking-wider">Chave PIX (Tesouraria)</p>
                     <p id="chavePixMensalidade" class="text-lg font-mono font-black text-gray-800 break-all mb-3">Carregando...</p>
@@ -964,7 +975,7 @@
     </div>
 
     <script src="js/supabase.js"></script>
-    <script src="js/presenca.js?v=20261016"></script>
+    <script src="js/presenca.js?v=20261116-mensalidade-opcoes"></script>
     <script src="js/guias.js"></script>
     <script src="js/livro_curimba.js"></script>
     
