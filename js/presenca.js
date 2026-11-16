@@ -1955,6 +1955,16 @@ const { data: terreiros } = await supabaseClient
     const valorTotalMensalidade = document.getElementById('valorTotalMensalidade');
     const btnFinalizarMensalidade = document.getElementById('btnFinalizarMensalidade');
     const msgErroMensalidade = document.getElementById('msgErroMensalidade');
+    const escolhaPagamentoMensalidade = document.getElementById('escolhaPagamentoMensalidade');
+    let formaPagamentoMensalidade = 'asaas';
+    const usarAsaasMensalidade = () => terreiroConfigMensalidade?.gateway_pagamento === 'asaas' && formaPagamentoMensalidade === 'asaas';
+    document.querySelectorAll('input[name="formaPagamentoMensalidade"]').forEach(radio => {
+        radio.addEventListener('change', () => {
+            formaPagamentoMensalidade = radio.value === 'manual' ? 'manual' : 'asaas';
+            if (msgErroMensalidade) msgErroMensalidade.classList.add('hidden');
+            recalcularTotalCarrinho();
+        });
+    });
 
     async function carregarConfigValoresGrau() {
         try {
@@ -1976,6 +1986,21 @@ const { data: terreiros } = await supabaseClient
             return;
         }
         
+        // Consulta exclusiva da mensalidade. Não modifica o carregamento de rifa/fornecedor.
+        try {
+            const {data:configMensalidade,error:erroConfig} = await supabaseClient.from('terreiros')
+                .select('gateway_pagamento,mensalidades_asaas_seguras,taxa_plataforma_fixa,taxa_plataforma_percentual,chave_pix_manual')
+                .eq('id',idTerreiroGlobal).single();
+            if (erroConfig || !configMensalidade) throw new Error(erroConfig?.message || 'Configuração não encontrada.');
+            terreiroConfigMensalidade = {...terreiroConfigMensalidade,...configMensalidade};
+        } catch (err) {
+            alert('Não foi possível carregar as opções de mensalidade: '+err.message);
+            return;
+        }
+        formaPagamentoMensalidade = terreiroConfigMensalidade.gateway_pagamento === 'asaas' ? 'asaas' : 'manual';
+        if (escolhaPagamentoMensalidade) escolhaPagamentoMensalidade.classList.toggle('hidden',terreiroConfigMensalidade.gateway_pagamento !== 'asaas');
+        document.querySelectorAll('input[name="formaPagamentoMensalidade"]').forEach(radio => { radio.checked = radio.value === formaPagamentoMensalidade; });
+        if (arquivoComprovanteMensalidade) arquivoComprovanteMensalidade.value = '';
         if (chavePixMensalidade && terreiroConfigMensalidade) {
             chavePixMensalidade.textContent = terreiroConfigMensalidade.chave_pix_manual || 'Chave PIX não configurada';
         }
@@ -2227,7 +2252,7 @@ const { data: terreiros } = await supabaseClient
         });
 
         if (totalMesesSelecionados > 0) {
-            if (terreiroConfigMensalidade && terreiroConfigMensalidade.gateway_pagamento === 'asaas') {
+            if (usarAsaasMensalidade()) {
                 const taxaFixaCfg = Number(terreiroConfigMensalidade.taxa_plataforma_fixa || 0);
                 const taxaPercCfg = Number(terreiroConfigMensalidade.taxa_plataforma_percentual || 0);
                 const TARIFA_BANCARIA = terreiroConfigMensalidade.mensalidades_asaas_seguras ? Number((1.99 + taxaFixaCfg + totalGeral * taxaPercCfg / 100).toFixed(2)) : ((taxaFixaCfg > 0 || taxaPercCfg > 0)
@@ -2257,6 +2282,10 @@ const { data: terreiros } = await supabaseClient
                     btnFinalizarMensalidade.classList.remove('opacity-50', 'cursor-not-allowed', 'bg-blue-600', 'hover:bg-blue-700');
                     btnFinalizarMensalidade.classList.add('bg-tema-secundaria', 'hover:bg-green-700');
                     btnFinalizarMensalidade.innerHTML = `<i class="fas fa-check-circle mr-2"></i> Enviar Comprovante (R$ ${totalGeral.toFixed(2).replace('.', ',')})`;
+                    if (!String(terreiroConfigMensalidade.chave_pix_manual || '').trim()) {
+                        btnFinalizarMensalidade.disabled = true;
+                        btnFinalizarMensalidade.textContent = 'Pix da tesouraria não configurado';
+                    }
                 }
             }
         } else {
@@ -2400,7 +2429,7 @@ const { data: terreiros } = await supabaseClient
     if (btnFinalizarMensalidade) {
         btnFinalizarMensalidade.addEventListener('click', async () => {
             
-            if (terreiroConfigMensalidade && terreiroConfigMensalidade.gateway_pagamento === 'asaas') {
+            if (usarAsaasMensalidade()) {
                 iniciarCheckoutAsaas(valorPendenteParaPix, carrinhoMensalidadesState);
                 return;
             }
@@ -2633,7 +2662,16 @@ async function chamarEdgeFunctionAsaas(valorTotal, carrinhoArray, retomarComprov
             }
         });
 
-        if (error) throw error;
+        if (error) {
+            let detalhe = error.message;
+            try {
+                if (error.context && typeof error.context.clone === 'function') {
+                    const resposta = await error.context.clone().json();
+                    detalhe = resposta.error || resposta.erro || resposta.message || detalhe;
+                }
+            } catch (_) { /* Preserva mensagem original se não houver JSON. */ }
+            throw new Error(detalhe || 'Não foi possível gerar a mensalidade.');
+        }
 
         if (data?.error) throw new Error(data.error);
         if (Number.isFinite(Number(data?.valorTotal))) valorComTaxa = Number(data.valorTotal);
@@ -2643,6 +2681,7 @@ async function chamarEdgeFunctionAsaas(valorTotal, carrinhoArray, retomarComprov
         const paymentId = data?.paymentId || null;
 
         if (pixCopiaCola && containerCarrinho) {
+            document.getElementById('escolhaPagamentoMensalidade')?.classList.add('hidden');
             if (btnOriginal) btnOriginal.classList.add('hidden');
             document.getElementById('btnAdicionarOutroMedium')?.parentElement?.classList.add('hidden');
 
