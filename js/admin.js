@@ -3204,7 +3204,7 @@ document.getElementById('totalMediunsInativos').textContent = totalInativos ?? 0
 
             const corpo = document.getElementById('corpoModalReceitaMes');
             document.getElementById('tituloModalReceitaMes').innerHTML = `<i class="fas fa-file-invoice-dollar text-tema-secundaria"></i> Receita Mensalidade — ${nomeMes}/${anoBusca}`;
-            document.getElementById('subtituloModalReceitaMes').textContent = 'Detalhamento de médiuns pagantes, datas, valores e vínculos familiares';
+            document.getElementById('subtituloModalReceitaMes').textContent = 'Mais recentes primeiro, pela data de pagamento/validação. Registros sem data ficam no final.';
             corpo.innerHTML = '<div class="p-8 text-center text-gray-500 text-xs"><i class="fas fa-spinner fa-spin mr-2"></i> Cruzando comprovantes e baixas do mês...</div>';
             modal.classList.remove('hidden');
 
@@ -3254,11 +3254,17 @@ document.getElementById('totalMediunsInativos').textContent = totalInativos ?? 0
                     });
 
                     let dataPgtoStr = '-';
+                    let dataPgtoOrdem = null;
                     let modalidadeDesc = 'Baixa Manual na Tabela';
 
                     if (compAssociado) {
-                        const dt = compAssociado.updated_at || compAssociado.data_envio;
-                        if (dt) dataPgtoStr = new Date(dt).toLocaleDateString('pt-BR');
+                        // data_envio é o envio do comprovante, não a confirmação do pagamento.
+                        const dt = compAssociado.data_analise;
+                        const instante = dt ? new Date(dt).getTime() : NaN;
+                        if (Number.isFinite(instante)) {
+                            dataPgtoOrdem = instante;
+                            dataPgtoStr = new Date(instante).toLocaleDateString('pt-BR', {timeZone:'America/Sao_Paulo'});
+                        }
                         const pagadorObj = (todosMedAuth || []).find(x => x.auth_id === compAssociado.enviado_por);
                         const nomePagador = pagadorObj ? pagadorObj.nome_completo : med.nome_completo;
 
@@ -3281,11 +3287,16 @@ document.getElementById('totalMediunsInativos').textContent = totalInativos ?? 0
                         valor: valorBase,
                         ehIsento: false,
                         dataPgtoStr,
+                        dataPgtoOrdem,
                         modalidadeDesc
                     });
                 });
 
-                linhasDetalhadas.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+                linhasDetalhadas.sort((a, b) => {
+                    if (a.dataPgtoOrdem === null && b.dataPgtoOrdem !== null) return 1;
+                    if (a.dataPgtoOrdem !== null && b.dataPgtoOrdem === null) return -1;
+                    return (b.dataPgtoOrdem ?? 0) - (a.dataPgtoOrdem ?? 0) || a.nome.localeCompare(b.nome, 'pt-BR');
+                });
 
                 const pagantesEfetivos = linhasDetalhadas;
 
@@ -3310,7 +3321,7 @@ document.getElementById('totalMediunsInativos').textContent = totalInativos ?? 0
                                     <tr>
                                         <th class="p-3">Médium</th>
                                         <th class="p-3 text-center">Grau</th>
-                                        <th class="p-3 text-center">Data</th>
+                                        <th class="p-3 text-center">Pagamento / Validação</th>
                                         <th class="p-3">Origem / Vínculo do Pagamento</th>
                                         <th class="p-3 text-right">Valor</th>
                                     </tr>
@@ -3354,7 +3365,7 @@ document.getElementById('totalMediunsInativos').textContent = totalInativos ?? 0
                         ]);
                         window.gerarPDFRelatorio(
                             `Receita de Mensalidades - ${nomeMes} ${anoBusca}`,
-                            ['Médium', 'Grau', 'Data', 'Origem / Detalhe do Pagamento', 'Valor'],
+                            ['Médium', 'Grau', 'Pagamento / Validação', 'Origem / Detalhe do Pagamento', 'Valor'],
                             dadosPDF
                         );
                     };
