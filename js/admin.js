@@ -3538,7 +3538,7 @@ document.getElementById('totalMediunsInativos').textContent = totalInativos ?? 0
             }
 
 
-const { data } = await supabaseClient.from('terreiros').select('logo_url, cor_primaria, cor_secundaria, cor_fundo, cor_texto, latitude, longitude, modulo_mensalidade_ativo, gateway_pagamento, chave_pix_manual, email, cpf_cnpj, phone, postal_code, address, address_number, company_type, asaas_wallet_id, dirigente_id, tipo_chave_pix_repasse, chave_pix_repasse, lista_graus, lista_funcoes').eq('id', idTerreiroGlobal).single();
+const { data } = await supabaseClient.from('terreiros').select('logo_url, cor_primaria, cor_secundaria, cor_fundo, cor_texto, latitude, longitude, modulo_mensalidade_ativo, gateway_pagamento, chave_pix_manual, email, cpf_cnpj, phone, postal_code, address, address_number, bairro, cidade, estado, company_type, asaas_wallet_id, dirigente_id, tipo_chave_pix_repasse, chave_pix_repasse, lista_graus, lista_funcoes').eq('id', idTerreiroGlobal).single();
             if (data) {
                 // Sincroniza listas de Graus e Funções do Terreiro
                 grausAtuaisTerreiro = (data.lista_graus && data.lista_graus.length > 0) ? [...data.lista_graus] : [...GRAUS_PADRAO];
@@ -3555,6 +3555,9 @@ const { data } = await supabaseClient.from('terreiros').select('logo_url, cor_pr
                 if (document.getElementById('inputTerreiroPostalCode')) document.getElementById('inputTerreiroPostalCode').value = data.postal_code || '';
                 if (document.getElementById('inputTerreiroAddress')) document.getElementById('inputTerreiroAddress').value = data.address || '';
                 if (document.getElementById('inputTerreiroAddressNumber')) document.getElementById('inputTerreiroAddressNumber').value = data.address_number || '';
+                if (document.getElementById('inputTerreiroBairro')) document.getElementById('inputTerreiroBairro').value = data.bairro || '';
+                if (document.getElementById('inputTerreiroCidade')) document.getElementById('inputTerreiroCidade').value = data.cidade || '';
+                if (document.getElementById('inputTerreiroEstado')) document.getElementById('inputTerreiroEstado').value = data.estado || '';
                 if (document.getElementById('inputTerreiroCompanyType')) document.getElementById('inputTerreiroCompanyType').value = data.company_type || 'ASSOCIATION';
                 if (document.getElementById('tipoChavePixRepasse')) document.getElementById('tipoChavePixRepasse').value = data.tipo_chave_pix_repasse || 'CPF';
                 if (document.getElementById('chavePixRepasse')) document.getElementById('chavePixRepasse').value = data.chave_pix_repasse || '';
@@ -4511,6 +4514,9 @@ const livroCurimbaAtivo = !!t.modulo_livro_curimba_ativo;
                 postal_code: document.getElementById('inputTerreiroPostalCode').value.trim(),
                 address: document.getElementById('inputTerreiroAddress').value.trim(),
                 address_number: document.getElementById('inputTerreiroAddressNumber').value.trim(),
+                bairro: document.getElementById('inputTerreiroBairro').value.trim() || null,
+                cidade: document.getElementById('inputTerreiroCidade').value.trim() || null,
+                estado: document.getElementById('inputTerreiroEstado').value.trim().toUpperCase() || null,
                 company_type: document.getElementById('inputTerreiroCompanyType').value,
                 tipo_chave_pix_repasse: tipoChave,
                 chave_pix_repasse: chaveLimpa
