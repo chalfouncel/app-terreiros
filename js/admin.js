@@ -993,7 +993,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                         const { error: errStatus } = await supabaseClient
                             .from('comprovantes_mensalidade')
-                            .update({ status: 'aprovado' })
+                            .update({ status: 'aprovado', data_analise: new Date().toISOString() })
                             .eq('id', window.comprovanteAtualId)
                             .eq('terreiro_id', idTerreiroGlobal);
                         if (errStatus) throw errStatus;
@@ -3204,7 +3204,7 @@ document.getElementById('totalMediunsInativos').textContent = totalInativos ?? 0
 
             const corpo = document.getElementById('corpoModalReceitaMes');
             document.getElementById('tituloModalReceitaMes').innerHTML = `<i class="fas fa-file-invoice-dollar text-tema-secundaria"></i> Receita Mensalidade — ${nomeMes}/${anoBusca}`;
-            document.getElementById('subtituloModalReceitaMes').textContent = 'Mais recentes primeiro, pela data de pagamento/validação. Registros sem data ficam no final.';
+            document.getElementById('subtituloModalReceitaMes').textContent = 'Mais recentes primeiro, pela data de pagamento/validação. Registros sem data ficam no final. Datas antigas podem vir do histórico deste navegador.';
             corpo.innerHTML = '<div class="p-8 text-center text-gray-500 text-xs"><i class="fas fa-spinner fa-spin mr-2"></i> Cruzando comprovantes e baixas do mês...</div>';
             modal.classList.remove('hidden');
 
@@ -3226,6 +3226,14 @@ document.getElementById('totalMediunsInativos').textContent = totalInativos ?? 0
                     .select('id, auth_id, nome_completo')
                     .eq('terreiro_id', idTerreiroGlobal);
 
+                const obterDataValidacaoComprovante = (comp) => {
+                    const banco = comp.data_analise ? Date.parse(comp.data_analise) : NaN;
+                    if (Number.isFinite(banco)) return banco;
+                    // Recupera somente a data real registrada por este navegador.
+                    const local = Number(window.obterTimestampValidacaoLocal?.(`comp_${comp.id}`) || 0);
+                    return Number.isFinite(local) && local > 0 ? local : null;
+                };
+
                 const linhasDetalhadas = [];
                 let somaReceitaMes = 0;
 
@@ -3246,7 +3254,8 @@ document.getElementById('totalMediunsInativos').textContent = totalInativos ?? 0
                     (comprovantesAprovados || []).forEach(c => {
                         if (Array.isArray(c.detalhes_pagamento)) {
                             const achou = c.detalhes_pagamento.find(d => Number(d.medium_id) === Number(med.id) && Number(d.ano) === Number(anoBusca) && Array.isArray(d.meses) && d.meses.includes(mesNumero));
-                            if (achou) {
+                            if (achou && (!compAssociado ||
+                                (obterDataValidacaoComprovante(c) ?? 0) > (obterDataValidacaoComprovante(compAssociado) ?? 0))) {
                                 compAssociado = c;
                                 outrosNoMesmoPix = c.detalhes_pagamento.map(d => d.medium_nome).filter(Boolean);
                             }
@@ -3259,9 +3268,8 @@ document.getElementById('totalMediunsInativos').textContent = totalInativos ?? 0
 
                     if (compAssociado) {
                         // data_envio é o envio do comprovante, não a confirmação do pagamento.
-                        const dt = compAssociado.data_analise;
-                        const instante = dt ? new Date(dt).getTime() : NaN;
-                        if (Number.isFinite(instante)) {
+                        const instante = obterDataValidacaoComprovante(compAssociado);
+                        if (instante !== null) {
                             dataPgtoOrdem = instante;
                             dataPgtoStr = new Date(instante).toLocaleDateString('pt-BR', {timeZone:'America/Sao_Paulo'});
                         }
@@ -6348,7 +6356,7 @@ window.aprovarComprovante = async (comprovanteId) => {
 
         const { error: errStatus } = await supabaseClient
             .from('comprovantes_mensalidade')
-            .update({ status: 'aprovado' })
+            .update({ status: 'aprovado', data_analise: new Date().toISOString() })
             .eq('id', comprovanteId)
             .eq('terreiro_id', idTerreiroGlobal);
         if (errStatus) throw errStatus;
