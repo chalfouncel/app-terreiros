@@ -227,7 +227,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 const { data: terreiros } = await supabaseClient
     .from('terreiros')
-    .select('id, nome, status_bloqueado, latitude, longitude, cor_primaria, cor_secundaria, cor_fundo, cor_texto, logo_url, modulo_mensalidade_ativo, modulo_livro_curimba_ativo, gateway_pagamento, chave_pix_manual, cantina_chave_pix, doacoes_gestor_id')
+    .select('id, nome, status_bloqueado, latitude, longitude, cor_primaria, cor_secundaria, cor_fundo, cor_texto, logo_url, modulo_mensalidade_ativo, modulo_livro_curimba_ativo, gateway_pagamento, chave_pix_manual, cantina_chave_pix, doacoes_gestor_id, address, address_number, postal_code, bairro')
     .eq('id', idTerreiroGlobal)
     .limit(1);
             if (terreiros && terreiros.length > 0) {
@@ -3791,6 +3791,7 @@ async function verificarPendenciaMensalidade(mediumId) {
             const endTerreiro = [
                 terreiroConfigMensalidade?.address,
                 terreiroConfigMensalidade?.address_number ? `nº ${terreiroConfigMensalidade.address_number}` : '',
+                terreiroConfigMensalidade?.bairro,
                 terreiroConfigMensalidade?.postal_code ? `CEP: ${terreiroConfigMensalidade.postal_code}` : ''
             ].filter(Boolean).join(', ') || 'Endereço da Sede do Terreiro';
 
