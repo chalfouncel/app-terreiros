@@ -3204,7 +3204,7 @@ document.getElementById('totalMediunsInativos').textContent = totalInativos ?? 0
 
             const corpo = document.getElementById('corpoModalReceitaMes');
             document.getElementById('tituloModalReceitaMes').innerHTML = `<i class="fas fa-file-invoice-dollar text-tema-secundaria"></i> Receita Mensalidade — ${nomeMes}/${anoBusca}`;
-            document.getElementById('subtituloModalReceitaMes').textContent = 'Mais recentes primeiro, pela data de pagamento/validação. Registros sem data ficam no final. Datas antigas podem vir do histórico deste navegador.';
+            document.getElementById('subtituloModalReceitaMes').textContent = 'Mais recentes primeiro. Data da confirmação Asaas ou validação manual; na falta de validação, envio do comprovante. A origem aparece junto à data.';
             corpo.innerHTML = '<div class="p-8 text-center text-gray-500 text-xs"><i class="fas fa-spinner fa-spin mr-2"></i> Cruzando comprovantes e baixas do mês...</div>';
             modal.classList.remove('hidden');
 
@@ -3226,12 +3226,18 @@ document.getElementById('totalMediunsInativos').textContent = totalInativos ?? 0
                     .select('id, auth_id, nome_completo')
                     .eq('terreiro_id', idTerreiroGlobal);
 
-                const obterDataValidacaoComprovante = (comp) => {
+                const obterDataRelatorioComprovante = (comp, origem = '') => {
+                    const asaas = origem === 'asaas' || String(comp.url_comprovante || '').startsWith('pay_');
+                    if (comp.status !== 'aprovado') return { instante: null, rotulo: '' };
+                    // No Asaas, data_analise é gravada após confirmar o pagamento.
                     const banco = comp.data_analise ? Date.parse(comp.data_analise) : NaN;
-                    if (Number.isFinite(banco)) return banco;
-                    // Recupera somente a data real registrada por este navegador.
+                    if (Number.isFinite(banco)) return { instante: banco, rotulo: asaas ? 'Asaas confirmado' : 'Validado em' };
+                    // Nunca utiliza geração da cobrança como confirmação Asaas.
+                    if (asaas) return { instante: null, rotulo: 'Confirmação sem data' };
                     const local = Number(window.obterTimestampValidacaoLocal?.(`comp_${comp.id}`) || 0);
-                    return Number.isFinite(local) && local > 0 ? local : null;
+                    if (Number.isFinite(local) && local > 0) return { instante: local, rotulo: 'Validado em (neste navegador)' };
+                    const envio = comp.data_envio ? Date.parse(comp.data_envio) : NaN;
+                    return Number.isFinite(envio) ? { instante: envio, rotulo: 'Enviado em' } : { instante: null, rotulo: '' };
                 };
 
                 const linhasDetalhadas = [];
@@ -3255,7 +3261,7 @@ document.getElementById('totalMediunsInativos').textContent = totalInativos ?? 0
                         if (Array.isArray(c.detalhes_pagamento)) {
                             const achou = c.detalhes_pagamento.find(d => Number(d.medium_id) === Number(med.id) && Number(d.ano) === Number(anoBusca) && Array.isArray(d.meses) && d.meses.includes(mesNumero));
                             if (achou && (!compAssociado ||
-                                (obterDataValidacaoComprovante(c) ?? 0) > (obterDataValidacaoComprovante(compAssociado) ?? 0))) {
+                                (obterDataRelatorioComprovante(c, pg.origem).instante ?? 0) > (obterDataRelatorioComprovante(compAssociado, pg.origem).instante ?? 0))) {
                                 compAssociado = c;
                                 outrosNoMesmoPix = c.detalhes_pagamento.map(d => d.medium_nome).filter(Boolean);
                             }
@@ -3263,12 +3269,15 @@ document.getElementById('totalMediunsInativos').textContent = totalInativos ?? 0
                     });
 
                     let dataPgtoStr = '-';
+                    let origemData = '';
                     let dataPgtoOrdem = null;
                     let modalidadeDesc = 'Baixa Manual na Tabela';
 
                     if (compAssociado) {
                         // data_envio é o envio do comprovante, não a confirmação do pagamento.
-                        const instante = obterDataValidacaoComprovante(compAssociado);
+                        const dataRelatorio = obterDataRelatorioComprovante(compAssociado, pg.origem);
+                        const instante = dataRelatorio.instante;
+                        origemData = dataRelatorio.rotulo;
                         if (instante !== null) {
                             dataPgtoOrdem = instante;
                             dataPgtoStr = new Date(instante).toLocaleDateString('pt-BR', {timeZone:'America/Sao_Paulo'});
@@ -3296,6 +3305,7 @@ document.getElementById('totalMediunsInativos').textContent = totalInativos ?? 0
                         ehIsento: false,
                         dataPgtoStr,
                         dataPgtoOrdem,
+                        origemData,
                         modalidadeDesc
                     });
                 });
@@ -3339,7 +3349,7 @@ document.getElementById('totalMediunsInativos').textContent = totalInativos ?? 0
                                         <tr class="hover:bg-gray-50">
                                             <td class="p-3 font-bold text-gray-800">${l.nome}</td>
                                             <td class="p-3 text-center text-gray-600">${l.grau}</td>
-                                            <td class="p-3 text-center font-mono text-gray-500">${l.dataPgtoStr}</td>
+                                            <td class="p-3 text-center font-mono text-gray-500">${l.dataPgtoStr}<span class="block text-[10px] font-sans mt-1">${l.origemData}</span></td>
                                             <td class="p-3 text-gray-600">${l.modalidadeDesc}</td>
                                             <td class="p-3 text-right font-black text-green-700">
                                                 ${l.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
@@ -3360,7 +3370,7 @@ document.getElementById('totalMediunsInativos').textContent = totalInativos ?? 0
                         const dadosPDF = linhasDetalhadas.map(l => [
                             l.nome,
                             l.grau,
-                            l.dataPgtoStr,
+                            [l.dataPgtoStr, l.origemData].filter(Boolean).join(' — '),
                             l.modalidadeDesc,
                             l.ehIsento ? 'Isento' : l.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
                         ]);
