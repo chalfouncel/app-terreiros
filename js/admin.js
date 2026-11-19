@@ -3381,11 +3381,7 @@ document.getElementById('totalMediunsInativos').textContent = totalInativos ?? 0
                             '-',
                             somaReceitaMes.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
                         ]);
-                        window.gerarPDFRelatorio(
-                            `Receita de Mensalidades - ${nomeMes} ${anoBusca}`,
-                            ['Médium', 'Grau', 'Pagamento / Validação', 'Origem / Detalhe do Pagamento', 'Valor'],
-                            dadosPDF
-                        );
+                        window.gerarPDFReceitaMensalidades(`Receita de Mensalidades - ${nomeMes} ${anoBusca}`, dadosPDF);
                     };
                 }
 
@@ -9338,3 +9334,79 @@ if (data.length === 0) {
     }
 }
 })();
+
+function desenharReceitaMensalidadesPDF(pdf, titulo, dados, nomeCasa, logo) {
+    const limpar = s => String(s ?? '-').replace(/[–—]/g, '-').replace(/\u00a0/g, ' ');
+    const cols = [
+        {titulo:'Médium', x:12, w:45, align:'left'},
+        {titulo:'Grau', x:57, w:16, align:'center'},
+        {titulo:'Pagamento /\nValidação', x:73, w:35, align:'center'},
+        {titulo:'Origem / Detalhe do pagamento', x:108, w:68, align:'left'},
+        {titulo:'Valor', x:176, w:22, align:'right'}
+    ];
+    const registros = dados.slice(0,-1);
+    const total = dados[dados.length-1];
+    const emitido = new Date().toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+    const cabecalho = () => {
+        let y=14;
+        if(logo) { try { pdf.addImage(logo,'PNG',12,10,16,16); } catch(e) {} }
+        pdf.setFont('helvetica','bold');pdf.setFontSize(11);pdf.setTextColor(30,58,138);
+        const nome = pdf.splitTextToSize(limpar(nomeCasa).toUpperCase(),logo?164:186);
+        pdf.text(nome,logo?34:12,y);y+=nome.length*4.6+2;
+        pdf.setFont('helvetica','normal');pdf.setFontSize(10);pdf.setTextColor(51,65,85);
+        const tituloLinhas=pdf.splitTextToSize(limpar(titulo),186);
+        pdf.text(tituloLinhas,12,y);y+=tituloLinhas.length*4.2+2;
+        pdf.setFontSize(8);pdf.setTextColor(100,116,139);
+        pdf.text(`Emitido em: ${emitido} | Pagantes: ${registros.length}`,12,y);y+=3;
+        pdf.setDrawColor(37,99,235);pdf.setLineWidth(.5);pdf.line(12,y,198,y);y+=4;
+        pdf.setFont('helvetica','bold');pdf.setFontSize(8);pdf.setTextColor(30,41,59);
+        pdf.setFillColor(241,245,249);pdf.setDrawColor(203,213,225);pdf.setLineWidth(.2);pdf.rect(12,y,186,12,'FD');
+        cols.forEach(c=>{pdf.line(c.x,y,c.x,y+12);const ls=pdf.splitTextToSize(c.titulo,c.w-4);pdf.text(ls,c.align==='left'?c.x+2:c.align==='right'?c.x+c.w-2:c.x+c.w/2,y+4,{align:c.align});});
+        return y+12;
+    };
+    let y=cabecalho();
+    registros.forEach((r,index)=>{
+        pdf.setFont('helvetica','normal');pdf.setFontSize(8);
+        const celulas=cols.map((c,i)=>pdf.splitTextToSize(limpar(r[i]),c.w-4));
+        let offset=0;
+        const linhas=Math.max(...celulas.map(c=>c.length),1);
+        while(offset<linhas){
+            let capacidade=Math.floor((272-y-4)/4);
+            if(capacidade<1 || (offset===0 && linhas*4+4>272-y && linhas*4+4<=220)) {pdf.addPage();y=cabecalho();capacidade=Math.floor((272-y-4)/4);}
+            const n=Math.min(linhas-offset,capacidade),altura=n*4+4;
+            pdf.setFillColor(...(index%2?[248,250,252]:[255,255,255]));pdf.setDrawColor(203,213,225);pdf.setLineWidth(.2);pdf.rect(12,y,186,altura,'FD');
+            cols.forEach((c,i)=>{
+                pdf.line(c.x,y,c.x,y+altura);pdf.setFont('helvetica',i===4?'bold':'normal');pdf.setFontSize(8);pdf.setTextColor(...(i===4?[22,101,52]:[51,65,85]));
+                const linhasCelula=celulas[i].slice(offset,offset+n);
+                if(linhasCelula.length)pdf.text(linhasCelula,c.align==='left'?c.x+2:c.align==='right'?c.x+c.w-2:c.x+c.w/2,y+4.5,{align:c.align});
+            });
+            y+=altura;offset+=n;
+        }
+    });
+    if(y+12>272){pdf.addPage();y=cabecalho();}
+    pdf.setFillColor(240,253,244);pdf.setDrawColor(187,247,208);pdf.rect(12,y,186,10,'FD');
+    pdf.setFont('helvetica','bold');pdf.setFontSize(9);pdf.setTextColor(22,101,52);
+    pdf.text(limpar(total[0]),15,y+6.5);pdf.text(limpar(total[4]),196,y+6.5,{align:'right'});
+    const pages=pdf.internal.getNumberOfPages();
+    for(let p=1;p<=pages;p++){
+        pdf.setPage(p);pdf.setFont('helvetica','normal');pdf.setFontSize(7);pdf.setTextColor(100,100,100);
+        const rodape=pdf.splitTextToSize(limpar(nomeCasa)+' - Documento Oficial',145);
+        pdf.text(rodape,12,283);pdf.text(`Página ${p} de ${pages}`,198,285,{align:'right'});
+    }
+}
+
+window.gerarPDFReceitaMensalidades = async (titulo, dados) => {
+    let logo=null;
+    if(logoTerreiroGlobal){
+        logo=await new Promise(resolve=>{
+            const img=new Image();img.crossOrigin='Anonymous';
+            const timer=setTimeout(()=>resolve(null),5000);
+            img.onload=()=>{clearTimeout(timer);try{const canvas=document.createElement('canvas');canvas.width=img.naturalWidth;canvas.height=img.naturalHeight;canvas.getContext('2d').drawImage(img,0,0);resolve(canvas.toDataURL('image/png'));}catch(e){resolve(null);}};
+            img.onerror=()=>{clearTimeout(timer);resolve(null);};img.src=logoTerreiroGlobal;
+        });
+    }
+    return html2pdf().set({margin:10,filename:titulo.replace(/\s+/g,'_')+'.pdf',jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}})
+        .from(document.createElement('div')).toPdf().get('pdf').then(pdf=>{
+            desenharReceitaMensalidadesPDF(pdf,titulo,dados,nomeTerreiroGlobal || 'Templo',logo);
+        }).save();
+};
