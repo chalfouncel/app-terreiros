@@ -9340,7 +9340,7 @@ function desenharReceitaMensalidadesPDF(pdf, titulo, dados, nomeCasa, logo) {
     const cols = [
         {titulo:'Médium', x:12, w:45, align:'left'},
         {titulo:'Grau', x:57, w:16, align:'center'},
-        {titulo:'Pagamento /\nValidação', x:73, w:35, align:'center'},
+        {titulo:'Data / Referência', x:73, w:35, align:'center'},
         {titulo:'Origem / Detalhe do pagamento', x:108, w:68, align:'left'},
         {titulo:'Valor', x:176, w:22, align:'right'}
     ];
@@ -9349,15 +9349,17 @@ function desenharReceitaMensalidadesPDF(pdf, titulo, dados, nomeCasa, logo) {
     const emitido = new Date().toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
     const cabecalho = () => {
         let y=14;
+        const textoX=logo?34:12;
+        const textoLargura=198-textoX;
         if(logo) { try { pdf.addImage(logo,'PNG',12,10,16,16); } catch(e) {} }
         pdf.setFont('helvetica','bold');pdf.setFontSize(11);pdf.setTextColor(30,58,138);
-        const nome = pdf.splitTextToSize(limpar(nomeCasa).toUpperCase(),logo?164:186);
-        pdf.text(nome,logo?34:12,y);y+=nome.length*4.6+2;
+        const nome = pdf.splitTextToSize(limpar(nomeCasa).toUpperCase(),textoLargura);
+        pdf.text(nome,textoX,y);y+=nome.length*4.6+2;
         pdf.setFont('helvetica','normal');pdf.setFontSize(10);pdf.setTextColor(51,65,85);
-        const tituloLinhas=pdf.splitTextToSize(limpar(titulo),186);
-        pdf.text(tituloLinhas,12,y);y+=tituloLinhas.length*4.2+2;
+        const tituloLinhas=pdf.splitTextToSize(limpar(titulo),textoLargura);
+        pdf.text(tituloLinhas,textoX,y);y+=tituloLinhas.length*4.2+2;
         pdf.setFontSize(8);pdf.setTextColor(100,116,139);
-        pdf.text(`Emitido em: ${emitido} | Pagantes: ${registros.length}`,12,y);y+=3;
+        pdf.text(`Emitido em: ${emitido} | Pagantes: ${registros.length}`,textoX,y);y=Math.max(y+4,logo?30:0);
         pdf.setDrawColor(37,99,235);pdf.setLineWidth(.5);pdf.line(12,y,198,y);y+=4;
         pdf.setFont('helvetica','bold');pdf.setFontSize(8);pdf.setTextColor(30,41,59);
         pdf.setFillColor(241,245,249);pdf.setDrawColor(203,213,225);pdf.setLineWidth(.2);pdf.rect(12,y,186,12,'FD');
@@ -9367,7 +9369,18 @@ function desenharReceitaMensalidadesPDF(pdf, titulo, dados, nomeCasa, logo) {
     let y=cabecalho();
     registros.forEach((r,index)=>{
         pdf.setFont('helvetica','normal');pdf.setFontSize(8);
-        const celulas=cols.map((c,i)=>pdf.splitTextToSize(limpar(r[i]),c.w-4));
+        const dataOriginal=limpar(r[2]);
+        const partes=dataOriginal.match(/^(\d{2}\/\d{2}\/\d{4})\s*-\s*(.*)$/);
+        let dataFormatada=dataOriginal;
+        if(partes){
+            const origem=partes[2];
+            const rotulo=origem.includes('Asaas')?'Confirmado pelo Asaas':
+                origem.includes('navegador')?'Validação (histórico local)':
+                origem.startsWith('Validado')?'Validado em':
+                origem.startsWith('Enviado')?'Enviado em':origem;
+            dataFormatada=rotulo+'\n'+partes[1];
+        }
+        const celulas=cols.map((c,i)=>pdf.splitTextToSize(i===2?dataFormatada:limpar(r[i]),c.w-4));
         let offset=0;
         const linhas=Math.max(...celulas.map(c=>c.length),1);
         while(offset<linhas){
