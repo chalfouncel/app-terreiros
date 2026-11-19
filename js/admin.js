@@ -7578,6 +7578,66 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+function montarLinhasRelatorioRifa(numeros, caixa, mediuns, obterDataLocal) {
+    const grupos = new Map();
+    const dataValida = valor => {
+        const ts = valor ? new Date(valor).getTime() : NaN;
+        return Number.isFinite(ts) && ts > 0 ? ts : null;
+    };
+    const lancamentos = (caixa || []).filter(c => c.tipo_transacao === 'RIFA' && c.status === 'pago');
+    for (const n of numeros || []) {
+        const telefone = String(n.telefone_comprador || '').replace(/\D/g, '');
+        const operacao = n.asaas_payment_id ? `asaas:${n.asaas_payment_id}` : n.comprovante_url ? `anexo:${n.comprovante_url}` : `registro:${n.created_at || n.id}`;
+        const chave = JSON.stringify([operacao, n.nome_comprador, telefone, n.vendido_por_medium_id || '', n.status_pagamento, n.metodo_pagamento || '']);
+        if (!grupos.has(chave)) grupos.set(chave, {
+            nome: n.nome_comprador || '-', telefoneOriginal: n.telefone_comprador || '', telefoneLimpo: telefone,
+            numeros: [], registros: [], vendedor_id: n.vendido_por_medium_id, status: n.status_pagamento
+        });
+        const grupo = grupos.get(chave);
+        grupo.numeros.push(n.numero); grupo.registros.push(n);
+    }
+    const resultado = [...grupos.values()].map(comp => {
+        const n = comp.registros[0];
+        const confirmado = ['pago', 'aprovado'].includes(comp.status);
+        const asaas = Boolean(n.asaas_payment_id) || n.metodo_pagamento === 'asaas';
+        const vendedor = (mediuns || []).find(m => String(m.id) === String(comp.vendedor_id));
+        const equipe = comp.vendedor_id ? `Equipe de vendas: ${vendedor?.nome_social || vendedor?.nome_completo || 'vendedor não identificado'}` : 'Compra direta';
+        const meio = asaas ? (confirmado ? 'Asaas confirmado' : 'Asaas — aguardando pagamento') :
+            n.comprovante_url ? (confirmado ? 'Comprovante validado' : 'Comprovante — aguardando validação') :
+            n.metodo_pagamento === 'manual' ? (confirmado ? 'Venda manual confirmada' : 'Venda manual pendente') :
+            (confirmado ? 'Pagamento confirmado — meio não registrado' : 'Pagamento pendente');
+        comp.origemTexto = meio + ' · ' + equipe;
+        const ids = new Set(comp.registros.map(r => String(r.id)));
+        const vinculados = lancamentos.filter(c => {
+            const marca = String(c.descricao || '').match(/\[ASAAS:([^\]]+)\]/);
+            if (marca) return Boolean(n.asaas_payment_id) && marca[1] === n.asaas_payment_id;
+            return String(c.referencia_id || '').split(',').some(id => ids.has(id.trim()));
+        });
+        let datas = [];
+        if (confirmado) {
+            datas = comp.registros.flatMap(r => [r.data_pagamento, r.data_validacao, r.data_analise]).map(dataValida).filter(v => v !== null);
+            if (!datas.length) datas = comp.registros.map(r => Number(obterDataLocal?.(`rifa_${r.id}`) || 0)).filter(v => Number.isFinite(v) && v > 0);
+            if (!datas.length) {
+                // Estes lançamentos são criados depois da confirmação. Outros registros
+                // de caixa podem ter sido criados ainda pendentes e não provam a data.
+                datas = vinculados.filter(c => /^Recebimento Asaas - Rifa:|^Venda Rifa - /.test(c.descricao || ''))
+                    .map(c => dataValida(c.data_transacao)).filter(v => v !== null);
+                comp.dataOrigem = datas.length ? 'Registro do pagamento no caixa' : '';
+            } else comp.dataOrigem = 'Pagamento / validação';
+        }
+        comp.dataOrdem = datas.length ? Math.min(...datas) : null;
+        comp.dataTexto = comp.dataOrdem === null ? (confirmado ? 'Data não registrada' : 'Aguardando confirmação') :
+            new Date(comp.dataOrdem).toLocaleString('pt-BR', {timeZone: 'America/Sao_Paulo', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'});
+        comp.numeros.sort((a,b) => Number(a)-Number(b));
+        delete comp.registros;
+        return comp;
+    });
+    return resultado.sort((a,b) => (b.dataOrdem ?? -Infinity) - (a.dataOrdem ?? -Infinity) || a.nome.localeCompare(b.nome, 'pt-BR'));
+}
+
+function escaparTextoRelatorioRifa(valor) {
+    return String(valor ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'}[c]));
+}
     const selectRifaFin = document.getElementById('selectRifaFinanceiro');
     if (selectRifaFin) {
         selectRifaFin.addEventListener('change', async (e) => {
@@ -7621,43 +7681,27 @@ window.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            const agrupado = {};
-            numeros.forEach(n => {
-                const telLimpo = n.telefone_comprador ? n.telefone_comprador.replace(/\D/g, '') : '';
-                const chave = telLimpo + '_' + n.nome_comprador;
-                
-                if (!agrupado[chave]) {
-                    agrupado[chave] = {
-                        nome: n.nome_comprador,
-                        telefoneOriginal: n.telefone_comprador,
-                        telefoneLimpo: telLimpo,
-                        numeros: [],
-                        vendedor_id: n.vendido_por_medium_id,
-                        status: n.status_pagamento
-                    };
-                }
-                agrupado[chave].numeros.push(n.numero);
-            });
+            const { data: caixaRifa, error: erroCaixaRifa } = await supabaseClient.from('caixa_terreiro')
+                .select('id,tipo_transacao,status,referencia_id,descricao,data_transacao')
+                .eq('terreiro_id', idTerreiroGlobal).eq('tipo_transacao', 'RIFA').eq('status', 'pago');
+            if (selectRifaFin.value !== idRifa) return;
+            const linhasRifa = montarLinhasRelatorioRifa(numeros, caixaRifa || [], listaMediunsGlobal,
+                chave => window.obterTimestampValidacaoLocal?.(chave) || 0);
+            const agrupado = Object.fromEntries(linhasRifa.map((linha, indice) => ['linha_' + indice, linha]));
 
             tbody.innerHTML = '';
             Object.values(agrupado).forEach(comp => {
                 const ehMedium = listaMediunsGlobal.find(m => m.telefone && m.telefone.replace(/\D/g, '') === comp.telefoneLimpo);
                 
                 const nomeExibicao = ehMedium 
-                    ? `<span class="text-green-600 font-bold" title="Médium da Casa">${comp.nome} <i class="fas fa-check-circle text-[10px]"></i></span>` 
-                    : `<span class="text-gray-800 font-medium">${comp.nome}</span>`;
+                    ? `<span class="text-green-600 font-bold" title="Médium da Casa">${escaparTextoRelatorioRifa(comp.nome)} <i class="fas fa-check-circle text-[10px]"></i></span>` 
+                    : `<span class="text-gray-800 font-medium">${escaparTextoRelatorioRifa(comp.nome)}</span>`;
 
                 // Calcula o valor total arrecadado por este comprador nesta rifa (Qtd de números * valor unitário)
                 const valorTotalComprador = comp.numeros.length * valorUnitarioRifa;
                 const valorFmt = valorTotalComprador.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-                let vendedorNome = '-';
-                if (comp.vendedor_id) {
-                    const v = listaMediunsGlobal.find(m => m.id === comp.vendedor_id);
-                    if (v) vendedorNome = `<span class="text-gray-700">${v.nome_social || v.nome_completo.split(' ')[0]}</span>`;
-                } else {
-                    vendedorNome = '<span class="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-bold uppercase">Link Externo</span>';
-                }
+                const vendedorNome = escaparTextoRelatorioRifa(comp.origemTexto);
 
                 const numsStr = comp.numeros.map(n => String(n).padStart(2,'0')).join(', ');
                 const badgePendente = (comp.status !== 'aprovado' && comp.status !== 'pago') ? `<span class="bg-yellow-100 text-yellow-800 text-[9px] px-1 rounded font-bold ml-1">Pendente</span>` : '';
@@ -7666,7 +7710,7 @@ window.addEventListener('DOMContentLoaded', () => {
                     <tr class="border-b border-gray-100 hover:bg-gray-50">
                         <td class="p-3">
                             ${nomeExibicao} <br>
-                            <span class="text-[10px] text-gray-500 font-mono">${comp.telefoneOriginal}</span>
+                            <span class="text-[10px] text-gray-500 font-mono">${escaparTextoRelatorioRifa(comp.telefoneOriginal)}</span><br><span class="text-[10px] text-gray-500" title="${comp.dataOrigem || ''}">${comp.dataTexto}</span>
                         </td>
                         <td class="p-3 font-mono text-xs text-indigo-600 font-bold break-words max-w-[150px]">
                             ${numsStr} ${badgePendente}
@@ -7679,6 +7723,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 `;
             });
 
+            if (erroCaixaRifa) tbody.insertAdjacentHTML('afterbegin', '<tr><td colspan="3" class="p-3 text-amber-700">Não foi possível consultar as datas do caixa. Algumas datas podem estar ausentes.</td></tr>');
             // Armazena os dados processados para a impressão do PDF
             window.dadosRelatorioRifaAtual = {
                 titulo: selectRifaFin.options[selectRifaFin.selectedIndex].text.split(' (R$')[0],
@@ -7752,12 +7797,12 @@ window.addEventListener('DOMContentLoaded', () => {
 
             // Definição das colunas (Soma = 186mm)
             const cols = [
-                { header: 'Comprador',      x: 12,  w: 50, align: 'left' },
-                { header: 'WhatsApp',       x: 62,  w: 28, align: 'center' },
-                { header: 'Números',        x: 90,  w: 44, align: 'center' },
-                { header: 'Status',         x: 134, w: 20, align: 'center' },
-                { header: 'Passou a Rifa',  x: 154, w: 22, align: 'center' },
-                { header: 'Valor',          x: 176, w: 22, align: 'right' }
+                { header: 'Comprador / Data', x: 12, w: 44, align: 'left' },
+                { header: 'WhatsApp', x: 56, w: 24, align: 'center' },
+                { header: 'Números', x: 80, w: 38, align: 'center' },
+                { header: 'Status', x: 118, w: 18, align: 'center' },
+                { header: 'Origem / Equipe', x: 136, w: 40, align: 'center' },
+                { header: 'Valor', x: 176, w: 22, align: 'right' }
             ];
 
             const desenharCabecalhoTabela = (posY) => {
@@ -7803,17 +7848,13 @@ window.addEventListener('DOMContentLoaded', () => {
             // Linhas dos Compradores
             dadosBase.forEach((comp, idx) => {
                 const ehMedium = listaMediunsGlobal.find(m => m.telefone && m.telefone.replace(/\D/g, '') === comp.telefoneLimpo);
-                const nomeComprador = (comp.nome || '-') + (ehMedium ? ' (Médium)' : '');
+                const nomeComprador = (comp.nome || '-') + (ehMedium ? ' (Médium)' : '') + '\n' + (comp.dataTexto || 'Data não registrada');
                 const telefoneFmt = comp.telefoneOriginal || '-';
                 const numsStr = comp.numeros.map(n => String(n).padStart(2, '0')).join(', ');
                 const pago = (comp.status === 'aprovado' || comp.status === 'pago');
                 const statusFmt = pago ? 'PAGO' : 'PENDENTE';
 
-                let vendedorNome = 'Link Externo';
-                if (comp.vendedor_id) {
-                    const v = listaMediunsGlobal.find(m => m.id === comp.vendedor_id);
-                    if (v) vendedorNome = v.nome_social || v.nome_completo.split(' ')[0];
-                }
+                const vendedorNome = comp.origemTexto || 'Origem não registrada';
 
                 const valorCalculadoFmt = (comp.numeros.length * valorUnit).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
