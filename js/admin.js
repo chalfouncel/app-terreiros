@@ -7092,6 +7092,18 @@ window.addEventListener('DOMContentLoaded', () => {
 
         grid.innerHTML = '';
         rifas.forEach(r => {
+            // Apenas apresentação: usa a imagem já cadastrada, sem alterar a rifa.
+            let imagemCartao = '';
+            try {
+                const urlImagem = new URL(String(r.imagem_url || '').trim());
+                if (['https:', 'http:'].includes(urlImagem.protocol)) {
+                    const srcSeguro = urlImagem.href.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    imagemCartao = `<div class="mb-4 rounded-xl overflow-hidden bg-gray-50 border border-gray-100 flex items-center justify-center">
+                        <img src="${srcSeguro}" alt="Imagem da rifa" loading="lazy" decoding="async" class="block w-full h-48 sm:h-56 object-contain" onerror="this.classList.add('hidden'); this.nextElementSibling.classList.remove('hidden');">
+                        <span class="hidden p-6 text-xs text-gray-500">Imagem indisponível no momento.</span>
+                    </div>`;
+                }
+            } catch (e) { /* Rifa sem imagem: mantém o cartão normalmente. */ }
             const isEncerrada = r.status === 'encerrada';
             const bgCor = isEncerrada ? 'bg-gray-100 opacity-80' : 'bg-white border-t-4 border-indigo-500';
             const badge = isEncerrada 
@@ -7125,10 +7137,11 @@ window.addEventListener('DOMContentLoaded', () => {
             grid.innerHTML += `
                 <div class="${bgCor} border border-gray-200 rounded-2xl p-5 shadow-sm flex flex-col justify-between hover:shadow-md transition">
                     <div>
+                        ${imagemCartao}
                         <div class="flex justify-between items-start mb-2">
                             <h4 class="font-bold text-gray-800 text-sm leading-tight pr-2">${r.titulo}</h4>${badge}
                         </div>
-                        <p class="text-[11px] text-gray-500 mb-4 line-clamp-2">${r.descricao || 'Sem descrição'}</p><button type="button" class="text-xs text-indigo-700 underline mb-3" onclick="configurarTipoPixRifa(${Number(r.id)})">Configurar tipo da chave Pix</button>
+                        <p class="text-[11px] text-gray-500 mb-4 line-clamp-2">${r.descricao || 'Sem descrição'}</p>
                         
                         <div class="flex items-center gap-4 mb-4">
                             <div class="text-center">
