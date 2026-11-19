@@ -98,6 +98,36 @@
 .rifa-cor-processando { background:#fef3c7; color:#92400e; border-color:#fcd34d !important; }
 .rifa-cor-comprado { background:#fee2e2; color:#991b1b; border-color:#fca5a5 !important; }
 </style>
+
+<style id="cartela-admin-compacta">
+/* Apenas o modal de gerenciamento no computador. Celular mantém os alvos de toque. */
+@media (min-width: 768px) {
+    #modalCartelaRifa { padding: 12px; }
+    #modalCartelaRifa > div {
+        --cartela-altura: min(94dvh, 760px);
+        height: var(--cartela-altura);
+        max-width: 760px;
+        padding: 16px;
+    }
+    #modalCartelaRifa > div > div:first-child { margin-bottom: 10px; padding-bottom: 10px; }
+    #cartelaTituloRifa { font-size: 18px; line-height: 1.3; }
+    #modalCartelaRifa > div > div:nth-child(2) { min-height: 0; padding: 0 2px 8px; }
+    #gridNumerosRifa {
+        grid-template-columns: repeat(10, minmax(0, 1fr));
+        grid-auto-rows: clamp(28px, calc((var(--cartela-altura) - 220px) / 10), 52px);
+        gap: 6px;
+    }
+    #gridNumerosRifa > button {
+        aspect-ratio: auto;
+        min-height: 0;
+        height: 100%;
+        padding: 0;
+        border-radius: 8px;
+        font-size: 14px;
+    }
+    #modalCartelaRifa > div > div:last-child { padding-top: 10px; }
+}
+</style>
 </head>
     <body class="min-h-screen flex flex-col transition-colors duration-300">
     
